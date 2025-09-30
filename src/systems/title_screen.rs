@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use crate::components::{TitleScreenUI, MenuButton};
+use crate::resources::TitleScreenFadeTimer;
 use crate::states::GameState;
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
@@ -7,6 +8,9 @@ const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
 const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
 
 pub fn setup_title_screen(mut commands: Commands) {
+    // Insert fade timer
+    commands.insert_resource(TitleScreenFadeTimer::new());
+
     // Root UI node
     commands
         .spawn((
@@ -18,6 +22,7 @@ pub fn setup_title_screen(mut commands: Commands) {
                 flex_direction: FlexDirection::Column,
                 ..default()
             },
+            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.0)),
             TitleScreenUI,
         ))
         .with_children(|parent| {
@@ -28,7 +33,7 @@ pub fn setup_title_screen(mut commands: Commands) {
                     font_size: 80.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                TextColor(Color::srgba(0.9, 0.9, 0.9, 0.0)),
                 Node {
                     margin: UiRect::all(Val::Px(50.0)),
                     ..default()
@@ -63,7 +68,7 @@ fn create_menu_button(parent: &mut ChildBuilder, text: &str, button_type: MenuBu
                 align_items: AlignItems::Center,
                 ..default()
             },
-            BackgroundColor(NORMAL_BUTTON),
+            BackgroundColor(NORMAL_BUTTON.with_alpha(0.0)),
             button_type,
         ))
         .with_children(|parent| {
@@ -73,7 +78,7 @@ fn create_menu_button(parent: &mut ChildBuilder, text: &str, button_type: MenuBu
                     font_size: 30.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                TextColor(Color::srgba(0.9, 0.9, 0.9, 0.0)),
             ));
         });
 }
@@ -118,8 +123,44 @@ pub fn button_interaction(
     }
 }
 
+pub fn fade_in_title_screen(
+    time: Res<Time>,
+    mut timer: ResMut<TitleScreenFadeTimer>,
+    mut ui_query: Query<&mut BackgroundColor, With<TitleScreenUI>>,
+    mut text_query: Query<&mut TextColor, (Without<Parent>, Without<MenuButton>)>,
+    mut button_query: Query<(&mut BackgroundColor, &Children, &MenuButton), Without<TitleScreenUI>>,
+    mut button_text_query: Query<&mut TextColor, With<Parent>>,
+) {
+    timer.timer.tick(time.delta());
+    let alpha = timer.timer.fraction();
+
+    // Fade in root UI background
+    if let Ok(mut bg) = ui_query.get_single_mut() {
+        bg.0.set_alpha(alpha);
+    }
+
+    // Fade in title text
+    for mut text_color in &mut text_query {
+        text_color.0.set_alpha(alpha);
+    }
+
+    // Fade in buttons and their text
+    for (mut button_bg, children, _) in &mut button_query {
+        // Fade in button background
+        button_bg.0.set_alpha(alpha);
+
+        // Fade in button text
+        for &child in children.iter() {
+            if let Ok(mut text_color) = button_text_query.get_mut(child) {
+                text_color.0.set_alpha(alpha);
+            }
+        }
+    }
+}
+
 pub fn cleanup_title_screen(mut commands: Commands, query: Query<Entity, With<TitleScreenUI>>) {
     for entity in &query {
         commands.entity(entity).despawn_recursive();
     }
+    commands.remove_resource::<TitleScreenFadeTimer>();
 }

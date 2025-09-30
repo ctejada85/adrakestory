@@ -45,7 +45,7 @@ pub fn animate_intro(
     if let Ok(mut text_color) = text_query.get_single_mut() {
         match timer.phase {
             IntroPhase::FadeIn => {
-                // Fade in over 1 second
+                // Fade in over 200ms
                 let alpha = timer.timer.fraction();
                 text_color.0.set_alpha(alpha);
 
@@ -60,11 +60,11 @@ pub fn animate_intro(
 
                 if timer.timer.just_finished() {
                     timer.phase = IntroPhase::FadeOut;
-                    timer.timer = Timer::from_seconds(1.0, TimerMode::Once);
+                    timer.timer = Timer::from_seconds(0.2, TimerMode::Once);
                 }
             }
             IntroPhase::FadeOut => {
-                // Fade out over 1 second
+                // Fade out over 200ms
                 let alpha = 1.0 - timer.timer.fraction();
                 text_color.0.set_alpha(alpha);
 

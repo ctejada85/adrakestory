@@ -16,8 +16,21 @@ pub enum IntroPhase {
 impl IntroAnimationTimer {
     pub fn new() -> Self {
         Self {
-            timer: Timer::from_seconds(1.0, TimerMode::Once),
+            timer: Timer::from_seconds(0.2, TimerMode::Once),
             phase: IntroPhase::FadeIn,
+        }
+    }
+}
+
+#[derive(Resource)]
+pub struct TitleScreenFadeTimer {
+    pub timer: Timer,
+}
+
+impl TitleScreenFadeTimer {
+    pub fn new() -> Self {
+        Self {
+            timer: Timer::from_seconds(0.2, TimerMode::Once),
         }
     }
 }
