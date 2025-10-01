@@ -45,8 +45,8 @@ pub fn setup_game(
         Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -0.5, 0.5, 0.0)),
     ));
 
-    // Add camera (top-down view, rotated 90 degrees to the left)
-    let mut camera_transform = Transform::from_xyz(1.5, 8.0, 1.5)
+    // Add camera (isometric-style view, tilted 30 degrees and rotated)
+    let mut camera_transform = Transform::from_xyz(1.5, 8.0, 5.5)
         .looking_at(Vec3::new(1.5, 0.0, 1.5), Vec3::Y);
     camera_transform.rotate_around(
         Vec3::new(1.5, 0.0, 1.5),
@@ -68,17 +68,18 @@ pub fn move_player(
     if let Ok((player, mut transform)) = player_query.get_single_mut() {
         let mut direction = Vec3::ZERO;
 
+        // Adjusted for camera rotation: up moves in +X, right moves in -Z
         if keyboard_input.pressed(KeyCode::KeyW) || keyboard_input.pressed(KeyCode::ArrowUp) {
-            direction.z -= 1.0;
+            direction.x += 1.0;
         }
         if keyboard_input.pressed(KeyCode::KeyS) || keyboard_input.pressed(KeyCode::ArrowDown) {
-            direction.z += 1.0;
-        }
-        if keyboard_input.pressed(KeyCode::KeyA) || keyboard_input.pressed(KeyCode::ArrowLeft) {
             direction.x -= 1.0;
         }
+        if keyboard_input.pressed(KeyCode::KeyA) || keyboard_input.pressed(KeyCode::ArrowLeft) {
+            direction.z -= 1.0;
+        }
         if keyboard_input.pressed(KeyCode::KeyD) || keyboard_input.pressed(KeyCode::ArrowRight) {
-            direction.x += 1.0;
+            direction.z += 1.0;
         }
 
         if direction.length() > 0.0 {
