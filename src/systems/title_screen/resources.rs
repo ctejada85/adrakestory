@@ -12,3 +12,18 @@ impl TitleScreenFadeTimer {
         }
     }
 }
+
+#[derive(Resource)]
+pub struct SelectedMenuIndex {
+    pub index: usize,
+    pub total: usize,
+}
+
+impl Default for SelectedMenuIndex {
+    fn default() -> Self {
+        Self {
+            index: 0,
+            total: 4, // NewGame, Continue, Settings, Exit
+        }
+    }
+}

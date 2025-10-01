@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::{SystemCursorIcon, WindowResized};
 use super::components::{TitleScreenUI, TitleScreenBackground, MenuButton, ScalableText};
-use super::resources::TitleScreenFadeTimer;
+use super::resources::{TitleScreenFadeTimer, SelectedMenuIndex};
 use crate::states::GameState;
 
 const NORMAL_BUTTON: Color = Color::srgba(0.15, 0.15, 0.15, 0.0);
@@ -9,8 +9,9 @@ const HOVERED_BUTTON: Color = Color::srgba(1.0, 0.8, 0.2, 0.3);
 const PRESSED_BUTTON: Color = Color::srgba(1.0, 0.8, 0.2, 0.5);
 
 pub fn setup_title_screen(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Insert fade timer
+    // Insert fade timer and menu selection
     commands.insert_resource(TitleScreenFadeTimer::new());
+    commands.insert_resource(SelectedMenuIndex::default());
 
     // Root UI node
     commands
@@ -185,9 +186,95 @@ pub fn scale_text_on_resize(
     }
 }
 
+pub fn keyboard_navigation(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut selected: ResMut<SelectedMenuIndex>,
+    button_query: Query<(Entity, &MenuButton, &mut BackgroundColor)>,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut exit: EventWriter<AppExit>,
+) {
+    // Navigate menu with arrow keys
+    if keyboard_input.just_pressed(KeyCode::ArrowUp) {
+        if selected.index > 0 {
+            selected.index -= 1;
+        }
+    }
+    if keyboard_input.just_pressed(KeyCode::ArrowDown) {
+        if selected.index < selected.total - 1 {
+            selected.index += 1;
+        }
+    }
+
+    // Select option with Enter
+    if keyboard_input.just_pressed(KeyCode::Enter) {
+        let buttons: Vec<(Entity, &MenuButton)> = button_query
+            .iter()
+            .map(|(entity, button, _)| (entity, button))
+            .collect();
+
+        if let Some((_, button)) = buttons.get(selected.index) {
+            match button {
+                MenuButton::NewGame => {
+                    info!("Starting new game...");
+                    next_state.set(GameState::InGame);
+                }
+                MenuButton::Continue => {
+                    info!("Continue not implemented yet");
+                }
+                MenuButton::Settings => {
+                    info!("Opening settings...");
+                    next_state.set(GameState::Settings);
+                }
+                MenuButton::Exit => {
+                    info!("Exiting game...");
+                    exit.send(AppExit::Success);
+                }
+            }
+        }
+    }
+}
+
+pub fn update_selected_button_visual(
+    selected: Res<SelectedMenuIndex>,
+    mut button_query: Query<(&MenuButton, &mut BackgroundColor, &Interaction)>,
+) {
+    let buttons: Vec<(usize, &MenuButton)> = vec![
+        (0, &MenuButton::NewGame),
+        (1, &MenuButton::Continue),
+        (2, &MenuButton::Settings),
+        (3, &MenuButton::Exit),
+    ];
+
+    for (button, mut bg_color, interaction) in &mut button_query {
+        // Find index of current button
+        let button_index = buttons
+            .iter()
+            .find(|(_, b)| match (button, *b) {
+                (MenuButton::NewGame, MenuButton::NewGame) => true,
+                (MenuButton::Continue, MenuButton::Continue) => true,
+                (MenuButton::Settings, MenuButton::Settings) => true,
+                (MenuButton::Exit, MenuButton::Exit) => true,
+                _ => false,
+            })
+            .map(|(i, _)| *i);
+
+        if let Some(idx) = button_index {
+            // Only apply keyboard selection color if not being hovered/pressed by mouse
+            if *interaction == Interaction::None {
+                if idx == selected.index {
+                    *bg_color = HOVERED_BUTTON.into();
+                } else {
+                    *bg_color = NORMAL_BUTTON.into();
+                }
+            }
+        }
+    }
+}
+
 pub fn cleanup_title_screen(mut commands: Commands, query: Query<Entity, With<TitleScreenUI>>) {
     for entity in &query {
         commands.entity(entity).despawn_recursive();
     }
     commands.remove_resource::<TitleScreenFadeTimer>();
+    commands.remove_resource::<SelectedMenuIndex>();
 }
