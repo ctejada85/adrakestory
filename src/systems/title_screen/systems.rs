@@ -48,7 +48,7 @@ pub fn setup_title_screen(mut commands: Commands, asset_server: Res<AssetServer>
                 },
                 TextColor(Color::srgba(0.9, 0.9, 0.9, 0.0)),
                 Node {
-                    margin: UiRect::all(Val::Px(50.0)),
+                    margin: UiRect::all(Val::Vw(5.0)),
                     ..default()
                 },
             ));
@@ -59,7 +59,7 @@ pub fn setup_title_screen(mut commands: Commands, asset_server: Res<AssetServer>
                     Node {
                         flex_direction: FlexDirection::Column,
                         align_items: AlignItems::Center,
-                        row_gap: Val::Px(15.0),
+                        row_gap: Val::Vh(2.0),
                         ..default()
                     },
                     BackgroundColor(Color::NONE),
@@ -78,8 +78,8 @@ fn create_menu_button(parent: &mut ChildBuilder, text: &str, button_type: MenuBu
         .spawn((
             Button,
             Node {
-                width: Val::Px(250.0),
-                height: Val::Px(65.0),
+                width: Val::Vw(20.0),
+                height: Val::Vh(8.0),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 ..default()
