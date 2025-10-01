@@ -93,9 +93,10 @@ pub fn move_player(
             direction = direction.normalize();
             transform.translation += direction * player.speed * time.delta_secs();
 
-            // Clamp player position to room bounds (0 to 3 in both x and z)
-            transform.translation.x = transform.translation.x.clamp(0.3, 3.7);
-            transform.translation.z = transform.translation.z.clamp(0.3, 3.7);
+            // Clamp player position to room bounds
+            // Tiles span from -0.5 to 3.5, with player radius 0.3
+            transform.translation.x = transform.translation.x.clamp(-0.2, 3.2);
+            transform.translation.z = transform.translation.z.clamp(-0.2, 3.2);
         }
     }
 }
