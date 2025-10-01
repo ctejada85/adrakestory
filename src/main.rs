@@ -6,7 +6,7 @@ mod systems;
 use states::GameState;
 use systems::intro_animation::systems::{setup_intro, animate_intro, cleanup_intro};
 use systems::title_screen::systems::{setup_title_screen, fade_in_title_screen, button_interaction, keyboard_navigation, update_selected_button_visual, scale_text_on_resize, cleanup_title_screen};
-use systems::game::systems::{setup_game, move_player, rotate_camera, apply_gravity, apply_physics, cleanup_game};
+use systems::game::systems::{setup_game, move_player, rotate_camera, apply_gravity, apply_physics, toggle_collision_box, update_collision_box, cleanup_game};
 
 fn main() {
     App::new()
@@ -20,7 +20,7 @@ fn main() {
         .add_systems(Update, (fade_in_title_screen, button_interaction, keyboard_navigation, update_selected_button_visual, scale_text_on_resize).run_if(in_state(GameState::TitleScreen)))
         .add_systems(OnExit(GameState::TitleScreen), cleanup_title_screen)
         .add_systems(OnEnter(GameState::InGame), setup_game)
-        .add_systems(Update, (move_player, rotate_camera, apply_gravity, apply_physics).run_if(in_state(GameState::InGame)))
+        .add_systems(Update, (move_player, rotate_camera, toggle_collision_box, update_collision_box, apply_gravity, apply_physics).run_if(in_state(GameState::InGame)))
         .add_systems(OnExit(GameState::InGame), cleanup_game)
         .run();
 }

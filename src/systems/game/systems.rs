@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use super::components::{Player, Voxel, SubVoxel, VoxelType, GameCamera};
+use super::components::{Player, Voxel, SubVoxel, VoxelType, GameCamera, CollisionBox};
 use super::resources::VoxelWorld;
 
 const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
@@ -190,7 +190,7 @@ pub fn setup_game(
     let player_mesh = meshes.add(Sphere::new(player_radius));
     let player_material = materials.add(Color::srgb(0.8, 0.2, 0.2));
 
-    commands.spawn((
+    let player_entity = commands.spawn((
         Mesh3d(player_mesh),
         MeshMaterial3d(player_material),
         Transform::from_xyz(1.5, 0.5 + player_radius, 1.5),
@@ -200,6 +200,22 @@ pub fn setup_game(
             is_grounded: true,
             radius: player_radius,
         },
+    )).id();
+
+    // Create collision box (invisible by default)
+    let collision_box_mesh = meshes.add(Sphere::new(player_radius));
+    let collision_box_material = materials.add(StandardMaterial {
+        base_color: Color::srgba(0.0, 1.0, 0.0, 0.3),
+        alpha_mode: AlphaMode::Blend,
+        ..default()
+    });
+
+    commands.spawn((
+        Mesh3d(collision_box_mesh),
+        MeshMaterial3d(collision_box_material),
+        Transform::from_xyz(1.5, 0.5 + player_radius, 1.5),
+        Visibility::Hidden,
+        CollisionBox,
     ));
 
     // Add light
@@ -326,9 +342,9 @@ fn get_step_up_height(
     let current_bottom = current_y - radius;
 
     // Find all sub-voxels at the target position that we're colliding with
-    let mut blocking_voxels = Vec::new();
+    let mut all_voxels = Vec::new();
 
-    for (sub_voxel, sub_transform) in sub_voxel_query.iter() {
+    for (_sub_voxel, sub_transform) in sub_voxel_query.iter() {
         let sub_pos = sub_transform.translation;
         let half_size = SUB_VOXEL_SIZE / 2.0;
 
@@ -347,30 +363,50 @@ fn get_step_up_height(
         let distance_squared = dx * dx + dz * dz;
 
         if distance_squared < collision_radius * collision_radius {
-            blocking_voxels.push(max_y);
+            all_voxels.push(max_y);
         }
     }
 
-    if blocking_voxels.is_empty() {
+    if all_voxels.is_empty() {
         return None;
     }
 
-    // Remove duplicates (same height voxels)
-    blocking_voxels.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    blocking_voxels.dedup_by(|a, b| (*a - *b).abs() < 0.001);
+    // Remove duplicates and sort by height
+    all_voxels.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    all_voxels.dedup_by(|a, b| (*a - *b).abs() < 0.001);
 
-    // Don't step up if colliding with more than 1 sub-voxel (at different heights)
-    if blocking_voxels.len() > 1 {
+    // Identify the floor level (lowest voxel at or below current bottom)
+    let floor_level = all_voxels.iter()
+        .filter(|&&h| h <= current_bottom + 0.01)
+        .max_by(|a, b| a.partial_cmp(b).unwrap())
+        .copied();
+
+    // Find voxels above the floor
+    let above_floor: Vec<f32> = all_voxels.iter()
+        .filter(|&&h| h > current_bottom + 0.01)
+        .copied()
+        .collect();
+
+    // Only step up if there's exactly one level above the floor
+    if above_floor.len() != 1 {
         return None;
     }
 
-    // Check if the single blocking voxel is within step height
-    if let Some(&voxel_top) = blocking_voxels.first() {
-        let step_distance = voxel_top - current_bottom;
+    let step_height = above_floor[0];
 
-        // This voxel is within steppable range
+    // Check if it's exactly one step above the floor level
+    if let Some(floor) = floor_level {
+        let height_above_floor = step_height - floor;
+
+        // Must be within one sub-voxel height above the floor
+        if height_above_floor > 0.005 && height_above_floor <= max_step_height + 0.005 {
+            return Some(step_height + radius);
+        }
+    } else {
+        // No floor detected, check relative to current bottom
+        let step_distance = step_height - current_bottom;
         if step_distance > 0.005 && step_distance <= max_step_height + 0.005 {
-            return Some(voxel_top + radius);
+            return Some(step_height + radius);
         }
     }
 
@@ -385,7 +421,7 @@ fn check_sub_voxel_collision(
     radius: f32,
 ) -> bool {
     // Use slightly smaller collision radius for tighter fit
-    let collision_radius = radius * 0.85;
+    let collision_radius = radius;
 
     // Check all sub-voxels for collision
     for (sub_voxel, sub_transform) in sub_voxel_query.iter() {
@@ -431,6 +467,31 @@ fn check_sub_voxel_collision(
     }
 
     false
+}
+
+pub fn toggle_collision_box(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut collision_box_query: Query<&mut Visibility, With<CollisionBox>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::KeyC) {
+        for mut visibility in &mut collision_box_query {
+            *visibility = match *visibility {
+                Visibility::Hidden => Visibility::Visible,
+                _ => Visibility::Hidden,
+            };
+        }
+    }
+}
+
+pub fn update_collision_box(
+    player_query: Query<&Transform, With<Player>>,
+    mut collision_box_query: Query<&mut Transform, (With<CollisionBox>, Without<Player>)>,
+) {
+    if let Ok(player_transform) = player_query.get_single() {
+        for mut box_transform in &mut collision_box_query {
+            box_transform.translation = player_transform.translation;
+        }
+    }
 }
 
 pub fn rotate_camera(

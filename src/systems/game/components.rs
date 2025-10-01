@@ -9,6 +9,9 @@ pub struct Player {
 }
 
 #[derive(Component)]
+pub struct CollisionBox;
+
+#[derive(Component)]
 pub struct Voxel {
     pub x: i32,
     pub y: i32,
