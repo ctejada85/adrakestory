@@ -266,13 +266,16 @@ pub fn move_player(
             // Try moving on X axis
             let new_x = current_pos.x + move_delta.x;
             if check_sub_voxel_collision(&sub_voxel_query, new_x, current_pos.y, current_pos.z, player.radius) {
-                // Check if we can step up
-                if let Some(step_height) = get_step_up_height(&sub_voxel_query, new_x, current_pos.y, current_pos.z, player.radius, max_step_height) {
-                    transform.translation.x = new_x;
-                    transform.translation.y = step_height;
-                    player.is_grounded = true;
-                    player.velocity.y = 0.0;
+                // Check if we can step up (only when moving forward/up)
+                if move_delta.x > 0.0 {
+                    if let Some(step_height) = get_step_up_height(&sub_voxel_query, new_x, current_pos.y, current_pos.z, player.radius, max_step_height) {
+                        transform.translation.x = new_x;
+                        transform.translation.y = step_height;
+                        player.is_grounded = true;
+                        player.velocity.y = 0.0;
+                    }
                 }
+                // If moving backward or step-up failed, don't move
             } else {
                 transform.translation.x = new_x;
             }
@@ -280,13 +283,16 @@ pub fn move_player(
             // Try moving on Z axis
             let new_z = current_pos.z + move_delta.z;
             if check_sub_voxel_collision(&sub_voxel_query, transform.translation.x, transform.translation.y, new_z, player.radius) {
-                // Check if we can step up
-                if let Some(step_height) = get_step_up_height(&sub_voxel_query, transform.translation.x, transform.translation.y, new_z, player.radius, max_step_height) {
-                    transform.translation.z = new_z;
-                    transform.translation.y = step_height;
-                    player.is_grounded = true;
-                    player.velocity.y = 0.0;
+                // Check if we can step up (only when moving in positive Z for Z-axis stairs)
+                if move_delta.z > 0.0 {
+                    if let Some(step_height) = get_step_up_height(&sub_voxel_query, transform.translation.x, transform.translation.y, new_z, player.radius, max_step_height) {
+                        transform.translation.z = new_z;
+                        transform.translation.y = step_height;
+                        player.is_grounded = true;
+                        player.velocity.y = 0.0;
+                    }
                 }
+                // If moving backward or step-up failed, don't move
             } else {
                 transform.translation.z = new_z;
             }
