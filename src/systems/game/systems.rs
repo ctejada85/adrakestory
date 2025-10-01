@@ -12,18 +12,18 @@ pub fn setup_game(
     // Create voxel mesh (1x1x1 cube)
     let voxel_mesh = meshes.add(Cuboid::new(1.0, 1.0, 1.0));
 
-    // Render all non-air voxels
+    // Render all non-air voxels with unique colors
     for x in 0..voxel_world.width {
         for y in 0..voxel_world.height {
             for z in 0..voxel_world.depth {
                 if let Some(voxel_type) = voxel_world.get_voxel(x, y, z) {
                     if voxel_type != VoxelType::Air {
-                        let color = match voxel_type {
-                            VoxelType::Grass => Color::srgb(0.2 + (x as f32 * 0.15), 0.5, 0.3),
-                            VoxelType::Dirt => Color::srgb(0.6, 0.4, 0.2),
-                            VoxelType::Stone => Color::srgb(0.5, 0.5, 0.5),
-                            VoxelType::Air => continue,
-                        };
+                        // Generate unique color based on position
+                        let color = Color::srgb(
+                            0.2 + (x as f32 * 0.2),
+                            0.3 + (z as f32 * 0.15),
+                            0.4 + (y as f32 * 0.2),
+                        );
                         let voxel_material = materials.add(color);
 
                         commands.spawn((
