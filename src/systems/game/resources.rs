@@ -25,6 +25,13 @@ impl Default for VoxelWorld {
             }
         }
 
+        // Add voxels on top of the four corners
+        // Corners: (0,0), (0,3), (3,0), (3,3)
+        voxels[0][1][0] = VoxelType::Stone;
+        voxels[0][1][3] = VoxelType::Stone;
+        voxels[3][1][0] = VoxelType::Stone;
+        voxels[3][1][3] = VoxelType::Stone;
+
         Self {
             width,
             height,
