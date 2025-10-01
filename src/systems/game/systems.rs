@@ -314,10 +314,27 @@ fn get_step_up_height(
     current_y: f32,
 ) -> Option<f32> {
     let collision_radius = radius * 0.85;
-    let player_bottom = y - radius;
+    let current_bottom = current_y - radius;
 
-    // Find all sub-voxels at the target position
-    let mut candidate_steps = Vec::new();
+    // First, check if there's ground at the current position at approximately the same height
+    let mut current_ground_height = None;
+    for (sub_voxel, sub_transform) in sub_voxel_query.iter() {
+        let sub_pos = sub_transform.translation;
+        let half_size = SUB_VOXEL_SIZE / 2.0;
+        let max_y = sub_pos.y + half_size;
+
+        // Check if this is close to where we're currently standing
+        if (max_y - current_bottom).abs() < 0.05 {
+            current_ground_height = Some(max_y);
+            break;
+        }
+    }
+
+    // If we can't find current ground, don't allow step up (prevents teleporting from air)
+    let ground_ref = current_ground_height.unwrap_or(current_bottom);
+
+    // Find the lowest sub-voxel that's blocking us and is just one step above our current ground
+    let mut lowest_blocking_step = None;
 
     for (sub_voxel, sub_transform) in sub_voxel_query.iter() {
         let sub_pos = sub_transform.translation;
@@ -339,21 +356,21 @@ fn get_step_up_height(
 
         if distance_squared < collision_radius * collision_radius {
             // This sub-voxel overlaps horizontally with the player
-            let step_distance = max_y - player_bottom;
+            // Check if it's exactly one step above our current ground level
+            let height_above_ground = max_y - ground_ref;
 
-            // Only consider this as a step if it's above us and within step height
-            if step_distance > 0.01 && step_distance <= max_step_height + 0.01 {
-                candidate_steps.push(max_y);
+            // Only allow stepping to the next immediate step (within one sub-voxel height)
+            if height_above_ground > 0.01 && height_above_ground <= max_step_height + 0.01 {
+                // Find the lowest valid step
+                if lowest_blocking_step.is_none() || max_y < lowest_blocking_step.unwrap() {
+                    lowest_blocking_step = Some(max_y);
+                }
             }
         }
     }
 
-    // Find the highest step we can take
-    if let Some(&highest) = candidate_steps.iter().max_by(|a, b| a.partial_cmp(b).unwrap()) {
-        Some(highest + radius)
-    } else {
-        None
-    }
+    // Return the lowest step we can take
+    lowest_blocking_step.map(|top| top + radius)
 }
 
 fn check_sub_voxel_collision(
