@@ -107,6 +107,7 @@ pub fn button_interaction(
         (&Interaction, &mut BackgroundColor, &MenuButton),
         Changed<Interaction>,
     >,
+    mut selected: ResMut<SelectedMenuIndex>,
     mut next_state: ResMut<NextState<GameState>>,
     mut exit: EventWriter<AppExit>,
 ) {
@@ -134,6 +135,14 @@ pub fn button_interaction(
             }
             Interaction::Hovered => {
                 *color = HOVERED_BUTTON.into();
+                // Update selected index when hovering
+                let button_index = match button {
+                    MenuButton::NewGame => 0,
+                    MenuButton::Continue => 1,
+                    MenuButton::Settings => 2,
+                    MenuButton::Exit => 3,
+                };
+                selected.index = button_index;
             }
             Interaction::None => {
                 *color = NORMAL_BUTTON.into();
