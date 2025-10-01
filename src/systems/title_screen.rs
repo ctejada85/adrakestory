@@ -7,7 +7,7 @@ const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
 const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
 
-pub fn setup_title_screen(mut commands: Commands) {
+pub fn setup_title_screen(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Insert fade timer
     commands.insert_resource(TitleScreenFadeTimer::new());
 
@@ -22,10 +22,21 @@ pub fn setup_title_screen(mut commands: Commands) {
                 flex_direction: FlexDirection::Column,
                 ..default()
             },
-            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.0)),
             TitleScreenUI,
         ))
         .with_children(|parent| {
+            // Background image
+            parent.spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    ..default()
+                },
+                ImageNode::new(asset_server.load("textures/title_background.png")),
+                BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.0)),
+            ));
+
             // Title
             parent.spawn((
                 Text::new("Adrakestory"),
@@ -126,7 +137,8 @@ pub fn button_interaction(
 pub fn fade_in_title_screen(
     time: Res<Time>,
     mut timer: ResMut<TitleScreenFadeTimer>,
-    mut ui_query: Query<&mut BackgroundColor, With<TitleScreenUI>>,
+    ui_query: Query<&Children, With<TitleScreenUI>>,
+    mut bg_query: Query<&mut BackgroundColor, (With<Parent>, Without<MenuButton>)>,
     mut text_query: Query<&mut TextColor, (Without<Parent>, Without<MenuButton>)>,
     mut button_query: Query<(&mut BackgroundColor, &Children, &MenuButton), Without<TitleScreenUI>>,
     mut button_text_query: Query<&mut TextColor, With<Parent>>,
@@ -134,9 +146,13 @@ pub fn fade_in_title_screen(
     timer.timer.tick(time.delta());
     let alpha = timer.timer.fraction();
 
-    // Fade in root UI background
-    if let Ok(mut bg) = ui_query.get_single_mut() {
-        bg.0.set_alpha(alpha);
+    // Fade in background image
+    if let Ok(children) = ui_query.get_single() {
+        for &child in children.iter() {
+            if let Ok(mut bg) = bg_query.get_mut(child) {
+                bg.0.set_alpha(alpha);
+            }
+        }
     }
 
     // Fade in title text
