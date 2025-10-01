@@ -1,0 +1,109 @@
+use bevy::prelude::*;
+use super::components::{Player, FloorTile, GameCamera};
+use super::resources::RoomSize;
+
+pub fn setup_game(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let room_size = RoomSize::default();
+    commands.insert_resource(room_size);
+
+    // Create floor tiles (4x4 room)
+    let tile_mesh = meshes.add(Cuboid::new(1.0, 0.1, 1.0));
+    let floor_material = materials.add(Color::srgb(0.3, 0.5, 0.3));
+
+    for x in 0..4 {
+        for z in 0..4 {
+            commands.spawn((
+                Mesh3d(tile_mesh.clone()),
+                MeshMaterial3d(floor_material.clone()),
+                Transform::from_xyz(x as f32, 0.0, z as f32),
+                FloorTile,
+            ));
+        }
+    }
+
+    // Create player (sphere)
+    let player_mesh = meshes.add(Sphere::new(0.3));
+    let player_material = materials.add(Color::srgb(0.8, 0.2, 0.2));
+
+    commands.spawn((
+        Mesh3d(player_mesh),
+        MeshMaterial3d(player_material),
+        Transform::from_xyz(1.5, 0.5, 1.5),
+        Player { speed: 3.0 },
+    ));
+
+    // Add light
+    commands.spawn((
+        DirectionalLight {
+            illuminance: 10000.0,
+            ..default()
+        },
+        Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -0.5, 0.5, 0.0)),
+    ));
+
+    // Add camera (top-down view)
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_xyz(1.5, 8.0, 1.5)
+            .looking_at(Vec3::new(1.5, 0.0, 1.5), Vec3::Y),
+        GameCamera,
+    ));
+}
+
+pub fn move_player(
+    time: Res<Time>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut player_query: Query<(&Player, &mut Transform)>,
+) {
+    if let Ok((player, mut transform)) = player_query.get_single_mut() {
+        let mut direction = Vec3::ZERO;
+
+        if keyboard_input.pressed(KeyCode::KeyW) || keyboard_input.pressed(KeyCode::ArrowUp) {
+            direction.z -= 1.0;
+        }
+        if keyboard_input.pressed(KeyCode::KeyS) || keyboard_input.pressed(KeyCode::ArrowDown) {
+            direction.z += 1.0;
+        }
+        if keyboard_input.pressed(KeyCode::KeyA) || keyboard_input.pressed(KeyCode::ArrowLeft) {
+            direction.x -= 1.0;
+        }
+        if keyboard_input.pressed(KeyCode::KeyD) || keyboard_input.pressed(KeyCode::ArrowRight) {
+            direction.x += 1.0;
+        }
+
+        if direction.length() > 0.0 {
+            direction = direction.normalize();
+            transform.translation += direction * player.speed * time.delta_secs();
+
+            // Clamp player position to room bounds (0 to 3 in both x and z)
+            transform.translation.x = transform.translation.x.clamp(0.3, 3.7);
+            transform.translation.z = transform.translation.z.clamp(0.3, 3.7);
+        }
+    }
+}
+
+pub fn cleanup_game(
+    mut commands: Commands,
+    tile_query: Query<Entity, With<FloorTile>>,
+    player_query: Query<Entity, With<Player>>,
+    camera_query: Query<Entity, With<GameCamera>>,
+    light_query: Query<Entity, With<DirectionalLight>>,
+) {
+    for entity in &tile_query {
+        commands.entity(entity).despawn_recursive();
+    }
+    for entity in &player_query {
+        commands.entity(entity).despawn_recursive();
+    }
+    for entity in &camera_query {
+        commands.entity(entity).despawn_recursive();
+    }
+    for entity in &light_query {
+        commands.entity(entity).despawn_recursive();
+    }
+    commands.remove_resource::<RoomSize>();
+}

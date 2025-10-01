@@ -6,6 +6,7 @@ mod systems;
 use states::GameState;
 use systems::intro_animation::systems::{setup_intro, animate_intro, cleanup_intro};
 use systems::title_screen::systems::{setup_title_screen, fade_in_title_screen, button_interaction, scale_text_on_resize, cleanup_title_screen};
+use systems::game::systems::{setup_game, move_player, cleanup_game};
 
 fn main() {
     App::new()
@@ -18,6 +19,9 @@ fn main() {
         .add_systems(OnEnter(GameState::TitleScreen), setup_title_screen)
         .add_systems(Update, (fade_in_title_screen, button_interaction, scale_text_on_resize).run_if(in_state(GameState::TitleScreen)))
         .add_systems(OnExit(GameState::TitleScreen), cleanup_title_screen)
+        .add_systems(OnEnter(GameState::InGame), setup_game)
+        .add_systems(Update, move_player.run_if(in_state(GameState::InGame)))
+        .add_systems(OnExit(GameState::InGame), cleanup_game)
         .run();
 }
 
