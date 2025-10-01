@@ -10,15 +10,22 @@ pub fn setup_game(
     let room_size = RoomSize::default();
     commands.insert_resource(room_size);
 
-    // Create floor tiles (4x4 room)
+    // Create floor tiles (4x4 room) with different colors
     let tile_mesh = meshes.add(Cuboid::new(1.0, 0.1, 1.0));
-    let floor_material = materials.add(Color::srgb(0.3, 0.5, 0.3));
 
     for x in 0..4 {
         for z in 0..4 {
+            // Generate a different color for each tile based on position
+            let color = Color::srgb(
+                0.2 + (x as f32 * 0.15),
+                0.3 + (z as f32 * 0.15),
+                0.4 + ((x + z) as f32 * 0.1),
+            );
+            let tile_material = materials.add(color);
+
             commands.spawn((
                 Mesh3d(tile_mesh.clone()),
-                MeshMaterial3d(floor_material.clone()),
+                MeshMaterial3d(tile_material),
                 Transform::from_xyz(x as f32, 0.0, z as f32),
                 FloorTile,
             ));
