@@ -130,7 +130,7 @@ pub fn apply_gravity(
     time: Res<Time>,
     mut player_query: Query<&mut Player>,
 ) {
-    const GRAVITY: f32 = -20.0;
+    const GRAVITY: f32 = -32.0;
 
     if let Ok(mut player) = player_query.get_single_mut() {
         player.velocity.y += GRAVITY * time.delta_secs();
