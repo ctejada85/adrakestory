@@ -270,6 +270,8 @@ pub fn move_player(
                 if let Some(step_height) = get_step_up_height(&sub_voxel_query, new_x, current_pos.y, current_pos.z, player.radius, max_step_height) {
                     transform.translation.x = new_x;
                     transform.translation.y = step_height;
+                    player.is_grounded = true;
+                    player.velocity.y = 0.0;
                 }
             } else {
                 transform.translation.x = new_x;
@@ -282,6 +284,8 @@ pub fn move_player(
                 if let Some(step_height) = get_step_up_height(&sub_voxel_query, transform.translation.x, transform.translation.y, new_z, player.radius, max_step_height) {
                     transform.translation.z = new_z;
                     transform.translation.y = step_height;
+                    player.is_grounded = true;
+                    player.velocity.y = 0.0;
                 }
             } else {
                 transform.translation.z = new_z;
@@ -301,8 +305,8 @@ fn get_step_up_height(
     let collision_radius = radius * 0.85;
     let player_bottom = y - radius;
 
-    // Find all sub-voxels that are blocking the player horizontally
-    let mut highest_blocking_top = None;
+    // Find all sub-voxels at the target position
+    let mut candidate_steps = Vec::new();
 
     for (sub_voxel, sub_transform) in sub_voxel_query.iter() {
         let sub_pos = sub_transform.translation;
@@ -316,30 +320,29 @@ fn get_step_up_height(
         let max_z = sub_pos.z + half_size;
 
         // Check horizontal overlap
-        if x + collision_radius < min_x || x - collision_radius > max_x || z + collision_radius < min_z || z - collision_radius > max_z {
-            continue;
-        }
+        let closest_x = x.clamp(min_x, max_x);
+        let closest_z = z.clamp(min_z, max_z);
+        let dx = x - closest_x;
+        let dz = z - closest_z;
+        let distance_squared = dx * dx + dz * dz;
 
-        // Check if this sub-voxel is at a steppable height
-        // It should be above the ground but within max_step_height
-        let height_difference = max_y - player_bottom;
-        if height_difference > 0.0 && height_difference <= max_step_height {
-            // This is a valid step - check if we can stand on top of it
-            let closest_x = x.clamp(min_x, max_x);
-            let closest_z = z.clamp(min_z, max_z);
-            let dx = x - closest_x;
-            let dz = z - closest_z;
-            let distance_squared = dx * dx + dz * dz;
+        if distance_squared < collision_radius * collision_radius {
+            // This sub-voxel overlaps horizontally with the player
+            let step_distance = max_y - player_bottom;
 
-            if distance_squared < collision_radius * collision_radius {
-                // This sub-voxel is blocking us, record its top
-                highest_blocking_top = Some(highest_blocking_top.unwrap_or(max_y).max(max_y));
+            // Only consider this as a step if it's above us and within step height
+            if step_distance > 0.01 && step_distance <= max_step_height + 0.01 {
+                candidate_steps.push(max_y);
             }
         }
     }
 
-    // If we found a step, return the new height (top of sub-voxel + player radius)
-    highest_blocking_top.map(|top| top + radius)
+    // Find the highest step we can take
+    if let Some(&highest) = candidate_steps.iter().max_by(|a, b| a.partial_cmp(b).unwrap()) {
+        Some(highest + radius)
+    } else {
+        None
+    }
 }
 
 fn check_sub_voxel_collision(
