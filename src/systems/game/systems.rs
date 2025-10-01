@@ -15,7 +15,7 @@ pub fn setup_game(
     // Create sub-voxel mesh (1/8 x 1/8 x 1/8 cube)
     let sub_voxel_mesh = meshes.add(Cuboid::new(SUB_VOXEL_SIZE, SUB_VOXEL_SIZE, SUB_VOXEL_SIZE));
 
-    // Render all non-air voxels as 8x8x8 sub-voxels
+    // Render all non-air voxels as sub-voxels
     for x in 0..voxel_world.width {
         for y in 0..voxel_world.height {
             for z in 0..voxel_world.depth {
@@ -24,39 +24,78 @@ pub fn setup_game(
                         // Spawn parent voxel marker (for reference, no mesh)
                         let parent_entity = commands.spawn(Voxel { x, y, z, voxel_type }).id();
 
-                        // Spawn 8x8x8 sub-voxels
-                        for sub_x in 0..SUB_VOXEL_COUNT {
-                            for sub_y in 0..SUB_VOXEL_COUNT {
-                                for sub_z in 0..SUB_VOXEL_COUNT {
-                                    // Generate unique color based on position
-                                    let color = Color::srgb(
-                                        0.2 + (x as f32 * 0.2) + (sub_x as f32 * 0.01),
-                                        0.3 + (z as f32 * 0.15) + (sub_z as f32 * 0.01),
-                                        0.4 + (y as f32 * 0.2) + (sub_y as f32 * 0.01),
-                                    );
-                                    let sub_voxel_material = materials.add(color);
+                        // Check if this is a corner pillar voxel at y=1
+                        let is_corner_pillar = y == 1 &&
+                            ((x == 0 && z == 0) || (x == 0 && z == 3) || (x == 3 && z == 0) || (x == 3 && z == 3));
 
-                                    // Calculate world position for this sub-voxel
-                                    // Center of voxel is at (x, y, z)
-                                    // Sub-voxels span from -0.5 to 0.5 relative to center
-                                    let offset = -0.5 + SUB_VOXEL_SIZE * 0.5; // Start offset
-                                    let sub_x_pos = x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
-                                    let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
-                                    let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
+                        if is_corner_pillar {
+                            // For corner pillars: render only 2x2x2 sub-voxels (using standard 1/8 size)
+                            // This creates a small pillar in the center, 2/8 = 1/4 the width of a full voxel
+                            let pillar_count = 2;
+                            let pillar_start = 3; // Start at the 3rd sub-voxel position (centered)
 
-                                    commands.spawn((
-                                        Mesh3d(sub_voxel_mesh.clone()),
-                                        MeshMaterial3d(sub_voxel_material),
-                                        Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
-                                        SubVoxel {
-                                            parent_x: x,
-                                            parent_y: y,
-                                            parent_z: z,
-                                            sub_x,
-                                            sub_y,
-                                            sub_z,
-                                        },
-                                    ));
+                            for sub_x in pillar_start..(pillar_start + pillar_count) {
+                                for sub_y in pillar_start..(pillar_start + pillar_count) {
+                                    for sub_z in pillar_start..(pillar_start + pillar_count) {
+                                        let color = Color::srgb(
+                                            0.2 + (x as f32 * 0.2) + (sub_x as f32 * 0.01),
+                                            0.3 + (z as f32 * 0.15) + (sub_z as f32 * 0.01),
+                                            0.4 + (y as f32 * 0.2) + (sub_y as f32 * 0.01),
+                                        );
+                                        let sub_voxel_material = materials.add(color);
+
+                                        let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
+                                        let sub_x_pos = x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
+                                        let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
+                                        let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
+
+                                        commands.spawn((
+                                            Mesh3d(sub_voxel_mesh.clone()),
+                                            MeshMaterial3d(sub_voxel_material),
+                                            Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
+                                            SubVoxel {
+                                                parent_x: x,
+                                                parent_y: y,
+                                                parent_z: z,
+                                                sub_x,
+                                                sub_y,
+                                                sub_z,
+                                            },
+                                        ));
+                                    }
+                                }
+                            }
+                        } else {
+                            // For normal voxels: render full 8x8x8 sub-voxels
+                            for sub_x in 0..SUB_VOXEL_COUNT {
+                                for sub_y in 0..SUB_VOXEL_COUNT {
+                                    for sub_z in 0..SUB_VOXEL_COUNT {
+                                        let color = Color::srgb(
+                                            0.2 + (x as f32 * 0.2) + (sub_x as f32 * 0.01),
+                                            0.3 + (z as f32 * 0.15) + (sub_z as f32 * 0.01),
+                                            0.4 + (y as f32 * 0.2) + (sub_y as f32 * 0.01),
+                                        );
+                                        let sub_voxel_material = materials.add(color);
+
+                                        let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
+                                        let sub_x_pos = x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
+                                        let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
+                                        let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
+
+                                        commands.spawn((
+                                            Mesh3d(sub_voxel_mesh.clone()),
+                                            MeshMaterial3d(sub_voxel_material),
+                                            Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
+                                            SubVoxel {
+                                                parent_x: x,
+                                                parent_y: y,
+                                                parent_z: z,
+                                                sub_x,
+                                                sub_y,
+                                                sub_z,
+                                            },
+                                        ));
+                                    }
                                 }
                             }
                         }
