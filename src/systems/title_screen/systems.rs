@@ -4,8 +4,8 @@ use super::resources::TitleScreenFadeTimer;
 use crate::states::GameState;
 
 const NORMAL_BUTTON: Color = Color::srgba(0.15, 0.15, 0.15, 0.0);
-const HOVERED_BUTTON: Color = Color::srgba(0.25, 0.25, 0.25, 0.0);
-const PRESSED_BUTTON: Color = Color::srgba(0.35, 0.75, 0.35, 0.0);
+const HOVERED_BUTTON: Color = Color::srgba(1.0, 0.8, 0.2, 0.3);
+const PRESSED_BUTTON: Color = Color::srgba(1.0, 0.8, 0.2, 0.5);
 
 pub fn setup_title_screen(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Insert fade timer
