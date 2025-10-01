@@ -240,6 +240,9 @@ pub fn move_player(
     mut player_query: Query<(&mut Player, &mut Transform)>,
 ) {
     if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
+        // Clamp delta time to prevent physics issues when window regains focus
+        let delta = time.delta_secs().min(0.1);
+
         let mut direction = Vec3::ZERO;
 
         // Adjusted for camera rotation: up moves in +X, right moves in -Z
@@ -266,7 +269,7 @@ pub fn move_player(
             direction = direction.normalize();
 
             let current_pos = transform.translation;
-            let move_delta = direction * player.speed * time.delta_secs();
+            let move_delta = direction * player.speed * delta;
             let max_step_height = SUB_VOXEL_SIZE; // Can step up 1 sub-voxel height
 
             // Try moving on X axis
@@ -478,7 +481,9 @@ pub fn apply_gravity(
     const GRAVITY: f32 = -32.0;
 
     if let Ok(mut player) = player_query.get_single_mut() {
-        player.velocity.y += GRAVITY * time.delta_secs();
+        // Clamp delta time to prevent physics issues
+        let delta = time.delta_secs().min(0.1);
+        player.velocity.y += GRAVITY * delta;
     }
 }
 
@@ -488,8 +493,11 @@ pub fn apply_physics(
     mut player_query: Query<(&mut Player, &mut Transform)>,
 ) {
     if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
+        // Clamp delta time to prevent physics issues
+        let delta = time.delta_secs().min(0.1);
+
         // Apply velocity
-        let new_y = transform.translation.y + player.velocity.y * time.delta_secs();
+        let new_y = transform.translation.y + player.velocity.y * delta;
         let player_bottom = new_y - player.radius;
         let current_bottom = transform.translation.y - player.radius;
 
