@@ -209,25 +209,33 @@ fn check_sub_voxel_collision(
     // Check all sub-voxels for collision
     for (sub_voxel, sub_transform) in sub_voxel_query.iter() {
         let sub_pos = sub_transform.translation;
-
-        // Only check sub-voxels at or above player's level (not the floor they're standing on)
-        if sub_pos.y < y - radius {
-            continue;
-        }
-
-        // Sub-voxel AABB bounds (size is SUB_VOXEL_SIZE)
         let half_size = SUB_VOXEL_SIZE / 2.0;
+
+        // Sub-voxel AABB bounds
         let min_x = sub_pos.x - half_size;
         let max_x = sub_pos.x + half_size;
+        let min_y = sub_pos.y - half_size;
+        let max_y = sub_pos.y + half_size;
         let min_z = sub_pos.z - half_size;
         let max_z = sub_pos.z + half_size;
 
-        // Quick AABB check first for performance
+        // Only check sub-voxels that overlap with player's height, but not the floor
+        // Skip sub-voxels that are below player's center (these are floor/ground)
+        if max_y <= y - radius * 0.5 {
+            continue;
+        }
+
+        // Skip if sub-voxel is too far above
+        if min_y > y + radius {
+            continue;
+        }
+
+        // Quick AABB check for horizontal bounds
         if x + radius < min_x || x - radius > max_x || z + radius < min_z || z - radius > max_z {
             continue;
         }
 
-        // Find closest point on sub-voxel's horizontal face to player center
+        // Find closest point on sub-voxel AABB to player center (horizontal only)
         let closest_x = x.clamp(min_x, max_x);
         let closest_z = z.clamp(min_z, max_z);
 
@@ -264,6 +272,7 @@ pub fn apply_physics(
         // Apply velocity
         let new_y = transform.translation.y + player.velocity.y * time.delta_secs();
         let player_bottom = new_y - player.radius;
+        let current_bottom = transform.translation.y - player.radius;
 
         let mut hit_ground = false;
         let mut highest_collision_y = f32::MIN;
@@ -281,11 +290,16 @@ pub fn apply_physics(
             let sub_min_y = sub_pos.y - half_size;
             let sub_max_y = sub_pos.y + half_size;
 
-            // Check if player sphere is above this sub-voxel
+            // Only check sub-voxels that are below the player
+            if sub_max_y > new_y {
+                continue;
+            }
+
+            // Check if player sphere is above this sub-voxel horizontally
             let player_x = transform.translation.x;
             let player_z = transform.translation.z;
 
-            // Check horizontal overlap with some tolerance
+            // Check horizontal overlap
             let horizontal_overlap =
                 player_x + player.radius > sub_min_x &&
                 player_x - player.radius < sub_max_x &&
@@ -293,8 +307,9 @@ pub fn apply_physics(
                 player_z - player.radius < sub_max_z;
 
             if horizontal_overlap && player.velocity.y <= 0.0 {
-                // Check if player is landing on top of this sub-voxel
-                if player_bottom <= sub_max_y && player_bottom >= sub_min_y {
+                // Check if player's bottom would go through the top of this sub-voxel
+                // Player was above, and would now be at or below the top
+                if current_bottom >= sub_max_y && player_bottom <= sub_max_y {
                     highest_collision_y = highest_collision_y.max(sub_max_y);
                     hit_ground = true;
                 }
