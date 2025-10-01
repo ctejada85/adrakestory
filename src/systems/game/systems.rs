@@ -152,6 +152,7 @@ pub fn move_player(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     voxel_world: Res<VoxelWorld>,
+    sub_voxel_query: Query<(&SubVoxel, &Transform), Without<Player>>,
     mut player_query: Query<(&mut Player, &mut Transform)>,
 ) {
     if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
@@ -185,55 +186,58 @@ pub fn move_player(
 
             // Try moving on X axis
             let new_x = current_pos.x + move_delta.x;
-            if !check_voxel_collision(&voxel_world, new_x, current_pos.y, current_pos.z, player.radius) {
+            if !check_sub_voxel_collision(&sub_voxel_query, new_x, current_pos.y, current_pos.z, player.radius) {
                 transform.translation.x = new_x;
             }
 
             // Try moving on Z axis
             let new_z = current_pos.z + move_delta.z;
-            if !check_voxel_collision(&voxel_world, transform.translation.x, current_pos.y, new_z, player.radius) {
+            if !check_sub_voxel_collision(&sub_voxel_query, transform.translation.x, current_pos.y, new_z, player.radius) {
                 transform.translation.z = new_z;
             }
         }
     }
 }
 
-fn check_voxel_collision(voxel_world: &VoxelWorld, x: f32, y: f32, z: f32, radius: f32) -> bool {
-    // Check voxels around the player's horizontal position
-    // Only check at the player's current level, not floor level (to allow walking over ground)
-    let player_y = y.floor() as i32;
+fn check_sub_voxel_collision(
+    sub_voxel_query: &Query<(&SubVoxel, &Transform), Without<Player>>,
+    x: f32,
+    y: f32,
+    z: f32,
+    radius: f32,
+) -> bool {
+    // Check all sub-voxels for collision
+    for (sub_voxel, sub_transform) in sub_voxel_query.iter() {
+        let sub_pos = sub_transform.translation;
 
-    // Get all voxels that might intersect with the player sphere in horizontal plane
-    let min_x = (x - radius).floor() as i32;
-    let max_x = (x + radius).ceil() as i32;
-    let min_z = (z - radius).floor() as i32;
-    let max_z = (z + radius).ceil() as i32;
+        // Only check sub-voxels at or above player's level (not the floor they're standing on)
+        if sub_pos.y < y - radius {
+            continue;
+        }
 
-    for voxel_x in min_x..=max_x {
-        for voxel_z in min_z..=max_z {
-            // Check voxel at player's height (not the floor they're standing on)
-            if let Some(voxel_type) = voxel_world.get_voxel(voxel_x, player_y, voxel_z) {
-                if voxel_type != VoxelType::Air {
-                    // Voxel AABB bounds
-                    let voxel_min_x = voxel_x as f32 - 0.5;
-                    let voxel_max_x = voxel_x as f32 + 0.5;
-                    let voxel_min_z = voxel_z as f32 - 0.5;
-                    let voxel_max_z = voxel_z as f32 + 0.5;
+        // Sub-voxel AABB bounds (size is SUB_VOXEL_SIZE)
+        let half_size = SUB_VOXEL_SIZE / 2.0;
+        let min_x = sub_pos.x - half_size;
+        let max_x = sub_pos.x + half_size;
+        let min_z = sub_pos.z - half_size;
+        let max_z = sub_pos.z + half_size;
 
-                    // Find closest point on voxel's horizontal face to player center
-                    let closest_x = x.clamp(voxel_min_x, voxel_max_x);
-                    let closest_z = z.clamp(voxel_min_z, voxel_max_z);
+        // Quick AABB check first for performance
+        if x + radius < min_x || x - radius > max_x || z + radius < min_z || z - radius > max_z {
+            continue;
+        }
 
-                    // Check horizontal distance only
-                    let dx = x - closest_x;
-                    let dz = z - closest_z;
-                    let distance_squared = dx * dx + dz * dz;
+        // Find closest point on sub-voxel's horizontal face to player center
+        let closest_x = x.clamp(min_x, max_x);
+        let closest_z = z.clamp(min_z, max_z);
 
-                    if distance_squared < radius * radius {
-                        return true; // Collision detected
-                    }
-                }
-            }
+        // Check horizontal distance only
+        let dx = x - closest_x;
+        let dz = z - closest_z;
+        let distance_squared = dx * dx + dz * dz;
+
+        if distance_squared < radius * radius {
+            return true; // Collision detected
         }
     }
 
@@ -253,7 +257,7 @@ pub fn apply_gravity(
 
 pub fn apply_physics(
     time: Res<Time>,
-    voxel_world: Res<VoxelWorld>,
+    sub_voxel_query: Query<(&SubVoxel, &Transform), Without<Player>>,
     mut player_query: Query<(&mut Player, &mut Transform)>,
 ) {
     if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
@@ -261,33 +265,47 @@ pub fn apply_physics(
         let new_y = transform.translation.y + player.velocity.y * time.delta_secs();
         let player_bottom = new_y - player.radius;
 
-        // Check collision with voxels below - no clamping, allow falling off edges
-        let player_x = transform.translation.x.round() as i32;
-        let player_z = transform.translation.z.round() as i32;
-        let check_y = player_bottom.floor() as i32;
-
         let mut hit_ground = false;
+        let mut highest_collision_y = f32::MIN;
 
-        // Check if there's a solid voxel at the position where player's bottom would be
-        // Only check if player is within world bounds
-        if player_x >= 0 && player_x < voxel_world.width && player_z >= 0 && player_z < voxel_world.depth {
-            if let Some(voxel_type) = voxel_world.get_voxel(player_x, check_y, player_z) {
-                if voxel_type != VoxelType::Air {
-                    // Voxel occupies space from check_y to check_y+1
-                    let voxel_top = (check_y + 1) as f32;
+        // Check collision with sub-voxels below
+        for (sub_voxel, sub_transform) in sub_voxel_query.iter() {
+            let sub_pos = sub_transform.translation;
+            let half_size = SUB_VOXEL_SIZE / 2.0;
 
-                    // If player is falling and would go below voxel top, snap to top
-                    if player_bottom <= voxel_top && player.velocity.y <= 0.0 {
-                        transform.translation.y = voxel_top + player.radius;
-                        player.velocity.y = 0.0;
-                        player.is_grounded = true;
-                        hit_ground = true;
-                    }
+            // Sub-voxel AABB bounds
+            let sub_min_x = sub_pos.x - half_size;
+            let sub_max_x = sub_pos.x + half_size;
+            let sub_min_z = sub_pos.z - half_size;
+            let sub_max_z = sub_pos.z + half_size;
+            let sub_min_y = sub_pos.y - half_size;
+            let sub_max_y = sub_pos.y + half_size;
+
+            // Check if player sphere is above this sub-voxel
+            let player_x = transform.translation.x;
+            let player_z = transform.translation.z;
+
+            // Check horizontal overlap with some tolerance
+            let horizontal_overlap =
+                player_x + player.radius > sub_min_x &&
+                player_x - player.radius < sub_max_x &&
+                player_z + player.radius > sub_min_z &&
+                player_z - player.radius < sub_max_z;
+
+            if horizontal_overlap && player.velocity.y <= 0.0 {
+                // Check if player is landing on top of this sub-voxel
+                if player_bottom <= sub_max_y && player_bottom >= sub_min_y {
+                    highest_collision_y = highest_collision_y.max(sub_max_y);
+                    hit_ground = true;
                 }
             }
         }
 
-        if !hit_ground {
+        if hit_ground {
+            transform.translation.y = highest_collision_y + player.radius;
+            player.velocity.y = 0.0;
+            player.is_grounded = true;
+        } else {
             transform.translation.y = new_y;
             player.is_grounded = false;
         }
