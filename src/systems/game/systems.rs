@@ -116,10 +116,12 @@ pub fn move_player(
 
             // Clamp player position to room bounds
             // Voxels span from -0.5 to 3.5, player radius is 0.3
-            let min_bound = -0.5 + player.radius - 0.2; // Increase clamp at bottom (allow more movement)
-            let max_bound = 3.5 - player.radius - 0.2; // Increase clamp at top (allow more movement)
-            transform.translation.x = transform.translation.x.clamp(min_bound, max_bound);
-            transform.translation.z = transform.translation.z.clamp(min_bound, max_bound);
+            let min_bound_x = -0.5 + player.radius - 0.2; // Bottom: allow more movement
+            let max_bound_x = 3.5 - player.radius - 0.2; // Top: tighten boundary
+            let min_bound_z = -0.5 + player.radius + 0.2;      // Left: standard boundary
+            let max_bound_z = 3.5 - player.radius - 0.2; // Right: tighten boundary
+            transform.translation.x = transform.translation.x.clamp(min_bound_x, max_bound_x);
+            transform.translation.z = transform.translation.z.clamp(min_bound_z, max_bound_z);
         }
     }
 }
