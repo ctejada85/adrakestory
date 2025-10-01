@@ -268,8 +268,9 @@ pub fn move_player(
             if check_sub_voxel_collision(&sub_voxel_query, new_x, current_pos.y, current_pos.z, player.radius) {
                 // Check if we can step up
                 if let Some(step_height) = get_step_up_height(&sub_voxel_query, new_x, current_pos.y, current_pos.z, player.radius, max_step_height, current_pos.y) {
-                    // Only step up if the new height is actually higher (climbing up)
-                    if step_height > current_pos.y {
+                    // Only step up if the height increase is reasonable (within one step)
+                    let height_increase = step_height - current_pos.y;
+                    if height_increase > 0.001 && height_increase <= max_step_height + 0.001 {
                         transform.translation.x = new_x;
                         transform.translation.y = step_height;
                         player.is_grounded = true;
@@ -286,8 +287,9 @@ pub fn move_player(
             if check_sub_voxel_collision(&sub_voxel_query, transform.translation.x, transform.translation.y, new_z, player.radius) {
                 // Check if we can step up
                 if let Some(step_height) = get_step_up_height(&sub_voxel_query, transform.translation.x, transform.translation.y, new_z, player.radius, max_step_height, transform.translation.y) {
-                    // Only step up if the new height is actually higher (climbing up)
-                    if step_height > transform.translation.y {
+                    // Only step up if the height increase is reasonable (within one step)
+                    let height_increase = step_height - transform.translation.y;
+                    if height_increase > 0.001 && height_increase <= max_step_height + 0.001 {
                         transform.translation.z = new_z;
                         transform.translation.y = step_height;
                         player.is_grounded = true;
