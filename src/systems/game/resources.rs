@@ -32,6 +32,10 @@ impl Default for VoxelWorld {
         voxels[3][1][0] = VoxelType::Stone;
         voxels[3][1][3] = VoxelType::Stone;
 
+        // Add some 1-sub-voxel-height platforms (step-up test)
+        voxels[1][1][1] = VoxelType::Dirt;
+        voxels[2][1][2] = VoxelType::Dirt;
+
         Self {
             width,
             height,

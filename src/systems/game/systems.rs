@@ -28,7 +28,44 @@ pub fn setup_game(
                         let is_corner_pillar = y == 1 &&
                             ((x == 0 && z == 0) || (x == 0 && z == 3) || (x == 3 && z == 0) || (x == 3 && z == 3));
 
-                        if is_corner_pillar {
+                        // Check if this is a 1-sub-voxel-height platform
+                        let is_step_platform = y == 1 &&
+                            ((x == 1 && z == 1) || (x == 2 && z == 2));
+
+                        if is_step_platform {
+                            // For step platforms: render only 1 sub-voxel height (8x1x8)
+                            for sub_x in 0..SUB_VOXEL_COUNT {
+                                for sub_y in 0..1 {  // Only bottom layer
+                                    for sub_z in 0..SUB_VOXEL_COUNT {
+                                        let color = Color::srgb(
+                                            0.2 + (x as f32 * 0.2) + (sub_x as f32 * 0.01),
+                                            0.3 + (z as f32 * 0.15) + (sub_z as f32 * 0.01),
+                                            0.4 + (y as f32 * 0.2) + (sub_y as f32 * 0.01),
+                                        );
+                                        let sub_voxel_material = materials.add(color);
+
+                                        let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
+                                        let sub_x_pos = x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
+                                        let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
+                                        let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
+
+                                        commands.spawn((
+                                            Mesh3d(sub_voxel_mesh.clone()),
+                                            MeshMaterial3d(sub_voxel_material),
+                                            Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
+                                            SubVoxel {
+                                                parent_x: x,
+                                                parent_y: y,
+                                                parent_z: z,
+                                                sub_x,
+                                                sub_y,
+                                                sub_z,
+                                            },
+                                        ));
+                                    }
+                                }
+                            }
+                        } else if is_corner_pillar {
                             // For corner pillars: render only 2x2x2 sub-voxels (using standard 1/8 size)
                             // This creates a small pillar in the center, 2/8 = 1/4 the width of a full voxel
                             let pillar_count = 2;
@@ -183,20 +220,85 @@ pub fn move_player(
 
             let current_pos = transform.translation;
             let move_delta = direction * player.speed * time.delta_secs();
+            let max_step_height = SUB_VOXEL_SIZE; // Can step up 1 sub-voxel height
 
             // Try moving on X axis
             let new_x = current_pos.x + move_delta.x;
-            if !check_sub_voxel_collision(&sub_voxel_query, new_x, current_pos.y, current_pos.z, player.radius) {
+            if check_sub_voxel_collision(&sub_voxel_query, new_x, current_pos.y, current_pos.z, player.radius) {
+                // Check if we can step up
+                if let Some(step_height) = get_step_up_height(&sub_voxel_query, new_x, current_pos.y, current_pos.z, player.radius, max_step_height) {
+                    transform.translation.x = new_x;
+                    transform.translation.y = step_height;
+                }
+            } else {
                 transform.translation.x = new_x;
             }
 
             // Try moving on Z axis
             let new_z = current_pos.z + move_delta.z;
-            if !check_sub_voxel_collision(&sub_voxel_query, transform.translation.x, current_pos.y, new_z, player.radius) {
+            if check_sub_voxel_collision(&sub_voxel_query, transform.translation.x, transform.translation.y, new_z, player.radius) {
+                // Check if we can step up
+                if let Some(step_height) = get_step_up_height(&sub_voxel_query, transform.translation.x, transform.translation.y, new_z, player.radius, max_step_height) {
+                    transform.translation.z = new_z;
+                    transform.translation.y = step_height;
+                }
+            } else {
                 transform.translation.z = new_z;
             }
         }
     }
+}
+
+fn get_step_up_height(
+    sub_voxel_query: &Query<(&SubVoxel, &Transform), Without<Player>>,
+    x: f32,
+    y: f32,
+    z: f32,
+    radius: f32,
+    max_step_height: f32,
+) -> Option<f32> {
+    let collision_radius = radius * 0.85;
+    let player_bottom = y - radius;
+
+    // Find all sub-voxels that are blocking the player horizontally
+    let mut highest_blocking_top = None;
+
+    for (sub_voxel, sub_transform) in sub_voxel_query.iter() {
+        let sub_pos = sub_transform.translation;
+        let half_size = SUB_VOXEL_SIZE / 2.0;
+
+        let min_x = sub_pos.x - half_size;
+        let max_x = sub_pos.x + half_size;
+        let min_y = sub_pos.y - half_size;
+        let max_y = sub_pos.y + half_size;
+        let min_z = sub_pos.z - half_size;
+        let max_z = sub_pos.z + half_size;
+
+        // Check horizontal overlap
+        if x + collision_radius < min_x || x - collision_radius > max_x || z + collision_radius < min_z || z - collision_radius > max_z {
+            continue;
+        }
+
+        // Check if this sub-voxel is at a steppable height
+        // It should be above the ground but within max_step_height
+        let height_difference = max_y - player_bottom;
+        if height_difference > 0.0 && height_difference <= max_step_height {
+            // This is a valid step - check if we can stand on top of it
+            let closest_x = x.clamp(min_x, max_x);
+            let closest_z = z.clamp(min_z, max_z);
+            let dx = x - closest_x;
+            let dz = z - closest_z;
+            let distance_squared = dx * dx + dz * dz;
+
+            if distance_squared < collision_radius * collision_radius {
+                // This sub-voxel is blocking us, record its top
+                highest_blocking_top = Some(highest_blocking_top.unwrap_or(max_y).max(max_y));
+            }
+        }
+    }
+
+    // If we found a step, return the new height (top of sub-voxel + player radius)
+    highest_blocking_top.map(|top| top + radius)
 }
 
 fn check_sub_voxel_collision(
