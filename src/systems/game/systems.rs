@@ -112,6 +112,7 @@ pub fn setup_game(
 pub fn move_player(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
+    voxel_world: Res<VoxelWorld>,
     mut player_query: Query<(&mut Player, &mut Transform)>,
 ) {
     if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
@@ -139,19 +140,73 @@ pub fn move_player(
 
         if direction.length() > 0.0 {
             direction = direction.normalize();
-            transform.translation.x += direction.x * player.speed * time.delta_secs();
-            transform.translation.z += direction.z * player.speed * time.delta_secs();
+
+            let current_pos = transform.translation;
+            let move_delta = direction * player.speed * time.delta_secs();
+
+            // Try moving on X axis
+            let new_x = current_pos.x + move_delta.x;
+            if !check_voxel_collision(&voxel_world, new_x, current_pos.y, current_pos.z, player.radius) {
+                transform.translation.x = new_x;
+            }
+
+            // Try moving on Z axis
+            let new_z = current_pos.z + move_delta.z;
+            if !check_voxel_collision(&voxel_world, transform.translation.x, current_pos.y, new_z, player.radius) {
+                transform.translation.z = new_z;
+            }
 
             // Clamp player position to room bounds
-            // Voxels span from -0.5 to 3.5, player radius is 0.3
-            let min_bound_x = -0.5 + player.radius - 0.2; // Bottom: allow more movement
-            let max_bound_x = 3.5 - player.radius - 0.2; // Top: tighten boundary
-            let min_bound_z = -0.5 + player.radius + 0.2;      // Left: standard boundary
-            let max_bound_z = 3.5 - player.radius - 0.2; // Right: tighten boundary
+            let min_bound_x = -0.5 + player.radius - 0.2;
+            let max_bound_x = 3.5 - player.radius - 0.2;
+            let min_bound_z = -0.5 + player.radius + 0.2;
+            let max_bound_z = 3.5 - player.radius - 0.2;
             transform.translation.x = transform.translation.x.clamp(min_bound_x, max_bound_x);
             transform.translation.z = transform.translation.z.clamp(min_bound_z, max_bound_z);
         }
     }
+}
+
+fn check_voxel_collision(voxel_world: &VoxelWorld, x: f32, y: f32, z: f32, radius: f32) -> bool {
+    // Check voxels around the player's horizontal position
+    // Only check at the player's current level, not floor level (to allow walking over ground)
+    let player_y = y.floor() as i32;
+
+    // Get all voxels that might intersect with the player sphere in horizontal plane
+    let min_x = (x - radius).floor() as i32;
+    let max_x = (x + radius).ceil() as i32;
+    let min_z = (z - radius).floor() as i32;
+    let max_z = (z + radius).ceil() as i32;
+
+    for voxel_x in min_x..=max_x {
+        for voxel_z in min_z..=max_z {
+            // Check voxel at player's height (not the floor they're standing on)
+            if let Some(voxel_type) = voxel_world.get_voxel(voxel_x, player_y, voxel_z) {
+                if voxel_type != VoxelType::Air {
+                    // Voxel AABB bounds
+                    let voxel_min_x = voxel_x as f32 - 0.5;
+                    let voxel_max_x = voxel_x as f32 + 0.5;
+                    let voxel_min_z = voxel_z as f32 - 0.5;
+                    let voxel_max_z = voxel_z as f32 + 0.5;
+
+                    // Find closest point on voxel's horizontal face to player center
+                    let closest_x = x.clamp(voxel_min_x, voxel_max_x);
+                    let closest_z = z.clamp(voxel_min_z, voxel_max_z);
+
+                    // Check horizontal distance only
+                    let dx = x - closest_x;
+                    let dz = z - closest_z;
+                    let distance_squared = dx * dx + dz * dz;
+
+                    if distance_squared < radius * radius {
+                        return true; // Collision detected
+                    }
+                }
+            }
+        }
+    }
+
+    false
 }
 
 pub fn apply_gravity(
