@@ -40,14 +40,15 @@ pub fn setup_game(
 
     commands.insert_resource(voxel_world);
 
-    // Create player (sphere)
-    let player_mesh = meshes.add(Sphere::new(0.3));
+    // Create player (sphere) - positioned on top of voxel floor
+    let player_radius = 0.3;
+    let player_mesh = meshes.add(Sphere::new(player_radius));
     let player_material = materials.add(Color::srgb(0.8, 0.2, 0.2));
 
     commands.spawn((
         Mesh3d(player_mesh),
         MeshMaterial3d(player_material),
-        Transform::from_xyz(1.5, 0.5, 1.5),
+        Transform::from_xyz(1.5, 0.5 + player_radius, 1.5),
         Player { speed: 3.0 },
     ));
 
