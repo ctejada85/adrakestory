@@ -3,6 +3,9 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct Player {
     pub speed: f32,
+    pub velocity: Vec3,
+    pub is_grounded: bool,
+    pub radius: f32,
 }
 
 #[derive(Component)]

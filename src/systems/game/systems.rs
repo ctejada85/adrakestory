@@ -49,7 +49,12 @@ pub fn setup_game(
         Mesh3d(player_mesh),
         MeshMaterial3d(player_material),
         Transform::from_xyz(1.5, 0.5 + player_radius, 1.5),
-        Player { speed: 3.0 },
+        Player {
+            speed: 3.0,
+            velocity: Vec3::ZERO,
+            is_grounded: true,
+            radius: player_radius,
+        },
     ));
 
     // Add light
@@ -79,9 +84,9 @@ pub fn setup_game(
 pub fn move_player(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut player_query: Query<(&Player, &mut Transform)>,
+    mut player_query: Query<(&mut Player, &mut Transform)>,
 ) {
-    if let Ok((player, mut transform)) = player_query.get_single_mut() {
+    if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
         let mut direction = Vec3::ZERO;
 
         // Adjusted for camera rotation: up moves in +X, right moves in -Z
@@ -98,14 +103,71 @@ pub fn move_player(
             direction.z += 1.0;
         }
 
+        // Jump
+        if keyboard_input.just_pressed(KeyCode::Space) && player.is_grounded {
+            player.velocity.y = 8.0;
+            player.is_grounded = false;
+        }
+
         if direction.length() > 0.0 {
             direction = direction.normalize();
-            transform.translation += direction * player.speed * time.delta_secs();
+            transform.translation.x += direction.x * player.speed * time.delta_secs();
+            transform.translation.z += direction.z * player.speed * time.delta_secs();
 
             // Clamp player position to room bounds
-            // Tiles span from -0.5 to 3.5, with player radius 0.3
             transform.translation.x = transform.translation.x.clamp(-0.2, 3.2);
             transform.translation.z = transform.translation.z.clamp(-0.2, 3.2);
+        }
+    }
+}
+
+pub fn apply_gravity(
+    time: Res<Time>,
+    mut player_query: Query<&mut Player>,
+) {
+    const GRAVITY: f32 = -20.0;
+
+    if let Ok(mut player) = player_query.get_single_mut() {
+        player.velocity.y += GRAVITY * time.delta_secs();
+    }
+}
+
+pub fn apply_physics(
+    time: Res<Time>,
+    voxel_world: Res<VoxelWorld>,
+    mut player_query: Query<(&mut Player, &mut Transform)>,
+) {
+    if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
+        // Apply velocity
+        let new_y = transform.translation.y + player.velocity.y * time.delta_secs();
+        let player_bottom = new_y - player.radius;
+
+        // Check collision with voxels below
+        let player_x = transform.translation.x.round() as i32;
+        let player_z = transform.translation.z.round() as i32;
+        let check_y = player_bottom.floor() as i32;
+
+        let mut hit_ground = false;
+
+        // Check if there's a solid voxel at the position where player's bottom would be
+        if let Some(voxel_type) = voxel_world.get_voxel(player_x, check_y, player_z) {
+            if voxel_type != VoxelType::Air {
+                // Voxel occupies space from check_y to check_y+1
+                let voxel_top = (check_y + 1) as f32;
+
+                // If player is falling and would go below voxel top, snap to top
+                if player_bottom <= voxel_top && player.velocity.y <= 0.0 {
+                    transform.translation.y = voxel_top + player.radius;
+                    player.velocity.y = 0.0;
+                    player.is_grounded = true;
+                    hit_ground = true;
+                }
+            }
+        }
+
+        if !hit_ground {
+            transform.translation.y = new_y;
+            player.is_grounded = false;
         }
     }
 }
