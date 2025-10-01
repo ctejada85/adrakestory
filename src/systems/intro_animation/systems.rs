@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use crate::components::{IntroUI, IntroText};
-use crate::resources::{IntroAnimationTimer, IntroPhase};
+use super::components::{IntroUI, IntroText};
+use super::resources::{IntroAnimationTimer, IntroPhase};
 use crate::states::GameState;
 
 pub fn setup_intro(mut commands: Commands) {

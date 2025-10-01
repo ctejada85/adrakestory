@@ -1,13 +1,11 @@
 use bevy::prelude::*;
 
-mod components;
-mod resources;
 mod states;
 mod systems;
 
 use states::GameState;
-use systems::intro_animation::{setup_intro, animate_intro, cleanup_intro};
-use systems::title_screen::{setup_title_screen, fade_in_title_screen, button_interaction, cleanup_title_screen};
+use systems::intro_animation::systems::{setup_intro, animate_intro, cleanup_intro};
+use systems::title_screen::systems::{setup_title_screen, fade_in_title_screen, button_interaction, cleanup_title_screen};
 
 fn main() {
     App::new()
