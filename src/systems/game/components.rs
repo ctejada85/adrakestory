@@ -16,6 +16,16 @@ pub struct Voxel {
     pub voxel_type: VoxelType,
 }
 
+#[derive(Component)]
+pub struct SubVoxel {
+    pub parent_x: i32,
+    pub parent_y: i32,
+    pub parent_z: i32,
+    pub sub_x: i32,
+    pub sub_y: i32,
+    pub sub_z: i32,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum VoxelType {
     Air,

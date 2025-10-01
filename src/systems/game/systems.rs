@@ -1,6 +1,9 @@
 use bevy::prelude::*;
-use super::components::{Player, Voxel, VoxelType, GameCamera};
+use super::components::{Player, Voxel, SubVoxel, VoxelType, GameCamera};
 use super::resources::VoxelWorld;
+
+const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
+const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
 
 pub fn setup_game(
     mut commands: Commands,
@@ -9,29 +12,54 @@ pub fn setup_game(
 ) {
     let voxel_world = VoxelWorld::default();
 
-    // Create voxel mesh (1x1x1 cube)
-    let voxel_mesh = meshes.add(Cuboid::new(1.0, 1.0, 1.0));
+    // Create sub-voxel mesh (1/8 x 1/8 x 1/8 cube)
+    let sub_voxel_mesh = meshes.add(Cuboid::new(SUB_VOXEL_SIZE, SUB_VOXEL_SIZE, SUB_VOXEL_SIZE));
 
-    // Render all non-air voxels with unique colors
+    // Render all non-air voxels as 8x8x8 sub-voxels
     for x in 0..voxel_world.width {
         for y in 0..voxel_world.height {
             for z in 0..voxel_world.depth {
                 if let Some(voxel_type) = voxel_world.get_voxel(x, y, z) {
                     if voxel_type != VoxelType::Air {
-                        // Generate unique color based on position
-                        let color = Color::srgb(
-                            0.2 + (x as f32 * 0.2),
-                            0.3 + (z as f32 * 0.15),
-                            0.4 + (y as f32 * 0.2),
-                        );
-                        let voxel_material = materials.add(color);
+                        // Spawn parent voxel marker (for reference, no mesh)
+                        let parent_entity = commands.spawn(Voxel { x, y, z, voxel_type }).id();
 
-                        commands.spawn((
-                            Mesh3d(voxel_mesh.clone()),
-                            MeshMaterial3d(voxel_material),
-                            Transform::from_xyz(x as f32, y as f32, z as f32),
-                            Voxel { x, y, z, voxel_type },
-                        ));
+                        // Spawn 8x8x8 sub-voxels
+                        for sub_x in 0..SUB_VOXEL_COUNT {
+                            for sub_y in 0..SUB_VOXEL_COUNT {
+                                for sub_z in 0..SUB_VOXEL_COUNT {
+                                    // Generate unique color based on position
+                                    let color = Color::srgb(
+                                        0.2 + (x as f32 * 0.2) + (sub_x as f32 * 0.01),
+                                        0.3 + (z as f32 * 0.15) + (sub_z as f32 * 0.01),
+                                        0.4 + (y as f32 * 0.2) + (sub_y as f32 * 0.01),
+                                    );
+                                    let sub_voxel_material = materials.add(color);
+
+                                    // Calculate world position for this sub-voxel
+                                    // Center of voxel is at (x, y, z)
+                                    // Sub-voxels span from -0.5 to 0.5 relative to center
+                                    let offset = -0.5 + SUB_VOXEL_SIZE * 0.5; // Start offset
+                                    let sub_x_pos = x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
+                                    let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
+                                    let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
+
+                                    commands.spawn((
+                                        Mesh3d(sub_voxel_mesh.clone()),
+                                        MeshMaterial3d(sub_voxel_material),
+                                        Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
+                                        SubVoxel {
+                                            parent_x: x,
+                                            parent_y: y,
+                                            parent_z: z,
+                                            sub_x,
+                                            sub_y,
+                                            sub_z,
+                                        },
+                                    ));
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -180,11 +208,15 @@ pub fn apply_physics(
 pub fn cleanup_game(
     mut commands: Commands,
     voxel_query: Query<Entity, With<Voxel>>,
+    sub_voxel_query: Query<Entity, With<SubVoxel>>,
     player_query: Query<Entity, With<Player>>,
     camera_query: Query<Entity, With<GameCamera>>,
     light_query: Query<Entity, With<DirectionalLight>>,
 ) {
     for entity in &voxel_query {
+        commands.entity(entity).despawn_recursive();
+    }
+    for entity in &sub_voxel_query {
         commands.entity(entity).despawn_recursive();
     }
     for entity in &player_query {
