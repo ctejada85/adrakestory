@@ -37,20 +37,6 @@ pub fn setup_title_screen(mut commands: Commands, asset_server: Res<AssetServer>
                 BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.0)),
             ));
 
-            // Title
-            parent.spawn((
-                Text::new("Adrakestory"),
-                TextFont {
-                    font_size: 80.0,
-                    ..default()
-                },
-                TextColor(Color::srgba(0.9, 0.9, 0.9, 0.0)),
-                Node {
-                    margin: UiRect::all(Val::Px(50.0)),
-                    ..default()
-                },
-            ));
-
             // Button container
             parent
                 .spawn(Node {
