@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use bevy::window::SystemCursorIcon;
-use super::components::{TitleScreenUI, TitleScreenBackground, MenuButton};
+use bevy::window::{SystemCursorIcon, WindowResized};
+use super::components::{TitleScreenUI, TitleScreenBackground, MenuButton, ScalableText};
 use super::resources::TitleScreenFadeTimer;
 use crate::states::GameState;
 
@@ -51,6 +51,7 @@ pub fn setup_title_screen(mut commands: Commands, asset_server: Res<AssetServer>
                     margin: UiRect::all(Val::Vw(5.0)),
                     ..default()
                 },
+                ScalableText::new(80.0, 1.0),
             ));
 
             // Button container
@@ -95,6 +96,7 @@ fn create_menu_button(parent: &mut ChildBuilder, text: &str, button_type: MenuBu
                     ..default()
                 },
                 TextColor(Color::srgba(0.9, 0.9, 0.9, 0.0)),
+                ScalableText::new(30.0, 1.0),
             ));
         });
 }
@@ -166,6 +168,19 @@ pub fn fade_in_title_screen(
             if let Ok(mut text_color) = button_text_query.get_mut(child) {
                 text_color.0.set_alpha(alpha);
             }
+        }
+    }
+}
+
+pub fn scale_text_on_resize(
+    mut resize_events: EventReader<WindowResized>,
+    mut text_query: Query<(&ScalableText, &mut TextFont)>,
+) {
+    for event in resize_events.read() {
+        let scale = (event.width + event.height) / 2000.0;
+
+        for (scalable, mut font) in &mut text_query {
+            font.font_size = scalable.base_size * scale * scalable.scale_factor;
         }
     }
 }
