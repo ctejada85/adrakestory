@@ -222,25 +222,28 @@ pub fn apply_physics(
         let new_y = transform.translation.y + player.velocity.y * time.delta_secs();
         let player_bottom = new_y - player.radius;
 
-        // Check collision with voxels below - clamp to valid grid range
-        let player_x = transform.translation.x.round().clamp(0.0, (voxel_world.width - 1) as f32) as i32;
-        let player_z = transform.translation.z.round().clamp(0.0, (voxel_world.depth - 1) as f32) as i32;
+        // Check collision with voxels below - no clamping, allow falling off edges
+        let player_x = transform.translation.x.round() as i32;
+        let player_z = transform.translation.z.round() as i32;
         let check_y = player_bottom.floor() as i32;
 
         let mut hit_ground = false;
 
         // Check if there's a solid voxel at the position where player's bottom would be
-        if let Some(voxel_type) = voxel_world.get_voxel(player_x, check_y, player_z) {
-            if voxel_type != VoxelType::Air {
-                // Voxel occupies space from check_y to check_y+1
-                let voxel_top = (check_y + 1) as f32;
+        // Only check if player is within world bounds
+        if player_x >= 0 && player_x < voxel_world.width && player_z >= 0 && player_z < voxel_world.depth {
+            if let Some(voxel_type) = voxel_world.get_voxel(player_x, check_y, player_z) {
+                if voxel_type != VoxelType::Air {
+                    // Voxel occupies space from check_y to check_y+1
+                    let voxel_top = (check_y + 1) as f32;
 
-                // If player is falling and would go below voxel top, snap to top
-                if player_bottom <= voxel_top && player.velocity.y <= 0.0 {
-                    transform.translation.y = voxel_top + player.radius;
-                    player.velocity.y = 0.0;
-                    player.is_grounded = true;
-                    hit_ground = true;
+                    // If player is falling and would go below voxel top, snap to top
+                    if player_bottom <= voxel_top && player.velocity.y <= 0.0 {
+                        transform.translation.y = voxel_top + player.radius;
+                        player.velocity.y = 0.0;
+                        player.is_grounded = true;
+                        hit_ground = true;
+                    }
                 }
             }
         }
