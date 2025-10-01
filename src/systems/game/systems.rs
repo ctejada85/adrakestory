@@ -45,11 +45,17 @@ pub fn setup_game(
         Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -0.5, 0.5, 0.0)),
     ));
 
-    // Add camera (top-down view)
+    // Add camera (top-down view, rotated 90 degrees to the left)
+    let mut camera_transform = Transform::from_xyz(1.5, 8.0, 1.5)
+        .looking_at(Vec3::new(1.5, 0.0, 1.5), Vec3::Y);
+    camera_transform.rotate_around(
+        Vec3::new(1.5, 0.0, 1.5),
+        Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)
+    );
+
     commands.spawn((
         Camera3d::default(),
-        Transform::from_xyz(1.5, 8.0, 1.5)
-            .looking_at(Vec3::new(1.5, 0.0, 1.5), Vec3::Y),
+        camera_transform,
         GameCamera,
     ));
 }
