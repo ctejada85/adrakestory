@@ -115,8 +115,11 @@ pub fn move_player(
             transform.translation.z += direction.z * player.speed * time.delta_secs();
 
             // Clamp player position to room bounds
-            transform.translation.x = transform.translation.x.clamp(-0.2, 3.2);
-            transform.translation.z = transform.translation.z.clamp(-0.2, 3.2);
+            // Voxels span from -0.5 to 3.5, player radius is 0.3
+            let min_bound = -0.5 + player.radius - 0.2; // Increase clamp at bottom (allow more movement)
+            let max_bound = 3.5 - player.radius - 0.2; // Increase clamp at top (allow more movement)
+            transform.translation.x = transform.translation.x.clamp(min_bound, max_bound);
+            transform.translation.z = transform.translation.z.clamp(min_bound, max_bound);
         }
     }
 }
@@ -142,9 +145,9 @@ pub fn apply_physics(
         let new_y = transform.translation.y + player.velocity.y * time.delta_secs();
         let player_bottom = new_y - player.radius;
 
-        // Check collision with voxels below
-        let player_x = transform.translation.x.round() as i32;
-        let player_z = transform.translation.z.round() as i32;
+        // Check collision with voxels below - clamp to valid grid range
+        let player_x = transform.translation.x.round().clamp(0.0, (voxel_world.width - 1) as f32) as i32;
+        let player_z = transform.translation.z.round().clamp(0.0, (voxel_world.depth - 1) as f32) as i32;
         let check_y = player_bottom.floor() as i32;
 
         let mut hit_ground = false;
