@@ -189,7 +189,6 @@ pub fn scale_text_on_resize(
 pub fn keyboard_navigation(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut selected: ResMut<SelectedMenuIndex>,
-    button_query: Query<(Entity, &MenuButton, &mut BackgroundColor)>,
     mut next_state: ResMut<NextState<GameState>>,
     mut exit: EventWriter<AppExit>,
 ) {
@@ -207,29 +206,23 @@ pub fn keyboard_navigation(
 
     // Select option with Enter
     if keyboard_input.just_pressed(KeyCode::Enter) {
-        let buttons: Vec<(Entity, &MenuButton)> = button_query
-            .iter()
-            .map(|(entity, button, _)| (entity, button))
-            .collect();
-
-        if let Some((_, button)) = buttons.get(selected.index) {
-            match button {
-                MenuButton::NewGame => {
-                    info!("Starting new game...");
-                    next_state.set(GameState::InGame);
-                }
-                MenuButton::Continue => {
-                    info!("Continue not implemented yet");
-                }
-                MenuButton::Settings => {
-                    info!("Opening settings...");
-                    next_state.set(GameState::Settings);
-                }
-                MenuButton::Exit => {
-                    info!("Exiting game...");
-                    exit.send(AppExit::Success);
-                }
+        match selected.index {
+            0 => {
+                info!("Starting new game...");
+                next_state.set(GameState::InGame);
             }
+            1 => {
+                info!("Continue not implemented yet");
+            }
+            2 => {
+                info!("Opening settings...");
+                next_state.set(GameState::Settings);
+            }
+            3 => {
+                info!("Exiting game...");
+                exit.send(AppExit::Success);
+            }
+            _ => {}
         }
     }
 }
