@@ -1,11 +1,11 @@
 use bevy::prelude::*;
-use crate::components::{TitleScreenUI, MenuButton};
+use crate::components::{TitleScreenUI, TitleScreenBackground, MenuButton};
 use crate::resources::TitleScreenFadeTimer;
 use crate::states::GameState;
 
-const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
-const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
-const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
+const NORMAL_BUTTON: Color = Color::srgba(0.15, 0.15, 0.15, 0.0);
+const HOVERED_BUTTON: Color = Color::srgba(0.25, 0.25, 0.25, 0.0);
+const PRESSED_BUTTON: Color = Color::srgba(0.35, 0.75, 0.35, 0.0);
 
 pub fn setup_title_screen(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Insert fade timer
@@ -35,16 +35,20 @@ pub fn setup_title_screen(mut commands: Commands, asset_server: Res<AssetServer>
                 },
                 ImageNode::new(asset_server.load("textures/title_background.png")),
                 BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.0)),
+                TitleScreenBackground,
             ));
 
             // Button container
             parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    row_gap: Val::Px(15.0),
-                    ..default()
-                })
+                .spawn((
+                    Node {
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        row_gap: Val::Px(15.0),
+                        ..default()
+                    },
+                    BackgroundColor(Color::NONE),
+                ))
                 .with_children(|parent| {
                     create_menu_button(parent, "New Game", MenuButton::NewGame);
                     create_menu_button(parent, "Continue", MenuButton::Continue);
@@ -65,7 +69,7 @@ fn create_menu_button(parent: &mut ChildBuilder, text: &str, button_type: MenuBu
                 align_items: AlignItems::Center,
                 ..default()
             },
-            BackgroundColor(NORMAL_BUTTON.with_alpha(0.0)),
+            BackgroundColor(Color::NONE),
             button_type,
         ))
         .with_children(|parent| {
@@ -123,22 +127,17 @@ pub fn button_interaction(
 pub fn fade_in_title_screen(
     time: Res<Time>,
     mut timer: ResMut<TitleScreenFadeTimer>,
-    ui_query: Query<&Children, With<TitleScreenUI>>,
-    mut bg_query: Query<&mut BackgroundColor, (With<Parent>, Without<MenuButton>)>,
+    mut bg_query: Query<&mut BackgroundColor, With<TitleScreenBackground>>,
     mut text_query: Query<&mut TextColor, (Without<Parent>, Without<MenuButton>)>,
-    mut button_query: Query<(&mut BackgroundColor, &Children, &MenuButton), Without<TitleScreenUI>>,
+    button_query: Query<(&Children, &MenuButton), Without<TitleScreenUI>>,
     mut button_text_query: Query<&mut TextColor, With<Parent>>,
 ) {
     timer.timer.tick(time.delta());
     let alpha = timer.timer.fraction();
 
     // Fade in background image
-    if let Ok(children) = ui_query.get_single() {
-        for &child in children.iter() {
-            if let Ok(mut bg) = bg_query.get_mut(child) {
-                bg.0.set_alpha(alpha);
-            }
-        }
+    for mut bg in &mut bg_query {
+        bg.0.set_alpha(alpha);
     }
 
     // Fade in title text
@@ -146,12 +145,8 @@ pub fn fade_in_title_screen(
         text_color.0.set_alpha(alpha);
     }
 
-    // Fade in buttons and their text
-    for (mut button_bg, children, _) in &mut button_query {
-        // Fade in button background
-        button_bg.0.set_alpha(alpha);
-
-        // Fade in button text
+    // Fade in button text
+    for (children, _) in &button_query {
         for &child in children.iter() {
             if let Ok(mut text_color) = button_text_query.get_mut(child) {
                 text_color.0.set_alpha(alpha);
