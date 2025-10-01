@@ -36,6 +36,9 @@ impl Default for VoxelWorld {
         voxels[1][1][1] = VoxelType::Dirt;
         voxels[2][1][2] = VoxelType::Dirt;
 
+        // Add a voxel for stairs
+        voxels[2][1][1] = VoxelType::Stone;
+
         Self {
             width,
             height,

@@ -32,7 +32,48 @@ pub fn setup_game(
                         let is_step_platform = y == 1 &&
                             ((x == 1 && z == 1) || (x == 2 && z == 2));
 
-                        if is_step_platform {
+                        // Check if this is a staircase voxel
+                        let is_staircase = y == 1 && x == 2 && z == 1;
+
+                        if is_staircase {
+                            // For staircase: create 8 steps, each 1 sub-voxel tall
+                            // Each step goes from bottom to a certain height
+                            for step in 0..SUB_VOXEL_COUNT {
+                                let step_height = step + 1; // Height of this step (1 to 8 sub-voxels)
+
+                                for sub_x in step..(step + 1) { // Each step is 1 sub-voxel wide in X
+                                    for sub_y in 0..step_height { // Height increases with each step
+                                        for sub_z in 0..SUB_VOXEL_COUNT { // Full depth
+                                            let color = Color::srgb(
+                                                0.2 + (x as f32 * 0.2) + (sub_x as f32 * 0.01),
+                                                0.3 + (z as f32 * 0.15) + (sub_z as f32 * 0.01),
+                                                0.4 + (y as f32 * 0.2) + (sub_y as f32 * 0.01),
+                                            );
+                                            let sub_voxel_material = materials.add(color);
+
+                                            let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
+                                            let sub_x_pos = x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
+                                            let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
+                                            let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
+
+                                            commands.spawn((
+                                                Mesh3d(sub_voxel_mesh.clone()),
+                                                MeshMaterial3d(sub_voxel_material),
+                                                Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
+                                                SubVoxel {
+                                                    parent_x: x,
+                                                    parent_y: y,
+                                                    parent_z: z,
+                                                    sub_x,
+                                                    sub_y,
+                                                    sub_z,
+                                                },
+                                            ));
+                                        }
+                                    }
+                                }
+                            }
+                        } else if is_step_platform {
                             // For step platforms: render only 1 sub-voxel height (8x1x8)
                             for sub_x in 0..SUB_VOXEL_COUNT {
                                 for sub_y in 0..1 {  // Only bottom layer
