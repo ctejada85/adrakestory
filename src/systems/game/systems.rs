@@ -1,36 +1,44 @@
 use bevy::prelude::*;
-use super::components::{Player, FloorTile, GameCamera};
-use super::resources::RoomSize;
+use super::components::{Player, Voxel, VoxelType, GameCamera};
+use super::resources::VoxelWorld;
 
 pub fn setup_game(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let room_size = RoomSize::default();
-    commands.insert_resource(room_size);
+    let voxel_world = VoxelWorld::default();
 
-    // Create floor tiles (4x4 room) with different colors
-    let tile_mesh = meshes.add(Cuboid::new(1.0, 0.1, 1.0));
+    // Create voxel mesh (1x1x1 cube)
+    let voxel_mesh = meshes.add(Cuboid::new(1.0, 1.0, 1.0));
 
-    for x in 0..4 {
-        for z in 0..4 {
-            // Generate a different color for each tile based on position
-            let color = Color::srgb(
-                0.2 + (x as f32 * 0.15),
-                0.3 + (z as f32 * 0.15),
-                0.4 + ((x + z) as f32 * 0.1),
-            );
-            let tile_material = materials.add(color);
+    // Render all non-air voxels
+    for x in 0..voxel_world.width {
+        for y in 0..voxel_world.height {
+            for z in 0..voxel_world.depth {
+                if let Some(voxel_type) = voxel_world.get_voxel(x, y, z) {
+                    if voxel_type != VoxelType::Air {
+                        let color = match voxel_type {
+                            VoxelType::Grass => Color::srgb(0.2 + (x as f32 * 0.15), 0.5, 0.3),
+                            VoxelType::Dirt => Color::srgb(0.6, 0.4, 0.2),
+                            VoxelType::Stone => Color::srgb(0.5, 0.5, 0.5),
+                            VoxelType::Air => continue,
+                        };
+                        let voxel_material = materials.add(color);
 
-            commands.spawn((
-                Mesh3d(tile_mesh.clone()),
-                MeshMaterial3d(tile_material),
-                Transform::from_xyz(x as f32, 0.0, z as f32),
-                FloorTile,
-            ));
+                        commands.spawn((
+                            Mesh3d(voxel_mesh.clone()),
+                            MeshMaterial3d(voxel_material),
+                            Transform::from_xyz(x as f32, y as f32, z as f32),
+                            Voxel { x, y, z, voxel_type },
+                        ));
+                    }
+                }
+            }
         }
     }
+
+    commands.insert_resource(voxel_world);
 
     // Create player (sphere)
     let player_mesh = meshes.add(Sphere::new(0.3));
@@ -103,12 +111,12 @@ pub fn move_player(
 
 pub fn cleanup_game(
     mut commands: Commands,
-    tile_query: Query<Entity, With<FloorTile>>,
+    voxel_query: Query<Entity, With<Voxel>>,
     player_query: Query<Entity, With<Player>>,
     camera_query: Query<Entity, With<GameCamera>>,
     light_query: Query<Entity, With<DirectionalLight>>,
 ) {
-    for entity in &tile_query {
+    for entity in &voxel_query {
         commands.entity(entity).despawn_recursive();
     }
     for entity in &player_query {
@@ -120,5 +128,5 @@ pub fn cleanup_game(
     for entity in &light_query {
         commands.entity(entity).despawn_recursive();
     }
-    commands.remove_resource::<RoomSize>();
+    commands.remove_resource::<VoxelWorld>();
 }
