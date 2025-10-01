@@ -322,28 +322,11 @@ fn get_step_up_height(
     max_step_height: f32,
     current_y: f32,
 ) -> Option<f32> {
-    let collision_radius = radius * 0.85;
+    let collision_radius = radius * 0.8;
     let current_bottom = current_y - radius;
 
-    // First, check if there's ground at the current position at approximately the same height
-    let mut current_ground_height = None;
-    for (sub_voxel, sub_transform) in sub_voxel_query.iter() {
-        let sub_pos = sub_transform.translation;
-        let half_size = SUB_VOXEL_SIZE / 2.0;
-        let max_y = sub_pos.y + half_size;
-
-        // Check if this is close to where we're currently standing
-        if (max_y - current_bottom).abs() < 0.05 {
-            current_ground_height = Some(max_y);
-            break;
-        }
-    }
-
-    // If we can't find current ground, don't allow step up (prevents teleporting from air)
-    let ground_ref = current_ground_height.unwrap_or(current_bottom);
-
-    // Find the lowest sub-voxel that's blocking us and is just one step above our current ground
-    let mut lowest_blocking_step = None;
+    // Find all sub-voxels at the target position that we're colliding with
+    let mut blocking_voxels = Vec::new();
 
     for (sub_voxel, sub_transform) in sub_voxel_query.iter() {
         let sub_pos = sub_transform.translation;
@@ -356,7 +339,7 @@ fn get_step_up_height(
         let min_z = sub_pos.z - half_size;
         let max_z = sub_pos.z + half_size;
 
-        // Check horizontal overlap
+        // Check horizontal overlap with target position
         let closest_x = x.clamp(min_x, max_x);
         let closest_z = z.clamp(min_z, max_z);
         let dx = x - closest_x;
@@ -364,22 +347,34 @@ fn get_step_up_height(
         let distance_squared = dx * dx + dz * dz;
 
         if distance_squared < collision_radius * collision_radius {
-            // This sub-voxel overlaps horizontally with the player
-            // Check if it's exactly one step above our current ground level
-            let height_above_ground = max_y - ground_ref;
-
-            // Only allow stepping to the next immediate step (within one sub-voxel height)
-            if height_above_ground > 0.01 && height_above_ground <= max_step_height + 0.01 {
-                // Find the lowest valid step
-                if lowest_blocking_step.is_none() || max_y < lowest_blocking_step.unwrap() {
-                    lowest_blocking_step = Some(max_y);
-                }
-            }
+            blocking_voxels.push(max_y);
         }
     }
 
-    // Return the lowest step we can take
-    lowest_blocking_step.map(|top| top + radius)
+    if blocking_voxels.is_empty() {
+        return None;
+    }
+
+    // Remove duplicates (same height voxels)
+    blocking_voxels.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    blocking_voxels.dedup_by(|a, b| (*a - *b).abs() < 0.001);
+
+    // Don't step up if colliding with more than 1 sub-voxel (at different heights)
+    if blocking_voxels.len() > 1 {
+        return None;
+    }
+
+    // Check if the single blocking voxel is within step height
+    if let Some(&voxel_top) = blocking_voxels.first() {
+        let step_distance = voxel_top - current_bottom;
+
+        // This voxel is within steppable range
+        if step_distance > 0.005 && step_distance <= max_step_height + 0.005 {
+            return Some(voxel_top + radius);
+        }
+    }
+
+    None
 }
 
 fn check_sub_voxel_collision(
