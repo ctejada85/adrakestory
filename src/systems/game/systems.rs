@@ -203,7 +203,7 @@ pub fn setup_game(
     )).id();
 
     // Create collision box (invisible by default)
-    let collision_box_mesh = meshes.add(Sphere::new(player_radius));
+    let collision_box_mesh = meshes.add(Cuboid::new(player_radius * 2.0, player_radius * 2.0, player_radius * 2.0));
     let collision_box_material = materials.add(StandardMaterial {
         base_color: Color::srgba(0.0, 1.0, 0.0, 0.3),
         alpha_mode: AlphaMode::Blend,
