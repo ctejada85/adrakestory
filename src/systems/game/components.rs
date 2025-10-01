@@ -35,4 +35,8 @@ pub enum VoxelType {
 }
 
 #[derive(Component)]
-pub struct GameCamera;
+pub struct GameCamera {
+    pub original_rotation: Quat,
+    pub target_rotation: Quat,
+    pub rotation_speed: f32,
+}

@@ -219,10 +219,16 @@ pub fn setup_game(
         Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)
     );
 
+    let original_rotation = camera_transform.rotation;
+
     commands.spawn((
         Camera3d::default(),
         camera_transform,
-        GameCamera,
+        GameCamera {
+            original_rotation,
+            target_rotation: original_rotation,
+            rotation_speed: 5.0,
+        },
     ));
 }
 
@@ -427,6 +433,42 @@ fn check_sub_voxel_collision(
     }
 
     false
+}
+
+pub fn rotate_camera(
+    time: Res<Time>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut camera_query: Query<(&mut GameCamera, &mut Transform)>,
+) {
+    if let Ok((mut game_camera, mut transform)) = camera_query.get_single_mut() {
+        let center = Vec3::new(1.5, 0.0, 1.5);
+
+        // Check if Delete key is pressed
+        if keyboard_input.pressed(KeyCode::Delete) {
+            // Rotate 90 degrees to the left around the world Y-axis
+            let rotation_offset = Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
+            game_camera.target_rotation = rotation_offset * game_camera.original_rotation;
+        } else {
+            // Return to original rotation
+            game_camera.target_rotation = game_camera.original_rotation;
+        }
+
+        // Smoothly interpolate rotation
+        let new_rotation = transform.rotation.slerp(
+            game_camera.target_rotation,
+            game_camera.rotation_speed * time.delta_secs()
+        );
+
+        // Calculate how much we rotated
+        let rotation_delta = new_rotation * transform.rotation.inverse();
+
+        // Rotate the camera position around the center point
+        let offset = transform.translation - center;
+        let rotated_offset = rotation_delta * offset;
+
+        transform.translation = center + rotated_offset;
+        transform.rotation = new_rotation;
+    }
 }
 
 pub fn apply_gravity(
