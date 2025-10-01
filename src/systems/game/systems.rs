@@ -206,6 +206,9 @@ fn check_sub_voxel_collision(
     z: f32,
     radius: f32,
 ) -> bool {
+    // Use slightly smaller collision radius for tighter fit
+    let collision_radius = radius * 0.85;
+
     // Check all sub-voxels for collision
     for (sub_voxel, sub_transform) in sub_voxel_query.iter() {
         let sub_pos = sub_transform.translation;
@@ -231,7 +234,7 @@ fn check_sub_voxel_collision(
         }
 
         // Quick AABB check for horizontal bounds
-        if x + radius < min_x || x - radius > max_x || z + radius < min_z || z - radius > max_z {
+        if x + collision_radius < min_x || x - collision_radius > max_x || z + collision_radius < min_z || z - collision_radius > max_z {
             continue;
         }
 
@@ -244,7 +247,7 @@ fn check_sub_voxel_collision(
         let dz = z - closest_z;
         let distance_squared = dx * dx + dz * dz;
 
-        if distance_squared < radius * radius {
+        if distance_squared < collision_radius * collision_radius {
             return true; // Collision detected
         }
     }
