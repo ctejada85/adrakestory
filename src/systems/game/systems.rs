@@ -155,14 +155,6 @@ pub fn move_player(
             if !check_voxel_collision(&voxel_world, transform.translation.x, current_pos.y, new_z, player.radius) {
                 transform.translation.z = new_z;
             }
-
-            // Clamp player position to room bounds
-            let min_bound_x = -0.5 + player.radius - 0.2;
-            let max_bound_x = 3.5 - player.radius - 0.2;
-            let min_bound_z = -0.5 + player.radius + 0.2;
-            let max_bound_z = 3.5 - player.radius - 0.2;
-            transform.translation.x = transform.translation.x.clamp(min_bound_x, max_bound_x);
-            transform.translation.z = transform.translation.z.clamp(min_bound_z, max_bound_z);
         }
     }
 }
