@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use super::components::{Player, Voxel, SubVoxel, VoxelType, GameCamera, CollisionBox};
-use super::resources::VoxelWorld;
+use super::resources::{VoxelWorld, SpatialGrid};
 
 const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
 const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
@@ -11,6 +11,7 @@ pub fn setup_game(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let voxel_world = VoxelWorld::default();
+    let mut spatial_grid = SpatialGrid::default();
 
     // Create sub-voxel mesh (1/8 x 1/8 x 1/8 cube)
     let sub_voxel_mesh = meshes.add(Cuboid::new(SUB_VOXEL_SIZE, SUB_VOXEL_SIZE, SUB_VOXEL_SIZE));
@@ -56,7 +57,7 @@ pub fn setup_game(
                                             let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
                                             let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
 
-                                            commands.spawn((
+                                            let sub_voxel_entity = commands.spawn((
                                                 Mesh3d(sub_voxel_mesh.clone()),
                                                 MeshMaterial3d(sub_voxel_material),
                                                 Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
@@ -68,7 +69,10 @@ pub fn setup_game(
                                                     sub_y,
                                                     sub_z,
                                                 },
-                                            ));
+                                            )).id();
+                                            let sub_voxel_world_pos = Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
+                                            let grid_coords = SpatialGrid::world_to_grid_coords(sub_voxel_world_pos);
+                                            spatial_grid.cells.entry(grid_coords).or_default().push(sub_voxel_entity);
                                         }
                                     }
                                 }
@@ -90,7 +94,7 @@ pub fn setup_game(
                                         let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
                                         let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
 
-                                        commands.spawn((
+                                        let sub_voxel_entity = commands.spawn((
                                             Mesh3d(sub_voxel_mesh.clone()),
                                             MeshMaterial3d(sub_voxel_material),
                                             Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
@@ -102,7 +106,10 @@ pub fn setup_game(
                                                 sub_y,
                                                 sub_z,
                                             },
-                                        ));
+                                        )).id();
+                                        let sub_voxel_world_pos = Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
+                                        let grid_coords = SpatialGrid::world_to_grid_coords(sub_voxel_world_pos);
+                                        spatial_grid.cells.entry(grid_coords).or_default().push(sub_voxel_entity);
                                     }
                                 }
                             }
@@ -127,7 +134,7 @@ pub fn setup_game(
                                         let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
                                         let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
 
-                                        commands.spawn((
+                                        let sub_voxel_entity = commands.spawn((
                                             Mesh3d(sub_voxel_mesh.clone()),
                                             MeshMaterial3d(sub_voxel_material),
                                             Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
@@ -139,7 +146,10 @@ pub fn setup_game(
                                                 sub_y,
                                                 sub_z,
                                             },
-                                        ));
+                                        )).id();
+                                        let sub_voxel_world_pos = Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
+                                        let grid_coords = SpatialGrid::world_to_grid_coords(sub_voxel_world_pos);
+                                        spatial_grid.cells.entry(grid_coords).or_default().push(sub_voxel_entity);
                                     }
                                 }
                             }
@@ -160,7 +170,7 @@ pub fn setup_game(
                                         let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
                                         let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
 
-                                        commands.spawn((
+                                        let sub_voxel_entity = commands.spawn((
                                             Mesh3d(sub_voxel_mesh.clone()),
                                             MeshMaterial3d(sub_voxel_material),
                                             Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
@@ -172,7 +182,10 @@ pub fn setup_game(
                                                 sub_y,
                                                 sub_z,
                                             },
-                                        ));
+                                        )).id();
+                                        let sub_voxel_world_pos = Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
+                                        let grid_coords = SpatialGrid::world_to_grid_coords(sub_voxel_world_pos);
+                                        spatial_grid.cells.entry(grid_coords).or_default().push(sub_voxel_entity);
                                     }
                                 }
                             }
@@ -184,6 +197,7 @@ pub fn setup_game(
     }
 
     commands.insert_resource(voxel_world);
+    commands.insert_resource(spatial_grid);
 
     // Create player (sphere) - positioned on top of voxel floor
     let player_radius = 0.3;
@@ -252,7 +266,8 @@ pub fn move_player(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     voxel_world: Res<VoxelWorld>,
-    sub_voxel_query: Query<(&SubVoxel, &Transform), Without<Player>>,
+    spatial_grid: Res<SpatialGrid>,
+    sub_voxel_transforms: Query<&Transform, (With<SubVoxel>, Without<Player>)>,
     mut player_query: Query<(&mut Player, &mut Transform)>,
 ) {
     if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
@@ -290,9 +305,9 @@ pub fn move_player(
 
             // Try moving on X axis
             let new_x = current_pos.x + move_delta.x;
-            if check_sub_voxel_collision(&sub_voxel_query, new_x, current_pos.y, current_pos.z, player.radius) {
+            if check_sub_voxel_collision(&spatial_grid, &sub_voxel_transforms, new_x, current_pos.y, current_pos.z, player.radius) {
                 // Check if we can step up
-                if let Some(step_height) = get_step_up_height(&sub_voxel_query, new_x, current_pos.y, current_pos.z, player.radius, max_step_height, current_pos.y) {
+                if let Some(step_height) = get_step_up_height(&spatial_grid, &sub_voxel_transforms, new_x, current_pos.y, current_pos.z, player.radius, max_step_height, current_pos.y) {
                     // Only step up if the height increase is reasonable (within one step)
                     let height_increase = step_height - current_pos.y;
                     if height_increase > 0.001 && height_increase <= max_step_height + 0.001 {
@@ -309,9 +324,9 @@ pub fn move_player(
 
             // Try moving on Z axis
             let new_z = current_pos.z + move_delta.z;
-            if check_sub_voxel_collision(&sub_voxel_query, transform.translation.x, transform.translation.y, new_z, player.radius) {
+            if check_sub_voxel_collision(&spatial_grid, &sub_voxel_transforms, transform.translation.x, transform.translation.y, new_z, player.radius) {
                 // Check if we can step up
-                if let Some(step_height) = get_step_up_height(&sub_voxel_query, transform.translation.x, transform.translation.y, new_z, player.radius, max_step_height, transform.translation.y) {
+                if let Some(step_height) = get_step_up_height(&spatial_grid, &sub_voxel_transforms, transform.translation.x, transform.translation.y, new_z, player.radius, max_step_height, transform.translation.y) {
                     // Only step up if the height increase is reasonable (within one step)
                     let height_increase = step_height - transform.translation.y;
                     if height_increase > 0.001 && height_increase <= max_step_height + 0.001 {
@@ -330,7 +345,8 @@ pub fn move_player(
 }
 
 fn get_step_up_height(
-    sub_voxel_query: &Query<(&SubVoxel, &Transform), Without<Player>>,
+    spatial_grid: &SpatialGrid,
+    sub_voxel_transforms: &Query<&Transform, (With<SubVoxel>, Without<Player>)>,
     x: f32,
     y: f32,
     z: f32,
@@ -341,29 +357,36 @@ fn get_step_up_height(
     let collision_radius = radius * 0.8;
     let current_bottom = current_y - radius;
 
-    // Find all sub-voxels at the target position that we're colliding with
+    // Calculate player's AABB for grid lookup
+    let player_min = Vec3::new(x - collision_radius, y - radius, z - collision_radius);
+    let player_max = Vec3::new(x + collision_radius, y + radius, z + collision_radius);
+
+    let relevant_sub_voxel_entities = spatial_grid.get_entities_in_aabb(player_min, player_max);
+
     let mut all_voxels = Vec::new();
 
-    for (_sub_voxel, sub_transform) in sub_voxel_query.iter() {
-        let sub_pos = sub_transform.translation;
-        let half_size = SUB_VOXEL_SIZE / 2.0;
+    for entity in relevant_sub_voxel_entities {
+        if let Ok(sub_transform) = sub_voxel_transforms.get(entity) {
+            let sub_pos = sub_transform.translation;
+            let half_size = SUB_VOXEL_SIZE / 2.0;
 
-        let min_x = sub_pos.x - half_size;
-        let max_x = sub_pos.x + half_size;
-        let min_y = sub_pos.y - half_size;
-        let max_y = sub_pos.y + half_size;
-        let min_z = sub_pos.z - half_size;
-        let max_z = sub_pos.z + half_size;
+            let min_x = sub_pos.x - half_size;
+            let max_x = sub_pos.x + half_size;
+            let min_y = sub_pos.y - half_size;
+            let max_y = sub_pos.y + half_size;
+            let min_z = sub_pos.z - half_size;
+            let max_z = sub_pos.z + half_size;
 
-        // Check horizontal overlap with target position
-        let closest_x = x.clamp(min_x, max_x);
-        let closest_z = z.clamp(min_z, max_z);
-        let dx = x - closest_x;
-        let dz = z - closest_z;
-        let distance_squared = dx * dx + dz * dz;
+            // Check horizontal overlap with target position
+            let closest_x = x.clamp(min_x, max_x);
+            let closest_z = z.clamp(min_z, max_z);
+            let dx = x - closest_x;
+            let dz = z - closest_z;
+            let distance_squared = dx * dx + dz * dz;
 
-        if distance_squared < collision_radius * collision_radius {
-            all_voxels.push(max_y);
+            if distance_squared < collision_radius * collision_radius {
+                all_voxels.push(max_y);
+            }
         }
     }
 
@@ -375,46 +398,39 @@ fn get_step_up_height(
     all_voxels.sort_by(|a, b| a.partial_cmp(b).unwrap());
     all_voxels.dedup_by(|a, b| (*a - *b).abs() < 0.001);
 
-    // Identify the floor level (lowest voxel at or below current bottom)
+    // Identify the floor level (highest voxel at or below current bottom)
     let floor_level = all_voxels.iter()
         .filter(|&&h| h <= current_bottom + 0.01)
         .max_by(|a, b| a.partial_cmp(b).unwrap())
         .copied();
 
-    // Find voxels above the floor
+    // Find voxels above the current bottom (excluding floor)
     let above_floor: Vec<f32> = all_voxels.iter()
         .filter(|&&h| h > current_bottom + 0.01)
         .copied()
         .collect();
 
-    // Only step up if there's exactly one level above the floor
+    // Only step up if there's exactly one level above current position
     if above_floor.len() != 1 {
         return None;
     }
 
     let step_height = above_floor[0];
 
-    // Check if it's exactly one step above the floor level
-    if let Some(floor) = floor_level {
-        let height_above_floor = step_height - floor;
+    // Check step distance from current bottom
+    let step_distance = step_height - current_bottom;
 
-        // Must be within one sub-voxel height above the floor
-        if height_above_floor > 0.005 && height_above_floor <= max_step_height + 0.005 {
-            return Some(step_height + radius);
-        }
-    } else {
-        // No floor detected, check relative to current bottom
-        let step_distance = step_height - current_bottom;
-        if step_distance > 0.005 && step_distance <= max_step_height + 0.005 {
-            return Some(step_height + radius);
-        }
+    // Allow step up if within max step height
+    if step_distance > 0.005 && step_distance <= max_step_height + 0.005 {
+        return Some(step_height + radius);
     }
 
     None
 }
 
 fn check_sub_voxel_collision(
-    sub_voxel_query: &Query<(&SubVoxel, &Transform), Without<Player>>,
+    spatial_grid: &SpatialGrid,
+    sub_voxel_transforms: &Query<&Transform, (With<SubVoxel>, Without<Player>)>,
     x: f32,
     y: f32,
     z: f32,
@@ -423,46 +439,54 @@ fn check_sub_voxel_collision(
     // Use slightly smaller collision radius for tighter fit
     let collision_radius = radius;
 
-    // Check all sub-voxels for collision
-    for (sub_voxel, sub_transform) in sub_voxel_query.iter() {
-        let sub_pos = sub_transform.translation;
-        let half_size = SUB_VOXEL_SIZE / 2.0;
+    // Calculate player's AABB for grid lookup
+    let player_min = Vec3::new(x - collision_radius, y - radius, z - collision_radius);
+    let player_max = Vec3::new(x + collision_radius, y + radius, z + collision_radius);
 
-        // Sub-voxel AABB bounds
-        let min_x = sub_pos.x - half_size;
-        let max_x = sub_pos.x + half_size;
-        let min_y = sub_pos.y - half_size;
-        let max_y = sub_pos.y + half_size;
-        let min_z = sub_pos.z - half_size;
-        let max_z = sub_pos.z + half_size;
+    let relevant_sub_voxel_entities = spatial_grid.get_entities_in_aabb(player_min, player_max);
 
-        // Only check sub-voxels that overlap with player's height, but not the floor
-        // Skip sub-voxels that are below player's center (these are floor/ground)
-        if max_y <= y - radius * 0.5 {
-            continue;
-        }
+    // Check all relevant sub-voxels for collision
+    for entity in relevant_sub_voxel_entities {
+        if let Ok(sub_transform) = sub_voxel_transforms.get(entity) {
+            let sub_pos = sub_transform.translation;
+            let half_size = SUB_VOXEL_SIZE / 2.0;
 
-        // Skip if sub-voxel is too far above
-        if min_y > y + radius {
-            continue;
-        }
+            // Sub-voxel AABB bounds
+            let min_x = sub_pos.x - half_size;
+            let max_x = sub_pos.x + half_size;
+            let min_y = sub_pos.y - half_size;
+            let max_y = sub_pos.y + half_size;
+            let min_z = sub_pos.z - half_size;
+            let max_z = sub_pos.z + half_size;
 
-        // Quick AABB check for horizontal bounds
-        if x + collision_radius < min_x || x - collision_radius > max_x || z + collision_radius < min_z || z - collision_radius > max_z {
-            continue;
-        }
+            // Only check sub-voxels that overlap with player's height, but not the floor
+            // Skip sub-voxels that are below player's center (these are floor/ground)
+            if max_y <= y - radius * 0.5 {
+                continue;
+            }
 
-        // Find closest point on sub-voxel AABB to player center (horizontal only)
-        let closest_x = x.clamp(min_x, max_x);
-        let closest_z = z.clamp(min_z, max_z);
+            // Skip if sub-voxel is too far above
+            if min_y > y + radius {
+                continue;
+            }
 
-        // Check horizontal distance only
-        let dx = x - closest_x;
-        let dz = z - closest_z;
-        let distance_squared = dx * dx + dz * dz;
+            // Quick AABB check for horizontal bounds
+            if x + collision_radius < min_x || x - collision_radius > max_x || z + collision_radius < min_z || z - collision_radius > max_z {
+                continue;
+            }
 
-        if distance_squared < collision_radius * collision_radius {
-            return true; // Collision detected
+            // Find closest point on sub-voxel AABB to player center (horizontal only)
+            let closest_x = x.clamp(min_x, max_x);
+            let closest_z = z.clamp(min_z, max_z);
+
+            // Check horizontal distance only
+            let dx = x - closest_x;
+            let dz = z - closest_z;
+            let distance_squared = dx * dx + dz * dz;
+
+            if distance_squared < collision_radius * collision_radius {
+                return true; // Collision detected
+            }
         }
     }
 
