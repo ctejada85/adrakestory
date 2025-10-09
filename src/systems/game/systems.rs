@@ -5,6 +5,26 @@ use bevy::prelude::*;
 const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
 const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
 
+// === SubVoxel position helpers for ECS-based collision ===
+
+fn calculate_sub_voxel_world_pos(sub_voxel: &SubVoxel) -> Vec3 {
+    const SUB_VOXEL_SIZE: f32 = 1.0 / 8.0; // Keep in sync with main const
+    let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
+    Vec3::new(
+        sub_voxel.parent_x as f32 + offset + (sub_voxel.sub_x as f32 * SUB_VOXEL_SIZE),
+        sub_voxel.parent_y as f32 + offset + (sub_voxel.sub_y as f32 * SUB_VOXEL_SIZE),
+        sub_voxel.parent_z as f32 + offset + (sub_voxel.sub_z as f32 * SUB_VOXEL_SIZE),
+    )
+}
+
+fn get_sub_voxel_bounds(sub_voxel: &SubVoxel) -> (Vec3, Vec3) {
+    let center = calculate_sub_voxel_world_pos(sub_voxel);
+    let half_size = 1.0 / 8.0 / 2.0;
+    (
+        center - Vec3::splat(half_size),
+        center + Vec3::splat(half_size),
+    )
+}
 pub fn setup_game(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -335,11 +355,15 @@ pub fn handle_escape_key(
     }
 }
 
+/*
+    Player movement and collision now use SubVoxel component fields for all collision and step-up logic.
+    This enables ECS-idiomatic queries and future voxel modification features.
+*/
 pub fn move_player(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     spatial_grid: Res<SpatialGrid>,
-    sub_voxel_transforms: Query<&Transform, (With<SubVoxel>, Without<Player>)>,
+    sub_voxel_query: Query<&SubVoxel, Without<Player>>,
     mut player_query: Query<(&mut Player, &mut Transform)>,
 ) {
     if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
@@ -379,7 +403,7 @@ pub fn move_player(
             let new_x = current_pos.x + move_delta.x;
             if check_sub_voxel_collision(
                 &spatial_grid,
-                &sub_voxel_transforms,
+                &sub_voxel_query,
                 new_x,
                 current_pos.y,
                 current_pos.z,
@@ -393,7 +417,7 @@ pub fn move_player(
                 };
                 if let Some(step_height) = get_step_up_height(
                     &spatial_grid,
-                    &sub_voxel_transforms,
+                    &sub_voxel_query,
                     &player_collision,
                     max_step_height,
                 ) {
@@ -415,7 +439,7 @@ pub fn move_player(
             let new_z = current_pos.z + move_delta.z;
             if check_sub_voxel_collision(
                 &spatial_grid,
-                &sub_voxel_transforms,
+                &sub_voxel_query,
                 transform.translation.x,
                 transform.translation.y,
                 new_z,
@@ -429,7 +453,7 @@ pub fn move_player(
                 };
                 if let Some(step_height) = get_step_up_height(
                     &spatial_grid,
-                    &sub_voxel_transforms,
+                    &sub_voxel_query,
                     &player_collision,
                     max_step_height,
                 ) {
@@ -458,7 +482,7 @@ struct PlayerCollision {
 
 fn get_step_up_height(
     spatial_grid: &SpatialGrid,
-    sub_voxel_transforms: &Query<&Transform, (With<SubVoxel>, Without<Player>)>,
+    sub_voxel_query: &Query<&SubVoxel, Without<Player>>,
     player: &PlayerCollision,
     max_step_height: f32,
 ) -> Option<f32> {
@@ -482,25 +506,18 @@ fn get_step_up_height(
     let mut all_voxels = Vec::new();
 
     for entity in relevant_sub_voxel_entities {
-        if let Ok(sub_transform) = sub_voxel_transforms.get(entity) {
-            let sub_pos = sub_transform.translation;
-            let half_size = SUB_VOXEL_SIZE / 2.0;
-
-            let min_x = sub_pos.x - half_size;
-            let max_x = sub_pos.x + half_size;
-            let max_y = sub_pos.y + half_size;
-            let min_z = sub_pos.z - half_size;
-            let max_z = sub_pos.z + half_size;
+        if let Ok(sub_voxel) = sub_voxel_query.get(entity) {
+            let (min, max) = get_sub_voxel_bounds(sub_voxel);
 
             // Check horizontal overlap with target position
-            let closest_x = player.pos.x.clamp(min_x, max_x);
-            let closest_z = player.pos.z.clamp(min_z, max_z);
+            let closest_x = player.pos.x.clamp(min.x, max.x);
+            let closest_z = player.pos.z.clamp(min.z, max.z);
             let dx = player.pos.x - closest_x;
             let dz = player.pos.z - closest_z;
             let distance_squared = dx * dx + dz * dz;
 
             if distance_squared < collision_radius * collision_radius {
-                all_voxels.push(max_y);
+                all_voxels.push(max.y);
             }
         }
     }
@@ -540,7 +557,7 @@ fn get_step_up_height(
 
 fn check_sub_voxel_collision(
     spatial_grid: &SpatialGrid,
-    sub_voxel_transforms: &Query<&Transform, (With<SubVoxel>, Without<Player>)>,
+    sub_voxel_query: &Query<&SubVoxel, Without<Player>>,
     x: f32,
     y: f32,
     z: f32,
@@ -557,41 +574,32 @@ fn check_sub_voxel_collision(
 
     // Check all relevant sub-voxels for collision
     for entity in relevant_sub_voxel_entities {
-        if let Ok(sub_transform) = sub_voxel_transforms.get(entity) {
-            let sub_pos = sub_transform.translation;
-            let half_size = SUB_VOXEL_SIZE / 2.0;
-
-            // Sub-voxel AABB bounds
-            let min_x = sub_pos.x - half_size;
-            let max_x = sub_pos.x + half_size;
-            let min_y = sub_pos.y - half_size;
-            let max_y = sub_pos.y + half_size;
-            let min_z = sub_pos.z - half_size;
-            let max_z = sub_pos.z + half_size;
+        if let Ok(sub_voxel) = sub_voxel_query.get(entity) {
+            let (min, max) = get_sub_voxel_bounds(sub_voxel);
 
             // Only check sub-voxels that overlap with player's height, but not the floor
             // Skip sub-voxels that are below player's center (these are floor/ground)
-            if max_y <= y - radius * 0.5 {
+            if max.y <= y - radius * 0.5 {
                 continue;
             }
 
             // Skip if sub-voxel is too far above
-            if min_y > y + radius {
+            if min.y > y + radius {
                 continue;
             }
 
             // Quick AABB check for horizontal bounds
-            if x + collision_radius < min_x
-                || x - collision_radius > max_x
-                || z + collision_radius < min_z
-                || z - collision_radius > max_z
+            if x + collision_radius < min.x
+                || x - collision_radius > max.x
+                || z + collision_radius < min.z
+                || z - collision_radius > max.z
             {
                 continue;
             }
 
             // Find closest point on sub-voxel AABB to player center (horizontal only)
-            let closest_x = x.clamp(min_x, max_x);
-            let closest_z = z.clamp(min_z, max_z);
+            let closest_x = x.clamp(min.x, max.x);
+            let closest_z = z.clamp(min.z, max.z);
 
             // Check horizontal distance only
             let dx = x - closest_x;
@@ -680,7 +688,7 @@ pub fn apply_gravity(time: Res<Time>, mut player_query: Query<&mut Player>) {
 
 pub fn apply_physics(
     time: Res<Time>,
-    sub_voxel_query: Query<(&SubVoxel, &Transform), Without<Player>>,
+    sub_voxel_query: Query<&SubVoxel, Without<Player>>,
     mut player_query: Query<(&mut Player, &mut Transform)>,
 ) {
     if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
@@ -696,19 +704,11 @@ pub fn apply_physics(
         let mut highest_collision_y = f32::MIN;
 
         // Check collision with sub-voxels below
-        for (_, sub_transform) in sub_voxel_query.iter() {
-            let sub_pos = sub_transform.translation;
-            let half_size = SUB_VOXEL_SIZE / 2.0;
-
-            // Sub-voxel AABB bounds
-            let sub_min_x = sub_pos.x - half_size;
-            let sub_max_x = sub_pos.x + half_size;
-            let sub_min_z = sub_pos.z - half_size;
-            let sub_max_z = sub_pos.z + half_size;
-            let sub_max_y = sub_pos.y + half_size;
+        for sub_voxel in sub_voxel_query.iter() {
+            let (min, max) = get_sub_voxel_bounds(sub_voxel);
 
             // Only check sub-voxels that are below the player
-            if sub_max_y > new_y {
+            if max.y > new_y {
                 continue;
             }
 
@@ -717,16 +717,16 @@ pub fn apply_physics(
             let player_z = transform.translation.z;
 
             // Check horizontal overlap
-            let horizontal_overlap = player_x + player.radius > sub_min_x
-                && player_x - player.radius < sub_max_x
-                && player_z + player.radius > sub_min_z
-                && player_z - player.radius < sub_max_z;
+            let horizontal_overlap = player_x + player.radius > min.x
+                && player_x - player.radius < max.x
+                && player_z + player.radius > min.z
+                && player_z - player.radius < max.z;
 
             if horizontal_overlap && player.velocity.y <= 0.0 {
                 // Check if player's bottom would go through the top of this sub-voxel
                 // Player was above, and would now be at or below the top
-                if current_bottom >= sub_max_y && player_bottom <= sub_max_y {
-                    highest_collision_y = highest_collision_y.max(sub_max_y);
+                if current_bottom >= max.y && player_bottom <= max.y {
+                    highest_collision_y = highest_collision_y.max(max.y);
                     hit_ground = true;
                 }
             }
