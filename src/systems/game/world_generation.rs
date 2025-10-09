@@ -214,12 +214,14 @@ fn spawn_staircase_sub_voxels(
                         spatial_grid,
                         sub_voxel_mesh,
                         materials,
-                        x,
-                        y,
-                        z,
-                        sub_x,
-                        sub_y,
-                        sub_z,
+                        SubVoxelSpawnParams {
+                            parent_x: x,
+                            parent_y: y,
+                            parent_z: z,
+                            sub_x,
+                            sub_y,
+                            sub_z,
+                        },
                     );
                 }
             }
@@ -248,12 +250,14 @@ fn spawn_platform_sub_voxels(
                     spatial_grid,
                     sub_voxel_mesh,
                     materials,
-                    x,
-                    y,
-                    z,
-                    sub_x,
-                    sub_y,
-                    sub_z,
+                    SubVoxelSpawnParams {
+                        parent_x: x,
+                        parent_y: y,
+                        parent_z: z,
+                        sub_x,
+                        sub_y,
+                        sub_z,
+                    },
                 );
             }
         }
@@ -283,12 +287,14 @@ fn spawn_pillar_sub_voxels(
                     spatial_grid,
                     sub_voxel_mesh,
                     materials,
-                    x,
-                    y,
-                    z,
-                    sub_x,
-                    sub_y,
-                    sub_z,
+                    SubVoxelSpawnParams {
+                        parent_x: x,
+                        parent_y: y,
+                        parent_z: z,
+                        sub_x,
+                        sub_y,
+                        sub_z,
+                    },
                 );
             }
         }
@@ -315,16 +321,28 @@ fn spawn_full_voxel_sub_voxels(
                     spatial_grid,
                     sub_voxel_mesh,
                     materials,
-                    x,
-                    y,
-                    z,
-                    sub_x,
-                    sub_y,
-                    sub_z,
+                    SubVoxelSpawnParams {
+                        parent_x: x,
+                        parent_y: y,
+                        parent_z: z,
+                        sub_x,
+                        sub_y,
+                        sub_z,
+                    },
                 );
             }
         }
     }
+}
+
+/// Parameters for spawning a sub-voxel.
+struct SubVoxelSpawnParams {
+    parent_x: i32,
+    parent_y: i32,
+    parent_z: i32,
+    sub_x: i32,
+    sub_y: i32,
+    sub_z: i32,
 }
 
 /// Helper function to spawn a single sub-voxel entity.
@@ -339,13 +357,14 @@ fn spawn_sub_voxel(
     spatial_grid: &mut SpatialGrid,
     sub_voxel_mesh: &Handle<Mesh>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-    x: i32,
-    y: i32,
-    z: i32,
-    sub_x: i32,
-    sub_y: i32,
-    sub_z: i32,
+    params: SubVoxelSpawnParams,
 ) {
+    let x = params.parent_x;
+    let y = params.parent_y;
+    let z = params.parent_z;
+    let sub_x = params.sub_x;
+    let sub_y = params.sub_y;
+    let sub_z = params.sub_z;
     let color = Color::srgb(
         0.2 + (x as f32 * 0.2) + (sub_x as f32 * 0.01),
         0.3 + (z as f32 * 0.15) + (sub_z as f32 * 0.01),
