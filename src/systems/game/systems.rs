@@ -1,6 +1,6 @@
+use super::components::{CollisionBox, GameCamera, Player, SubVoxel, Voxel, VoxelType};
+use super::resources::{SpatialGrid, VoxelWorld};
 use bevy::prelude::*;
-use super::components::{Player, Voxel, SubVoxel, VoxelType, GameCamera, CollisionBox};
-use super::resources::{VoxelWorld, SpatialGrid};
 
 const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
 const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
@@ -23,15 +23,24 @@ pub fn setup_game(
                 if let Some(voxel_type) = voxel_world.get_voxel(x, y, z) {
                     if voxel_type != VoxelType::Air {
                         // Spawn parent voxel marker (for reference, no mesh)
-                        let parent_entity = commands.spawn(Voxel { x, y, z, voxel_type }).id();
+                        let parent_entity = commands
+                            .spawn(Voxel {
+                                x,
+                                y,
+                                z,
+                                voxel_type,
+                            })
+                            .id();
 
                         // Check if this is a corner pillar voxel at y=1
-                        let is_corner_pillar = y == 1 &&
-                            ((x == 0 && z == 0) || (x == 0 && z == 3) || (x == 3 && z == 0) || (x == 3 && z == 3));
+                        let is_corner_pillar = y == 1
+                            && ((x == 0 && z == 0)
+                                || (x == 0 && z == 3)
+                                || (x == 3 && z == 0)
+                                || (x == 3 && z == 3));
 
                         // Check if this is a 1-sub-voxel-height platform
-                        let is_step_platform = y == 1 &&
-                            ((x == 1 && z == 1) || (x == 2 && z == 2));
+                        let is_step_platform = y == 1 && ((x == 1 && z == 1) || (x == 2 && z == 2));
 
                         // Check if this is a staircase voxel
                         let is_staircase = y == 1 && x == 2 && z == 1;
@@ -42,9 +51,12 @@ pub fn setup_game(
                             for step in 0..SUB_VOXEL_COUNT {
                                 let step_height = step + 1; // Height of this step (1 to 8 sub-voxels)
 
-                                for sub_x in step..(step + 1) { // Each step is 1 sub-voxel wide in X
-                                    for sub_y in 0..step_height { // Height increases with each step
-                                        for sub_z in 0..SUB_VOXEL_COUNT { // Full depth
+                                for sub_x in step..(step + 1) {
+                                    // Each step is 1 sub-voxel wide in X
+                                    for sub_y in 0..step_height {
+                                        // Height increases with each step
+                                        for sub_z in 0..SUB_VOXEL_COUNT {
+                                            // Full depth
                                             let color = Color::srgb(
                                                 0.2 + (x as f32 * 0.2) + (sub_x as f32 * 0.01),
                                                 0.3 + (z as f32 * 0.15) + (sub_z as f32 * 0.01),
@@ -53,26 +65,40 @@ pub fn setup_game(
                                             let sub_voxel_material = materials.add(color);
 
                                             let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
-                                            let sub_x_pos = x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
-                                            let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
-                                            let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
+                                            let sub_x_pos =
+                                                x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
+                                            let sub_y_pos =
+                                                y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
+                                            let sub_z_pos =
+                                                z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
 
-                                            let sub_voxel_entity = commands.spawn((
-                                                Mesh3d(sub_voxel_mesh.clone()),
-                                                MeshMaterial3d(sub_voxel_material),
-                                                Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
-                                                SubVoxel {
-                                                    parent_x: x,
-                                                    parent_y: y,
-                                                    parent_z: z,
-                                                    sub_x,
-                                                    sub_y,
-                                                    sub_z,
-                                                },
-                                            )).id();
-                                            let sub_voxel_world_pos = Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
-                                            let grid_coords = SpatialGrid::world_to_grid_coords(sub_voxel_world_pos);
-                                            spatial_grid.cells.entry(grid_coords).or_default().push(sub_voxel_entity);
+                                            let sub_voxel_entity = commands
+                                                .spawn((
+                                                    Mesh3d(sub_voxel_mesh.clone()),
+                                                    MeshMaterial3d(sub_voxel_material),
+                                                    Transform::from_xyz(
+                                                        sub_x_pos, sub_y_pos, sub_z_pos,
+                                                    ),
+                                                    SubVoxel {
+                                                        parent_x: x,
+                                                        parent_y: y,
+                                                        parent_z: z,
+                                                        sub_x,
+                                                        sub_y,
+                                                        sub_z,
+                                                    },
+                                                ))
+                                                .id();
+                                            let sub_voxel_world_pos =
+                                                Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
+                                            let grid_coords = SpatialGrid::world_to_grid_coords(
+                                                sub_voxel_world_pos,
+                                            );
+                                            spatial_grid
+                                                .cells
+                                                .entry(grid_coords)
+                                                .or_default()
+                                                .push(sub_voxel_entity);
                                         }
                                     }
                                 }
@@ -80,7 +106,8 @@ pub fn setup_game(
                         } else if is_step_platform {
                             // For step platforms: render only 1 sub-voxel height (8x1x8)
                             for sub_x in 0..SUB_VOXEL_COUNT {
-                                for sub_y in 0..1 {  // Only bottom layer
+                                for sub_y in 0..1 {
+                                    // Only bottom layer
                                     for sub_z in 0..SUB_VOXEL_COUNT {
                                         let color = Color::srgb(
                                             0.2 + (x as f32 * 0.2) + (sub_x as f32 * 0.01),
@@ -90,26 +117,39 @@ pub fn setup_game(
                                         let sub_voxel_material = materials.add(color);
 
                                         let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
-                                        let sub_x_pos = x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
-                                        let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
-                                        let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
+                                        let sub_x_pos =
+                                            x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
+                                        let sub_y_pos =
+                                            y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
+                                        let sub_z_pos =
+                                            z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
 
-                                        let sub_voxel_entity = commands.spawn((
-                                            Mesh3d(sub_voxel_mesh.clone()),
-                                            MeshMaterial3d(sub_voxel_material),
-                                            Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
-                                            SubVoxel {
-                                                parent_x: x,
-                                                parent_y: y,
-                                                parent_z: z,
-                                                sub_x,
-                                                sub_y,
-                                                sub_z,
-                                            },
-                                        )).id();
-                                        let sub_voxel_world_pos = Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
-                                        let grid_coords = SpatialGrid::world_to_grid_coords(sub_voxel_world_pos);
-                                        spatial_grid.cells.entry(grid_coords).or_default().push(sub_voxel_entity);
+                                        let sub_voxel_entity = commands
+                                            .spawn((
+                                                Mesh3d(sub_voxel_mesh.clone()),
+                                                MeshMaterial3d(sub_voxel_material),
+                                                Transform::from_xyz(
+                                                    sub_x_pos, sub_y_pos, sub_z_pos,
+                                                ),
+                                                SubVoxel {
+                                                    parent_x: x,
+                                                    parent_y: y,
+                                                    parent_z: z,
+                                                    sub_x,
+                                                    sub_y,
+                                                    sub_z,
+                                                },
+                                            ))
+                                            .id();
+                                        let sub_voxel_world_pos =
+                                            Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
+                                        let grid_coords =
+                                            SpatialGrid::world_to_grid_coords(sub_voxel_world_pos);
+                                        spatial_grid
+                                            .cells
+                                            .entry(grid_coords)
+                                            .or_default()
+                                            .push(sub_voxel_entity);
                                     }
                                 }
                             }
@@ -130,26 +170,39 @@ pub fn setup_game(
                                         let sub_voxel_material = materials.add(color);
 
                                         let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
-                                        let sub_x_pos = x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
-                                        let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
-                                        let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
+                                        let sub_x_pos =
+                                            x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
+                                        let sub_y_pos =
+                                            y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
+                                        let sub_z_pos =
+                                            z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
 
-                                        let sub_voxel_entity = commands.spawn((
-                                            Mesh3d(sub_voxel_mesh.clone()),
-                                            MeshMaterial3d(sub_voxel_material),
-                                            Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
-                                            SubVoxel {
-                                                parent_x: x,
-                                                parent_y: y,
-                                                parent_z: z,
-                                                sub_x,
-                                                sub_y,
-                                                sub_z,
-                                            },
-                                        )).id();
-                                        let sub_voxel_world_pos = Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
-                                        let grid_coords = SpatialGrid::world_to_grid_coords(sub_voxel_world_pos);
-                                        spatial_grid.cells.entry(grid_coords).or_default().push(sub_voxel_entity);
+                                        let sub_voxel_entity = commands
+                                            .spawn((
+                                                Mesh3d(sub_voxel_mesh.clone()),
+                                                MeshMaterial3d(sub_voxel_material),
+                                                Transform::from_xyz(
+                                                    sub_x_pos, sub_y_pos, sub_z_pos,
+                                                ),
+                                                SubVoxel {
+                                                    parent_x: x,
+                                                    parent_y: y,
+                                                    parent_z: z,
+                                                    sub_x,
+                                                    sub_y,
+                                                    sub_z,
+                                                },
+                                            ))
+                                            .id();
+                                        let sub_voxel_world_pos =
+                                            Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
+                                        let grid_coords =
+                                            SpatialGrid::world_to_grid_coords(sub_voxel_world_pos);
+                                        spatial_grid
+                                            .cells
+                                            .entry(grid_coords)
+                                            .or_default()
+                                            .push(sub_voxel_entity);
                                     }
                                 }
                             }
@@ -166,26 +219,39 @@ pub fn setup_game(
                                         let sub_voxel_material = materials.add(color);
 
                                         let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
-                                        let sub_x_pos = x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
-                                        let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
-                                        let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
+                                        let sub_x_pos =
+                                            x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
+                                        let sub_y_pos =
+                                            y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
+                                        let sub_z_pos =
+                                            z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
 
-                                        let sub_voxel_entity = commands.spawn((
-                                            Mesh3d(sub_voxel_mesh.clone()),
-                                            MeshMaterial3d(sub_voxel_material),
-                                            Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
-                                            SubVoxel {
-                                                parent_x: x,
-                                                parent_y: y,
-                                                parent_z: z,
-                                                sub_x,
-                                                sub_y,
-                                                sub_z,
-                                            },
-                                        )).id();
-                                        let sub_voxel_world_pos = Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
-                                        let grid_coords = SpatialGrid::world_to_grid_coords(sub_voxel_world_pos);
-                                        spatial_grid.cells.entry(grid_coords).or_default().push(sub_voxel_entity);
+                                        let sub_voxel_entity = commands
+                                            .spawn((
+                                                Mesh3d(sub_voxel_mesh.clone()),
+                                                MeshMaterial3d(sub_voxel_material),
+                                                Transform::from_xyz(
+                                                    sub_x_pos, sub_y_pos, sub_z_pos,
+                                                ),
+                                                SubVoxel {
+                                                    parent_x: x,
+                                                    parent_y: y,
+                                                    parent_z: z,
+                                                    sub_x,
+                                                    sub_y,
+                                                    sub_z,
+                                                },
+                                            ))
+                                            .id();
+                                        let sub_voxel_world_pos =
+                                            Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
+                                        let grid_coords =
+                                            SpatialGrid::world_to_grid_coords(sub_voxel_world_pos);
+                                        spatial_grid
+                                            .cells
+                                            .entry(grid_coords)
+                                            .or_default()
+                                            .push(sub_voxel_entity);
                                     }
                                 }
                             }
@@ -204,20 +270,26 @@ pub fn setup_game(
     let player_mesh = meshes.add(Sphere::new(player_radius));
     let player_material = materials.add(Color::srgb(0.8, 0.2, 0.2));
 
-    let player_entity = commands.spawn((
-        Mesh3d(player_mesh),
-        MeshMaterial3d(player_material),
-        Transform::from_xyz(1.5, 0.5 + player_radius, 1.5),
-        Player {
-            speed: 3.0,
-            velocity: Vec3::ZERO,
-            is_grounded: true,
-            radius: player_radius,
-        },
-    )).id();
+    let player_entity = commands
+        .spawn((
+            Mesh3d(player_mesh),
+            MeshMaterial3d(player_material),
+            Transform::from_xyz(1.5, 0.5 + player_radius, 1.5),
+            Player {
+                speed: 3.0,
+                velocity: Vec3::ZERO,
+                is_grounded: true,
+                radius: player_radius,
+            },
+        ))
+        .id();
 
     // Create collision box (invisible by default)
-    let collision_box_mesh = meshes.add(Cuboid::new(player_radius * 2.0, player_radius * 2.0, player_radius * 2.0));
+    let collision_box_mesh = meshes.add(Cuboid::new(
+        player_radius * 2.0,
+        player_radius * 2.0,
+        player_radius * 2.0,
+    ));
     let collision_box_material = materials.add(StandardMaterial {
         base_color: Color::srgba(0.0, 1.0, 0.0, 0.3),
         alpha_mode: AlphaMode::Blend,
@@ -242,11 +314,11 @@ pub fn setup_game(
     ));
 
     // Add camera (isometric-style view, tilted 30 degrees and rotated)
-    let mut camera_transform = Transform::from_xyz(1.5, 8.0, 5.5)
-        .looking_at(Vec3::new(1.5, 0.0, 1.5), Vec3::Y);
+    let mut camera_transform =
+        Transform::from_xyz(1.5, 8.0, 5.5).looking_at(Vec3::new(1.5, 0.0, 1.5), Vec3::Y);
     camera_transform.rotate_around(
         Vec3::new(1.5, 0.0, 1.5),
-        Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)
+        Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2),
     );
 
     let original_rotation = camera_transform.rotation;
@@ -260,6 +332,14 @@ pub fn setup_game(
             rotation_speed: 5.0,
         },
     ));
+}
+pub fn handle_escape_key(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut exit: EventWriter<AppExit>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Escape) {
+        exit.send(AppExit::Success);
+    }
 }
 
 pub fn move_player(
@@ -305,9 +385,25 @@ pub fn move_player(
 
             // Try moving on X axis
             let new_x = current_pos.x + move_delta.x;
-            if check_sub_voxel_collision(&spatial_grid, &sub_voxel_transforms, new_x, current_pos.y, current_pos.z, player.radius) {
+            if check_sub_voxel_collision(
+                &spatial_grid,
+                &sub_voxel_transforms,
+                new_x,
+                current_pos.y,
+                current_pos.z,
+                player.radius,
+            ) {
                 // Check if we can step up
-                if let Some(step_height) = get_step_up_height(&spatial_grid, &sub_voxel_transforms, new_x, current_pos.y, current_pos.z, player.radius, max_step_height, current_pos.y) {
+                if let Some(step_height) = get_step_up_height(
+                    &spatial_grid,
+                    &sub_voxel_transforms,
+                    new_x,
+                    current_pos.y,
+                    current_pos.z,
+                    player.radius,
+                    max_step_height,
+                    current_pos.y,
+                ) {
                     // Only step up if the height increase is reasonable (within one step)
                     let height_increase = step_height - current_pos.y;
                     if height_increase > 0.001 && height_increase <= max_step_height + 0.001 {
@@ -324,9 +420,25 @@ pub fn move_player(
 
             // Try moving on Z axis
             let new_z = current_pos.z + move_delta.z;
-            if check_sub_voxel_collision(&spatial_grid, &sub_voxel_transforms, transform.translation.x, transform.translation.y, new_z, player.radius) {
+            if check_sub_voxel_collision(
+                &spatial_grid,
+                &sub_voxel_transforms,
+                transform.translation.x,
+                transform.translation.y,
+                new_z,
+                player.radius,
+            ) {
                 // Check if we can step up
-                if let Some(step_height) = get_step_up_height(&spatial_grid, &sub_voxel_transforms, transform.translation.x, transform.translation.y, new_z, player.radius, max_step_height, transform.translation.y) {
+                if let Some(step_height) = get_step_up_height(
+                    &spatial_grid,
+                    &sub_voxel_transforms,
+                    transform.translation.x,
+                    transform.translation.y,
+                    new_z,
+                    player.radius,
+                    max_step_height,
+                    transform.translation.y,
+                ) {
                     // Only step up if the height increase is reasonable (within one step)
                     let height_increase = step_height - transform.translation.y;
                     if height_increase > 0.001 && height_increase <= max_step_height + 0.001 {
@@ -399,13 +511,15 @@ fn get_step_up_height(
     all_voxels.dedup_by(|a, b| (*a - *b).abs() < 0.001);
 
     // Identify the floor level (highest voxel at or below current bottom)
-    let floor_level = all_voxels.iter()
+    let floor_level = all_voxels
+        .iter()
         .filter(|&&h| h <= current_bottom + 0.01)
         .max_by(|a, b| a.partial_cmp(b).unwrap())
         .copied();
 
     // Find voxels above the current bottom (excluding floor)
-    let above_floor: Vec<f32> = all_voxels.iter()
+    let above_floor: Vec<f32> = all_voxels
+        .iter()
         .filter(|&&h| h > current_bottom + 0.01)
         .copied()
         .collect();
@@ -471,7 +585,11 @@ fn check_sub_voxel_collision(
             }
 
             // Quick AABB check for horizontal bounds
-            if x + collision_radius < min_x || x - collision_radius > max_x || z + collision_radius < min_z || z - collision_radius > max_z {
+            if x + collision_radius < min_x
+                || x - collision_radius > max_x
+                || z + collision_radius < min_z
+                || z - collision_radius > max_z
+            {
                 continue;
             }
 
@@ -539,7 +657,7 @@ pub fn rotate_camera(
         // Smoothly interpolate rotation
         let new_rotation = transform.rotation.slerp(
             game_camera.target_rotation,
-            game_camera.rotation_speed * time.delta_secs()
+            game_camera.rotation_speed * time.delta_secs(),
         );
 
         // Calculate how much we rotated
@@ -554,10 +672,7 @@ pub fn rotate_camera(
     }
 }
 
-pub fn apply_gravity(
-    time: Res<Time>,
-    mut player_query: Query<&mut Player>,
-) {
+pub fn apply_gravity(time: Res<Time>, mut player_query: Query<&mut Player>) {
     const GRAVITY: f32 = -32.0;
 
     if let Ok(mut player) = player_query.get_single_mut() {
@@ -607,11 +722,10 @@ pub fn apply_physics(
             let player_z = transform.translation.z;
 
             // Check horizontal overlap
-            let horizontal_overlap =
-                player_x + player.radius > sub_min_x &&
-                player_x - player.radius < sub_max_x &&
-                player_z + player.radius > sub_min_z &&
-                player_z - player.radius < sub_max_z;
+            let horizontal_overlap = player_x + player.radius > sub_min_x
+                && player_x - player.radius < sub_max_x
+                && player_z + player.radius > sub_min_z
+                && player_z - player.radius < sub_max_z;
 
             if horizontal_overlap && player.velocity.y <= 0.0 {
                 // Check if player's bottom would go through the top of this sub-voxel
