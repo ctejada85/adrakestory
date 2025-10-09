@@ -14,12 +14,6 @@
 // Re-export world generation
 pub use super::world_generation::setup_game;
 
-// Re-export collision detection helpers
-pub use super::collision::{
-    calculate_sub_voxel_world_pos, check_sub_voxel_collision, get_step_up_height,
-    get_sub_voxel_bounds, PlayerCollision,
-};
-
 // Re-export player movement
 pub use super::player_movement::move_player;
 
