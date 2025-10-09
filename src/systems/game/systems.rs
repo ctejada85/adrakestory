@@ -748,29 +748,3 @@ pub fn apply_physics(
         }
     }
 }
-
-pub fn cleanup_game(
-    mut commands: Commands,
-    voxel_query: Query<Entity, With<Voxel>>,
-    sub_voxel_query: Query<Entity, With<SubVoxel>>,
-    player_query: Query<Entity, With<Player>>,
-    camera_query: Query<Entity, With<GameCamera>>,
-    light_query: Query<Entity, With<DirectionalLight>>,
-) {
-    for entity in &voxel_query {
-        commands.entity(entity).despawn_recursive();
-    }
-    for entity in &sub_voxel_query {
-        commands.entity(entity).despawn_recursive();
-    }
-    for entity in &player_query {
-        commands.entity(entity).despawn_recursive();
-    }
-    for entity in &camera_query {
-        commands.entity(entity).despawn_recursive();
-    }
-    for entity in &light_query {
-        commands.entity(entity).despawn_recursive();
-    }
-    commands.remove_resource::<VoxelWorld>();
-}
