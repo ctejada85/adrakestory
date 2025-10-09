@@ -31,11 +31,8 @@ pub fn setup_game(
                         });
 
                         // Check if this is a corner pillar voxel at y=1
-                        let is_corner_pillar = y == 1
-                            && ((x == 0 && z == 0)
-                                || (x == 0 && z == 3)
-                                || (x == 3 && z == 0)
-                                || (x == 3 && z == 3));
+                        let is_corner_pillar =
+                            y == 1 && matches!((x, z), (0, 0) | (0, 3) | (3, 0) | (3, 3));
 
                         // Check if this is a 1-sub-voxel-height platform
                         let is_step_platform = y == 1 && ((x == 1 && z == 1) || (x == 2 && z == 2));
