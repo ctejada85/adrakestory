@@ -1,0 +1,45 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug (CodeLLDB, Debug Build)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/adrakestory",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "cargo build",
+      "sourceLanguages": ["rust"],
+      "stopOnEntry": false
+    },
+    {
+      "name": "Debug (CodeLLDB, Release Build)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/release/adrakestory",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "cargo build --release",
+      "sourceLanguages": ["rust"],
+      "stopOnEntry": false
+    },
+    {
+      "name": "Debug (Native LLDB, Debug Build)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/adrakestory",
+      "args": [],
+      "stopOnEntry": false,
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "cargo build",
+      "sourceLanguages": ["rust"]
+    },
+    {
+      "name": "Attach to Process (CodeLLDB)",
+      "type": "lldb",
+      "request": "attach",
+      "pid": "${command:pickProcess}",
+      "sourceLanguages": ["rust"]
+    }
+  ]
+}

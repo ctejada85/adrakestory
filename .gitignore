@@ -3,7 +3,7 @@
 Cargo.lock
 
 # IDE
-.vscode/
+#.vscode/
 .idea/
 *.swp
 *.swo

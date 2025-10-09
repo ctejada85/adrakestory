@@ -1,0 +1,14 @@
+{
+  "rust-analyzer.cargo.allFeatures": true,
+  "rust-analyzer.checkOnSave.command": "clippy",
+  "rust-analyzer.procMacro.enable": true,
+  "rust-analyzer.inlayHints.enable": true,
+  "rust-analyzer.diagnostics.enable": true,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "rust-lang.rust-analyzer",
+  "lldb.displayFormat": "auto",
+  "lldb.launch.sourceLanguages": ["rust"],
+  "lldb.showDisassembly": "never",
+  "lldb.suppressMissingSourceWarning": true,
+  "lldb.consoleMode": "split"
+}
