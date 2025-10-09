@@ -43,12 +43,7 @@ pub fn setup_game(
                 if let Some(voxel_type) = voxel_world.get_voxel(x, y, z) {
                     if voxel_type != VoxelType::Air {
                         // Spawn parent voxel marker (for reference, no mesh)
-                        commands.spawn(Voxel {
-                            x,
-                            y,
-                            z,
-                            voxel_type,
-                        });
+                        commands.spawn(Voxel);
 
                         // Check if this is a corner pillar voxel at y=1
                         let is_corner_pillar =

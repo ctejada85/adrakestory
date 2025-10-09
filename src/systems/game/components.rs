@@ -11,13 +11,10 @@ pub struct Player {
 #[derive(Component)]
 pub struct CollisionBox;
 
+/// Marker component for a voxel entity.
+/// All voxel data is managed in VoxelWorld; this is used for ECS queries and cleanup.
 #[derive(Component)]
-pub struct Voxel {
-    pub x: i32,
-    pub y: i32,
-    pub z: i32,
-    pub voxel_type: VoxelType,
-}
+pub struct Voxel;
 
 #[derive(Component)]
 pub struct SubVoxel {
