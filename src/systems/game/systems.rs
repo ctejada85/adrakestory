@@ -343,10 +343,10 @@ pub fn setup_game(
 }
 pub fn handle_escape_key(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut exit: EventWriter<AppExit>,
+    mut next_state: ResMut<NextState<crate::states::GameState>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Escape) {
-        exit.send(AppExit::Success);
+        next_state.set(crate::states::GameState::Paused);
     }
 }
 
