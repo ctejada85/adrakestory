@@ -148,17 +148,16 @@ pub fn keyboard_navigation(
 }
 
 /// Updates the visual appearance of buttons based on keyboard selection
+type PauseMenuButtonQueryItem<'a> = (
+    Option<&'a ResumeButton>,
+    Option<&'a QuitButton>,
+    Mut<'a, BackgroundColor>,
+    &'a Interaction,
+);
+
 pub fn update_selected_button_visual(
     selected: Res<SelectedPauseMenuIndex>,
-    mut button_query: Query<
-        (
-            Option<&ResumeButton>,
-            Option<&QuitButton>,
-            &mut BackgroundColor,
-            &Interaction,
-        ),
-        With<Button>,
-    >,
+    mut button_query: Query<PauseMenuButtonQueryItem, With<Button>>,
 ) {
     for (is_resume, is_quit, mut bg_color, interaction) in &mut button_query {
         // Determine button index
@@ -184,14 +183,16 @@ pub fn update_selected_button_visual(
 }
 
 /// Handles button interaction for Resume and Quit
+type PauseMenuButtonInteractionQueryItem<'a> = (
+    &'a Interaction,
+    Mut<'a, BackgroundColor>,
+    Option<&'a ResumeButton>,
+    Option<&'a QuitButton>,
+);
+
 pub fn pause_menu_button_interaction(
     mut interaction_query: Query<
-        (
-            &Interaction,
-            &mut BackgroundColor,
-            Option<&ResumeButton>,
-            Option<&QuitButton>,
-        ),
+        PauseMenuButtonInteractionQueryItem,
         (Changed<Interaction>, With<Button>),
     >,
     mut selected: ResMut<SelectedPauseMenuIndex>,
