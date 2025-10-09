@@ -202,15 +202,11 @@ pub fn keyboard_navigation(
     mut exit: EventWriter<AppExit>,
 ) {
     // Navigate menu with arrow keys
-    if keyboard_input.just_pressed(KeyCode::ArrowUp) {
-        if selected.index > 0 {
-            selected.index -= 1;
-        }
+    if keyboard_input.just_pressed(KeyCode::ArrowUp) && selected.index > 0 {
+        selected.index -= 1;
     }
-    if keyboard_input.just_pressed(KeyCode::ArrowDown) {
-        if selected.index < selected.total - 1 {
-            selected.index += 1;
-        }
+    if keyboard_input.just_pressed(KeyCode::ArrowDown) && selected.index < selected.total - 1 {
+        selected.index += 1;
     }
 
     // Select option with Enter
@@ -251,12 +247,14 @@ pub fn update_selected_button_visual(
         // Find index of current button
         let button_index = buttons
             .iter()
-            .find(|(_, b)| match (button, *b) {
-                (MenuButton::NewGame, MenuButton::NewGame) => true,
-                (MenuButton::Continue, MenuButton::Continue) => true,
-                (MenuButton::Settings, MenuButton::Settings) => true,
-                (MenuButton::Exit, MenuButton::Exit) => true,
-                _ => false,
+            .find(|(_, b)| {
+                matches!(
+                    (button, *b),
+                    (MenuButton::NewGame, MenuButton::NewGame)
+                        | (MenuButton::Continue, MenuButton::Continue)
+                        | (MenuButton::Settings, MenuButton::Settings)
+                        | (MenuButton::Exit, MenuButton::Exit)
+                )
             })
             .map(|(i, _)| *i);
 
