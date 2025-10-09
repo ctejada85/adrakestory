@@ -506,11 +506,7 @@ fn get_step_up_height(
     all_voxels.dedup_by(|a, b| (*a - *b).abs() < 0.001);
 
     // Identify the floor level (highest voxel at or below current bottom)
-    let floor_level = all_voxels
-        .iter()
-        .filter(|&&h| h <= current_bottom + 0.01)
-        .max_by(|a, b| a.partial_cmp(b).unwrap())
-        .copied();
+    // (Removed unused floor_level variable)
 
     // Find voxels above the current bottom (excluding floor)
     let above_floor: Vec<f32> = all_voxels
