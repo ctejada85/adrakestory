@@ -1,7 +1,8 @@
-use super::components::{PauseMenuRoot, QuitButton, ResumeButton};
+use super::components::{PauseMenuRoot, QuitButton, ResumeButton, ScalableText};
 use super::resources::SelectedPauseMenuIndex;
 use crate::states::GameState;
 use bevy::prelude::*;
+use bevy::window::WindowResized;
 
 const NORMAL_BUTTON: Color = Color::srgba(0.15, 0.15, 0.15, 0.0);
 const HOVERED_BUTTON: Color = Color::srgba(1.0, 0.8, 0.2, 0.3);
@@ -39,6 +40,7 @@ pub fn setup_pause_menu(mut commands: Commands) {
                     margin: UiRect::all(Val::Vw(5.0)),
                     ..default()
                 },
+                ScalableText::new(80.0, 1.0),
             ));
 
             // Button container
@@ -75,6 +77,7 @@ pub fn setup_pause_menu(mut commands: Commands) {
                                     ..default()
                                 },
                                 TextColor(Color::srgba(0.9, 0.9, 0.9, 1.0)),
+                                ScalableText::new(30.0, 1.0),
                             ));
                         });
 
@@ -100,6 +103,7 @@ pub fn setup_pause_menu(mut commands: Commands) {
                                     ..default()
                                 },
                                 TextColor(Color::srgba(0.9, 0.9, 0.9, 1.0)),
+                                ScalableText::new(30.0, 1.0),
                             ));
                         });
                 });
@@ -221,6 +225,20 @@ pub fn pause_menu_button_interaction(
             Interaction::None => {
                 *color = NORMAL_BUTTON.into();
             }
+        }
+    }
+}
+
+/// Scales text elements based on window size to maintain proportions
+pub fn scale_text_on_resize(
+    mut resize_events: EventReader<WindowResized>,
+    mut text_query: Query<(&ScalableText, &mut TextFont)>,
+) {
+    for event in resize_events.read() {
+        let scale = (event.width + event.height) / 2000.0;
+
+        for (scalable, mut font) in &mut text_query {
+            font.font_size = scalable.base_size * scale * scalable.scale_factor;
         }
     }
 }

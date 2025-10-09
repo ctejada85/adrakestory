@@ -61,6 +61,7 @@ fn main() {
                 pause_menu::keyboard_navigation,
                 pause_menu::pause_menu_button_interaction,
                 pause_menu::update_selected_button_visual,
+                pause_menu::scale_text_on_resize,
             )
                 .run_if(in_state(GameState::Paused)),
         )
