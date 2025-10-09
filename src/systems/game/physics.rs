@@ -56,8 +56,9 @@ pub fn apply_physics(
         for sub_voxel in sub_voxel_query.iter() {
             let (min, max) = get_sub_voxel_bounds(sub_voxel);
 
-            // Only check sub-voxels that are below the player
-            if max.y > new_y {
+            // Only check sub-voxels that are below the player's bottom
+            // This ensures we check all sub-voxels that could support the player
+            if max.y > new_y + player.radius {
                 continue;
             }
 
