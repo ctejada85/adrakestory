@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use super::components::VoxelType;
+use bevy::prelude::*;
 use std::collections::HashMap;
 
 #[derive(Resource)]
@@ -17,12 +17,13 @@ impl Default for VoxelWorld {
         let depth = 4;
 
         // Initialize with air
-        let mut voxels = vec![vec![vec![VoxelType::Air; depth as usize]; height as usize]; width as usize];
+        let mut voxels =
+            vec![vec![vec![VoxelType::Air; depth as usize]; height as usize]; width as usize];
 
         // Create a floor layer (y=0) with grass
-        for x in 0..width as usize {
+        for x_voxels in voxels.iter_mut() {
             for z in 0..depth as usize {
-                voxels[x][0][z] = VoxelType::Grass;
+                x_voxels[0][z] = VoxelType::Grass;
             }
         }
 
@@ -55,12 +56,6 @@ impl VoxelWorld {
             Some(self.voxels[x as usize][y as usize][z as usize])
         } else {
             None
-        }
-    }
-
-    pub fn set_voxel(&mut self, x: i32, y: i32, z: i32, voxel_type: VoxelType) {
-        if x >= 0 && x < self.width && y >= 0 && y < self.height && z >= 0 && z < self.depth {
-            self.voxels[x as usize][y as usize][z as usize] = voxel_type;
         }
     }
 }
