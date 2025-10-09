@@ -688,7 +688,7 @@ pub fn apply_physics(
         let mut highest_collision_y = f32::MIN;
 
         // Check collision with sub-voxels below
-        for (sub_voxel, sub_transform) in sub_voxel_query.iter() {
+        for (_, sub_transform) in sub_voxel_query.iter() {
             let sub_pos = sub_transform.translation;
             let half_size = SUB_VOXEL_SIZE / 2.0;
 
@@ -697,7 +697,6 @@ pub fn apply_physics(
             let sub_max_x = sub_pos.x + half_size;
             let sub_min_z = sub_pos.z - half_size;
             let sub_max_z = sub_pos.z + half_size;
-            let sub_min_y = sub_pos.y - half_size;
             let sub_max_y = sub_pos.y + half_size;
 
             // Only check sub-voxels that are below the player
