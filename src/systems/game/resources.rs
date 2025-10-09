@@ -100,3 +100,6 @@ impl SpatialGrid {
         entities
     }
 }
+
+#[derive(Resource, Default)]
+pub struct GameInitialized(pub bool);

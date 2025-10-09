@@ -53,7 +53,6 @@ fn main() {
             )
                 .run_if(in_state(GameState::InGame)),
         )
-        .add_systems(OnExit(GameState::InGame), cleanup_game)
         .add_systems(OnEnter(GameState::Paused), pause_menu::setup_pause_menu)
         .add_systems(
             Update,

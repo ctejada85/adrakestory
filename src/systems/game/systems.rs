@@ -1,5 +1,5 @@
 use super::components::{CollisionBox, GameCamera, Player, SubVoxel, Voxel, VoxelType};
-use super::resources::{SpatialGrid, VoxelWorld};
+use super::resources::{GameInitialized, SpatialGrid, VoxelWorld};
 use bevy::prelude::*;
 
 const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
@@ -29,7 +29,18 @@ pub fn setup_game(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    game_initialized: Option<Res<GameInitialized>>,
 ) {
+    // If game is already initialized, don't run setup again
+    if let Some(initialized) = game_initialized {
+        if initialized.0 {
+            return;
+        }
+    }
+
+    // Mark game as initialized
+    commands.insert_resource(GameInitialized(true));
+
     let voxel_world = VoxelWorld::default();
     let mut spatial_grid = SpatialGrid::default();
 
