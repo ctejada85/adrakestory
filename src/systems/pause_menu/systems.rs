@@ -2,9 +2,9 @@ use super::components::{PauseMenuRoot, QuitButton, ResumeButton};
 use crate::states::GameState;
 use bevy::prelude::*;
 
-const NORMAL_BUTTON: Color = Color::srgba(0.15, 0.15, 0.15, 0.8);
-const HOVERED_BUTTON: Color = Color::srgba(0.3, 0.6, 0.3, 0.9);
-const PRESSED_BUTTON: Color = Color::srgba(0.2, 0.8, 0.2, 1.0);
+const NORMAL_BUTTON: Color = Color::srgba(0.15, 0.15, 0.15, 0.0);
+const HOVERED_BUTTON: Color = Color::srgba(1.0, 0.8, 0.2, 0.3);
+const PRESSED_BUTTON: Color = Color::srgba(1.0, 0.8, 0.2, 0.5);
 
 /// Spawns the pause menu UI
 pub fn setup_pause_menu(mut commands: Commands) {
@@ -23,39 +23,41 @@ pub fn setup_pause_menu(mut commands: Commands) {
             PauseMenuRoot,
         ))
         .with_children(|parent| {
-            // Container for pause menu content
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    row_gap: Val::Px(20.0),
+            // Title
+            parent.spawn((
+                Text::new("Paused"),
+                TextFont {
+                    font_size: 80.0,
                     ..default()
-                })
-                .with_children(|parent| {
-                    // "Paused" title
-                    parent.spawn((
-                        Text::new("Paused"),
-                        TextFont {
-                            font_size: 48.0,
-                            ..default()
-                        },
-                        TextColor(Color::WHITE),
-                        Node {
-                            margin: UiRect::all(Val::Px(20.0)),
-                            ..default()
-                        },
-                    ));
+                },
+                TextColor(Color::srgba(0.9, 0.9, 0.9, 1.0)),
+                Node {
+                    margin: UiRect::all(Val::Vw(5.0)),
+                    ..default()
+                },
+            ));
 
+            // Button container
+            parent
+                .spawn((
+                    Node {
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        row_gap: Val::Vh(2.0),
+                        ..default()
+                    },
+                    BackgroundColor(Color::NONE),
+                ))
+                .with_children(|parent| {
                     // Resume button
                     parent
                         .spawn((
                             Button,
                             Node {
-                                width: Val::Px(200.0),
-                                height: Val::Px(50.0),
+                                width: Val::Vw(20.0),
+                                height: Val::Vh(8.0),
                                 justify_content: JustifyContent::Center,
                                 align_items: AlignItems::Center,
-                                margin: UiRect::all(Val::Px(10.0)),
                                 ..default()
                             },
                             BackgroundColor(NORMAL_BUTTON),
@@ -65,10 +67,10 @@ pub fn setup_pause_menu(mut commands: Commands) {
                             parent.spawn((
                                 Text::new("Resume"),
                                 TextFont {
-                                    font_size: 32.0,
+                                    font_size: 30.0,
                                     ..default()
                                 },
-                                TextColor(Color::WHITE),
+                                TextColor(Color::srgba(0.9, 0.9, 0.9, 1.0)),
                             ));
                         });
 
@@ -77,11 +79,10 @@ pub fn setup_pause_menu(mut commands: Commands) {
                         .spawn((
                             Button,
                             Node {
-                                width: Val::Px(200.0),
-                                height: Val::Px(50.0),
+                                width: Val::Vw(20.0),
+                                height: Val::Vh(8.0),
                                 justify_content: JustifyContent::Center,
                                 align_items: AlignItems::Center,
-                                margin: UiRect::all(Val::Px(10.0)),
                                 ..default()
                             },
                             BackgroundColor(NORMAL_BUTTON),
@@ -91,10 +92,10 @@ pub fn setup_pause_menu(mut commands: Commands) {
                             parent.spawn((
                                 Text::new("Quit"),
                                 TextFont {
-                                    font_size: 32.0,
+                                    font_size: 30.0,
                                     ..default()
                                 },
-                                TextColor(Color::WHITE),
+                                TextColor(Color::srgba(0.9, 0.9, 0.9, 1.0)),
                             ));
                         });
                 });
