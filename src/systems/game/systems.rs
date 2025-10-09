@@ -386,15 +386,16 @@ pub fn move_player(
                 player.radius,
             ) {
                 // Check if we can step up
+                let player_collision = PlayerCollision {
+                    pos: Vec3::new(new_x, current_pos.y, current_pos.z),
+                    radius: player.radius,
+                    current_y: current_pos.y,
+                };
                 if let Some(step_height) = get_step_up_height(
                     &spatial_grid,
                     &sub_voxel_transforms,
-                    new_x,
-                    current_pos.y,
-                    current_pos.z,
-                    player.radius,
+                    &player_collision,
                     max_step_height,
-                    current_pos.y,
                 ) {
                     // Only step up if the height increase is reasonable (within one step)
                     let height_increase = step_height - current_pos.y;
@@ -421,15 +422,16 @@ pub fn move_player(
                 player.radius,
             ) {
                 // Check if we can step up
+                let player_collision = PlayerCollision {
+                    pos: Vec3::new(transform.translation.x, transform.translation.y, new_z),
+                    radius: player.radius,
+                    current_y: transform.translation.y,
+                };
                 if let Some(step_height) = get_step_up_height(
                     &spatial_grid,
                     &sub_voxel_transforms,
-                    transform.translation.x,
-                    transform.translation.y,
-                    new_z,
-                    player.radius,
+                    &player_collision,
                     max_step_height,
-                    transform.translation.y,
                 ) {
                     // Only step up if the height increase is reasonable (within one step)
                     let height_increase = step_height - transform.translation.y;
@@ -447,23 +449,33 @@ pub fn move_player(
         }
     }
 }
+/// Struct to group player collision parameters for step-up checks.
+struct PlayerCollision {
+    pos: Vec3,
+    radius: f32,
+    current_y: f32,
+}
 
 fn get_step_up_height(
     spatial_grid: &SpatialGrid,
     sub_voxel_transforms: &Query<&Transform, (With<SubVoxel>, Without<Player>)>,
-    x: f32,
-    y: f32,
-    z: f32,
-    radius: f32,
+    player: &PlayerCollision,
     max_step_height: f32,
-    current_y: f32,
 ) -> Option<f32> {
-    let collision_radius = radius * 0.8;
-    let current_bottom = current_y - radius;
+    let collision_radius = player.radius * 0.8;
+    let current_bottom = player.current_y - player.radius;
 
     // Calculate player's AABB for grid lookup
-    let player_min = Vec3::new(x - collision_radius, y - radius, z - collision_radius);
-    let player_max = Vec3::new(x + collision_radius, y + radius, z + collision_radius);
+    let player_min = Vec3::new(
+        player.pos.x - collision_radius,
+        player.pos.y - player.radius,
+        player.pos.z - collision_radius,
+    );
+    let player_max = Vec3::new(
+        player.pos.x + collision_radius,
+        player.pos.y + player.radius,
+        player.pos.z + collision_radius,
+    );
 
     let relevant_sub_voxel_entities = spatial_grid.get_entities_in_aabb(player_min, player_max);
 
@@ -476,16 +488,15 @@ fn get_step_up_height(
 
             let min_x = sub_pos.x - half_size;
             let max_x = sub_pos.x + half_size;
-            let min_y = sub_pos.y - half_size;
             let max_y = sub_pos.y + half_size;
             let min_z = sub_pos.z - half_size;
             let max_z = sub_pos.z + half_size;
 
             // Check horizontal overlap with target position
-            let closest_x = x.clamp(min_x, max_x);
-            let closest_z = z.clamp(min_z, max_z);
-            let dx = x - closest_x;
-            let dz = z - closest_z;
+            let closest_x = player.pos.x.clamp(min_x, max_x);
+            let closest_z = player.pos.z.clamp(min_z, max_z);
+            let dx = player.pos.x - closest_x;
+            let dz = player.pos.z - closest_z;
             let distance_squared = dx * dx + dz * dz;
 
             if distance_squared < collision_radius * collision_radius {
@@ -501,9 +512,6 @@ fn get_step_up_height(
     // Remove duplicates and sort by height
     all_voxels.sort_by(|a, b| a.partial_cmp(b).unwrap());
     all_voxels.dedup_by(|a, b| (*a - *b).abs() < 0.001);
-
-    // Identify the floor level (highest voxel at or below current bottom)
-    // (Removed unused floor_level variable)
 
     // Find voxels above the current bottom (excluding floor)
     let above_floor: Vec<f32> = all_voxels
@@ -524,7 +532,7 @@ fn get_step_up_height(
 
     // Allow step up if within max step height
     if step_distance > 0.005 && step_distance <= max_step_height + 0.005 {
-        return Some(step_height + radius);
+        return Some(step_height + player.radius);
     }
 
     None
