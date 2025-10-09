@@ -5,8 +5,8 @@ mod systems;
 
 use states::GameState;
 use systems::game::systems::{
-    apply_gravity, apply_physics, cleanup_game, handle_escape_key, move_player, rotate_camera,
-    setup_game, toggle_collision_box, update_collision_box,
+    apply_gravity, apply_physics, handle_escape_key, move_player, rotate_camera, setup_game,
+    toggle_collision_box, update_collision_box,
 };
 use systems::intro_animation::systems::{animate_intro, cleanup_intro, setup_intro};
 use systems::pause_menu::systems as pause_menu;
