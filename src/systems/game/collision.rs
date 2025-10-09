@@ -4,20 +4,12 @@
 //! - Calculating sub-voxel world positions
 //! - Getting sub-voxel bounding boxes
 //! - Checking collisions between player and sub-voxels
-//! - Determining step-up heights for player movement
 
 use super::components::{Player, SubVoxel};
 use super::resources::SpatialGrid;
 use bevy::prelude::*;
 
 const SUB_VOXEL_SIZE: f32 = 1.0 / 8.0;
-
-/// Struct to group player collision parameters for step-up checks.
-pub struct PlayerCollision {
-    pub pos: Vec3,
-    pub radius: f32,
-    pub current_y: f32,
-}
 
 /// Calculate the world position of a sub-voxel's center.
 ///
@@ -122,93 +114,4 @@ pub fn check_sub_voxel_collision(
     }
 
     false
-}
-
-/// Determine the height the player should step up to when encountering a step.
-///
-/// This function checks if the player can step up onto a platform by analyzing
-/// the sub-voxels in the player's path. It only allows stepping up by a maximum
-/// of one sub-voxel height.
-///
-/// # Arguments
-/// * `spatial_grid` - The spatial partitioning grid for efficient queries
-/// * `sub_voxel_query` - Query to access sub-voxel components
-/// * `player` - The player's collision parameters
-/// * `max_step_height` - Maximum height the player can step up
-///
-/// # Returns
-/// `Some(height)` if a valid step-up is possible, `None` otherwise
-pub fn get_step_up_height(
-    spatial_grid: &SpatialGrid,
-    sub_voxel_query: &Query<&SubVoxel, Without<Player>>,
-    player: &PlayerCollision,
-    max_step_height: f32,
-) -> Option<f32> {
-    let collision_radius = player.radius * 0.8;
-    let current_bottom = player.current_y - player.radius;
-
-    // Calculate player's AABB for grid lookup
-    let player_min = Vec3::new(
-        player.pos.x - collision_radius,
-        player.pos.y - player.radius,
-        player.pos.z - collision_radius,
-    );
-    let player_max = Vec3::new(
-        player.pos.x + collision_radius,
-        player.pos.y + player.radius,
-        player.pos.z + collision_radius,
-    );
-
-    let relevant_sub_voxel_entities = spatial_grid.get_entities_in_aabb(player_min, player_max);
-
-    let mut all_voxels = Vec::new();
-
-    for entity in relevant_sub_voxel_entities {
-        if let Ok(sub_voxel) = sub_voxel_query.get(entity) {
-            let (min, max) = get_sub_voxel_bounds(sub_voxel);
-
-            // Check horizontal overlap with target position
-            let closest_x = player.pos.x.clamp(min.x, max.x);
-            let closest_z = player.pos.z.clamp(min.z, max.z);
-            let dx = player.pos.x - closest_x;
-            let dz = player.pos.z - closest_z;
-            let distance_squared = dx * dx + dz * dz;
-
-            if distance_squared < collision_radius * collision_radius {
-                all_voxels.push(max.y);
-            }
-        }
-    }
-
-    if all_voxels.is_empty() {
-        return None;
-    }
-
-    // Remove duplicates and sort by height
-    all_voxels.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    all_voxels.dedup_by(|a, b| (*a - *b).abs() < 0.001);
-
-    // Find voxels above the current bottom (excluding floor)
-    let above_floor: Vec<f32> = all_voxels
-        .iter()
-        .filter(|&&h| h > current_bottom + 0.01)
-        .copied()
-        .collect();
-
-    // Only step up if there's exactly one level above current position
-    if above_floor.len() != 1 {
-        return None;
-    }
-
-    let step_height = above_floor[0];
-
-    // Check step distance from current bottom
-    let step_distance = step_height - current_bottom;
-
-    // Allow step up if within max step height
-    if step_distance > 0.005 && step_distance <= max_step_height + 0.005 {
-        return Some(step_height + player.radius);
-    }
-
-    None
 }
