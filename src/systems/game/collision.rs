@@ -78,9 +78,10 @@ pub fn check_sub_voxel_collision(
         if let Ok(sub_voxel) = sub_voxel_query.get(entity) {
             let (min, max) = get_sub_voxel_bounds(sub_voxel);
 
-            // Only check sub-voxels that overlap with player's height
-            // Skip sub-voxels that are completely below the player's bottom
-            if max.y < y - radius {
+            // Skip sub-voxels that are floor/ground (below player's feet)
+            // We use a small threshold to avoid blocking movement on flat ground
+            let player_bottom = y - radius;
+            if max.y <= player_bottom + 0.01 {
                 continue;
             }
 
