@@ -126,10 +126,11 @@ pub fn move_player(
                 transform.translation.z = new_z;
                 transform.translation.y =
                     current_floor_y + z_collision.step_up_height + player.radius;
-                // Update current_floor_y for subsequent collision checks (critical for stairs)
-                current_floor_y = transform.translation.y - player.radius;
                 // Reset vertical velocity to prevent falling after step-up
                 player.velocity.y = 0.0;
+                // Note: current_floor_y would be updated here for consistency, but since
+                // there are no more collision checks after Z-axis, we omit it to avoid
+                // an unused assignment warning
             }
             // else: blocking collision, don't move
         }
