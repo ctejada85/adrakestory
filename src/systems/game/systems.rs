@@ -23,14 +23,12 @@ pub fn setup_game(
                 if let Some(voxel_type) = voxel_world.get_voxel(x, y, z) {
                     if voxel_type != VoxelType::Air {
                         // Spawn parent voxel marker (for reference, no mesh)
-                        let parent_entity = commands
-                            .spawn(Voxel {
-                                x,
-                                y,
-                                z,
-                                voxel_type,
-                            })
-                            .id();
+                        commands.spawn(Voxel {
+                            x,
+                            y,
+                            z,
+                            voxel_type,
+                        });
 
                         // Check if this is a corner pillar voxel at y=1
                         let is_corner_pillar = y == 1
@@ -270,19 +268,17 @@ pub fn setup_game(
     let player_mesh = meshes.add(Sphere::new(player_radius));
     let player_material = materials.add(Color::srgb(0.8, 0.2, 0.2));
 
-    let player_entity = commands
-        .spawn((
-            Mesh3d(player_mesh),
-            MeshMaterial3d(player_material),
-            Transform::from_xyz(1.5, 0.5 + player_radius, 1.5),
-            Player {
-                speed: 3.0,
-                velocity: Vec3::ZERO,
-                is_grounded: true,
-                radius: player_radius,
-            },
-        ))
-        .id();
+    commands.spawn((
+        Mesh3d(player_mesh),
+        MeshMaterial3d(player_material),
+        Transform::from_xyz(1.5, 0.5 + player_radius, 1.5),
+        Player {
+            speed: 3.0,
+            velocity: Vec3::ZERO,
+            is_grounded: true,
+            radius: player_radius,
+        },
+    ));
 
     // Create collision box (invisible by default)
     let collision_box_mesh = meshes.add(Cuboid::new(
@@ -345,7 +341,6 @@ pub fn handle_escape_key(
 pub fn move_player(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    voxel_world: Res<VoxelWorld>,
     spatial_grid: Res<SpatialGrid>,
     sub_voxel_transforms: Query<&Transform, (With<SubVoxel>, Without<Player>)>,
     mut player_query: Query<(&mut Player, &mut Transform)>,

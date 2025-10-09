@@ -1,8 +1,8 @@
-use bevy::prelude::*;
-use bevy::window::{SystemCursorIcon, WindowResized};
-use super::components::{TitleScreenUI, TitleScreenBackground, MenuButton, ScalableText};
-use super::resources::{TitleScreenFadeTimer, SelectedMenuIndex};
+use super::components::{MenuButton, ScalableText, TitleScreenBackground, TitleScreenUI};
+use super::resources::{SelectedMenuIndex, TitleScreenFadeTimer};
 use crate::states::GameState;
+use bevy::prelude::*;
+use bevy::window::WindowResized;
 
 const NORMAL_BUTTON: Color = Color::srgba(0.15, 0.15, 0.15, 0.0);
 const HOVERED_BUTTON: Color = Color::srgba(1.0, 0.8, 0.2, 0.3);
