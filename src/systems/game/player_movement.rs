@@ -37,16 +37,29 @@ pub fn move_player(
         let mut direction = Vec3::ZERO;
 
         // Adjusted for camera rotation: up moves in +X, right moves in -Z
-        if keyboard_input.pressed(KeyCode::KeyW) || keyboard_input.pressed(KeyCode::ArrowUp) {
+        // Support both regular arrow keys and Fn + arrow keys (PageUp/PageDown/Home/End on macOS)
+        if keyboard_input.pressed(KeyCode::KeyW)
+            || keyboard_input.pressed(KeyCode::ArrowUp)
+            || keyboard_input.pressed(KeyCode::PageUp)
+        {
             direction.x += 1.0;
         }
-        if keyboard_input.pressed(KeyCode::KeyS) || keyboard_input.pressed(KeyCode::ArrowDown) {
+        if keyboard_input.pressed(KeyCode::KeyS)
+            || keyboard_input.pressed(KeyCode::ArrowDown)
+            || keyboard_input.pressed(KeyCode::PageDown)
+        {
             direction.x -= 1.0;
         }
-        if keyboard_input.pressed(KeyCode::KeyA) || keyboard_input.pressed(KeyCode::ArrowLeft) {
+        if keyboard_input.pressed(KeyCode::KeyA)
+            || keyboard_input.pressed(KeyCode::ArrowLeft)
+            || keyboard_input.pressed(KeyCode::Home)
+        {
             direction.z -= 1.0;
         }
-        if keyboard_input.pressed(KeyCode::KeyD) || keyboard_input.pressed(KeyCode::ArrowRight) {
+        if keyboard_input.pressed(KeyCode::KeyD)
+            || keyboard_input.pressed(KeyCode::ArrowRight)
+            || keyboard_input.pressed(KeyCode::End)
+        {
             direction.z += 1.0;
         }
 
