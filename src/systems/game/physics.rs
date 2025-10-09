@@ -11,6 +11,7 @@ use super::components::{Player, SubVoxel};
 use bevy::prelude::*;
 
 const GRAVITY: f32 = -32.0;
+const GROUND_DETECTION_EPSILON: f32 = 0.001;
 
 /// System that applies gravity to the player's velocity.
 ///
@@ -74,8 +75,9 @@ pub fn apply_physics(
 
             if horizontal_overlap && player.velocity.y <= 0.0 {
                 // Check if player's bottom would go through the top of this sub-voxel
-                // Player was above, and would now be at or below the top
-                if current_bottom >= max.y && player_bottom <= max.y {
+                // Player was above (or very close due to floating-point errors), and would now be at or below the top
+                // Use epsilon tolerance to handle floating-point precision issues after step-ups
+                if current_bottom >= max.y - GROUND_DETECTION_EPSILON && player_bottom <= max.y {
                     highest_collision_y = highest_collision_y.max(max.y);
                     hit_ground = true;
                 }

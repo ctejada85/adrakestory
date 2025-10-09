@@ -10,6 +10,7 @@ use super::resources::SpatialGrid;
 use bevy::prelude::*;
 
 const SUB_VOXEL_SIZE: f32 = 1.0 / 8.0;
+const STEP_UP_TOLERANCE: f32 = 0.02;
 
 /// Result of a collision check, including step-up information.
 #[derive(Debug, Clone, Copy)]
@@ -156,17 +157,18 @@ pub fn check_sub_voxel_collision(
             if distance_squared < collision_radius * collision_radius {
                 // Collision detected - check if it's a step-up candidate
                 let obstacle_height = max.y - current_floor_y;
-                let height_diff = (obstacle_height - SUB_VOXEL_SIZE).abs();
 
-                // Check if obstacle is exactly one sub-voxel height above current floor
-                // Use small epsilon for floating-point comparison
-                if height_diff < 0.01 && obstacle_height > 0.0 {
-                    // This is a step-up candidate
-                    step_up_candidate = Some(obstacle_height);
-                } else {
-                    // This is a blocking collision (too tall or wrong height)
+                // Check if obstacle is within valid step-up range
+                // Allow stepping up to one sub-voxel height (with tolerance for floating-point errors)
+                // The obstacle must be above the current floor but not too tall
+                if obstacle_height > 0.0 && obstacle_height <= SUB_VOXEL_SIZE + STEP_UP_TOLERANCE {
+                    // This is a step-up candidate - track the highest one
+                    step_up_candidate = Some(step_up_candidate.unwrap_or(0.0).max(obstacle_height));
+                } else if obstacle_height > SUB_VOXEL_SIZE + STEP_UP_TOLERANCE {
+                    // This is a blocking collision (too tall to step up)
                     return CollisionResult::blocking();
                 }
+                // If obstacle_height <= 0.0, it's below us, so we ignore it
             }
         }
     }

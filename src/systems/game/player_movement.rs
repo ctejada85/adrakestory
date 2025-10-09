@@ -76,7 +76,8 @@ pub fn move_player(
             let move_delta = direction * player.speed * delta;
 
             // Calculate current floor Y position (bottom of player sphere)
-            let current_floor_y = current_pos.y - player.radius;
+            // This will be updated after each step-up to handle stairs correctly
+            let mut current_floor_y = current_pos.y - player.radius;
 
             // Try moving on X axis
             let new_x = current_pos.x + move_delta.x;
@@ -98,6 +99,10 @@ pub fn move_player(
                 transform.translation.x = new_x;
                 transform.translation.y =
                     current_floor_y + x_collision.step_up_height + player.radius;
+                // Update current_floor_y for subsequent collision checks (critical for stairs)
+                current_floor_y = transform.translation.y - player.radius;
+                // Reset vertical velocity to prevent falling after step-up
+                player.velocity.y = 0.0;
             }
             // else: blocking collision, don't move
 
@@ -121,6 +126,10 @@ pub fn move_player(
                 transform.translation.z = new_z;
                 transform.translation.y =
                     current_floor_y + z_collision.step_up_height + player.radius;
+                // Update current_floor_y for subsequent collision checks (critical for stairs)
+                current_floor_y = transform.translation.y - player.radius;
+                // Reset vertical velocity to prevent falling after step-up
+                player.velocity.y = 0.0;
             }
             // else: blocking collision, don't move
         }
