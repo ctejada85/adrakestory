@@ -62,31 +62,54 @@ pub fn move_player(
             let current_pos = transform.translation;
             let move_delta = direction * player.speed * delta;
 
+            // Calculate current floor Y position (bottom of player sphere)
+            let current_floor_y = current_pos.y - player.radius;
+
             // Try moving on X axis
             let new_x = current_pos.x + move_delta.x;
-            if !check_sub_voxel_collision(
+            let x_collision = check_sub_voxel_collision(
                 &spatial_grid,
                 &sub_voxel_query,
                 new_x,
                 current_pos.y,
                 current_pos.z,
                 player.radius,
-            ) {
+                current_floor_y,
+            );
+
+            if !x_collision.has_collision {
+                // No collision, move freely
                 transform.translation.x = new_x;
+            } else if x_collision.can_step_up && player.is_grounded {
+                // Step-up collision - move horizontally and adjust height
+                transform.translation.x = new_x;
+                transform.translation.y =
+                    current_floor_y + x_collision.step_up_height + player.radius;
             }
+            // else: blocking collision, don't move
 
             // Try moving on Z axis
             let new_z = current_pos.z + move_delta.z;
-            if !check_sub_voxel_collision(
+            let z_collision = check_sub_voxel_collision(
                 &spatial_grid,
                 &sub_voxel_query,
                 transform.translation.x,
                 transform.translation.y,
                 new_z,
                 player.radius,
-            ) {
+                current_floor_y,
+            );
+
+            if !z_collision.has_collision {
+                // No collision, move freely
                 transform.translation.z = new_z;
+            } else if z_collision.can_step_up && player.is_grounded {
+                // Step-up collision - move horizontally and adjust height
+                transform.translation.z = new_z;
+                transform.translation.y =
+                    current_floor_y + z_collision.step_up_height + player.radius;
             }
+            // else: blocking collision, don't move
         }
     }
 }
