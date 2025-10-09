@@ -9,9 +9,7 @@ use systems::game::systems::{
     setup_game, toggle_collision_box, update_collision_box,
 };
 use systems::intro_animation::systems::{animate_intro, cleanup_intro, setup_intro};
-use systems::pause_menu::systems::{
-    cleanup_pause_menu, pause_menu_button_interaction, pause_menu_input, setup_pause_menu,
-};
+use systems::pause_menu::systems as pause_menu;
 use systems::title_screen::systems::{
     button_interaction, cleanup_title_screen, fade_in_title_screen, keyboard_navigation,
     scale_text_on_resize, setup_title_screen, update_selected_button_visual,
@@ -56,12 +54,18 @@ fn main() {
                 .run_if(in_state(GameState::InGame)),
         )
         .add_systems(OnExit(GameState::InGame), cleanup_game)
-        .add_systems(OnEnter(GameState::Paused), setup_pause_menu)
+        .add_systems(OnEnter(GameState::Paused), pause_menu::setup_pause_menu)
         .add_systems(
             Update,
-            (pause_menu_input, pause_menu_button_interaction).run_if(in_state(GameState::Paused)),
+            (
+                pause_menu::pause_menu_input,
+                pause_menu::keyboard_navigation,
+                pause_menu::pause_menu_button_interaction,
+                pause_menu::update_selected_button_visual,
+            )
+                .run_if(in_state(GameState::Paused)),
         )
-        .add_systems(OnExit(GameState::Paused), cleanup_pause_menu)
+        .add_systems(OnExit(GameState::Paused), pause_menu::cleanup_pause_menu)
         .run();
 }
 

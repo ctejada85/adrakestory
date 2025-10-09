@@ -1,4 +1,5 @@
 use super::components::{PauseMenuRoot, QuitButton, ResumeButton};
+use super::resources::SelectedPauseMenuIndex;
 use crate::states::GameState;
 use bevy::prelude::*;
 
@@ -8,6 +9,9 @@ const PRESSED_BUTTON: Color = Color::srgba(1.0, 0.8, 0.2, 0.5);
 
 /// Spawns the pause menu UI
 pub fn setup_pause_menu(mut commands: Commands) {
+    // Insert selected menu index resource
+    commands.insert_resource(SelectedPauseMenuIndex::default());
+
     commands
         .spawn((
             Node {
@@ -112,6 +116,73 @@ pub fn pause_menu_input(
     }
 }
 
+/// Handles keyboard navigation for the pause menu
+pub fn keyboard_navigation(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut selected: ResMut<SelectedPauseMenuIndex>,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut exit: EventWriter<AppExit>,
+) {
+    // Navigate menu with arrow keys
+    if keyboard_input.just_pressed(KeyCode::ArrowUp) && selected.index > 0 {
+        selected.index -= 1;
+    }
+    if keyboard_input.just_pressed(KeyCode::ArrowDown) && selected.index < selected.total - 1 {
+        selected.index += 1;
+    }
+
+    // Select option with Enter
+    if keyboard_input.just_pressed(KeyCode::Enter) {
+        match selected.index {
+            0 => {
+                // Resume
+                next_state.set(GameState::InGame);
+            }
+            1 => {
+                // Quit
+                exit.send(AppExit::Success);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Updates the visual appearance of buttons based on keyboard selection
+pub fn update_selected_button_visual(
+    selected: Res<SelectedPauseMenuIndex>,
+    mut button_query: Query<
+        (
+            Option<&ResumeButton>,
+            Option<&QuitButton>,
+            &mut BackgroundColor,
+            &Interaction,
+        ),
+        With<Button>,
+    >,
+) {
+    for (is_resume, is_quit, mut bg_color, interaction) in &mut button_query {
+        // Determine button index
+        let button_index = if is_resume.is_some() {
+            Some(0)
+        } else if is_quit.is_some() {
+            Some(1)
+        } else {
+            None
+        };
+
+        if let Some(idx) = button_index {
+            // Only apply keyboard selection color if not being hovered/pressed by mouse
+            if *interaction == Interaction::None {
+                if idx == selected.index {
+                    *bg_color = HOVERED_BUTTON.into();
+                } else {
+                    *bg_color = NORMAL_BUTTON.into();
+                }
+            }
+        }
+    }
+}
+
 /// Handles button interaction for Resume and Quit
 pub fn pause_menu_button_interaction(
     mut interaction_query: Query<
@@ -123,6 +194,7 @@ pub fn pause_menu_button_interaction(
         ),
         (Changed<Interaction>, With<Button>),
     >,
+    mut selected: ResMut<SelectedPauseMenuIndex>,
     mut next_state: ResMut<NextState<GameState>>,
     mut exit: EventWriter<AppExit>,
 ) {
@@ -138,6 +210,12 @@ pub fn pause_menu_button_interaction(
             }
             Interaction::Hovered => {
                 *color = HOVERED_BUTTON.into();
+                // Update selected index when hovering
+                if is_resume.is_some() {
+                    selected.index = 0;
+                } else if is_quit.is_some() {
+                    selected.index = 1;
+                }
             }
             Interaction::None => {
                 *color = NORMAL_BUTTON.into();
@@ -151,4 +229,5 @@ pub fn cleanup_pause_menu(mut commands: Commands, root_query: Query<Entity, With
     for entity in &root_query {
         commands.entity(entity).despawn_recursive();
     }
+    commands.remove_resource::<SelectedPauseMenuIndex>();
 }
