@@ -6,6 +6,7 @@ pub mod systems;
 mod camera;
 mod collision;
 mod input;
+pub mod map;
 mod physics;
 mod player_movement;
 mod world_generation;

@@ -1,0 +1,51 @@
+// Simple test map - minimal valid map for testing
+(
+    metadata: (
+        name: "Simple Test Map",
+        author: "Developer",
+        description: "A minimal test map with just a floor and player spawn",
+        version: "1.0.0",
+        created: "2025-01-10",
+    ),
+    world: (
+        width: 3,
+        height: 2,
+        depth: 3,
+        voxels: [
+            // Simple 3x3 floor
+            (pos: (0, 0, 0), voxel_type: Grass, pattern: Some(Full)),
+            (pos: (1, 0, 0), voxel_type: Grass, pattern: Some(Full)),
+            (pos: (2, 0, 0), voxel_type: Grass, pattern: Some(Full)),
+            (pos: (0, 0, 1), voxel_type: Grass, pattern: Some(Full)),
+            (pos: (1, 0, 1), voxel_type: Grass, pattern: Some(Full)),
+            (pos: (2, 0, 1), voxel_type: Grass, pattern: Some(Full)),
+            (pos: (0, 0, 2), voxel_type: Grass, pattern: Some(Full)),
+            (pos: (1, 0, 2), voxel_type: Grass, pattern: Some(Full)),
+            (pos: (2, 0, 2), voxel_type: Grass, pattern: Some(Full)),
+        ],
+    ),
+    entities: [
+        (
+            entity_type: PlayerSpawn,
+            position: (1.5, 0.8, 1.5),
+            properties: {},
+        ),
+    ],
+    lighting: (
+        ambient_intensity: 0.4,
+        directional_light: Some((
+            direction: (-0.5, -1.0, -0.5),
+            illuminance: 8000.0,
+            color: (1.0, 0.95, 0.9),
+        )),
+    ),
+    camera: (
+        position: (1.5, 5.0, 4.0),
+        look_at: (1.5, 0.0, 1.5),
+        rotation_offset: -1.5707963,
+    ),
+    custom_properties: {
+        "difficulty": "easy",
+        "theme": "grassland",
+    },
+)

@@ -118,7 +118,7 @@ pub fn button_interaction(
                 match button {
                     MenuButton::NewGame => {
                         info!("Starting new game...");
-                        next_state.set(GameState::InGame);
+                        next_state.set(GameState::LoadingMap);
                     }
                     MenuButton::Continue => {
                         info!("Continue not implemented yet");
@@ -214,7 +214,7 @@ pub fn keyboard_navigation(
         match selected.index {
             0 => {
                 info!("Starting new game...");
-                next_state.set(GameState::InGame);
+                next_state.set(GameState::LoadingMap);
             }
             1 => {
                 info!("Continue not implemented yet");

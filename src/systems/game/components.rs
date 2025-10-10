@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Component)]
 pub struct Player {
@@ -26,7 +27,7 @@ pub struct SubVoxel {
     pub sub_z: i32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum VoxelType {
     Air,
     Grass,

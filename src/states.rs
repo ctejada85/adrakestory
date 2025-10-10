@@ -5,6 +5,7 @@ pub enum GameState {
     #[default]
     IntroAnimation,
     TitleScreen,
+    LoadingMap,
     InGame,
     Settings,
     Paused,
