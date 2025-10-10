@@ -1,7 +1,6 @@
 //! Map data structures and format definitions.
 
 use super::super::components::VoxelType;
-use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
