@@ -19,7 +19,6 @@ pub fn spawn_map_system(
     mut progress: ResMut<MapLoadProgress>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    spatial_grid: Option<ResMut<SpatialGrid>>,
     game_initialized: Option<Res<GameInitialized>>,
 ) {
     // If game is already initialized, don't spawn again
@@ -32,16 +31,8 @@ pub fn spawn_map_system(
     // Mark game as initialized
     commands.insert_resource(GameInitialized(true));
 
-    // Initialize SpatialGrid if it doesn't exist
-    let mut spatial_grid = match spatial_grid {
-        Some(grid) => grid,
-        None => {
-            commands.insert_resource(SpatialGrid::default());
-            // We need to return early and let the system run again next frame
-            // when the resource is available
-            return;
-        }
-    };
+    // Initialize SpatialGrid
+    let mut spatial_grid = SpatialGrid::default();
 
     let map = &map_data.map;
 
@@ -78,6 +69,9 @@ pub fn spawn_map_system(
     // Stage 7: Setup camera (97-100%)
     progress.update(LoadProgress::Finalizing(0.5));
     spawn_camera(&mut commands, map);
+
+    // Insert the spatial grid as a resource
+    commands.insert_resource(spatial_grid);
 
     // Complete
     progress.update(LoadProgress::Finalizing(1.0));
