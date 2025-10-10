@@ -19,7 +19,7 @@ pub fn spawn_map_system(
     mut progress: ResMut<MapLoadProgress>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut spatial_grid: ResMut<SpatialGrid>,
+    spatial_grid: Option<ResMut<SpatialGrid>>,
     game_initialized: Option<Res<GameInitialized>>,
 ) {
     // If game is already initialized, don't spawn again
@@ -31,6 +31,17 @@ pub fn spawn_map_system(
 
     // Mark game as initialized
     commands.insert_resource(GameInitialized(true));
+
+    // Initialize SpatialGrid if it doesn't exist
+    let mut spatial_grid = match spatial_grid {
+        Some(grid) => grid,
+        None => {
+            commands.insert_resource(SpatialGrid::default());
+            // We need to return early and let the system run again next frame
+            // when the resource is available
+            return;
+        }
+    };
 
     let map = &map_data.map;
 
