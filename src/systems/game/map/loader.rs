@@ -73,6 +73,7 @@ pub struct MapLoadProgress {
 
 impl MapLoadProgress {
     /// Create a new progress tracker.
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             current: None,
@@ -97,6 +98,7 @@ impl MapLoadProgress {
     }
 
     /// Check if an error occurred.
+    #[allow(dead_code)]
     pub fn has_error(&self) -> bool {
         matches!(self.current, Some(LoadProgress::Error(_)))
     }
@@ -150,6 +152,7 @@ impl MapLoader {
     /// Load a map from a file path without progress tracking.
     ///
     /// This is a simpler version for cases where progress tracking is not needed.
+    #[allow(dead_code)]
     pub fn load_simple(path: impl AsRef<Path>) -> MapResult<MapData> {
         let content = fs::read_to_string(path.as_ref())?;
         let map: MapData = ron::from_str(&content)?;
@@ -160,6 +163,7 @@ impl MapLoader {
     /// Save a map to a file.
     ///
     /// This can be used by a map editor to save maps.
+    #[allow(dead_code)]
     pub fn save_to_file(map: &MapData, path: impl AsRef<Path>) -> MapResult<()> {
         let ron_string = ron::ser::to_string_pretty(map, ron::ser::PrettyConfig::default())
             .map_err(|e| {
@@ -179,6 +183,7 @@ impl MapLoader {
 /// System to load a map from a file path.
 ///
 /// This system should be run once when entering the LoadingMap state.
+#[allow(dead_code)]
 pub fn load_map_system(
     mut commands: Commands,
     mut progress: ResMut<MapLoadProgress>,
