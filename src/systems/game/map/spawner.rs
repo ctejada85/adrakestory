@@ -9,6 +9,21 @@ use bevy::prelude::*;
 const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
 const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
 
+/// Context for spawning voxels and sub-voxels.
+struct VoxelSpawnContext<'w, 's, 'a> {
+    commands: Commands<'w, 's>,
+    spatial_grid: &'a mut SpatialGrid,
+    sub_voxel_mesh: &'a Handle<Mesh>,
+    materials: &'a mut Assets<StandardMaterial>,
+}
+
+/// Context for spawning entities.
+struct EntitySpawnContext<'w, 's, 'a> {
+    commands: Commands<'w, 's>,
+    meshes: &'a mut Assets<Mesh>,
+    materials: &'a mut Assets<StandardMaterial>,
+}
+
 /// System that spawns a loaded map into the game world.
 ///
 /// This system reads the LoadedMapData resource and creates all the
@@ -41,25 +56,29 @@ pub fn spawn_map_system(
 
     // Stage 4: Spawn voxels (60-90%)
     progress.update(LoadProgress::SpawningVoxels(0.0));
-    spawn_voxels(
-        &mut commands,
-        &mut spatial_grid,
-        &sub_voxel_mesh,
-        &mut materials,
-        map,
-        &mut progress,
-    );
+    commands = {
+        let mut voxel_ctx = VoxelSpawnContext {
+            commands,
+            spatial_grid: &mut spatial_grid,
+            sub_voxel_mesh: &sub_voxel_mesh,
+            materials: materials.as_mut(),
+        };
+        spawn_voxels(&mut voxel_ctx, map, &mut progress);
+        voxel_ctx.commands
+    };
     progress.update(LoadProgress::SpawningVoxels(1.0));
 
     // Stage 5: Spawn entities (90-95%)
     progress.update(LoadProgress::SpawningEntities(0.0));
-    spawn_entities(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        map,
-        &mut progress,
-    );
+    commands = {
+        let mut entity_ctx = EntitySpawnContext {
+            commands,
+            meshes: meshes.as_mut(),
+            materials: materials.as_mut(),
+        };
+        spawn_entities(&mut entity_ctx, map, &mut progress);
+        entity_ctx.commands
+    };
     progress.update(LoadProgress::SpawningEntities(1.0));
 
     // Stage 6: Setup lighting (95-97%)
@@ -79,14 +98,7 @@ pub fn spawn_map_system(
 }
 
 /// Spawn all voxels from the map data.
-fn spawn_voxels(
-    commands: &mut Commands,
-    spatial_grid: &mut SpatialGrid,
-    sub_voxel_mesh: &Handle<Mesh>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    map: &MapData,
-    progress: &mut MapLoadProgress,
-) {
+fn spawn_voxels(ctx: &mut VoxelSpawnContext, map: &MapData, progress: &mut MapLoadProgress) {
     let total_voxels = map.world.voxels.len();
 
     for (index, voxel_data) in map.world.voxels.iter().enumerate() {
@@ -97,60 +109,30 @@ fn spawn_voxels(
         let (x, y, z) = voxel_data.pos;
 
         // Spawn parent voxel marker
-        commands.spawn(Voxel);
+        ctx.commands.spawn(Voxel);
 
         // Determine which pattern to use
         let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
 
         match pattern {
             SubVoxelPattern::Full => {
-                spawn_full_voxel_sub_voxels(
-                    commands,
-                    spatial_grid,
-                    sub_voxel_mesh,
-                    materials,
-                    x,
-                    y,
-                    z,
-                );
+                spawn_full_voxel_sub_voxels(ctx, x, y, z);
             }
             SubVoxelPattern::Platform => {
-                spawn_platform_sub_voxels(
-                    commands,
-                    spatial_grid,
-                    sub_voxel_mesh,
-                    materials,
-                    x,
-                    y,
-                    z,
-                );
+                spawn_platform_sub_voxels(ctx, x, y, z);
             }
             SubVoxelPattern::Staircase => {
-                spawn_staircase_sub_voxels(
-                    commands,
-                    spatial_grid,
-                    sub_voxel_mesh,
-                    materials,
-                    x,
-                    y,
-                    z,
-                );
+                spawn_staircase_sub_voxels(ctx, x, y, z);
             }
             SubVoxelPattern::Pillar => {
-                spawn_pillar_sub_voxels(commands, spatial_grid, sub_voxel_mesh, materials, x, y, z);
+                spawn_pillar_sub_voxels(ctx, x, y, z);
             }
         }
     }
 }
 
 /// Spawn entities from the map data.
-fn spawn_entities(
-    commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    map: &MapData,
-    progress: &mut MapLoadProgress,
-) {
+fn spawn_entities(ctx: &mut EntitySpawnContext, map: &MapData, progress: &mut MapLoadProgress) {
     let total_entities = map.entities.len();
 
     for (index, entity_data) in map.entities.iter().enumerate() {
@@ -162,7 +144,7 @@ fn spawn_entities(
 
         match entity_data.entity_type {
             EntityType::PlayerSpawn => {
-                spawn_player(commands, meshes, materials, Vec3::new(x, y, z));
+                spawn_player(ctx, Vec3::new(x, y, z));
             }
             EntityType::Enemy => {
                 // TODO: Implement enemy spawning
@@ -184,17 +166,12 @@ fn spawn_entities(
 }
 
 /// Spawn the player entity.
-fn spawn_player(
-    commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    position: Vec3,
-) {
+fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
     let player_radius = 0.3;
-    let player_mesh = meshes.add(Sphere::new(player_radius));
-    let player_material = materials.add(Color::srgb(0.8, 0.2, 0.2));
+    let player_mesh = ctx.meshes.add(Sphere::new(player_radius));
+    let player_material = ctx.materials.add(Color::srgb(0.8, 0.2, 0.2));
 
-    commands.spawn((
+    ctx.commands.spawn((
         Mesh3d(player_mesh),
         MeshMaterial3d(player_material),
         Transform::from_translation(position),
@@ -207,18 +184,18 @@ fn spawn_player(
     ));
 
     // Create collision box (invisible by default)
-    let collision_box_mesh = meshes.add(Cuboid::new(
+    let collision_box_mesh = ctx.meshes.add(Cuboid::new(
         player_radius * 2.0,
         player_radius * 2.0,
         player_radius * 2.0,
     ));
-    let collision_box_material = materials.add(StandardMaterial {
+    let collision_box_material = ctx.materials.add(StandardMaterial {
         base_color: Color::srgba(0.0, 1.0, 0.0, 0.3),
         alpha_mode: AlphaMode::Blend,
         ..default()
     });
 
-    commands.spawn((
+    ctx.commands.spawn((
         Mesh3d(collision_box_mesh),
         MeshMaterial3d(collision_box_material),
         Transform::from_translation(position),
@@ -283,134 +260,55 @@ fn spawn_camera(commands: &mut Commands, map: &MapData) {
 
 // Sub-voxel spawning functions (same as in world_generation.rs)
 
-fn spawn_staircase_sub_voxels(
-    commands: &mut Commands,
-    spatial_grid: &mut SpatialGrid,
-    sub_voxel_mesh: &Handle<Mesh>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    x: i32,
-    y: i32,
-    z: i32,
-) {
+fn spawn_staircase_sub_voxels(ctx: &mut VoxelSpawnContext, x: i32, y: i32, z: i32) {
     for step in 0..SUB_VOXEL_COUNT {
         let step_height = step + 1;
 
         for sub_x in step..(step + 1) {
             for sub_y in 0..step_height {
                 for sub_z in 0..SUB_VOXEL_COUNT {
-                    spawn_sub_voxel(
-                        commands,
-                        spatial_grid,
-                        sub_voxel_mesh,
-                        materials,
-                        x,
-                        y,
-                        z,
-                        sub_x,
-                        sub_y,
-                        sub_z,
-                    );
+                    spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
                 }
             }
         }
     }
 }
 
-fn spawn_platform_sub_voxels(
-    commands: &mut Commands,
-    spatial_grid: &mut SpatialGrid,
-    sub_voxel_mesh: &Handle<Mesh>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    x: i32,
-    y: i32,
-    z: i32,
-) {
+fn spawn_platform_sub_voxels(ctx: &mut VoxelSpawnContext, x: i32, y: i32, z: i32) {
     for sub_x in 0..SUB_VOXEL_COUNT {
         for sub_y in 0..1 {
             for sub_z in 0..SUB_VOXEL_COUNT {
-                spawn_sub_voxel(
-                    commands,
-                    spatial_grid,
-                    sub_voxel_mesh,
-                    materials,
-                    x,
-                    y,
-                    z,
-                    sub_x,
-                    sub_y,
-                    sub_z,
-                );
+                spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
             }
         }
     }
 }
 
-fn spawn_pillar_sub_voxels(
-    commands: &mut Commands,
-    spatial_grid: &mut SpatialGrid,
-    sub_voxel_mesh: &Handle<Mesh>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    x: i32,
-    y: i32,
-    z: i32,
-) {
+fn spawn_pillar_sub_voxels(ctx: &mut VoxelSpawnContext, x: i32, y: i32, z: i32) {
     let pillar_count = 2;
     let pillar_start = 3;
 
     for sub_x in pillar_start..(pillar_start + pillar_count) {
         for sub_y in pillar_start..(pillar_start + pillar_count) {
             for sub_z in pillar_start..(pillar_start + pillar_count) {
-                spawn_sub_voxel(
-                    commands,
-                    spatial_grid,
-                    sub_voxel_mesh,
-                    materials,
-                    x,
-                    y,
-                    z,
-                    sub_x,
-                    sub_y,
-                    sub_z,
-                );
+                spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
             }
         }
     }
 }
 
-fn spawn_full_voxel_sub_voxels(
-    commands: &mut Commands,
-    spatial_grid: &mut SpatialGrid,
-    sub_voxel_mesh: &Handle<Mesh>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    x: i32,
-    y: i32,
-    z: i32,
-) {
+fn spawn_full_voxel_sub_voxels(ctx: &mut VoxelSpawnContext, x: i32, y: i32, z: i32) {
     for sub_x in 0..SUB_VOXEL_COUNT {
         for sub_y in 0..SUB_VOXEL_COUNT {
             for sub_z in 0..SUB_VOXEL_COUNT {
-                spawn_sub_voxel(
-                    commands,
-                    spatial_grid,
-                    sub_voxel_mesh,
-                    materials,
-                    x,
-                    y,
-                    z,
-                    sub_x,
-                    sub_y,
-                    sub_z,
-                );
+                spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
             }
         }
     }
 }
 
 fn spawn_sub_voxel(
-    commands: &mut Commands,
-    spatial_grid: &mut SpatialGrid,
-    sub_voxel_mesh: &Handle<Mesh>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    ctx: &mut VoxelSpawnContext,
     x: i32,
     y: i32,
     z: i32,
@@ -423,16 +321,17 @@ fn spawn_sub_voxel(
         0.3 + (z as f32 * 0.15) + (sub_z as f32 * 0.01),
         0.4 + (y as f32 * 0.2) + (sub_y as f32 * 0.01),
     );
-    let sub_voxel_material = materials.add(color);
+    let sub_voxel_material = ctx.materials.add(color);
 
     let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
     let sub_x_pos = x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
     let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
     let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
 
-    let sub_voxel_entity = commands
+    let sub_voxel_entity = ctx
+        .commands
         .spawn((
-            Mesh3d(sub_voxel_mesh.clone()),
+            Mesh3d(ctx.sub_voxel_mesh.clone()),
             MeshMaterial3d(sub_voxel_material),
             Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
             SubVoxel {
@@ -448,7 +347,7 @@ fn spawn_sub_voxel(
 
     let sub_voxel_world_pos = Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
     let grid_coords = SpatialGrid::world_to_grid_coords(sub_voxel_world_pos);
-    spatial_grid
+    ctx.spatial_grid
         .cells
         .entry(grid_coords)
         .or_default()

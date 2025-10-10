@@ -146,7 +146,6 @@ fn validate_lighting(map: &MapData) -> MapResult<()> {
 mod tests {
     use super::*;
     use crate::systems::game::map::format::*;
-    use std::collections::HashMap;
 
     #[test]
     fn test_validate_default_map() {
