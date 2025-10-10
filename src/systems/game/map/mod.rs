@@ -27,12 +27,5 @@ pub mod loader;
 pub mod spawner;
 pub mod validation;
 
-// Re-export commonly used types
-pub use error::{MapLoadError, MapResult};
-pub use format::{
-    CameraData, DirectionalLightData, EntityData, EntityType, LightingData, MapData, MapMetadata,
-    SubVoxelPattern, VoxelData, WorldData,
-};
 pub use loader::{LoadProgress, LoadedMapData, MapLoadProgress, MapLoader};
 pub use spawner::spawn_map_system;
-pub use validation::validate_map;
