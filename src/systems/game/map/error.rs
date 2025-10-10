@@ -22,6 +22,7 @@ pub enum MapLoadError {
     InvalidVoxelPosition(i32, i32, i32),
 
     /// Invalid entity type encountered.
+    #[allow(dead_code)]
     #[error("Invalid entity type: {0}")]
     InvalidEntityType(String),
 
