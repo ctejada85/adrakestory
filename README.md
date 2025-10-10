@@ -19,7 +19,12 @@ A Drake's Story is an experimental 3D game that explores voxel-based world gener
 - **Isometric Camera**: Dynamic camera with rotation controls for better spatial awareness
 
 ### Technical Features
-- **State Management**: Clean game flow through multiple states (Intro Animation → Title Screen → In-Game → Pause Menu)
+- **Map Loader System**: Load custom maps from RON files with progress tracking
+  - Human-readable RON (Rusty Object Notation) format
+  - Support for voxels, entities, lighting, and camera configuration
+  - Real-time loading progress with visual feedback
+  - Map validation and error handling
+- **State Management**: Clean game flow through multiple states (Intro Animation → Title Screen → Loading Map → In-Game → Pause Menu)
 - **Spatial Grid Optimization**: Efficient collision detection using spatial partitioning
 - **Modular Architecture**: Well-organized system modules for maintainability
 - **Debug Tools**: Collision box visualization for development and testing
@@ -35,6 +40,9 @@ A Drake's Story is an experimental 3D game that explores voxel-based world gener
 
 ```toml
 bevy = "0.15"
+serde = { version = "1.0", features = ["derive"] }
+ron = "0.8"
+thiserror = "1.0"
 ```
 
 ## Getting Started
@@ -112,16 +120,28 @@ adrakestory/
 │   │   │   ├── input.rs       # Input handling
 │   │   │   ├── physics.rs     # Physics simulation
 │   │   │   ├── player_movement.rs  # Player controls
-│   │   │   └── world_generation.rs # World setup
+│   │   │   ├── world_generation.rs # Legacy world setup
+│   │   │   └── map/           # Map loading system
+│   │   │       ├── mod.rs     # Map module exports
+│   │   │       ├── format.rs  # Map data structures
+│   │   │       ├── loader.rs  # Map file loading
+│   │   │       ├── spawner.rs # World instantiation
+│   │   │       ├── validation.rs # Map validation
+│   │   │       └── error.rs   # Error types
 │   │   ├── intro_animation/   # Intro screen systems
 │   │   ├── title_screen/      # Title screen systems
+│   │   ├── loading_screen/    # Map loading UI
 │   │   └── pause_menu/        # Pause menu systems
 │   └── components/            # Shared components
 ├── assets/
+│   ├── maps/                  # Map files (RON format)
+│   │   ├── default.ron        # Default game map
+│   │   └── simple_test.ron    # Minimal test map
 │   ├── audio/                 # Sound effects and music
 │   ├── fonts/                 # UI fonts
 │   └── textures/              # Textures and sprites
 ├── Cargo.toml                 # Project dependencies
+├── MAP_LOADER_DESIGN.md      # Map system documentation
 ├── DEBUG_SETUP.md            # VSCode debugging guide
 └── README.md                 # This file
 ```
@@ -135,6 +155,7 @@ The project follows a modular ECS architecture with clear separation of concerns
 #### Game States
 - **IntroAnimation**: Opening splash screen with fade effects
 - **TitleScreen**: Main menu with keyboard and mouse navigation
+- **LoadingMap**: Map loading with progress indicator
 - **InGame**: Active gameplay with physics and controls
 - **Paused**: Pause menu overlay
 - **Settings**: Configuration screen (planned)
@@ -152,7 +173,8 @@ The project follows a modular ECS architecture with clear separation of concerns
 - **CollisionBox**: Debug visualization component
 
 #### Resources
-- **VoxelWorld**: World data structure (4×4×4 voxels)
+- **LoadedMapData**: Currently loaded map data
+- **MapLoadProgress**: Real-time loading progress tracking
 - **SpatialGrid**: Spatial partitioning for efficient collision queries
 - **GameInitialized**: Prevents duplicate world setup
 
@@ -205,9 +227,77 @@ Contributions are welcome! When contributing:
 - **Bevy Dynamic Linking**: For faster compile times during development, consider enabling Bevy's dynamic linking feature
 - **Asset Optimization**: Keep textures and audio files optimized for size
 
+## Map System
+
+### Creating Custom Maps
+
+Maps are defined in RON (Rusty Object Notation) format in the `assets/maps/` directory. See [`MAP_LOADER_DESIGN.md`](MAP_LOADER_DESIGN.md) for detailed documentation.
+
+#### Basic Map Structure
+
+```ron
+(
+    metadata: (
+        name: "My Custom Map",
+        author: "Your Name",
+        version: "1.0.0",
+        description: "A custom map description",
+    ),
+    world: (
+        voxels: [
+            (pos: (0, 0, 0), pattern: Some(Full)),
+            (pos: (1, 0, 0), pattern: Some(Platform)),
+            // Add more voxels...
+        ],
+    ),
+    entities: [
+        (entity_type: PlayerSpawn, position: (0.5, 1.5, 0.5)),
+        // Add more entities...
+    ],
+    lighting: (
+        ambient_intensity: 0.3,
+        directional_light: Some((
+            direction: (-0.5, -1.0, -0.5),
+            illuminance: 10000.0,
+            color: (1.0, 1.0, 0.9),
+        )),
+    ),
+    camera: (
+        position: (8.0, 10.0, 8.0),
+        look_at: (0.0, 0.0, 0.0),
+        rotation_offset: 0.0,
+    ),
+)
+```
+
+#### Sub-Voxel Patterns
+
+- **Full**: Solid 8×8×8 block
+- **Platform**: Thin 8×8×1 platform
+- **Staircase**: Progressive steps
+- **Pillar**: Small centered 2×2×2 pillar
+
+#### Entity Types
+
+- **PlayerSpawn**: Player starting position
+- **Enemy**: Enemy spawn point (planned)
+- **Item**: Item pickup location (planned)
+- **Trigger**: Event trigger zone (planned)
+
+### Loading Custom Maps
+
+To load a custom map, place your `.ron` file in `assets/maps/` and update the map path in [`src/main.rs`](src/main.rs):
+
+```rust
+commands.insert_resource(MapToLoad("maps/your_map.ron".to_string()));
+```
+
 ## Roadmap
 
 Future planned features:
+- [x] Map loader system with RON format
+- [x] Loading screen with progress tracking
+- [ ] Map editor tool
 - [ ] Procedural world generation
 - [ ] Multiple biomes and terrain types
 - [ ] Player inventory system
