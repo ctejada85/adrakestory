@@ -4,6 +4,22 @@ mod states;
 mod systems;
 
 use states::GameState;
+
+/// System sets for organizing game loop execution order.
+/// These sets ensure proper sequencing of game logic phases.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+enum GameSystemSet {
+    /// Handle user input (keyboard, mouse, etc.)
+    Input,
+    /// Process player movement based on input
+    Movement,
+    /// Apply physics simulation (gravity, collisions)
+    Physics,
+    /// Update visual elements (collision box, effects, etc.)
+    Visual,
+    /// Update camera position and rotation
+    Camera,
+}
 use systems::game::map::{spawn_map_system, LoadedMapData, MapLoadProgress, MapLoader};
 use systems::game::systems::{
     apply_gravity, apply_physics, handle_escape_key, move_player, rotate_camera,
@@ -54,19 +70,37 @@ fn main() {
         )
         .add_systems(OnExit(GameState::LoadingMap), cleanup_loading_screen)
         .add_systems(OnEnter(GameState::InGame), spawn_map_system)
-        .add_systems(
+        // Configure system sets to run in a specific order
+        .configure_sets(
             Update,
             (
-                move_player,
-                rotate_camera,
-                toggle_collision_box,
-                update_collision_box,
-                apply_gravity,
-                apply_physics,
-                handle_escape_key,
+                GameSystemSet::Input,
+                GameSystemSet::Movement,
+                GameSystemSet::Physics,
+                GameSystemSet::Visual,
+                GameSystemSet::Camera,
             )
+                .chain()
                 .run_if(in_state(GameState::InGame)),
         )
+        // Input phase: Handle user input
+        .add_systems(
+            Update,
+            (handle_escape_key, toggle_collision_box).in_set(GameSystemSet::Input),
+        )
+        // Movement phase: Process player movement
+        .add_systems(Update, move_player.in_set(GameSystemSet::Movement))
+        // Physics phase: Apply gravity and physics (in order)
+        .add_systems(
+            Update,
+            (apply_gravity, apply_physics)
+                .chain()
+                .in_set(GameSystemSet::Physics),
+        )
+        // Visual phase: Update visual elements after all position changes
+        .add_systems(Update, update_collision_box.in_set(GameSystemSet::Visual))
+        // Camera phase: Update camera last
+        .add_systems(Update, rotate_camera.in_set(GameSystemSet::Camera))
         .add_systems(OnEnter(GameState::Paused), pause_menu::setup_pause_menu)
         .add_systems(
             Update,
