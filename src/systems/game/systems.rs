@@ -1,7 +1,7 @@
 //! Game systems module - Re-exports for backward compatibility.
 //!
 //! This module has been refactored into smaller, focused modules:
-//! - `world_generation` - World setup and voxel spawning
+//! - `map` - Map loading and spawning (replaces world_generation)
 //! - `collision` - Collision detection helpers
 //! - `player_movement` - Player input and movement
 //! - `physics` - Gravity and physics simulation
@@ -10,9 +10,6 @@
 //!
 //! All public functions are re-exported here to maintain backward compatibility
 //! with existing code that imports from `systems::game::systems`.
-
-// Re-export world generation
-pub use super::world_generation::setup_game;
 
 // Re-export player movement
 pub use super::player_movement::move_player;
