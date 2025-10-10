@@ -84,6 +84,7 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
+    // 2D camera for UI elements (title screen, loading screen, etc.)
     commands.spawn(Camera2d);
 }
 
