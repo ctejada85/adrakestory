@@ -13,6 +13,12 @@ pub enum IntroPhase {
     FadeOut,
 }
 
+impl Default for IntroAnimationTimer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IntroAnimationTimer {
     pub fn new() -> Self {
         Self {
