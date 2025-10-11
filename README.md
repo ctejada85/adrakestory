@@ -30,6 +30,7 @@ cargo run --release
 - **Varied Terrain** - Staircases, platforms, pillars, and solid blocks
 - **Isometric Camera** - Dynamic camera with rotation controls
 - **Map Loader** - Load custom maps from RON files with progress tracking
+- **Map Editor** - Visual editor for creating and editing maps
 - **State Management** - Clean game flow through multiple states
 
 ## Documentation
@@ -68,9 +69,13 @@ Full controls: [Controls Reference](docs/getting-started/controls.md)
 ```
 adrakestory/
 ├── src/                    # Source code
-│   ├── main.rs            # Entry point
+│   ├── main.rs            # Game entry point
+│   ├── lib.rs             # Shared library
 │   ├── states.rs          # Game states
-│   └── systems/           # Game systems
+│   ├── systems/           # Game systems
+│   ├── editor/            # Map editor modules
+│   └── bin/
+│       └── map_editor.rs  # Map editor binary
 ├── assets/                # Game assets
 │   ├── maps/             # Map files (.ron)
 │   ├── textures/         # Textures and sprites
@@ -92,11 +97,24 @@ adrakestory/
 ### Building
 
 ```bash
-# Debug build (faster compilation)
+# Build the game (debug mode)
 cargo build
 
-# Release build (better performance)
+# Build the game (release mode - recommended)
 cargo build --release
+
+# Build the map editor
+cargo build --bin map_editor --release
+```
+
+### Running
+
+```bash
+# Run the game
+cargo run --release
+
+# Run the map editor
+cargo run --bin map_editor --release
 ```
 
 ### Running Tests
@@ -149,7 +167,8 @@ Contributions are welcome! Please read our [Contributing Guide](docs/developer-g
 
 - [x] Map loader system with RON format
 - [x] Loading screen with progress tracking
-- [ ] Map editor tool
+- [x] Map editor tool (core implementation complete)
+- [ ] Map editor integration (file I/O, voxel rendering)
 - [ ] Procedural world generation
 - [ ] Player inventory system
 - [ ] Save/load functionality

@@ -24,6 +24,10 @@ For contributors and advanced users:
 - **[Debugging Setup](developer-guide/debugging.md)** - VSCode debugging configuration
 - **[Contributing Guidelines](developer-guide/contributing.md)** - How to contribute to the project
 - **[Map Loader System](developer-guide/systems/map-loader.md)** - Map loading internals
+- **[Map Editor Design](developer-guide/map-editor-design.md)** - Map editor feature specifications
+- **[Map Editor Architecture](developer-guide/map-editor-architecture.md)** - Map editor system design
+- **[Map Editor Roadmap](developer-guide/map-editor-roadmap.md)** - Implementation plan and phases
+- **[Map Editor Status](developer-guide/map-editor-implementation-status.md)** - Current implementation status
 
 ### API Reference
 Technical specifications:
@@ -40,6 +44,7 @@ Technical specifications:
 1. [Understand the basics](user-guide/maps/creating-maps.md)
 2. [Learn the format](user-guide/maps/map-format.md)
 3. [Study examples](user-guide/maps/examples.md)
+4. [Use the map editor](developer-guide/map-editor-design.md) (visual tool)
 
 ### I'm a Developer
 1. [Understand the architecture](developer-guide/architecture.md)
@@ -61,5 +66,5 @@ This documentation is maintained alongside the codebase. If you find errors or h
 
 ---
 
-**Last Updated**: 2025-01-10  
+**Last Updated**: 2025-01-11
 **Version**: 1.0.0
