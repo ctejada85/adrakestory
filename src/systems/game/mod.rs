@@ -1,5 +1,5 @@
-mod components;
-mod resources;
+pub mod components;
+pub mod resources;
 pub mod systems;
 
 // New focused modules

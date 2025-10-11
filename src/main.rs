@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+pub mod editor;
 mod states;
 mod systems;
 
