@@ -16,7 +16,10 @@ For players and map creators:
 - **[Creating Maps](user-guide/maps/creating-maps.md)** - Step-by-step map creation guide
 - **[Map Format Reference](user-guide/maps/map-format.md)** - RON format specification
 - **[Example Maps](user-guide/maps/examples.md)** - Walkthrough of included maps
-- **[Troubleshooting](user-guide/troubleshooting.md)** - Common issues and solutions
+- **[Map Editor - Getting Started](user-guide/map-editor/getting-started.md)** - Visual map editor guide
+- **[Map Editor - Controls](user-guide/map-editor/controls.md)** - Complete controls reference
+- **[Map Editor - Troubleshooting](user-guide/map-editor/troubleshooting.md)** - Editor-specific issues
+- **[Troubleshooting](user-guide/troubleshooting.md)** - Common game issues and solutions
 
 ### Developer Guide
 For contributors and advanced users:
@@ -24,10 +27,10 @@ For contributors and advanced users:
 - **[Debugging Setup](developer-guide/debugging.md)** - VSCode debugging configuration
 - **[Contributing Guidelines](developer-guide/contributing.md)** - How to contribute to the project
 - **[Map Loader System](developer-guide/systems/map-loader.md)** - Map loading internals
-- **[Map Editor Design](developer-guide/map-editor-design.md)** - Map editor feature specifications
-- **[Map Editor Architecture](developer-guide/map-editor-architecture.md)** - Map editor system design
-- **[Map Editor Roadmap](developer-guide/map-editor-roadmap.md)** - Implementation plan and phases
-- **[Map Editor Status](developer-guide/map-editor-implementation-status.md)** - Current implementation status
+- **[Map Editor - Design](developer-guide/systems/map-editor/design.md)** - Feature specifications
+- **[Map Editor - Architecture](developer-guide/systems/map-editor/architecture.md)** - System design
+- **[Map Editor - Roadmap](developer-guide/systems/map-editor/roadmap.md)** - Implementation plan
+- **[Map Editor - Status](developer-guide/systems/map-editor/implementation-status.md)** - Current progress
 
 ### API Reference
 Technical specifications:
@@ -41,10 +44,11 @@ Technical specifications:
 3. [Start playing](getting-started/quick-start.md)
 
 ### I'm a Map Creator
-1. [Understand the basics](user-guide/maps/creating-maps.md)
-2. [Learn the format](user-guide/maps/map-format.md)
-3. [Study examples](user-guide/maps/examples.md)
-4. [Use the map editor](developer-guide/map-editor-design.md) (visual tool)
+1. [Get started with the map editor](user-guide/map-editor/getting-started.md) (recommended)
+2. [Learn the controls](user-guide/map-editor/controls.md)
+3. Or [create maps manually](user-guide/maps/creating-maps.md)
+4. [Understand the format](user-guide/maps/map-format.md)
+5. [Study examples](user-guide/maps/examples.md)
 
 ### I'm a Developer
 1. [Understand the architecture](developer-guide/architecture.md)

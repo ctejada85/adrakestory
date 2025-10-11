@@ -42,7 +42,8 @@ cargo run --release
 - **[Installation Guide](docs/getting-started/installation.md)** - Setup and prerequisites
 - **[Quick Start](docs/getting-started/quick-start.md)** - Your first game
 - **[Controls](docs/getting-started/controls.md)** - Keyboard and mouse controls
-- **[Creating Maps](docs/user-guide/maps/creating-maps.md)** - Build custom maps
+- **[Map Editor](docs/user-guide/map-editor/getting-started.md)** - Visual map creation tool
+- **[Creating Maps](docs/user-guide/maps/creating-maps.md)** - Manual map creation
 - **[Architecture](docs/developer-guide/architecture.md)** - System design
 - **[Contributing](docs/developer-guide/contributing.md)** - How to contribute
 
