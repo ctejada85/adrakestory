@@ -5,6 +5,12 @@ pub struct TitleScreenFadeTimer {
     pub timer: Timer,
 }
 
+impl Default for TitleScreenFadeTimer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TitleScreenFadeTimer {
     pub fn new() -> Self {
         Self {
