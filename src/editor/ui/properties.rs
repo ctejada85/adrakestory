@@ -3,7 +3,6 @@
 use crate::editor::state::{EditorState, EditorTool};
 use crate::systems::game::components::VoxelType;
 use crate::systems::game::map::format::{EntityType, SubVoxelPattern};
-use bevy::prelude::*;
 use bevy_egui::egui;
 
 /// Render the right-side properties panel
