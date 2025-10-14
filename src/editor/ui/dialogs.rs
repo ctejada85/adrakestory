@@ -4,6 +4,24 @@ use crate::editor::state::{EditorState, EditorUIState, PendingAction};
 use crate::systems::game::map::format::MapData;
 use bevy::prelude::*;
 use bevy_egui::egui;
+use std::fs;
+use std::path::PathBuf;
+use std::sync::{
+    mpsc::{channel, Receiver},
+    Arc, Mutex,
+};
+
+/// Event sent when a file is selected from the file dialog
+#[derive(Event)]
+pub struct FileSelectedEvent {
+    pub path: PathBuf,
+}
+
+/// Resource to track the file dialog receiver
+#[derive(Resource, Default)]
+pub struct FileDialogReceiver {
+    pub receiver: Option<Arc<Mutex<Receiver<Option<PathBuf>>>>>,
+}
 
 /// Render all dialog windows
 pub fn render_dialogs(
@@ -29,6 +47,11 @@ pub fn render_dialogs(
     // Keyboard shortcuts help
     if ui_state.shortcuts_help_open {
         render_shortcuts_help(ctx, ui_state);
+    }
+
+    // Error dialog
+    if ui_state.error_dialog_open {
+        render_error_dialog(ctx, ui_state);
     }
 }
 
@@ -71,7 +94,7 @@ fn render_unsaved_changes_dialog(
 }
 
 /// Handle the pending action after unsaved changes dialog
-fn handle_pending_action(editor_state: &mut EditorState, ui_state: &mut EditorUIState) {
+fn handle_pending_action(_editor_state: &mut EditorState, ui_state: &mut EditorUIState) {
     if let Some(action) = ui_state.pending_action.take() {
         match action {
             PendingAction::NewMap => {
@@ -188,12 +211,124 @@ fn render_shortcuts_help(ctx: &egui::Context, ui_state: &mut EditorUIState) {
         });
 }
 
-/// Handle file operations (placeholder for now)
-pub fn handle_file_operations(_editor_state: &mut EditorState, ui_state: &mut EditorUIState) {
-    // File dialog handling will be implemented here
-    // For now, just close the dialog if it's open
+/// Render error dialog
+fn render_error_dialog(ctx: &egui::Context, ui_state: &mut EditorUIState) {
+    egui::Window::new("Error")
+        .collapsible(false)
+        .resizable(false)
+        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+        .show(ctx, |ui| {
+            ui.label(&ui_state.error_message);
+            ui.separator();
+
+            if ui.button("OK").clicked() {
+                ui_state.error_dialog_open = false;
+                ui_state.error_message.clear();
+            }
+        });
+}
+
+/// Handle file operations - spawns file dialog in separate thread
+pub fn handle_file_operations(
+    ui_state: &mut EditorUIState,
+    mut dialog_receiver: ResMut<FileDialogReceiver>,
+) {
+    // Handle file open dialog request
     if ui_state.file_dialog_open {
-        info!("File dialog would open here");
         ui_state.file_dialog_open = false;
+
+        // Create a channel for communication
+        let (sender, receiver) = channel();
+        dialog_receiver.receiver = Some(Arc::new(Mutex::new(receiver)));
+
+        // Spawn file dialog in a separate thread to avoid blocking
+        std::thread::spawn(move || {
+            let result = rfd::FileDialog::new()
+                .add_filter("RON Map Files", &["ron"])
+                .set_title("Open Map File")
+                .pick_file();
+
+            // Send result back through channel
+            let _ = sender.send(result);
+        });
+
+        info!("File dialog opened in background thread");
     }
+}
+
+/// System to check for file dialog results and send events
+pub fn check_file_dialog_result(
+    mut dialog_receiver: ResMut<FileDialogReceiver>,
+    mut file_selected_events: EventWriter<FileSelectedEvent>,
+) {
+    // Check if we have a receiver
+    let should_clear = if let Some(receiver_arc) = &dialog_receiver.receiver {
+        // Try to lock and receive without blocking
+        if let Ok(receiver) = receiver_arc.lock() {
+            if let Ok(result) = receiver.try_recv() {
+                // Process the result
+                if let Some(path) = result {
+                    info!("File selected: {:?}", path);
+                    file_selected_events.send(FileSelectedEvent { path });
+                } else {
+                    info!("File dialog cancelled");
+                }
+                true // Signal that we should clear the receiver
+            } else {
+                false // No result yet
+            }
+        } else {
+            false // Failed to lock
+        }
+    } else {
+        false // No receiver
+    };
+
+    // Clear the receiver if we got a result
+    if should_clear {
+        dialog_receiver.receiver = None;
+    }
+}
+
+/// System to handle file selected events
+pub fn handle_file_selected(
+    mut events: EventReader<FileSelectedEvent>,
+    mut editor_state: ResMut<EditorState>,
+    mut ui_state: ResMut<EditorUIState>,
+) {
+    for event in events.read() {
+        match load_map_from_file(&event.path) {
+            Ok(map_data) => {
+                info!("Successfully loaded map from: {:?}", event.path);
+                editor_state.current_map = map_data;
+                editor_state.file_path = Some(event.path.clone());
+                editor_state.clear_modified();
+                editor_state.clear_selections();
+            }
+            Err(e) => {
+                error!("Failed to load map: {}", e);
+                ui_state.error_message = format!("Failed to load map:\n{}", e);
+                ui_state.error_dialog_open = true;
+            }
+        }
+    }
+}
+
+/// Load a map from a file
+fn load_map_from_file(path: &PathBuf) -> Result<MapData, String> {
+    // Read file contents
+    let contents = fs::read_to_string(path).map_err(|e| format!("Failed to read file: {}", e))?;
+
+    // Parse RON format
+    let map_data: MapData =
+        ron::from_str(&contents).map_err(|e| format!("Failed to parse map file: {}", e))?;
+
+    // Validate the map
+    if map_data.world.width == 0 || map_data.world.height == 0 || map_data.world.depth == 0 {
+        return Err(
+            "Invalid map dimensions: width, height, and depth must be greater than 0".to_string(),
+        );
+    }
+
+    Ok(map_data)
 }

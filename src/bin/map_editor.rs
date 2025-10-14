@@ -2,9 +2,8 @@
 //!
 //! A standalone GUI application for creating and editing map files.
 
-use adrakestory::editor::{camera, grid, history, state, tools, ui};
+use adrakestory::editor::{camera, grid, state, tools, ui};
 use adrakestory::editor::{EditorHistory, EditorState};
-use adrakestory::systems::game::map::format::MapData;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 
@@ -23,8 +22,12 @@ fn main() {
         .init_resource::<EditorHistory>()
         .init_resource::<state::EditorUIState>()
         .init_resource::<camera::CameraInputState>()
+        .init_resource::<ui::dialogs::FileDialogReceiver>()
+        .add_event::<ui::dialogs::FileSelectedEvent>()
         .add_systems(Startup, setup_editor)
         .add_systems(Update, render_ui)
+        .add_systems(Update, ui::dialogs::check_file_dialog_result)
+        .add_systems(Update, ui::dialogs::handle_file_selected)
         .add_systems(Update, camera::handle_camera_input)
         .add_systems(Update, camera::update_editor_camera)
         .add_systems(Update, grid::update_grid_visibility)
@@ -97,6 +100,7 @@ fn render_ui(
     mut editor_state: ResMut<EditorState>,
     mut ui_state: ResMut<state::EditorUIState>,
     history: Res<EditorHistory>,
+    dialog_receiver: ResMut<ui::dialogs::FileDialogReceiver>,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -116,7 +120,7 @@ fn render_ui(
     ui::dialogs::render_dialogs(ctx, &mut editor_state, &mut ui_state);
 
     // Handle file operations
-    ui::dialogs::handle_file_operations(&mut editor_state, &mut ui_state);
+    ui::dialogs::handle_file_operations(&mut ui_state, dialog_receiver);
 }
 
 /// Render the status bar at the bottom

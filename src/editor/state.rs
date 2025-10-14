@@ -180,6 +180,12 @@ pub struct EditorUIState {
 
     /// Whether the keyboard shortcuts help is open
     pub shortcuts_help_open: bool,
+
+    /// Whether the error dialog is open
+    pub error_dialog_open: bool,
+
+    /// Error message to display in the error dialog
+    pub error_message: String,
 }
 
 /// Actions that can be pending after user confirmation
