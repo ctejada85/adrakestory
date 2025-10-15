@@ -36,9 +36,13 @@ If using VSCode or another IDE, you can configure a launch target for the `map_e
 ### Opening an Existing Map
 
 1. Click **File → Open** or press `Ctrl+O`
-2. Navigate to `assets/maps/`
-3. Select a `.ron` file
-4. Click **Open**
+2. A native file dialog will appear (UI remains responsive)
+3. Navigate to `assets/maps/`
+4. Select a `.ron` file (only `.ron` files are shown)
+5. Click **Open**
+6. The map will load and render in the 3D viewport
+
+**Note**: The editor uses a non-blocking file dialog, so the UI stays responsive while you browse for files.
 
 ### Saving Your Work
 

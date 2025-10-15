@@ -180,18 +180,37 @@ Solution: Run `cargo update` then rebuild
 1. Verify file is valid RON format
 2. Check file isn't corrupted
 3. Try opening in text editor to verify format
-4. Look for error messages in terminal
-5. Try loading a known-good map first
+4. Look for error dialog with specific error message
+5. Try loading a known-good map first (e.g., `assets/maps/default.ron`)
+
+**Common Error Messages**:
+- "Failed to read file" - Check file permissions
+- "Failed to parse map file" - RON syntax error, check file format
+- "Invalid map dimensions" - Width, height, or depth is zero
 
 ### File Dialog Doesn't Appear
 
 **Problem**: Open/Save dialog doesn't show
 
 **Solutions**:
-1. Check if dialog is behind main window
-2. Try clicking in main window then trying again
+1. Wait a moment - dialog opens in background thread
+2. Check if dialog is behind main window
 3. Check system file dialog permissions
-4. Restart editor
+4. Look for error messages in terminal
+5. Restart editor if issue persists
+
+**Note**: The file dialog is non-blocking, so the main window stays responsive while it opens.
+
+### Map Loads But Doesn't Render
+
+**Problem**: Map loads successfully but voxels don't appear in viewport
+
+**Solutions**:
+1. This issue has been fixed in the latest version
+2. Update to the latest version if you're seeing this
+3. Check console for "Map rendering complete" message
+4. Try zooming out - map might be outside view
+5. Reset camera with `Home` key
 
 ### Unsaved Changes Warning
 
@@ -332,9 +351,9 @@ See [Implementation Status](../../developer-guide/systems/map-editor/implementat
 
 While features are being implemented:
 
-**File I/O**: Currently UI only - actual save/load coming soon
-**Voxel Rendering**: Voxels don't appear in 3D yet - coming soon
+**File Save**: Save button shows but doesn't write files yet - coming soon
 **Keyboard Shortcuts**: Some shortcuts defined but not wired yet
+**Undo/Redo**: History system exists but not fully wired to UI
 
 ### Manual Editing
 
