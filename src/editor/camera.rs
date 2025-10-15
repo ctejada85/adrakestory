@@ -38,7 +38,7 @@ impl Default for EditorCamera {
             rotation: Vec2::new(0.0, 0.5), // yaw, pitch
             pan_speed: 0.01,
             orbit_speed: 0.005,
-            zoom_speed: 0.1,
+            zoom_speed: 0.025,
             min_distance: 2.0,
             max_distance: 50.0,
         }
