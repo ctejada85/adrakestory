@@ -111,9 +111,15 @@ If using VSCode or another IDE, you can configure a launch target for the `map_e
 ### Camera Controls
 
 - **Orbit**: Right-click and drag
-- **Pan**: Middle-click and drag (or Shift + drag)
-- **Zoom**: Mouse wheel
+- **Pan**: Multiple options available:
+  - Middle-click and drag (traditional)
+  - Shift + Right-click and drag
+  - **Space + Left-click and drag** (trackpad-friendly)
+  - **Cmd/Ctrl + Left-click and drag** (Mac trackpad-friendly)
+- **Zoom**: Mouse wheel (smooth, reduced sensitivity)
 - **Reset**: Press `Home` or click **View → Reset Camera**
+
+**Tip for Mac Trackpad Users**: Use Space + Left-click or Cmd + Left-click for easy panning without a middle mouse button!
 
 ### Grid and Snapping
 

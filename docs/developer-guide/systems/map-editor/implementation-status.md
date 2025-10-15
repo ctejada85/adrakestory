@@ -5,9 +5,9 @@
 This document tracks the implementation status of the A Drake's Story Map Editor.
 
 **Last Updated**: 2025-01-15
-**Status**: ✅ **FULLY FUNCTIONAL** - File operations and rendering working
+**Status**: ✅ **FULLY FUNCTIONAL** - File operations, rendering, and trackpad controls working
 **Build Status**: ✅ Passing
-**Runtime Status**: ✅ Complete with file I/O and 3D rendering
+**Runtime Status**: ✅ Complete with file I/O, 3D rendering, and Mac trackpad support
 
 ## ✅ Completed Components
 
@@ -46,11 +46,12 @@ This document tracks the implementation status of the A Drake's Story Map Editor
 - ✅ Batch operation support
 - ✅ Unit tests for history functionality
 
-#### Camera System (`src/editor/camera.rs` - 213 lines)
+#### Camera System (`src/editor/camera.rs` - 228 lines)
 - ✅ `EditorCamera` component
 - ✅ Orbit controls (right-click drag)
-- ✅ Pan controls (middle-click drag)
-- ✅ Zoom controls (scroll wheel)
+- ✅ Pan controls (middle-click drag, Shift + right-click)
+- ✅ Trackpad-friendly pan controls (Space + left-click, Cmd/Ctrl + left-click)
+- ✅ Zoom controls (scroll wheel with reduced sensitivity)
 - ✅ Camera reset functionality
 - ✅ Input state tracking
 - ✅ Unit tests for camera operations
@@ -178,6 +179,13 @@ $ cargo run --bin map_editor
 - ✅ Proper cleanup of old voxels
 - ✅ Real-time 3D visualization
 - ✅ Position-based coloring system
+
+### Camera Controls Enhancement
+- ✅ Reduced zoom sensitivity (0.1 → 0.05)
+- ✅ Added Space + Left-click panning for trackpad users
+- ✅ Added Cmd/Ctrl + Left-click panning for Mac users
+- ✅ Updated all documentation with new controls
+- ✅ Maintained backward compatibility with existing controls
 
 ## 🚧 Pending Integrations
 

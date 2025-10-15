@@ -155,10 +155,14 @@ pub enum EditorAction {
 - **Visual Indicators**: Different colors/icons for entity types
 
 ### 3. Camera Controls
-- **Orbit**: Mouse drag to rotate around center
-- **Pan**: Middle mouse or Shift+drag to pan
-- **Zoom**: Mouse wheel to zoom in/out
-- **Reset**: Button to reset to default view
+- **Orbit**: Right-click and drag to rotate around center
+- **Pan**: Multiple options for accessibility:
+  - Middle-click and drag (traditional)
+  - Shift + Right-click and drag
+  - Space + Left-click and drag (trackpad-friendly)
+  - Cmd/Ctrl + Left-click and drag (Mac trackpad-friendly)
+- **Zoom**: Mouse wheel to zoom in/out (reduced sensitivity for smoother control)
+- **Reset**: Button or Home key to reset to default view
 - **Presets**: Top, Front, Side, Isometric views
 
 ### 4. Grid System
