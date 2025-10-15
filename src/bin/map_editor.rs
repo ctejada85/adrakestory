@@ -2,8 +2,8 @@
 //!
 //! A standalone GUI application for creating and editing map files.
 
-use adrakestory::editor::{camera, grid, state, tools, ui};
-use adrakestory::editor::{EditorHistory, EditorState};
+use adrakestory::editor::{camera, grid, renderer, state, tools, ui};
+use adrakestory::editor::{EditorHistory, EditorState, MapRenderState, RenderMapEvent};
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 
@@ -23,11 +23,15 @@ fn main() {
         .init_resource::<state::EditorUIState>()
         .init_resource::<camera::CameraInputState>()
         .init_resource::<ui::dialogs::FileDialogReceiver>()
+        .init_resource::<MapRenderState>()
         .add_event::<ui::dialogs::FileSelectedEvent>()
+        .add_event::<RenderMapEvent>()
         .add_systems(Startup, setup_editor)
         .add_systems(Update, render_ui)
         .add_systems(Update, ui::dialogs::check_file_dialog_result)
         .add_systems(Update, ui::dialogs::handle_file_selected)
+        .add_systems(Update, renderer::detect_map_changes)
+        .add_systems(Update, renderer::render_map_system)
         .add_systems(Update, camera::handle_camera_input)
         .add_systems(Update, camera::update_editor_camera)
         .add_systems(Update, grid::update_grid_visibility)
