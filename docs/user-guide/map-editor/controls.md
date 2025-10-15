@@ -10,7 +10,9 @@ Complete reference for all map editor controls and shortcuts.
 |--------|---------|
 | **Orbit Camera** | Right-click + Drag |
 | **Pan Camera** | Middle-click + Drag |
-| **Pan Camera (Alt)** | Shift + Left-click + Drag |
+| **Pan Camera (Alt 1)** | Shift + Right-click + Drag |
+| **Pan Camera (Alt 2)** | Space + Left-click + Drag |
+| **Pan Camera (Trackpad)** | Cmd/Ctrl + Left-click + Drag |
 | **Zoom In/Out** | Mouse Wheel |
 | **Place Voxel** | Left-click (Voxel Tool active) |
 | **Remove Voxel** | Right-click on voxel (Voxel Tool active) |
@@ -149,7 +151,8 @@ When the Camera Tool is active:
 ### Orbit Mode (Default)
 
 - **Rotate**: Right-click + Drag
-- **Pan**: Middle-click + Drag
+- **Pan**: Middle-click + Drag, or Shift + Right-click + Drag
+- **Pan (Trackpad-Friendly)**: Space + Left-click + Drag, or Cmd/Ctrl + Left-click + Drag
 - **Zoom**: Mouse Wheel
 - **Focus**: Double-click on voxel (coming soon)
 
@@ -212,6 +215,7 @@ The status bar shows:
 2. Use numpad keys for quick view changes
 3. Right-click drag for most navigation
 4. Middle-click for precise panning
+5. **Mac Trackpad Users**: Use Space + Left-click or Cmd + Left-click to pan
 
 ### Efficient Editing
 

@@ -36,7 +36,7 @@ impl Default for EditorCamera {
             target: Vec3::new(2.0, 0.0, 2.0),
             distance: 10.0,
             rotation: Vec2::new(0.0, 0.5), // yaw, pitch
-            pan_speed: 0.01,
+            pan_speed: 0.00125,
             orbit_speed: 0.005,
             zoom_speed: 0.0125,
             min_distance: 2.0,
@@ -154,11 +154,24 @@ pub fn handle_camera_input(
     // Handle mouse button state
     let shift_pressed =
         keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight);
+    let space_pressed = keyboard.pressed(KeyCode::Space);
+    let ctrl_pressed =
+        keyboard.pressed(KeyCode::ControlLeft) || keyboard.pressed(KeyCode::ControlRight);
+    let super_pressed =
+        keyboard.pressed(KeyCode::SuperLeft) || keyboard.pressed(KeyCode::SuperRight);
+
     let middle_mouse = mouse_button.pressed(MouseButton::Middle);
     let right_mouse = mouse_button.pressed(MouseButton::Right);
+    let left_mouse = mouse_button.pressed(MouseButton::Left);
 
-    input_state.is_orbiting = right_mouse && !shift_pressed;
-    input_state.is_panning = middle_mouse || (right_mouse && shift_pressed);
+    // Panning: Middle mouse OR Right mouse + Shift OR Left mouse + Space OR Left mouse + Cmd/Ctrl
+    input_state.is_panning = middle_mouse
+        || (right_mouse && shift_pressed)
+        || (left_mouse && space_pressed)
+        || (left_mouse && (ctrl_pressed || super_pressed));
+
+    // Orbiting: Right mouse (without shift or other modifiers)
+    input_state.is_orbiting = right_mouse && !shift_pressed && !input_state.is_panning;
 
     // Handle mouse motion
     for event in mouse_motion.read() {
