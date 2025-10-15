@@ -9,7 +9,6 @@ use bevy::prelude::*;
 
 const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
 const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
-
 /// Marker component for voxels spawned by the editor
 #[derive(Component)]
 pub struct EditorVoxel;
@@ -175,6 +174,7 @@ fn spawn_pillar_voxel(
 }
 
 /// Spawn a single sub-voxel
+#[allow(clippy::too_many_arguments)]
 fn spawn_sub_voxel(
     commands: &mut Commands,
     mesh: &Handle<Mesh>,
