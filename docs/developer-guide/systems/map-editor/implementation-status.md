@@ -81,6 +81,7 @@ This document tracks the implementation status of the A Drake's Story Map Editor
 
 #### Selection Tool (`src/editor/tools/selection_tool.rs` - 191 lines) ✅ PHASE 1 COMPLETE
 - ✅ Single-click voxel selection with toggle
+- ✅ 3D voxel selection at any height (full 3D space support)
 - ✅ Visual selection highlighting (yellow wireframe)
 - ✅ Delete key handler (Delete/Backspace)
 - ✅ Delete button in properties panel
@@ -193,15 +194,19 @@ $ cargo run --bin map_editor
 - ✅ Updated all documentation with new controls
 - ✅ Maintained backward compatibility with existing controls
 
+## ✅ Recently Completed (2025-10-21)
+
+### Cursor Ray Casting System (`src/editor/cursor.rs` - 168 lines)
+- ✅ 3D ray-voxel intersection using AABB algorithm
+- ✅ Ray casting from screen space to world space
+- ✅ Voxel selection at any height in 3D space
+- ✅ Closest voxel detection along ray path
+- ✅ Fallback to ground plane for empty areas
+- ✅ Grid position calculation from world coordinates
+
 ## 🚧 Pending Integrations
 
 The following features are implemented but need wiring/integration:
-
-1. **Cursor Ray Casting**
-   - 3D cursor positioning from mouse input
-   - Ray casting from screen space to world space
-   - Grid position calculation from world coordinates
-   - Cursor indicator updates
 
 2. **File Save Operations**
    - Save button → actual file system write
@@ -225,9 +230,11 @@ The following features are implemented but need wiring/integration:
 
 ### High Priority (Core Functionality)
 
-1. **Cursor System Integration**
-   - [ ] Implement ray casting from mouse to world space
-   - [ ] Calculate grid position from world coordinates
+1. **Cursor System Integration** ✅ COMPLETE
+   - [x] Implement ray casting from mouse to world space
+   - [x] Calculate grid position from world coordinates (3D)
+   - [x] Ray-AABB intersection for voxel detection
+   - [x] Support for selecting voxels at any height
    - [ ] Update cursor indicator position in real-time
    - [ ] Handle cursor visibility based on viewport hover
 
@@ -303,17 +310,19 @@ The following features are implemented but need wiring/integration:
 ## 📊 Progress Summary
 
 - **Total Tasks**: 23
-- **Completed**: 18 (78%)
-- **In Progress**: 4 (17%)
+- **Completed**: 19 (83%)
+- **In Progress**: 3 (13%)
 - **Pending**: 1 (4%)
 
 ### Code Statistics
 
-- **Total Lines**: ~3,240
-- **Modules**: 14
+- **Total Lines**: ~3,408
+- **Modules**: 15
 - **Documentation**: 4 comprehensive documents (updated)
 - **Tests**: Basic unit tests in place
-- **Recent Addition**: Selection tool Phase 1 (+191 lines)
+- **Recent Additions**:
+  - Selection tool Phase 1 (+191 lines)
+  - 3D cursor ray casting (+168 lines)
 
 ## 🎯 Next Steps
 

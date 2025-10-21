@@ -129,7 +129,7 @@ When the Select Tool is active:
 
 | Action | Control |
 |--------|---------|
-| **Select Voxel** | Left-click on voxel |
+| **Select Voxel** | Left-click on voxel (works in full 3D space) |
 | **Toggle Selection** | Left-click on already selected voxel |
 | **Delete Selected** | `Delete` or `Backspace` key |
 | **Delete via UI** | Click "🗑 Delete Selected" button in Properties panel |
@@ -139,6 +139,7 @@ When the Select Tool is active:
 - Selected voxels are highlighted with a bright yellow wireframe outline
 - Properties panel shows count and positions of selected voxels
 - Selection persists until cleared or tool is changed
+- **3D Selection**: Can select voxels at any height in the 3D space, not just ground level
 
 **Future Features (Phase 2):**
 - Multi-select with `Shift` + Left-click
