@@ -936,13 +936,31 @@ pub fn render_rotation_preview(
 
 /// Confirm rotation and apply changes
 pub fn confirm_rotation(
-    active_transform: ResMut<ActiveTransform>,
+    mut active_transform: ResMut<ActiveTransform>,
     mut editor_state: ResMut<EditorState>,
     mut history: ResMut<EditorHistory>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mouse_button: Res<ButtonInput<MouseButton>>,
+    mut contexts: EguiContexts,
+    mut confirm_events: EventReader<ConfirmTransform>,
+    mut render_events: EventWriter<RenderMapEvent>,
+    mut update_events: EventWriter<UpdateSelectionHighlights>,
     preview_query: Query<&TransformPreview>,
 ) {
     // Only active during rotate mode
     if active_transform.mode != TransformMode::Rotate {
+        return;
+    }
+
+    // Check if UI wants keyboard input
+    let ui_wants_input = contexts.ctx_mut().wants_keyboard_input();
+    
+    // Check for confirmation input (only if UI doesn't want input)
+    let should_confirm = (!ui_wants_input && keyboard.just_pressed(KeyCode::Enter))
+        || (!ui_wants_input && mouse_button.just_pressed(MouseButton::Left))
+        || confirm_events.read().count() > 0;
+
+    if !should_confirm {
         return;
     }
 
@@ -1033,4 +1051,11 @@ pub fn confirm_rotation(
     for (_, new_pos) in rotated_voxels {
         editor_state.selected_voxels.insert(new_pos);
     }
+
+    // Reset transform state
+    *active_transform = ActiveTransform::default();
+
+    // Trigger updates
+    render_events.send(RenderMapEvent);
+    update_events.send(UpdateSelectionHighlights);
 }
