@@ -6,6 +6,7 @@ use adrakestory::editor::{camera, grid, renderer, state, tools, ui};
 use adrakestory::editor::{EditorHistory, EditorState, MapRenderState, RenderMapEvent};
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
+use grid::InfiniteGridConfig;
 
 fn main() {
     App::new()
@@ -24,6 +25,7 @@ fn main() {
         .init_resource::<camera::CameraInputState>()
         .init_resource::<ui::dialogs::FileDialogReceiver>()
         .init_resource::<MapRenderState>()
+        .init_resource::<InfiniteGridConfig>()
         .add_event::<ui::dialogs::FileSelectedEvent>()
         .add_event::<RenderMapEvent>()
         .add_systems(Startup, setup_editor)
@@ -34,6 +36,7 @@ fn main() {
         .add_systems(Update, renderer::render_map_system)
         .add_systems(Update, camera::handle_camera_input)
         .add_systems(Update, camera::update_editor_camera)
+        .add_systems(Update, grid::update_infinite_grid)
         .add_systems(Update, grid::update_grid_visibility)
         .add_systems(Update, grid::update_cursor_indicator)
         .add_systems(Update, tools::handle_voxel_placement)
@@ -48,14 +51,16 @@ fn setup_editor(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    editor_state: Res<EditorState>,
+    grid_config: Res<InfiniteGridConfig>,
 ) {
     info!("Starting Map Editor");
 
     // Spawn 3D camera for viewport
+    let camera_pos = Vec3::new(10.0, 10.0, 10.0);
     commands.spawn((
         Camera3d::default(),
-        Transform::from_xyz(10.0, 10.0, 10.0).looking_at(Vec3::new(2.0, 0.0, 2.0), Vec3::Y),
+        Transform::from_xyz(camera_pos.x, camera_pos.y, camera_pos.z)
+            .looking_at(Vec3::new(2.0, 0.0, 2.0), Vec3::Y),
         camera::EditorCamera::new(),
     ));
 
@@ -80,16 +85,13 @@ fn setup_editor(
         brightness: 300.0,
     });
 
-    // Spawn grid
-    let world = &editor_state.current_map.world;
-    grid::spawn_grid(
+    // Spawn infinite grid
+    grid::spawn_infinite_grid(
         &mut commands,
         &mut meshes,
         &mut materials,
-        world.width,
-        world.height,
-        world.depth,
-        editor_state.grid_opacity,
+        &grid_config,
+        camera_pos,
     );
 
     // Spawn cursor indicator
