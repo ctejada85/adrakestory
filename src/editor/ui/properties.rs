@@ -1,12 +1,18 @@
 //! Properties panel UI for editing object properties.
 
 use crate::editor::state::{EditorState, EditorTool};
+use crate::editor::tools::DeleteSelectedVoxels;
 use crate::systems::game::components::VoxelType;
 use crate::systems::game::map::format::{EntityType, SubVoxelPattern};
+use bevy::prelude::*;
 use bevy_egui::egui;
 
 /// Render the right-side properties panel
-pub fn render_properties_panel(ctx: &egui::Context, editor_state: &mut EditorState) {
+pub fn render_properties_panel(
+    ctx: &egui::Context,
+    editor_state: &mut EditorState,
+    delete_events: &mut EventWriter<DeleteSelectedVoxels>,
+) {
     egui::SidePanel::right("properties")
         .default_width(300.0)
         .show(ctx, |ui| {
@@ -14,7 +20,7 @@ pub fn render_properties_panel(ctx: &egui::Context, editor_state: &mut EditorSta
             ui.separator();
 
             // Tool-specific properties
-            render_tool_properties(ui, editor_state);
+            render_tool_properties(ui, editor_state, delete_events);
 
             ui.separator();
 
@@ -29,7 +35,11 @@ pub fn render_properties_panel(ctx: &egui::Context, editor_state: &mut EditorSta
 }
 
 /// Render properties specific to the active tool
-fn render_tool_properties(ui: &mut egui::Ui, editor_state: &mut EditorState) {
+fn render_tool_properties(
+    ui: &mut egui::Ui,
+    editor_state: &mut EditorState,
+    delete_events: &mut EventWriter<DeleteSelectedVoxels>,
+) {
     ui.label("Tool Settings");
     ui.separator();
 
@@ -92,19 +102,56 @@ fn render_tool_properties(ui: &mut egui::Ui, editor_state: &mut EditorState) {
 
         EditorTool::Select => {
             ui.label("Select Tool");
-            ui.label("Click to select objects");
-            ui.label("Shift+Click for multi-select");
+            ui.label("Click to select voxels");
+            ui.label("Delete/Backspace to remove");
 
             if !editor_state.selected_voxels.is_empty() {
                 ui.separator();
                 ui.label(format!(
-                    "Selected: {} voxels",
-                    editor_state.selected_voxels.len()
+                    "Selected: {} voxel{}",
+                    editor_state.selected_voxels.len(),
+                    if editor_state.selected_voxels.len() == 1 {
+                        ""
+                    } else {
+                        "s"
+                    }
                 ));
 
-                if ui.button("Clear Selection").clicked() {
-                    editor_state.clear_selections();
+                // Show first few selected positions
+                if editor_state.selected_voxels.len() <= 5 {
+                    ui.label("Positions:");
+                    for pos in editor_state.selected_voxels.iter().take(5) {
+                        ui.label(format!("  ({}, {}, {})", pos.0, pos.1, pos.2));
+                    }
+                } else {
+                    ui.label(format!(
+                        "Showing first 5 of {} positions:",
+                        editor_state.selected_voxels.len()
+                    ));
+                    for pos in editor_state.selected_voxels.iter().take(5) {
+                        ui.label(format!("  ({}, {}, {})", pos.0, pos.1, pos.2));
+                    }
+                    ui.label("  ...");
                 }
+
+                ui.separator();
+
+                ui.horizontal(|ui| {
+                    if ui.button("🗑 Delete Selected").clicked() {
+                        delete_events.send(DeleteSelectedVoxels);
+                        info!(
+                            "Delete button clicked for {} voxels",
+                            editor_state.selected_voxels.len()
+                        );
+                    }
+
+                    if ui.button("Clear Selection").clicked() {
+                        editor_state.clear_selections();
+                    }
+                });
+            } else {
+                ui.separator();
+                ui.label("No voxels selected");
             }
         }
 

@@ -79,10 +79,16 @@ This document tracks the implementation status of the A Drake's Story Map Editor
 - ✅ Position tracking
 - ✅ History integration
 
-#### Selection Tool (`src/editor/tools/selection_tool.rs` - 35 lines)
-- ✅ Voxel selection
-- ✅ Multi-select support
-- ✅ Selection toggle
+#### Selection Tool (`src/editor/tools/selection_tool.rs` - 191 lines) ✅ PHASE 1 COMPLETE
+- ✅ Single-click voxel selection with toggle
+- ✅ Visual selection highlighting (yellow wireframe)
+- ✅ Delete key handler (Delete/Backspace)
+- ✅ Delete button in properties panel
+- ✅ History integration for undo/redo
+- ✅ Selection info display (count and positions)
+- ⏳ Multi-select with Shift (Phase 2)
+- ⏳ Box selection with drag (Phase 2)
+- ⏳ Move/copy operations (Phase 2)
 
 ### 6. UI Components
 
@@ -243,6 +249,13 @@ The following features are implemented but need wiring/integration:
    - [ ] Update UI state after undo/redo
    - [ ] Test action chains
 
+5. **Selection Tool Phase 2** ⏳
+   - [ ] Implement Shift+Click for multi-select
+   - [ ] Add box selection (click-drag)
+   - [ ] Implement move selected voxels
+   - [ ] Add copy/paste operations
+   - [ ] Implement Ctrl+Click for add/remove from selection
+
 ### Medium Priority (Enhanced Features)
 
 5. **Enhanced Rendering**
@@ -289,17 +302,18 @@ The following features are implemented but need wiring/integration:
 
 ## 📊 Progress Summary
 
-- **Total Tasks**: 22
-- **Completed**: 17 (77%)
-- **In Progress**: 4 (18%)
-- **Pending**: 1 (5%)
+- **Total Tasks**: 23
+- **Completed**: 18 (78%)
+- **In Progress**: 4 (17%)
+- **Pending**: 1 (4%)
 
 ### Code Statistics
 
-- **Total Lines**: ~3,050
-- **Modules**: 14 (added renderer.rs)
-- **Documentation**: 4 comprehensive documents
+- **Total Lines**: ~3,240
+- **Modules**: 14
+- **Documentation**: 4 comprehensive documents (updated)
 - **Tests**: Basic unit tests in place
+- **Recent Addition**: Selection tool Phase 1 (+191 lines)
 
 ## 🎯 Next Steps
 

@@ -2,7 +2,7 @@
 //!
 //! A standalone GUI application for creating and editing map files.
 
-use adrakestory::editor::{camera, grid, renderer, state, tools, ui};
+use adrakestory::editor::{camera, cursor, grid, renderer, state, tools, ui};
 use adrakestory::editor::{EditorHistory, EditorState, MapRenderState, RenderMapEvent};
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
@@ -28,10 +28,13 @@ fn main() {
         .init_resource::<InfiniteGridConfig>()
         .add_event::<ui::dialogs::FileSelectedEvent>()
         .add_event::<RenderMapEvent>()
+        .add_event::<tools::UpdateSelectionHighlights>()
+        .add_event::<tools::DeleteSelectedVoxels>()
         .add_systems(Startup, setup_editor)
         .add_systems(Update, render_ui)
         .add_systems(Update, ui::dialogs::check_file_dialog_result)
         .add_systems(Update, ui::dialogs::handle_file_selected)
+        .add_systems(Update, cursor::update_cursor_position)
         .add_systems(Update, renderer::detect_map_changes)
         .add_systems(Update, renderer::render_map_system)
         .add_systems(Update, camera::handle_camera_input)
@@ -43,6 +46,8 @@ fn main() {
         .add_systems(Update, tools::handle_voxel_removal)
         .add_systems(Update, tools::handle_entity_placement)
         .add_systems(Update, tools::handle_selection)
+        .add_systems(Update, tools::render_selection_highlights)
+        .add_systems(Update, tools::handle_delete_selected)
         .run();
 }
 
@@ -107,6 +112,7 @@ fn render_ui(
     mut ui_state: ResMut<state::EditorUIState>,
     history: Res<EditorHistory>,
     dialog_receiver: ResMut<ui::dialogs::FileDialogReceiver>,
+    mut delete_events: EventWriter<tools::DeleteSelectedVoxels>,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -114,7 +120,7 @@ fn render_ui(
     ui::render_toolbar(ctx, &mut editor_state, &mut ui_state, &history);
 
     // Render properties panel
-    ui::render_properties_panel(ctx, &mut editor_state);
+    ui::render_properties_panel(ctx, &mut editor_state, &mut delete_events);
 
     // Render viewport controls
     ui::render_viewport_controls(ctx);

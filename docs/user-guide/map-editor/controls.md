@@ -129,11 +129,22 @@ When the Select Tool is active:
 
 | Action | Control |
 |--------|---------|
-| **Select Single** | Left-click on item |
-| **Multi-Select** | `Shift` + Left-click |
-| **Box Select** | Left-click + Drag (coming soon) |
-| **Deselect** | Click empty space |
-| **Delete Selected** | `Delete` key |
+| **Select Voxel** | Left-click on voxel |
+| **Toggle Selection** | Left-click on already selected voxel |
+| **Delete Selected** | `Delete` or `Backspace` key |
+| **Delete via UI** | Click "🗑 Delete Selected" button in Properties panel |
+| **Clear Selection** | Click "Clear Selection" button in Properties panel |
+
+**Visual Feedback:**
+- Selected voxels are highlighted with a bright yellow wireframe outline
+- Properties panel shows count and positions of selected voxels
+- Selection persists until cleared or tool is changed
+
+**Future Features (Phase 2):**
+- Multi-select with `Shift` + Left-click
+- Box selection with Left-click + Drag
+- Move selected voxels
+- Copy/paste operations
 
 ### Camera Tool (`C`)
 
@@ -253,7 +264,7 @@ Camera sensitivity settings will be available in a future update.
 
 - Grid for alignment
 - Cursor indicator for placement
-- Selection highlighting
+- **Selection highlighting** - Yellow wireframe outlines around selected voxels
 - Status bar feedback
 
 ## Troubleshooting
