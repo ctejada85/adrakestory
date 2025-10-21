@@ -63,11 +63,14 @@ struct GridBounds {
 }
 
 /// Calculate grid bounds based on camera position
+/// Grid lines are offset by 0.5 to align with voxel boundaries
 fn calculate_grid_bounds(camera_pos: Vec3, render_distance: f32, spacing: f32) -> GridBounds {
-    let min_x = ((camera_pos.x - render_distance) / spacing).floor() * spacing;
-    let max_x = ((camera_pos.x + render_distance) / spacing).ceil() * spacing;
-    let min_z = ((camera_pos.z - render_distance) / spacing).floor() * spacing;
-    let max_z = ((camera_pos.z + render_distance) / spacing).ceil() * spacing;
+    // Offset by 0.5 to align with voxel boundaries (voxels span from x-0.5 to x+0.5)
+    let offset = 0.5;
+    let min_x = ((camera_pos.x - render_distance) / spacing).floor() * spacing - offset;
+    let max_x = ((camera_pos.x + render_distance) / spacing).ceil() * spacing + offset;
+    let min_z = ((camera_pos.z - render_distance) / spacing).floor() * spacing - offset;
+    let max_z = ((camera_pos.z + render_distance) / spacing).ceil() * spacing + offset;
     
     GridBounds {
         min_x,
@@ -120,9 +123,12 @@ pub fn create_infinite_grid_mesh(config: &InfiniteGridConfig, camera_pos: Vec3) 
     };
     
     // Grid lines parallel to X axis (running along width)
+    // Lines at half-integer positions: -0.5, 0.5, 1.5, 2.5, ... (voxel boundaries)
     let mut z = bounds.min_z;
     while z <= bounds.max_z {
-        let is_major = (z / config.spacing).round() as i32 % config.major_line_interval == 0;
+        // Major lines at integer boundaries (every Nth voxel)
+        let z_voxel = (z + 0.5).floor() as i32;
+        let is_major = z_voxel % config.major_line_interval == 0;
         add_line(
             Vec3::new(bounds.min_x, 0.0, z),
             Vec3::new(bounds.max_x, 0.0, z),
@@ -132,9 +138,12 @@ pub fn create_infinite_grid_mesh(config: &InfiniteGridConfig, camera_pos: Vec3) 
     }
     
     // Grid lines parallel to Z axis (running along depth)
+    // Lines at half-integer positions: -0.5, 0.5, 1.5, 2.5, ... (voxel boundaries)
     let mut x = bounds.min_x;
     while x <= bounds.max_x {
-        let is_major = (x / config.spacing).round() as i32 % config.major_line_interval == 0;
+        // Major lines at integer boundaries (every Nth voxel)
+        let x_voxel = (x + 0.5).floor() as i32;
+        let is_major = x_voxel % config.major_line_interval == 0;
         add_line(
             Vec3::new(x, 0.0, bounds.min_z),
             Vec3::new(x, 0.0, bounds.max_z),
