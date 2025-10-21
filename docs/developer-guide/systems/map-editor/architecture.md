@@ -22,7 +22,7 @@ graph TB
         
         subgraph "Rendering"
             Camera[Editor Camera<br/>Orbit Controls]
-            Grid[Grid Renderer<br/>Visual Guide]
+            Grid[Infinite Grid Renderer<br/>Dynamic Visual Guide]
             VoxelRender[Voxel Renderer<br/>Reuse Game Code]
         end
         
@@ -352,15 +352,21 @@ Tools are created through a factory based on the selected tool type.
    - Only re-render when state changes
    - Use change detection for UI updates
 
-2. **Spatial Partitioning**
+2. **Infinite Grid System**
+   - Camera-relative grid generation
+   - Only renders visible grid sections (±50 units from camera)
+   - Regenerates only when camera moves > 2 units
+   - Aligned with voxel centers for accurate placement
+
+3. **Spatial Partitioning**
    - Use spatial hash for voxel lookups
    - Frustum culling for large maps
 
-3. **Batch Operations**
+4. **Batch Operations**
    - Group multiple edits into single history entry
    - Batch mesh updates for better performance
 
-4. **Memory Management**
+5. **Memory Management**
    - Limit history stack size
    - Use sparse data structures for voxels
    - Unload unused resources
@@ -406,8 +412,38 @@ flowchart TD
 - Undo/redo chains
 - Error recovery
 
+## Grid System Details
+
+### Infinite Grid Architecture
+
+The editor uses an infinite grid system that dynamically generates grid lines based on camera position:
+
+**Key Features:**
+- **Infinite Spanning**: Grid extends infinitely in all directions
+- **Camera-Relative**: Only renders visible portion (configurable render distance)
+- **Voxel Alignment**: Grid lines at integer coordinates (0, 1, 2, ...) align with voxel centers
+- **Dynamic Regeneration**: Updates when camera moves beyond threshold
+- **Major Grid Lines**: Every Nth line rendered with different color/opacity
+
+**Configuration:**
+```rust
+InfiniteGridConfig {
+    spacing: 1.0,              // Aligns with voxel positions
+    render_distance: 50.0,     // Units from camera
+    major_line_interval: 10,   // Every 10th line is major
+    opacity: 0.3,              // Grid transparency
+    regeneration_threshold: 2.0 // Camera movement threshold
+}
+```
+
+**Performance:**
+- Regenerates only when camera moves > 2 units
+- Limits grid to visible area (typically 100x100 lines)
+- Uses efficient LineList topology
+- Minimal CPU overhead during static camera
+
 ---
 
-**Document Version**: 1.0.0  
-**Last Updated**: 2025-01-10  
-**Status**: Design Phase
+**Document Version**: 1.1.0
+**Last Updated**: 2025-10-21
+**Status**: Implementation Complete
