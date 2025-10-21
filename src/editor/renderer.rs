@@ -80,11 +80,11 @@ pub fn render_map_system(
             SubVoxelPattern::Full => {
                 spawn_full_voxel(&mut commands, &sub_voxel_mesh, &mut materials, x, y, z);
             }
-            SubVoxelPattern::Platform => {
-                spawn_platform_voxel(&mut commands, &sub_voxel_mesh, &mut materials, x, y, z);
+            SubVoxelPattern::PlatformXZ | SubVoxelPattern::PlatformXY | SubVoxelPattern::PlatformYZ => {
+                spawn_platform_voxel(&mut commands, &sub_voxel_mesh, &mut materials, x, y, z, pattern);
             }
-            SubVoxelPattern::Staircase => {
-                spawn_staircase_voxel(&mut commands, &sub_voxel_mesh, &mut materials, x, y, z);
+            SubVoxelPattern::StaircaseX | SubVoxelPattern::StaircaseNegX | SubVoxelPattern::StaircaseZ | SubVoxelPattern::StaircaseNegZ => {
+                spawn_staircase_voxel(&mut commands, &sub_voxel_mesh, &mut materials, x, y, z, pattern);
             }
             SubVoxelPattern::Pillar => {
                 spawn_pillar_voxel(&mut commands, &sub_voxel_mesh, &mut materials, x, y, z);
@@ -113,7 +113,7 @@ fn spawn_full_voxel(
     }
 }
 
-/// Spawn a platform voxel (8x1x8 sub-voxels)
+/// Spawn a platform voxel (thin slab in different orientations)
 fn spawn_platform_voxel(
     commands: &mut Commands,
     mesh: &Handle<Mesh>,
@@ -121,17 +121,44 @@ fn spawn_platform_voxel(
     x: i32,
     y: i32,
     z: i32,
+    pattern: SubVoxelPattern,
 ) {
-    for sub_x in 0..SUB_VOXEL_COUNT {
-        for sub_y in 0..1 {
-            for sub_z in 0..SUB_VOXEL_COUNT {
-                spawn_sub_voxel(commands, mesh, materials, x, y, z, sub_x, sub_y, sub_z);
+    match pattern {
+        SubVoxelPattern::PlatformXZ => {
+            // Horizontal platform (8x1x8)
+            for sub_x in 0..SUB_VOXEL_COUNT {
+                for sub_y in 0..1 {
+                    for sub_z in 0..SUB_VOXEL_COUNT {
+                        spawn_sub_voxel(commands, mesh, materials, x, y, z, sub_x, sub_y, sub_z);
+                    }
+                }
             }
         }
+        SubVoxelPattern::PlatformXY => {
+            // Vertical wall facing Z (8x8x1)
+            for sub_x in 0..SUB_VOXEL_COUNT {
+                for sub_y in 0..SUB_VOXEL_COUNT {
+                    for sub_z in 0..1 {
+                        spawn_sub_voxel(commands, mesh, materials, x, y, z, sub_x, sub_y, sub_z);
+                    }
+                }
+            }
+        }
+        SubVoxelPattern::PlatformYZ => {
+            // Vertical wall facing X (1x8x8)
+            for sub_x in 0..1 {
+                for sub_y in 0..SUB_VOXEL_COUNT {
+                    for sub_z in 0..SUB_VOXEL_COUNT {
+                        spawn_sub_voxel(commands, mesh, materials, x, y, z, sub_x, sub_y, sub_z);
+                    }
+                }
+            }
+        }
+        _ => {}
     }
 }
 
-/// Spawn a staircase voxel
+/// Spawn a staircase voxel (progressive height in different directions)
 fn spawn_staircase_voxel(
     commands: &mut Commands,
     mesh: &Handle<Mesh>,
@@ -139,16 +166,60 @@ fn spawn_staircase_voxel(
     x: i32,
     y: i32,
     z: i32,
+    pattern: SubVoxelPattern,
 ) {
-    for step in 0..SUB_VOXEL_COUNT {
-        let step_height = step + 1;
-        for sub_x in step..(step + 1) {
-            for sub_y in 0..step_height {
-                for sub_z in 0..SUB_VOXEL_COUNT {
-                    spawn_sub_voxel(commands, mesh, materials, x, y, z, sub_x, sub_y, sub_z);
+    match pattern {
+        SubVoxelPattern::StaircaseX => {
+            // Stairs ascending in +X direction
+            for step in 0..SUB_VOXEL_COUNT {
+                let step_height = step + 1;
+                for sub_x in step..(step + 1) {
+                    for sub_y in 0..step_height {
+                        for sub_z in 0..SUB_VOXEL_COUNT {
+                            spawn_sub_voxel(commands, mesh, materials, x, y, z, sub_x, sub_y, sub_z);
+                        }
+                    }
                 }
             }
         }
+        SubVoxelPattern::StaircaseNegX => {
+            // Stairs ascending in -X direction
+            for step in 0..SUB_VOXEL_COUNT {
+                let step_height = step + 1;
+                let sub_x = SUB_VOXEL_COUNT - 1 - step;
+                for sub_y in 0..step_height {
+                    for sub_z in 0..SUB_VOXEL_COUNT {
+                        spawn_sub_voxel(commands, mesh, materials, x, y, z, sub_x, sub_y, sub_z);
+                    }
+                }
+            }
+        }
+        SubVoxelPattern::StaircaseZ => {
+            // Stairs ascending in +Z direction
+            for step in 0..SUB_VOXEL_COUNT {
+                let step_height = step + 1;
+                for sub_z in step..(step + 1) {
+                    for sub_y in 0..step_height {
+                        for sub_x in 0..SUB_VOXEL_COUNT {
+                            spawn_sub_voxel(commands, mesh, materials, x, y, z, sub_x, sub_y, sub_z);
+                        }
+                    }
+                }
+            }
+        }
+        SubVoxelPattern::StaircaseNegZ => {
+            // Stairs ascending in -Z direction
+            for step in 0..SUB_VOXEL_COUNT {
+                let step_height = step + 1;
+                let sub_z = SUB_VOXEL_COUNT - 1 - step;
+                for sub_y in 0..step_height {
+                    for sub_x in 0..SUB_VOXEL_COUNT {
+                        spawn_sub_voxel(commands, mesh, materials, x, y, z, sub_x, sub_y, sub_z);
+                    }
+                }
+            }
+        }
+        _ => {}
     }
 }
 

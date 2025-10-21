@@ -992,6 +992,15 @@ pub fn confirm_rotation(
             .find(|v| v.pos == old_pos)
         {
             map_voxel.pos = new_pos;
+            
+            // Transform the subvoxel pattern if present
+            if let Some(pattern) = map_voxel.pattern {
+                map_voxel.pattern = Some(pattern.rotate(
+                    active_transform.rotation_axis,
+                    active_transform.rotation_angle,
+                ));
+            }
+            
             rotated_voxels.push((old_pos, new_pos));
         }
     }
@@ -1016,6 +1025,14 @@ pub fn confirm_rotation(
                         .unwrap()
                         .clone();
                     
+                    // Transform the pattern for the new voxel
+                    let new_pattern = voxel_data.pattern.map(|p| {
+                        p.rotate(
+                            active_transform.rotation_axis,
+                            active_transform.rotation_angle,
+                        )
+                    });
+                    
                     // Create a remove and place action pair
                     EditorAction::Batch {
                         description: format!("Rotate voxel from {:?} to {:?}", old_pos, new_pos),
@@ -1028,6 +1045,7 @@ pub fn confirm_rotation(
                                 pos: *new_pos,
                                 data: VoxelData {
                                     pos: *new_pos,
+                                    pattern: new_pattern,
                                     ..voxel_data
                                 },
                             },

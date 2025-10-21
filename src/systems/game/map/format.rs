@@ -63,21 +63,149 @@ pub struct VoxelData {
 }
 
 /// Sub-voxel patterns for different voxel appearances.
+/// Patterns with orientation variants support proper rotation transformations.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SubVoxelPattern {
-    /// Full 8x8x8 cube of sub-voxels
+    /// Full 8x8x8 cube of sub-voxels (symmetric, no orientation)
     Full,
-    /// Thin 8x1x8 platform
-    Platform,
-    /// Progressive height increase (stairs)
-    Staircase,
-    /// Small 2x2x2 centered column
+    
+    // Platform variants (thin slabs in different orientations)
+    /// Thin 8x1x8 platform on XZ plane (horizontal, default)
+    #[serde(alias = "Platform")]  // For backward compatibility
+    PlatformXZ,
+    /// Thin 8x8x1 platform on XY plane (vertical wall facing Z)
+    PlatformXY,
+    /// Thin 1x8x8 platform on YZ plane (vertical wall facing X)
+    PlatformYZ,
+    
+    // Staircase variants (progressive height in different directions)
+    /// Stairs ascending in +X direction (default)
+    #[serde(alias = "Staircase")]  // For backward compatibility
+    StaircaseX,
+    /// Stairs ascending in -X direction
+    StaircaseNegX,
+    /// Stairs ascending in +Z direction
+    StaircaseZ,
+    /// Stairs ascending in -Z direction
+    StaircaseNegZ,
+    
+    /// Small 2x2x2 centered column (symmetric, no orientation)
     Pillar,
 }
 
 impl Default for SubVoxelPattern {
     fn default() -> Self {
         Self::Full
+    }
+}
+
+impl SubVoxelPattern {
+    /// Rotate this pattern around the given axis by the specified angle (0-3 for 0°, 90°, 180°, 270°).
+    /// Returns the transformed pattern after rotation.
+    pub fn rotate(self, axis: crate::editor::tools::RotationAxis, angle: i32) -> Self {
+        use crate::editor::tools::RotationAxis;
+        
+        // Normalize angle to 0-3 range
+        let angle = angle.rem_euclid(4);
+        
+        // No rotation needed
+        if angle == 0 {
+            return self;
+        }
+        
+        match self {
+            // Symmetric patterns don't change
+            Self::Full | Self::Pillar => self,
+            
+            // Platform rotations
+            Self::PlatformXZ => match axis {
+                RotationAxis::X => match angle {
+                    1 => Self::PlatformXY,  // 90° CW around X: XZ -> XY
+                    2 => Self::PlatformXZ,  // 180°: stays horizontal
+                    3 => Self::PlatformXY,  // 270° CW around X: XZ -> XY
+                    _ => self,
+                },
+                RotationAxis::Y => Self::PlatformXZ,  // Rotation around Y doesn't change horizontal platform
+                RotationAxis::Z => match angle {
+                    1 => Self::PlatformYZ,  // 90° CW around Z: XZ -> YZ
+                    2 => Self::PlatformXZ,  // 180°: stays horizontal
+                    3 => Self::PlatformYZ,  // 270° CW around Z: XZ -> YZ
+                    _ => self,
+                },
+            },
+            Self::PlatformXY => match axis {
+                RotationAxis::X => match angle {
+                    1 => Self::PlatformXZ,  // 90° CW around X: XY -> XZ
+                    2 => Self::PlatformXY,  // 180°: stays vertical
+                    3 => Self::PlatformXZ,  // 270° CW around X: XY -> XZ
+                    _ => self,
+                },
+                RotationAxis::Y => match angle {
+                    1 => Self::PlatformYZ,  // 90° CW around Y: XY -> YZ
+                    2 => Self::PlatformXY,  // 180°: stays vertical
+                    3 => Self::PlatformYZ,  // 270° CW around Y: XY -> YZ
+                    _ => self,
+                },
+                RotationAxis::Z => Self::PlatformXY,  // Rotation around Z doesn't change XY plane
+            },
+            Self::PlatformYZ => match axis {
+                RotationAxis::X => Self::PlatformYZ,  // Rotation around X doesn't change YZ plane
+                RotationAxis::Y => match angle {
+                    1 => Self::PlatformXY,  // 90° CW around Y: YZ -> XY
+                    2 => Self::PlatformYZ,  // 180°: stays vertical
+                    3 => Self::PlatformXY,  // 270° CW around Y: YZ -> XY
+                    _ => self,
+                },
+                RotationAxis::Z => match angle {
+                    1 => Self::PlatformXZ,  // 90° CW around Z: YZ -> XZ
+                    2 => Self::PlatformYZ,  // 180°: stays vertical
+                    3 => Self::PlatformXZ,  // 270° CW around Z: YZ -> XZ
+                    _ => self,
+                },
+            },
+            
+            // Staircase rotations
+            Self::StaircaseX => match axis {
+                RotationAxis::X => Self::StaircaseX,  // Rotation around X doesn't change X-direction stairs
+                RotationAxis::Y => match angle {
+                    1 => Self::StaircaseZ,     // 90° CW around Y: +X -> +Z
+                    2 => Self::StaircaseNegX,  // 180°: +X -> -X
+                    3 => Self::StaircaseNegZ,  // 270° CW around Y: +X -> -Z
+                    _ => self,
+                },
+                RotationAxis::Z => Self::StaircaseX,  // Rotation around Z doesn't change X-direction stairs
+            },
+            Self::StaircaseNegX => match axis {
+                RotationAxis::X => Self::StaircaseNegX,
+                RotationAxis::Y => match angle {
+                    1 => Self::StaircaseNegZ,  // 90° CW around Y: -X -> -Z
+                    2 => Self::StaircaseX,     // 180°: -X -> +X
+                    3 => Self::StaircaseZ,     // 270° CW around Y: -X -> +Z
+                    _ => self,
+                },
+                RotationAxis::Z => Self::StaircaseNegX,
+            },
+            Self::StaircaseZ => match axis {
+                RotationAxis::X => Self::StaircaseZ,
+                RotationAxis::Y => match angle {
+                    1 => Self::StaircaseNegX,  // 90° CW around Y: +Z -> -X
+                    2 => Self::StaircaseNegZ,  // 180°: +Z -> -Z
+                    3 => Self::StaircaseX,     // 270° CW around Y: +Z -> +X
+                    _ => self,
+                },
+                RotationAxis::Z => Self::StaircaseZ,
+            },
+            Self::StaircaseNegZ => match axis {
+                RotationAxis::X => Self::StaircaseNegZ,
+                RotationAxis::Y => match angle {
+                    1 => Self::StaircaseX,     // 90° CW around Y: -Z -> +X
+                    2 => Self::StaircaseZ,     // 180°: -Z -> +Z
+                    3 => Self::StaircaseNegX,  // 270° CW around Y: -Z -> -X
+                    _ => self,
+                },
+                RotationAxis::Z => Self::StaircaseNegZ,
+            },
+        }
     }
 }
 
@@ -288,18 +416,18 @@ impl MapData {
                     VoxelData {
                         pos: (1, 1, 1),
                         voxel_type: VoxelType::Dirt,
-                        pattern: Some(SubVoxelPattern::Platform),
+                        pattern: Some(SubVoxelPattern::PlatformXZ),
                     },
                     VoxelData {
                         pos: (2, 1, 2),
                         voxel_type: VoxelType::Dirt,
-                        pattern: Some(SubVoxelPattern::Platform),
+                        pattern: Some(SubVoxelPattern::PlatformXZ),
                     },
                     // Staircase
                     VoxelData {
                         pos: (2, 1, 1),
                         voxel_type: VoxelType::Stone,
-                        pattern: Some(SubVoxelPattern::Staircase),
+                        pattern: Some(SubVoxelPattern::StaircaseX),
                     },
                 ],
             },

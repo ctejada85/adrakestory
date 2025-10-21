@@ -89,8 +89,13 @@ fn render_tool_properties(
                     .selected_text(format!("{:?}", pattern))
                     .show_ui(ui, |ui| {
                         ui.selectable_value(pattern, SubVoxelPattern::Full, "Full");
-                        ui.selectable_value(pattern, SubVoxelPattern::Platform, "Platform");
-                        ui.selectable_value(pattern, SubVoxelPattern::Staircase, "Staircase");
+                        ui.selectable_value(pattern, SubVoxelPattern::PlatformXZ, "Platform (Horizontal)");
+                        ui.selectable_value(pattern, SubVoxelPattern::PlatformXY, "Platform (Wall Z)");
+                        ui.selectable_value(pattern, SubVoxelPattern::PlatformYZ, "Platform (Wall X)");
+                        ui.selectable_value(pattern, SubVoxelPattern::StaircaseX, "Staircase (+X)");
+                        ui.selectable_value(pattern, SubVoxelPattern::StaircaseNegX, "Staircase (-X)");
+                        ui.selectable_value(pattern, SubVoxelPattern::StaircaseZ, "Staircase (+Z)");
+                        ui.selectable_value(pattern, SubVoxelPattern::StaircaseNegZ, "Staircase (-Z)");
                         ui.selectable_value(pattern, SubVoxelPattern::Pillar, "Pillar");
                     });
             });
