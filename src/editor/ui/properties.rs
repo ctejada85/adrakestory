@@ -3,7 +3,7 @@
 use crate::editor::state::{EditorState, EditorTool};
 use crate::editor::tools::{
     ActiveTransform, CancelTransform, ConfirmTransform, DeleteSelectedVoxels, StartMoveOperation,
-    TransformMode,
+    StartRotateOperation, TransformMode,
 };
 use crate::systems::game::components::VoxelType;
 use crate::systems::game::map::format::{EntityType, SubVoxelPattern};
@@ -17,6 +17,7 @@ pub fn render_properties_panel(
     active_transform: &ActiveTransform,
     delete_events: &mut EventWriter<DeleteSelectedVoxels>,
     move_events: &mut EventWriter<StartMoveOperation>,
+    rotate_events: &mut EventWriter<StartRotateOperation>,
     confirm_events: &mut EventWriter<ConfirmTransform>,
     cancel_events: &mut EventWriter<CancelTransform>,
 ) {
@@ -33,6 +34,7 @@ pub fn render_properties_panel(
                 active_transform,
                 delete_events,
                 move_events,
+                rotate_events,
                 confirm_events,
                 cancel_events,
             );
@@ -56,6 +58,7 @@ fn render_tool_properties(
     active_transform: &ActiveTransform,
     delete_events: &mut EventWriter<DeleteSelectedVoxels>,
     move_events: &mut EventWriter<StartMoveOperation>,
+    rotate_events: &mut EventWriter<StartRotateOperation>,
     confirm_events: &mut EventWriter<ConfirmTransform>,
     cancel_events: &mut EventWriter<CancelTransform>,
 ) {
@@ -138,6 +141,12 @@ fn render_tool_properties(
                         ));
                         ui.label(format!("Voxels: {}", active_transform.selected_voxels.len()));
                     }
+                    TransformMode::Rotate => {
+                        ui.label(format!("Mode: Rotate"));
+                        ui.label(format!("Axis: {:?}", active_transform.rotation_axis));
+                        ui.label(format!("Angle: {}°", active_transform.rotation_angle * 90));
+                        ui.label(format!("Voxels: {}", active_transform.selected_voxels.len()));
+                    }
                     TransformMode::None => {}
                 }
                 
@@ -163,6 +172,7 @@ fn render_tool_properties(
             } else {
                 ui.label("Click to select voxels");
                 ui.label("Press G to move");
+                ui.label("Press R to rotate");
                 ui.label("Delete/Backspace to remove");
 
                 if !editor_state.selected_voxels.is_empty() {
@@ -200,6 +210,11 @@ fn render_tool_properties(
                         if ui.button("🔄 Move").clicked() {
                             move_events.send(StartMoveOperation);
                             info!("Move button clicked for {} voxels", editor_state.selected_voxels.len());
+                        }
+                        
+                        if ui.button("🔃 Rotate").clicked() {
+                            rotate_events.send(StartRotateOperation);
+                            info!("Rotate button clicked for {} voxels", editor_state.selected_voxels.len());
                         }
                         
                         if ui.button("🗑 Delete").clicked() {

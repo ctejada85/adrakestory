@@ -33,9 +33,12 @@ fn main() {
         .add_event::<tools::UpdateSelectionHighlights>()
         .add_event::<tools::DeleteSelectedVoxels>()
         .add_event::<tools::StartMoveOperation>()
+        .add_event::<tools::StartRotateOperation>()
         .add_event::<tools::ConfirmTransform>()
         .add_event::<tools::CancelTransform>()
         .add_event::<tools::UpdateTransformPreview>()
+        .add_event::<tools::UpdateRotation>()
+        .add_event::<tools::SetRotationAxis>()
         .add_systems(Startup, setup_editor)
         .add_systems(Update, render_ui)
         .add_systems(Update, ui::dialogs::check_file_dialog_result)
@@ -55,11 +58,19 @@ fn main() {
         .add_systems(Update, tools::render_selection_highlights)
         .add_systems(Update, tools::handle_delete_selected)
         .add_systems(Update, tools::handle_move_shortcut)
+        .add_systems(Update, tools::handle_rotate_shortcut)
         .add_systems(Update, tools::start_move_operation)
+        .add_systems(Update, tools::start_rotate_operation)
         .add_systems(Update, tools::handle_arrow_key_movement)
+        .add_systems(Update, tools::handle_arrow_key_rotation)
+        .add_systems(Update, tools::handle_rotation_axis_selection)
         .add_systems(Update, tools::update_transform_preview)
+        .add_systems(Update, tools::update_rotation)
+        .add_systems(Update, tools::update_rotation_axis)
         .add_systems(Update, tools::render_transform_preview)
+        .add_systems(Update, tools::render_rotation_preview)
         .add_systems(Update, tools::confirm_transform)
+        .add_systems(Update, tools::confirm_rotation)
         .add_systems(Update, tools::cancel_transform)
         .run();
 }
@@ -128,6 +139,7 @@ fn render_ui(
     dialog_receiver: ResMut<ui::dialogs::FileDialogReceiver>,
     mut delete_events: EventWriter<tools::DeleteSelectedVoxels>,
     mut move_events: EventWriter<tools::StartMoveOperation>,
+    mut rotate_events: EventWriter<tools::StartRotateOperation>,
     mut confirm_events: EventWriter<tools::ConfirmTransform>,
     mut cancel_events: EventWriter<tools::CancelTransform>,
 ) {
@@ -143,6 +155,7 @@ fn render_ui(
         &active_transform,
         &mut delete_events,
         &mut move_events,
+        &mut rotate_events,
         &mut confirm_events,
         &mut cancel_events,
     );

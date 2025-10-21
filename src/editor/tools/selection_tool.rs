@@ -21,6 +21,15 @@ pub struct TransformPreview {
     pub is_valid: bool, // false if collision detected
 }
 
+/// Rotation axis for rotate operation
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum RotationAxis {
+    #[default]
+    X,
+    Y,
+    Z,
+}
+
 /// Resource tracking active transformation
 #[derive(Resource)]
 pub struct ActiveTransform {
@@ -28,6 +37,8 @@ pub struct ActiveTransform {
     pub selected_voxels: Vec<VoxelData>,
     pub pivot: Vec3,
     pub current_offset: IVec3,
+    pub rotation_axis: RotationAxis,
+    pub rotation_angle: i32, // In 90-degree increments (0, 1, 2, 3)
 }
 
 impl Default for ActiveTransform {
@@ -37,6 +48,8 @@ impl Default for ActiveTransform {
             selected_voxels: Vec::new(),
             pivot: Vec3::ZERO,
             current_offset: IVec3::ZERO,
+            rotation_axis: RotationAxis::Y,
+            rotation_angle: 0,
         }
     }
 }
@@ -47,6 +60,7 @@ pub enum TransformMode {
     #[default]
     None,
     Move,
+    Rotate,
 }
 
 /// Event to trigger selection highlight update
@@ -61,6 +75,16 @@ pub struct DeleteSelectedVoxels;
 #[derive(Event)]
 pub struct StartMoveOperation;
 
+/// Event to start rotate operation
+#[derive(Event)]
+pub struct StartRotateOperation;
+
+/// Event to set rotation axis
+#[derive(Event)]
+pub struct SetRotationAxis {
+    pub axis: RotationAxis,
+}
+
 /// Event to confirm transformation
 #[derive(Event)]
 pub struct ConfirmTransform;
@@ -73,6 +97,12 @@ pub struct CancelTransform;
 #[derive(Event)]
 pub struct UpdateTransformPreview {
     pub offset: IVec3,
+}
+
+/// Event to update rotation
+#[derive(Event)]
+pub struct UpdateRotation {
+    pub delta: i32, // +1 or -1 for 90-degree rotations
 }
 
 /// Handle selection when the tool is active
@@ -614,5 +644,393 @@ pub fn handle_move_shortcut(
 
     if keyboard.just_pressed(KeyCode::KeyG) {
         start_events.send(StartMoveOperation);
+    }
+}
+
+
+/// Start rotate operation for selected voxels
+pub fn start_rotate_operation(
+    mut active_transform: ResMut<ActiveTransform>,
+    editor_state: Res<EditorState>,
+    mut start_events: EventReader<StartRotateOperation>,
+) {
+    // Only process if event received
+    if start_events.read().count() == 0 {
+        return;
+    }
+
+    // Check if select tool is active
+    if !matches!(editor_state.active_tool, EditorTool::Select) {
+        warn!("Rotate operation requires Select tool to be active");
+        return;
+    }
+
+    // Check if there are selected voxels
+    if editor_state.selected_voxels.is_empty() {
+        warn!("No voxels selected for rotate operation");
+        return;
+    }
+
+    // Collect selected voxel data
+    let mut selected_voxels = Vec::new();
+    let mut sum_pos = Vec3::ZERO;
+    
+    for &pos in &editor_state.selected_voxels {
+        if let Some(voxel) = editor_state
+            .current_map
+            .world
+            .voxels
+            .iter()
+            .find(|v| v.pos == pos)
+        {
+            selected_voxels.push(voxel.clone());
+            sum_pos += Vec3::new(pos.0 as f32, pos.1 as f32, pos.2 as f32);
+        }
+    }
+
+    // Calculate pivot (center of selection)
+    let pivot = sum_pos / selected_voxels.len() as f32;
+
+    // Initialize transform state
+    active_transform.mode = TransformMode::Rotate;
+    active_transform.selected_voxels = selected_voxels;
+    active_transform.pivot = pivot;
+    active_transform.rotation_axis = RotationAxis::Y; // Default to Y axis
+    active_transform.rotation_angle = 0;
+
+    info!("Started rotate operation with {} voxels around {:?} axis", 
+          active_transform.selected_voxels.len(), 
+          active_transform.rotation_axis);
+}
+
+/// Handle R key to start rotate operation
+pub fn handle_rotate_shortcut(
+    active_transform: Res<ActiveTransform>,
+    editor_state: Res<EditorState>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut contexts: EguiContexts,
+    mut start_events: EventWriter<StartRotateOperation>,
+) {
+    // Only when Select tool is active and not already transforming
+    if !matches!(editor_state.active_tool, EditorTool::Select) {
+        return;
+    }
+
+    if active_transform.mode != TransformMode::None {
+        return;
+    }
+
+    // Check if UI wants keyboard input
+    let ui_wants_input = contexts.ctx_mut().wants_keyboard_input();
+    if ui_wants_input {
+        return;
+    }
+
+    if keyboard.just_pressed(KeyCode::KeyR) {
+        start_events.send(StartRotateOperation);
+    }
+}
+
+/// Handle axis selection during rotate operation (X, Y, Z keys)
+pub fn handle_rotation_axis_selection(
+    active_transform: Res<ActiveTransform>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut contexts: EguiContexts,
+    mut axis_events: EventWriter<SetRotationAxis>,
+) {
+    // Only active during rotate mode
+    if active_transform.mode != TransformMode::Rotate {
+        return;
+    }
+
+    // Check if UI wants keyboard input
+    let ui_wants_input = contexts.ctx_mut().wants_keyboard_input();
+    if ui_wants_input {
+        return;
+    }
+
+    // Check for axis selection keys
+    if keyboard.just_pressed(KeyCode::KeyX) {
+        axis_events.send(SetRotationAxis { axis: RotationAxis::X });
+    } else if keyboard.just_pressed(KeyCode::KeyY) {
+        axis_events.send(SetRotationAxis { axis: RotationAxis::Y });
+    } else if keyboard.just_pressed(KeyCode::KeyZ) {
+        axis_events.send(SetRotationAxis { axis: RotationAxis::Z });
+    }
+}
+
+/// Update rotation axis
+pub fn update_rotation_axis(
+    mut active_transform: ResMut<ActiveTransform>,
+    mut axis_events: EventReader<SetRotationAxis>,
+) {
+    for event in axis_events.read() {
+        active_transform.rotation_axis = event.axis;
+        active_transform.rotation_angle = 0; // Reset angle when changing axis
+        info!("Rotation axis changed to: {:?}", active_transform.rotation_axis);
+    }
+}
+
+/// Handle arrow key rotation during rotate operation
+pub fn handle_arrow_key_rotation(
+    active_transform: Res<ActiveTransform>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut contexts: EguiContexts,
+    mut rotation_events: EventWriter<UpdateRotation>,
+) {
+    // Only active during rotate mode
+    if active_transform.mode != TransformMode::Rotate {
+        return;
+    }
+
+    // Check if UI wants keyboard input
+    let ui_wants_input = contexts.ctx_mut().wants_keyboard_input();
+    if ui_wants_input {
+        return;
+    }
+
+    // Arrow keys rotate in 90-degree increments
+    if keyboard.just_pressed(KeyCode::ArrowLeft) {
+        rotation_events.send(UpdateRotation { delta: -1 });
+    } else if keyboard.just_pressed(KeyCode::ArrowRight) {
+        rotation_events.send(UpdateRotation { delta: 1 });
+    }
+}
+
+/// Update rotation angle
+pub fn update_rotation(
+    mut active_transform: ResMut<ActiveTransform>,
+    mut rotation_events: EventReader<UpdateRotation>,
+) {
+    for event in rotation_events.read() {
+        active_transform.rotation_angle = (active_transform.rotation_angle + event.delta).rem_euclid(4);
+        info!("Rotation angle updated to: {} ({}°)", 
+              active_transform.rotation_angle, 
+              active_transform.rotation_angle * 90);
+    }
+}
+
+/// Calculate rotated position around pivot
+fn rotate_position(pos: (i32, i32, i32), pivot: Vec3, axis: RotationAxis, angle: i32) -> (i32, i32, i32) {
+    // Convert to Vec3 relative to pivot
+    let rel_pos = Vec3::new(
+        pos.0 as f32 - pivot.x,
+        pos.1 as f32 - pivot.y,
+        pos.2 as f32 - pivot.z,
+    );
+
+    // Rotate based on axis and angle (in 90-degree increments)
+    let rotated = match axis {
+        RotationAxis::X => {
+            // Rotate around X axis (affects Y and Z)
+            match angle {
+                0 => rel_pos,
+                1 => Vec3::new(rel_pos.x, -rel_pos.z, rel_pos.y),   // 90° CW
+                2 => Vec3::new(rel_pos.x, -rel_pos.y, -rel_pos.z),  // 180°
+                3 => Vec3::new(rel_pos.x, rel_pos.z, -rel_pos.y),   // 270° CW
+                _ => rel_pos,
+            }
+        }
+        RotationAxis::Y => {
+            // Rotate around Y axis (affects X and Z)
+            match angle {
+                0 => rel_pos,
+                1 => Vec3::new(rel_pos.z, rel_pos.y, -rel_pos.x),   // 90° CW
+                2 => Vec3::new(-rel_pos.x, rel_pos.y, -rel_pos.z),  // 180°
+                3 => Vec3::new(-rel_pos.z, rel_pos.y, rel_pos.x),   // 270° CW
+                _ => rel_pos,
+            }
+        }
+        RotationAxis::Z => {
+            // Rotate around Z axis (affects X and Y)
+            match angle {
+                0 => rel_pos,
+                1 => Vec3::new(-rel_pos.y, rel_pos.x, rel_pos.z),   // 90° CW
+                2 => Vec3::new(-rel_pos.x, -rel_pos.y, rel_pos.z),  // 180°
+                3 => Vec3::new(rel_pos.y, -rel_pos.x, rel_pos.z),   // 270° CW
+                _ => rel_pos,
+            }
+        }
+    };
+
+    // Convert back to world coordinates and round to integers
+    (
+        (rotated.x + pivot.x).round() as i32,
+        (rotated.y + pivot.y).round() as i32,
+        (rotated.z + pivot.z).round() as i32,
+    )
+}
+
+/// Render rotation preview meshes
+pub fn render_rotation_preview(
+    mut commands: Commands,
+    active_transform: Res<ActiveTransform>,
+    editor_state: Res<EditorState>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    existing_previews: Query<Entity, With<TransformPreview>>,
+) {
+    // Only render during rotate mode
+    if active_transform.mode != TransformMode::Rotate {
+        return;
+    }
+
+    // Check if transform state changed
+    if !active_transform.is_changed() {
+        return;
+    }
+
+    // Despawn existing previews
+    for entity in existing_previews.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    // Calculate rotated positions and check collisions
+    let original_positions: std::collections::HashSet<_> = 
+        active_transform.selected_voxels.iter().map(|v| v.pos).collect();
+
+    // Create preview mesh
+    let preview_mesh = meshes.add(Cuboid::new(0.95, 0.95, 0.95));
+
+    for voxel in &active_transform.selected_voxels {
+        let new_pos = rotate_position(
+            voxel.pos,
+            active_transform.pivot,
+            active_transform.rotation_axis,
+            active_transform.rotation_angle,
+        );
+
+        // Check for collision (position occupied by non-selected voxel)
+        let is_valid = !editor_state
+            .current_map
+            .world
+            .voxels
+            .iter()
+            .any(|v| v.pos == new_pos && !original_positions.contains(&v.pos));
+
+        // Create material based on validity
+        let material = materials.add(StandardMaterial {
+            base_color: if is_valid {
+                Color::srgba(0.0, 0.5, 1.0, 0.3) // Blue for valid rotation
+            } else {
+                Color::srgba(1.0, 0.0, 0.0, 0.3) // Red for collision
+            },
+            alpha_mode: AlphaMode::Blend,
+            unlit: true,
+            ..default()
+        });
+
+        // Spawn preview
+        commands.spawn((
+            Mesh3d(preview_mesh.clone()),
+            MeshMaterial3d(material),
+            Transform::from_xyz(new_pos.0 as f32, new_pos.1 as f32, new_pos.2 as f32),
+            TransformPreview {
+                original_pos: voxel.pos,
+                preview_pos: new_pos,
+                is_valid,
+            },
+        ));
+    }
+}
+
+/// Confirm rotation and apply changes
+pub fn confirm_rotation(
+    active_transform: ResMut<ActiveTransform>,
+    mut editor_state: ResMut<EditorState>,
+    mut history: ResMut<EditorHistory>,
+    preview_query: Query<&TransformPreview>,
+) {
+    // Only active during rotate mode
+    if active_transform.mode != TransformMode::Rotate {
+        return;
+    }
+
+    // Check if all previews are valid (no collisions)
+    let has_collision = preview_query.iter().any(|p| !p.is_valid);
+    if has_collision {
+        warn!("Cannot confirm rotation: collision detected");
+        return;
+    }
+
+    // Apply the rotation
+    let mut rotated_voxels = Vec::new();
+
+    for voxel in &active_transform.selected_voxels {
+        let old_pos = voxel.pos;
+        let new_pos = rotate_position(
+            old_pos,
+            active_transform.pivot,
+            active_transform.rotation_axis,
+            active_transform.rotation_angle,
+        );
+
+        // Find and update voxel in map
+        if let Some(map_voxel) = editor_state
+            .current_map
+            .world
+            .voxels
+            .iter_mut()
+            .find(|v| v.pos == old_pos)
+        {
+            map_voxel.pos = new_pos;
+            rotated_voxels.push((old_pos, new_pos));
+        }
+    }
+
+    // Create history action
+    if !rotated_voxels.is_empty() {
+        history.push(EditorAction::Batch {
+            description: format!(
+                "Rotate {} voxel{} {}° around {:?} axis",
+                rotated_voxels.len(),
+                if rotated_voxels.len() == 1 { "" } else { "s" },
+                active_transform.rotation_angle * 90,
+                active_transform.rotation_axis
+            ),
+            actions: rotated_voxels
+                .iter()
+                .map(|(old_pos, new_pos)| {
+                    let voxel_data = active_transform
+                        .selected_voxels
+                        .iter()
+                        .find(|v| v.pos == *old_pos)
+                        .unwrap()
+                        .clone();
+                    
+                    // Create a remove and place action pair
+                    EditorAction::Batch {
+                        description: format!("Rotate voxel from {:?} to {:?}", old_pos, new_pos),
+                        actions: vec![
+                            EditorAction::RemoveVoxel {
+                                pos: *old_pos,
+                                data: voxel_data.clone(),
+                            },
+                            EditorAction::PlaceVoxel {
+                                pos: *new_pos,
+                                data: VoxelData {
+                                    pos: *new_pos,
+                                    ..voxel_data
+                                },
+                            },
+                        ],
+                    }
+                })
+                .collect(),
+        });
+
+        editor_state.mark_modified();
+        info!(
+            "Rotated {} voxels {}° around {:?} axis",
+            rotated_voxels.len(),
+            active_transform.rotation_angle * 90,
+            active_transform.rotation_axis
+        );
+    }
+
+    // Update selection to new positions
+    editor_state.selected_voxels.clear();
+    for (_, new_pos) in rotated_voxels {
+        editor_state.selected_voxels.insert(new_pos);
     }
 }
