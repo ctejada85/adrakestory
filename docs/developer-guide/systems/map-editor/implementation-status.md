@@ -79,7 +79,7 @@ This document tracks the implementation status of the A Drake's Story Map Editor
 - ✅ Position tracking
 - ✅ History integration
 
-#### Selection Tool (`src/editor/tools/selection_tool.rs` - 191 lines) ✅ PHASE 1 COMPLETE
+#### Selection Tool (`src/editor/tools/selection_tool.rs` - 450+ lines) ✅ PHASE 1 & MOVE OPERATION COMPLETE
 - ✅ Single-click voxel selection with toggle
 - ✅ 3D voxel selection at any height (full 3D space support)
 - ✅ Visual selection highlighting (yellow wireframe)
@@ -87,9 +87,17 @@ This document tracks the implementation status of the A Drake's Story Map Editor
 - ✅ Delete button in properties panel
 - ✅ History integration for undo/redo
 - ✅ Selection info display (count and positions)
+- ✅ **Move operation (G key)** - NEW
+  - ✅ Arrow key movement (X/Z plane)
+  - ✅ Shift + Arrow keys (Y axis)
+  - ✅ Ghost preview with collision detection
+  - ✅ Confirm (Enter) / Cancel (Escape)
+  - ✅ History integration for undo/redo
+  - ✅ UI controls (Move/Confirm/Cancel buttons)
+- ⏳ Rotation operation (R key) (Phase 2)
 - ⏳ Multi-select with Shift (Phase 2)
 - ⏳ Box selection with drag (Phase 2)
-- ⏳ Move/copy operations (Phase 2)
+- ⏳ Copy/paste operations (Phase 2)
 
 ### 6. UI Components
 
@@ -204,6 +212,18 @@ $ cargo run --bin map_editor
 - ✅ Fallback to ground plane for empty areas
 - ✅ Grid position calculation from world coordinates
 
+### Move Operation System (2025-10-21)
+- ✅ Complete move operation implementation
+- ✅ New components: `TransformPreview`, `ActiveTransform` resource
+- ✅ New events: `StartMoveOperation`, `ConfirmTransform`, `CancelTransform`, `UpdateTransformPreview`
+- ✅ Keyboard controls: G key to activate, arrow keys to move, Enter/Escape to confirm/cancel
+- ✅ Ghost preview rendering with semi-transparent meshes
+- ✅ Collision detection (red preview when blocked)
+- ✅ History integration for undo/redo support
+- ✅ UI integration with status display and control buttons
+- ✅ Comprehensive implementation plan document (598 lines)
+- ✅ Testing guide document (227 lines)
+
 ## 🚧 Pending Integrations
 
 The following features are implemented but need wiring/integration:
@@ -257,9 +277,10 @@ The following features are implemented but need wiring/integration:
    - [ ] Test action chains
 
 5. **Selection Tool Phase 2** ⏳
+   - [x] Implement move selected voxels ✅ COMPLETE
+   - [ ] Implement rotation operation (R key)
    - [ ] Implement Shift+Click for multi-select
    - [ ] Add box selection (click-drag)
-   - [ ] Implement move selected voxels
    - [ ] Add copy/paste operations
    - [ ] Implement Ctrl+Click for add/remove from selection
 
@@ -309,38 +330,48 @@ The following features are implemented but need wiring/integration:
 
 ## 📊 Progress Summary
 
-- **Total Tasks**: 23
-- **Completed**: 19 (83%)
-- **In Progress**: 3 (13%)
-- **Pending**: 1 (4%)
+- **Total Tasks**: 24
+- **Completed**: 20 (83%)
+- **In Progress**: 1 (4%)
+- **Pending**: 3 (13%)
 
 ### Code Statistics
 
-- **Total Lines**: ~3,408
+- **Total Lines**: ~4,233
 - **Modules**: 15
-- **Documentation**: 4 comprehensive documents (updated)
+- **Documentation**: 6 comprehensive documents (updated)
 - **Tests**: Basic unit tests in place
 - **Recent Additions**:
   - Selection tool Phase 1 (+191 lines)
   - 3D cursor ray casting (+168 lines)
+  - Move operation system (+260 lines in selection_tool.rs)
+  - Move/rotate implementation plan (+598 lines)
+  - Move operation testing guide (+227 lines)
 
 ## 🎯 Next Steps
 
 To complete the map editor implementation:
 
-1. **Phase 1: Core Integration** (2-3 days)
-   - Implement cursor ray casting system
+1. **Phase 1: Move/Rotate Operations** (Current - 3-4 days)
+   - [x] Implement move operation ✅ COMPLETE
+   - [ ] Test move operation thoroughly
+   - [ ] Implement rotation operation (R key)
+   - [ ] Test rotation operation
+   - [ ] Polish visual feedback
+
+2. **Phase 2: Core Integration** (2-3 days)
    - Connect file save/load operations
-   - Wire up keyboard shortcuts
+   - Wire up remaining keyboard shortcuts
    - Connect undo/redo buttons
-
-2. **Phase 2: Visual Feedback** (2-3 days)
-   - Implement voxel rendering in viewport
-   - Add selection highlighting
    - Add map validation display
-   - Test all editing operations
 
-3. **Phase 3: Polish & Documentation** (3-5 days)
+3. **Phase 3: Advanced Selection** (2-3 days)
+   - Implement multi-select (Shift+Click)
+   - Add box selection (click-drag)
+   - Add copy/paste operations
+   - Test all selection combinations
+
+4. **Phase 4: Polish & Documentation** (3-5 days)
    - Add remaining configuration UIs
    - Performance optimization
    - Comprehensive testing

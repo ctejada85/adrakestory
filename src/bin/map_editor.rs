@@ -4,6 +4,7 @@
 
 use adrakestory::editor::{camera, cursor, grid, renderer, state, tools, ui};
 use adrakestory::editor::{EditorHistory, EditorState, MapRenderState, RenderMapEvent};
+use adrakestory::editor::tools::ActiveTransform;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use grid::InfiniteGridConfig;
@@ -26,10 +27,15 @@ fn main() {
         .init_resource::<ui::dialogs::FileDialogReceiver>()
         .init_resource::<MapRenderState>()
         .init_resource::<InfiniteGridConfig>()
+        .init_resource::<ActiveTransform>()
         .add_event::<ui::dialogs::FileSelectedEvent>()
         .add_event::<RenderMapEvent>()
         .add_event::<tools::UpdateSelectionHighlights>()
         .add_event::<tools::DeleteSelectedVoxels>()
+        .add_event::<tools::StartMoveOperation>()
+        .add_event::<tools::ConfirmTransform>()
+        .add_event::<tools::CancelTransform>()
+        .add_event::<tools::UpdateTransformPreview>()
         .add_systems(Startup, setup_editor)
         .add_systems(Update, render_ui)
         .add_systems(Update, ui::dialogs::check_file_dialog_result)
@@ -48,6 +54,13 @@ fn main() {
         .add_systems(Update, tools::handle_selection)
         .add_systems(Update, tools::render_selection_highlights)
         .add_systems(Update, tools::handle_delete_selected)
+        .add_systems(Update, tools::handle_move_shortcut)
+        .add_systems(Update, tools::start_move_operation)
+        .add_systems(Update, tools::handle_arrow_key_movement)
+        .add_systems(Update, tools::update_transform_preview)
+        .add_systems(Update, tools::render_transform_preview)
+        .add_systems(Update, tools::confirm_transform)
+        .add_systems(Update, tools::cancel_transform)
         .run();
 }
 
@@ -111,8 +124,12 @@ fn render_ui(
     mut editor_state: ResMut<EditorState>,
     mut ui_state: ResMut<state::EditorUIState>,
     history: Res<EditorHistory>,
+    active_transform: Res<ActiveTransform>,
     dialog_receiver: ResMut<ui::dialogs::FileDialogReceiver>,
     mut delete_events: EventWriter<tools::DeleteSelectedVoxels>,
+    mut move_events: EventWriter<tools::StartMoveOperation>,
+    mut confirm_events: EventWriter<tools::ConfirmTransform>,
+    mut cancel_events: EventWriter<tools::CancelTransform>,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -120,7 +137,15 @@ fn render_ui(
     ui::render_toolbar(ctx, &mut editor_state, &mut ui_state, &history);
 
     // Render properties panel
-    ui::render_properties_panel(ctx, &mut editor_state, &mut delete_events);
+    ui::render_properties_panel(
+        ctx,
+        &mut editor_state,
+        &active_transform,
+        &mut delete_events,
+        &mut move_events,
+        &mut confirm_events,
+        &mut cancel_events,
+    );
 
     // Render viewport controls
     ui::render_viewport_controls(ctx);

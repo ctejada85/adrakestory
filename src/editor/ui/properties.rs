@@ -1,7 +1,10 @@
 //! Properties panel UI for editing object properties.
 
 use crate::editor::state::{EditorState, EditorTool};
-use crate::editor::tools::DeleteSelectedVoxels;
+use crate::editor::tools::{
+    ActiveTransform, CancelTransform, ConfirmTransform, DeleteSelectedVoxels, StartMoveOperation,
+    TransformMode,
+};
 use crate::systems::game::components::VoxelType;
 use crate::systems::game::map::format::{EntityType, SubVoxelPattern};
 use bevy::prelude::*;
@@ -11,7 +14,11 @@ use bevy_egui::egui;
 pub fn render_properties_panel(
     ctx: &egui::Context,
     editor_state: &mut EditorState,
+    active_transform: &ActiveTransform,
     delete_events: &mut EventWriter<DeleteSelectedVoxels>,
+    move_events: &mut EventWriter<StartMoveOperation>,
+    confirm_events: &mut EventWriter<ConfirmTransform>,
+    cancel_events: &mut EventWriter<CancelTransform>,
 ) {
     egui::SidePanel::right("properties")
         .default_width(300.0)
@@ -20,7 +27,15 @@ pub fn render_properties_panel(
             ui.separator();
 
             // Tool-specific properties
-            render_tool_properties(ui, editor_state, delete_events);
+            render_tool_properties(
+                ui,
+                editor_state,
+                active_transform,
+                delete_events,
+                move_events,
+                confirm_events,
+                cancel_events,
+            );
 
             ui.separator();
 
@@ -38,7 +53,11 @@ pub fn render_properties_panel(
 fn render_tool_properties(
     ui: &mut egui::Ui,
     editor_state: &mut EditorState,
+    active_transform: &ActiveTransform,
     delete_events: &mut EventWriter<DeleteSelectedVoxels>,
+    move_events: &mut EventWriter<StartMoveOperation>,
+    confirm_events: &mut EventWriter<ConfirmTransform>,
+    cancel_events: &mut EventWriter<CancelTransform>,
 ) {
     ui.label("Tool Settings");
     ui.separator();
@@ -102,56 +121,105 @@ fn render_tool_properties(
 
         EditorTool::Select => {
             ui.label("Select Tool");
-            ui.label("Click to select voxels");
-            ui.label("Delete/Backspace to remove");
-
-            if !editor_state.selected_voxels.is_empty() {
+            
+            // Show transform mode status
+            if active_transform.mode != TransformMode::None {
                 ui.separator();
-                ui.label(format!(
-                    "Selected: {} voxel{}",
-                    editor_state.selected_voxels.len(),
-                    if editor_state.selected_voxels.len() == 1 {
-                        ""
-                    } else {
-                        "s"
+                ui.colored_label(egui::Color32::YELLOW, "🔄 Transform Mode Active");
+                
+                match active_transform.mode {
+                    TransformMode::Move => {
+                        ui.label(format!("Mode: Move"));
+                        ui.label(format!(
+                            "Offset: ({}, {}, {})",
+                            active_transform.current_offset.x,
+                            active_transform.current_offset.y,
+                            active_transform.current_offset.z
+                        ));
+                        ui.label(format!("Voxels: {}", active_transform.selected_voxels.len()));
                     }
-                ));
-
-                // Show first few selected positions
-                if editor_state.selected_voxels.len() <= 5 {
-                    ui.label("Positions:");
-                    for pos in editor_state.selected_voxels.iter().take(5) {
-                        ui.label(format!("  ({}, {}, {})", pos.0, pos.1, pos.2));
-                    }
-                } else {
-                    ui.label(format!(
-                        "Showing first 5 of {} positions:",
-                        editor_state.selected_voxels.len()
-                    ));
-                    for pos in editor_state.selected_voxels.iter().take(5) {
-                        ui.label(format!("  ({}, {}, {})", pos.0, pos.1, pos.2));
-                    }
-                    ui.label("  ...");
+                    TransformMode::None => {}
                 }
-
+                
                 ui.separator();
-
+                ui.label("Controls:");
+                ui.label("• Arrow keys to move");
+                ui.label("• Shift+Arrow for 5 units");
+                ui.label("• PageUp/Down for Y-axis");
+                ui.label("• Enter to confirm");
+                ui.label("• Escape to cancel");
+                
+                ui.separator();
+                
                 ui.horizontal(|ui| {
-                    if ui.button("🗑 Delete Selected").clicked() {
-                        delete_events.send(DeleteSelectedVoxels);
-                        info!(
-                            "Delete button clicked for {} voxels",
-                            editor_state.selected_voxels.len()
-                        );
+                    if ui.button("✓ Confirm").clicked() {
+                        confirm_events.send(ConfirmTransform);
                     }
-
-                    if ui.button("Clear Selection").clicked() {
-                        editor_state.clear_selections();
+                    
+                    if ui.button("✗ Cancel").clicked() {
+                        cancel_events.send(CancelTransform);
                     }
                 });
             } else {
-                ui.separator();
-                ui.label("No voxels selected");
+                ui.label("Click to select voxels");
+                ui.label("Press G to move");
+                ui.label("Delete/Backspace to remove");
+
+                if !editor_state.selected_voxels.is_empty() {
+                    ui.separator();
+                    ui.label(format!(
+                        "Selected: {} voxel{}",
+                        editor_state.selected_voxels.len(),
+                        if editor_state.selected_voxels.len() == 1 {
+                            ""
+                        } else {
+                            "s"
+                        }
+                    ));
+
+                    // Show first few selected positions
+                    if editor_state.selected_voxels.len() <= 5 {
+                        ui.label("Positions:");
+                        for pos in editor_state.selected_voxels.iter().take(5) {
+                            ui.label(format!("  ({}, {}, {})", pos.0, pos.1, pos.2));
+                        }
+                    } else {
+                        ui.label(format!(
+                            "Showing first 5 of {} positions:",
+                            editor_state.selected_voxels.len()
+                        ));
+                        for pos in editor_state.selected_voxels.iter().take(5) {
+                            ui.label(format!("  ({}, {}, {})", pos.0, pos.1, pos.2));
+                        }
+                        ui.label("  ...");
+                    }
+
+                    ui.separator();
+
+                    ui.horizontal(|ui| {
+                        if ui.button("🔄 Move").clicked() {
+                            move_events.send(StartMoveOperation);
+                            info!("Move button clicked for {} voxels", editor_state.selected_voxels.len());
+                        }
+                        
+                        if ui.button("🗑 Delete").clicked() {
+                            delete_events.send(DeleteSelectedVoxels);
+                            info!(
+                                "Delete button clicked for {} voxels",
+                                editor_state.selected_voxels.len()
+                            );
+                        }
+                    });
+                    
+                    ui.horizontal(|ui| {
+                        if ui.button("Clear Selection").clicked() {
+                            editor_state.clear_selections();
+                        }
+                    });
+                } else {
+                    ui.separator();
+                    ui.label("No voxels selected");
+                }
             }
         }
 
