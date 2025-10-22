@@ -12,8 +12,11 @@ pub use selection_tool::{
     render_rotation_preview, render_selection_highlights, render_transform_preview,
     start_move_operation, start_rotate_operation, update_rotation, update_rotation_axis,
     update_transform_preview, ActiveTransform, CancelTransform, ConfirmTransform,
-    DeleteSelectedVoxels, RotationAxis, SetRotationAxis, StartMoveOperation,
+    DeleteSelectedVoxels, SetRotationAxis, StartMoveOperation,
     StartRotateOperation, TransformMode, UpdateRotation, UpdateSelectionHighlights,
     UpdateTransformPreview,
 };
 pub use voxel_tool::{handle_voxel_placement, handle_voxel_removal};
+
+// Re-export RotationAxis from geometry module for convenience
+pub use crate::systems::game::map::geometry::RotationAxis;

@@ -23,6 +23,7 @@
 
 pub mod error;
 pub mod format;
+pub mod geometry;
 pub mod loader;
 pub mod spawner;
 pub mod validation;

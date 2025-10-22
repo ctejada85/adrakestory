@@ -4,6 +4,7 @@ use crate::editor::history::{EditorAction, EditorHistory};
 use crate::editor::renderer::RenderMapEvent;
 use crate::editor::state::{EditorState, EditorTool};
 use crate::systems::game::map::format::VoxelData;
+use crate::systems::game::map::geometry::RotationAxis;
 use bevy::prelude::*;
 use bevy_egui::EguiContexts;
 
@@ -19,15 +20,6 @@ pub struct TransformPreview {
     pub original_pos: (i32, i32, i32),
     pub preview_pos: (i32, i32, i32),
     pub is_valid: bool, // false if collision detected
-}
-
-/// Rotation axis for rotate operation
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub enum RotationAxis {
-    #[default]
-    X,
-    Y,
-    Z,
 }
 
 /// Resource tracking active transformation
