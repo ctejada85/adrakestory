@@ -970,6 +970,11 @@ pub fn confirm_rotation(
     mut update_events: EventWriter<UpdateSelectionHighlights>,
     preview_query: Query<&TransformPreview>,
 ) {
+    // Debug: Log function entry
+    if active_transform.mode == TransformMode::Rotate {
+        info!("confirm_rotation: In rotate mode");
+    }
+    
     // Only active during rotate mode
     if active_transform.mode != TransformMode::Rotate {
         return;
@@ -979,14 +984,29 @@ pub fn confirm_rotation(
     let ui_wants_keyboard = contexts.ctx_mut().wants_keyboard_input();
     let ui_wants_pointer = contexts.ctx_mut().wants_pointer_input();
     
+    info!("confirm_rotation: UI wants - keyboard: {}, pointer: {}", ui_wants_keyboard, ui_wants_pointer);
+    info!("confirm_rotation: Input state - Enter: {}, Left Click: {}, Events: {}",
+          keyboard.just_pressed(KeyCode::Enter),
+          mouse_button.just_pressed(MouseButton::Left),
+          confirm_events.read().count());
+    
     // Check for confirmation input (only if UI doesn't want input)
     let should_confirm = (!ui_wants_keyboard && keyboard.just_pressed(KeyCode::Enter))
         || (!ui_wants_pointer && mouse_button.just_pressed(MouseButton::Left))
         || confirm_events.read().count() > 0;
 
+    info!("confirm_rotation: should_confirm = {}", should_confirm);
+
     if !should_confirm {
         return;
     }
+
+    info!("=== ROTATION CONFIRMATION TRIGGERED ===");
+    info!("Rotation axis: {:?}, angle: {} ({}°)",
+          active_transform.rotation_axis,
+          active_transform.rotation_angle,
+          active_transform.rotation_angle * 90);
+    info!("Selected voxels: {}", active_transform.selected_voxels.len());
 
     // Check if all previews are valid (no collisions)
     let has_collision = preview_query.iter().any(|p| !p.is_valid);
@@ -1018,24 +1038,25 @@ pub fn confirm_rotation(
             map_voxel.pos = new_pos;
             
             // Update or create rotation state for the voxel
-            if map_voxel.pattern.is_some() {
-                use crate::systems::game::map::format::RotationState;
-                
-                // Compose with existing rotation or create new rotation state
-                map_voxel.rotation_state = Some(
-                    if let Some(existing_rotation) = map_voxel.rotation_state {
-                        existing_rotation.compose(
-                            active_transform.rotation_axis,
-                            active_transform.rotation_angle,
-                        )
-                    } else {
-                        RotationState::new(
-                            active_transform.rotation_axis,
-                            active_transform.rotation_angle,
-                        )
-                    }
-                );
-            }
+            use crate::systems::game::map::format::RotationState;
+            
+            // Compose with existing rotation or create new rotation state
+            let new_rotation_state = if let Some(existing_rotation) = map_voxel.rotation_state {
+                existing_rotation.compose(
+                    active_transform.rotation_axis,
+                    active_transform.rotation_angle,
+                )
+            } else {
+                RotationState::new(
+                    active_transform.rotation_axis,
+                    active_transform.rotation_angle,
+                )
+            };
+            
+            info!("Updating voxel at {:?} -> {:?}, rotation: {:?} angle {}",
+                  old_pos, new_pos, new_rotation_state.axis, new_rotation_state.angle);
+            
+            map_voxel.rotation_state = Some(new_rotation_state);
             
             rotated_voxels.push((old_pos, new_pos));
         }
@@ -1063,23 +1084,19 @@ pub fn confirm_rotation(
                     
                     // Update rotation state for the new voxel
                     use crate::systems::game::map::format::RotationState;
-                    let new_rotation_state = if voxel_data.pattern.is_some() {
-                        Some(
-                            if let Some(existing_rotation) = voxel_data.rotation_state {
-                                existing_rotation.compose(
-                                    active_transform.rotation_axis,
-                                    active_transform.rotation_angle,
-                                )
-                            } else {
-                                RotationState::new(
-                                    active_transform.rotation_axis,
-                                    active_transform.rotation_angle,
-                                )
-                            }
-                        )
-                    } else {
-                        voxel_data.rotation_state
-                    };
+                    let new_rotation_state = Some(
+                        if let Some(existing_rotation) = voxel_data.rotation_state {
+                            existing_rotation.compose(
+                                active_transform.rotation_axis,
+                                active_transform.rotation_angle,
+                            )
+                        } else {
+                            RotationState::new(
+                                active_transform.rotation_axis,
+                                active_transform.rotation_angle,
+                            )
+                        }
+                    );
                     
                     // Create a remove and place action pair
                     EditorAction::Batch {

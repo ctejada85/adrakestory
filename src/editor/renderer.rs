@@ -76,6 +76,12 @@ pub fn render_map_system(
         let (x, y, z) = voxel_data.pos;
         let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
         
+        // Debug: Log rotation state for each voxel
+        if let Some(rot) = voxel_data.rotation_state {
+            info!("Rendering voxel at {:?} with rotation: {:?} angle {}",
+                  voxel_data.pos, rot.axis, rot.angle);
+        }
+        
         // Get the geometry for this pattern with rotation applied
         let geometry = pattern.geometry_with_rotation(voxel_data.rotation_state);
         
