@@ -268,9 +268,9 @@ Now that the input system is unified, future improvements are easier:
 
 ## Related Documentation
 
-- [Input Refactoring Plan](input-refactoring-plan.md) - Original design document
-- [Input Handling Guide](input-handling.md) - General input handling patterns
-- [Architecture Overview](architecture.md) - Overall editor architecture
+- [Input Refactoring Plan](input-refactoring-plan.md) - Original design document (same archive)
+- [Input Handling Guide](../input-handling.md) - General input handling patterns
+- [Architecture Overview](../architecture.md) - Overall editor architecture
 
 ## Conclusion
 

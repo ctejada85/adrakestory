@@ -12,8 +12,6 @@ Welcome to the comprehensive documentation for the A Drake's Story Map Editor. T
 ### 🏗️ Architecture & Design
 - **[Architecture Overview](architecture.md)** - System design, data flow, and component interactions
 - **[Input Handling Guide](input-handling.md)** - Unified input architecture and best practices
-- **[Input Refactoring Summary](input-refactoring-summary.md)** ⭐ - Complete refactoring details and results
-- **[Input Refactoring Plan](input-refactoring-plan.md)** - Original design document for input system
 
 ### 🧪 Testing
 - **[Testing Documentation](testing/)** - Complete testing guides
@@ -22,6 +20,8 @@ Welcome to the comprehensive documentation for the A Drake's Story Map Editor. T
 
 ### 📚 Archive
 - **[Archived Documentation](archive/)** - Historical documents and resolved issues
+  - [Input Refactoring Summary](archive/input-refactoring-summary.md) ⭐ - Complete refactoring details
+  - [Input Refactoring Plan](archive/input-refactoring-plan.md) - Original design document
   - [Keyboard Input Fix](archive/keyboard-input-fix.md)
   - [UI Input Propagation Fix](archive/ui-input-propagation-fix.md)
   - [Move/Rotate Implementation Plan](archive/move-rotate-plan.md)
@@ -36,8 +36,6 @@ map-editor/
 ├── implementation-status.md           # Current development status
 ├── roadmap.md                         # Future development plans
 ├── input-handling.md                  # Unified input architecture guide
-├── input-refactoring-summary.md ⭐    # Input system refactoring results
-├── input-refactoring-plan.md          # Input system design document
 ├── rotation-system.md                 # Rotation system documentation
 ├── testing/                           # Testing documentation
 │   ├── README.md                      # Testing overview
@@ -45,6 +43,8 @@ map-editor/
 │   └── rotation-operations.md         # Rotation operation testing guide
 └── archive/                           # Historical documentation
     ├── README.md                      # Archive index
+    ├── input-refactoring-summary.md   # Completed: Input system refactoring ⭐
+    ├── input-refactoring-plan.md      # Completed: Input system design
     ├── keyboard-input-fix.md          # Resolved: Keyboard input issues
     ├── ui-input-propagation-fix.md    # Resolved: UI click propagation
     └── move-rotate-plan.md            # Completed: Move/rotate implementation
@@ -173,7 +173,7 @@ src/editor/
 - [Main Architecture](../../architecture.md) - Overall game architecture
 - [Map Loader System](../map-loader.md) - Map loading internals
 - [Contributing Guidelines](../../contributing.md) - How to contribute
-- [Input Refactoring Summary](input-refactoring-summary.md) ⭐ - Input system details
+- [Input Refactoring Summary](archive/input-refactoring-summary.md) ⭐ - Input system details (archived)
 
 ### User Documentation
 - [Map Editor - Getting Started](../../../user-guide/map-editor/getting-started.md)

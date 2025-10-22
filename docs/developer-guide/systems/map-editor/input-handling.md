@@ -11,7 +11,7 @@ As of October 2025, the map editor uses a unified input system with two main com
 1. **[`handle_keyboard_input()`](../../../../src/editor/tools/input.rs:105)** - Single system that reads all keyboard input and emits semantic events
 2. **[`handle_transformation_operations()`](../../../../src/editor/tools/input.rs:234)** - Single system that executes operations based on events
 
-This replaces the previous architecture of 15+ scattered input handler systems. See [Input Refactoring Summary](input-refactoring-summary.md) for details.
+This replaces the previous architecture of 15+ scattered input handler systems. See [Input Refactoring Summary](archive/input-refactoring-summary.md) for details.
 
 ## The Problem
 
@@ -319,7 +319,7 @@ The map editor underwent a major refactoring to unify input handling:
 - Improved maintainability (all shortcuts in one place)
 - Better separation of concerns (input reading vs execution)
 
-See [Input Refactoring Summary](input-refactoring-summary.md) for complete details.
+See [Input Refactoring Summary](archive/input-refactoring-summary.md) for complete details.
 
 ### Keyboard Input Fix (January 2025)
 
@@ -373,8 +373,8 @@ We check UI focus in each system rather than globally because:
 
 ## Related Documentation
 
-- [Input Refactoring Summary](input-refactoring-summary.md) - Details of the unified input system
-- [Input Refactoring Plan](input-refactoring-plan.md) - Original design document
+- [Input Refactoring Summary](archive/input-refactoring-summary.md) - Details of the unified input system (archived)
+- [Input Refactoring Plan](archive/input-refactoring-plan.md) - Original design document (archived)
 - [Map Editor Architecture](architecture.md) - Overall editor architecture
 - [Map Editor Controls](../../../user-guide/map-editor/controls.md) - User-facing controls guide
 - [Archived: Keyboard Input Fix](archive/keyboard-input-fix.md) - Historical fix

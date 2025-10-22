@@ -252,8 +252,8 @@ $ cargo run --bin map_editor
 - ✅ Consolidated three input handling documents into single [input-handling.md](input-handling.md)
 - ✅ Updated [input-handling.md](input-handling.md) to reflect unified input architecture
 - ✅ Updated [architecture.md](architecture.md) with new data flow diagrams
-- ✅ Created [input-refactoring-summary.md](input-refactoring-summary.md) (315 lines)
-- ✅ Created [input-refactoring-plan.md](input-refactoring-plan.md) (638 lines)
+- ✅ Created [input-refactoring-summary.md](archive/input-refactoring-summary.md) (315 lines) - Archived
+- ✅ Created [input-refactoring-plan.md](archive/input-refactoring-plan.md) (638 lines) - Archived
 - ✅ Created [testing/](testing/) directory with organized test documentation
 - ✅ Created [archive/](archive/) directory for historical documents
 - ✅ Moved redundant/outdated docs to archive with proper README

@@ -4,6 +4,49 @@ This directory contains historical documentation that has been superseded by con
 
 ## Archived Documents
 
+### [input-refactoring-summary.md](input-refactoring-summary.md) ⭐
+**Archived**: 2025-10-22
+**Reason**: Implementation completed, refactoring document moved to archive for historical reference
+
+**Original Purpose**: Comprehensive documentation of the input system refactoring that unified keyboard input handling.
+
+**Historical Context**: In October 2025, the map editor had 15 scattered input handling systems across multiple files, making the codebase difficult to maintain and extend. A major refactoring consolidated these into 2 unified systems:
+- Single keyboard input handler (`handle_keyboard_input`)
+- Dedicated transformation operations handler (`handle_transformation_operations`)
+
+This resulted in a 72% reduction in input systems (from 15 to 2) and ~500 lines of code removed.
+
+**Key Achievements**:
+- Event-driven architecture with `EditorInputEvent` enum
+- Context-aware key mapping (tool-specific shortcuts)
+- Clear separation of concerns (input reading vs. action execution)
+- Improved maintainability and extensibility
+
+**Current Documentation**:
+- Architecture: [architecture.md](../architecture.md)
+- Input handling guide: [input-handling.md](../input-handling.md)
+- Implementation status: [implementation-status.md](../implementation-status.md)
+
+### [input-refactoring-plan.md](input-refactoring-plan.md)
+**Archived**: 2025-10-22
+**Reason**: Implementation completed, planning document no longer needed for active development
+
+**Original Purpose**: Detailed implementation plan for refactoring the input system into a unified architecture.
+
+**Historical Context**: This 638-line document outlined the complete refactoring strategy, including:
+- Current state analysis (15 scattered systems)
+- Proposed architecture (event-driven design)
+- Step-by-step implementation plan
+- Technical considerations and best practices
+- Success criteria and validation steps
+
+**Status**: Implementation completed successfully. All planned features implemented and tested.
+
+**Current Documentation**:
+- Summary of results: [input-refactoring-summary.md](input-refactoring-summary.md)
+- Architecture: [architecture.md](../architecture.md)
+- Input handling guide: [input-handling.md](../input-handling.md)
+
 ### [keyboard-input-fix.md](keyboard-input-fix.md)
 **Archived**: 2025-10-22  
 **Reason**: Consolidated into [input-handling.md](../input-handling.md)
@@ -93,6 +136,6 @@ Archived Documentation
 
 ---
 
-**Archive Created**: 2025-10-22  
-**Last Updated**: 2025-10-22  
+**Archive Created**: 2025-10-22
+**Last Updated**: 2025-10-22 (Added input refactoring documents)
 **Maintainer**: Development Team

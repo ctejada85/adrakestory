@@ -496,7 +496,7 @@ The map editor uses a **unified, event-driven input architecture**:
 - **Testability**: Can test input mapping separately
 - **Performance**: Fewer systems to run each frame
 
-See [Input Refactoring Summary](input-refactoring-summary.md) for complete details.
+See [Input Refactoring Summary](archive/input-refactoring-summary.md) for complete details.
 
 ---
 
