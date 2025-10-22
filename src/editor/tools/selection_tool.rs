@@ -878,7 +878,9 @@ pub fn render_rotation_preview(
     }
 
     // Calculate rotated positions and check collisions
-    let original_positions: std::collections::HashSet<_> = 
+    // Create a set of original positions to use as "buffer space" - these positions
+    // are considered empty during rotation since the voxels are being moved
+    let original_positions: std::collections::HashSet<_> =
         active_transform.selected_voxels.iter().map(|v| v.pos).collect();
 
     // Create preview mesh
@@ -892,7 +894,10 @@ pub fn render_rotation_preview(
             active_transform.rotation_angle,
         );
 
-        // Check for collision (position occupied by non-selected voxel)
+        // Check for collision: position is valid if it's either:
+        // 1. Empty (no voxel at that position), OR
+        // 2. Occupied by a voxel that's part of the selection being rotated (buffer space)
+        // This ensures voxels can rotate into each other's original positions
         let is_valid = !editor_state
             .current_map
             .world
