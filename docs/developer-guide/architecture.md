@@ -183,6 +183,7 @@ src/
 ```rust
 #[derive(Component)]
 pub struct Player {
+    pub speed: f32,          // Movement speed
     pub velocity: Vec3,      // Current velocity
     pub is_grounded: bool,   // On ground?
     pub radius: f32,         // Collision radius
@@ -205,8 +206,12 @@ pub struct Voxel;
 ```rust
 #[derive(Component)]
 pub struct SubVoxel {
-    pub parent_voxel: IVec3,     // Parent voxel position
-    pub local_pos: IVec3,        // Position within parent (0-7)
+    pub parent_x: i32,
+    pub parent_y: i32,
+    pub parent_z: i32,
+    pub sub_x: i32,
+    pub sub_y: i32,
+    pub sub_z: i32,
 }
 ```
 
@@ -217,12 +222,13 @@ pub struct SubVoxel {
 ```rust
 #[derive(Component)]
 pub struct GameCamera {
-    pub rotation: f32,           // Current rotation angle
-    pub target_rotation: f32,    // Target for smooth rotation
+    pub original_rotation: Quat,  // Original rotation quaternion
+    pub target_rotation: Quat,    // Target rotation for smooth transitions
+    pub rotation_speed: f32,      // Speed of rotation interpolation
 }
 ```
 
-**Purpose**: Camera control and rotation state.
+**Purpose**: Camera control and rotation state with smooth interpolation.
 
 ### CollisionBox Component
 
@@ -274,12 +280,10 @@ pub struct SpatialGrid {
 
 ```rust
 #[derive(Resource, Default)]
-pub struct GameInitialized {
-    pub initialized: bool,
-}
+pub struct GameInitialized(pub bool);
 ```
 
-**Purpose**: Prevents duplicate world setup.
+**Purpose**: Prevents duplicate world setup. Tuple struct for simple boolean flag.
 
 ## Module Structure
 

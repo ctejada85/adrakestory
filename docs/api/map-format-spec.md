@@ -102,6 +102,7 @@ struct VoxelData {
     pos: (i32, i32, i32),
     voxel_type: VoxelType,
     pattern: Option<SubVoxelPattern>,
+    rotation_state: Option<RotationState>,
 }
 ```
 
@@ -112,6 +113,7 @@ struct VoxelData {
 | `pos` | (i32, i32, i32) | Yes | Within world bounds | Grid position |
 | `voxel_type` | VoxelType | Yes | Valid enum variant | Material type |
 | `pattern` | Option<SubVoxelPattern> | No | Valid enum variant or None | Shape pattern |
+| `rotation_state` | Option<RotationState> | No | Valid rotation state | Rotation applied to pattern |
 
 **Position Constraints:**
 - `0 <= pos.0 < width`
@@ -139,48 +141,126 @@ voxel_type: Stone
 
 ### SubVoxelPattern
 
-**Type**: Enum  
+**Type**: Enum
 **Variants:**
 
 | Variant | Sub-Voxels | Description |
 |---------|------------|-------------|
-| `Full` | 8×8×8 (512) | Solid cube |
-| `Platform` | 8×8×1 (64) | Thin horizontal platform |
-| `Staircase` | Variable | Progressive 8-step staircase |
-| `Pillar` | 2×2×8 (32) | Centered vertical column |
+| `Full` | 8×8×8 (512) | Solid cube (symmetric) |
+| `PlatformXZ` | 8×1×8 (64) | Horizontal platform on XZ plane |
+| `PlatformXY` | 8×8×1 (64) | Vertical wall on XY plane (facing Z) |
+| `PlatformYZ` | 1×8×8 (64) | Vertical wall on YZ plane (facing X) |
+| `StaircaseX` | Variable (288) | Stairs ascending in +X direction |
+| `StaircaseNegX` | Variable (288) | Stairs ascending in -X direction |
+| `StaircaseZ` | Variable (288) | Stairs ascending in +Z direction |
+| `StaircaseNegZ` | Variable (288) | Stairs ascending in -Z direction |
+| `Pillar` | 2×2×2 (8) | Centered cube (symmetric) |
 
 **RON Syntax:**
 ```ron
 pattern: Some(Full)
-pattern: Some(Platform)
-pattern: Some(Staircase)
+pattern: Some(PlatformXZ)
+pattern: Some(PlatformXY)
+pattern: Some(PlatformYZ)
+pattern: Some(StaircaseX)
+pattern: Some(StaircaseNegX)
+pattern: Some(StaircaseZ)
+pattern: Some(StaircaseNegZ)
 pattern: Some(Pillar)
 pattern: None  // Defaults to Full
+
+// Backward compatibility (deprecated but supported)
+pattern: Some(Platform)    // Maps to PlatformXZ
+pattern: Some(Staircase)   // Maps to StaircaseX
 ```
 
 **Pattern Details:**
 
-**Full**: All 512 sub-voxels present
-```
-for x in 0..8, y in 0..8, z in 0..8: spawn(x, y, z)
+**Full**: All 512 sub-voxels present (8×8×8)
+
+**PlatformXZ**: Horizontal slab (8×1×8)
+- Bottom layer only on XZ plane
+
+### RotationState
+
+**Type**: Struct  
+**Required**: No
+
+```rust
+struct RotationState {
+    axis: RotationAxis,
+    angle: i32,
+}
 ```
 
-**Platform**: Bottom layer only
-```
-for x in 0..8, z in 0..8: spawn(x, 0, z)
+**Fields:**
+
+| Field | Type | Required | Constraints | Description |
+|-------|------|----------|-------------|-------------|
+| `axis` | RotationAxis | Yes | Valid enum variant | Axis of rotation |
+| `angle` | i32 | Yes | 0-3 | Rotation angle in 90° increments |
+
+**Angle Values:**
+- `0` = 0° (no rotation)
+- `1` = 90° clockwise
+- `2` = 180°
+- `3` = 270° clockwise (or 90° counter-clockwise)
+
+**RON Syntax:**
+```ron
+rotation_state: Some((axis: Y, angle: 1))  // 90° around Y axis
+rotation_state: Some((axis: X, angle: 2))  // 180° around X axis
+rotation_state: None  // No rotation
 ```
 
-**Staircase**: Progressive height
-```
-for x in 0..8:
-    for y in 0..(x+1):
-        for z in 0..8: spawn(x, y, z)
+### RotationAxis
+
+**Type**: Enum  
+**Variants:**
+
+| Variant | Description |
+|---------|-------------|
+| `X` | Rotation around the X axis |
+| `Y` | Rotation around the Y axis (default) |
+| `Z` | Rotation around the Z axis |
+
+**RON Syntax:**
+```ron
+axis: X
+axis: Y
+axis: Z
 ```
 
-**Pillar**: Centered 2×2 column
+**Usage Example:**
+```ron
+(
+    pos: (1, 0, 1),
+    voxel_type: Stone,
+    pattern: Some(StaircaseX),
+    rotation_state: Some((axis: Y, angle: 1)),  // Rotate stairs 90° to face Z
+)
 ```
-for x in 3..5, y in 0..8, z in 3..5: spawn(x, y, z)
-```
+
+**PlatformXY**: Vertical wall (8×8×1)
+- Wall on XY plane, facing Z direction
+
+**PlatformYZ**: Vertical wall (1×8×8)
+- Wall on YZ plane, facing X direction
+
+**StaircaseX**: Progressive height in +X (288 sub-voxels)
+- Each step in X has progressively more height in Y
+
+**StaircaseNegX**: Progressive height in -X (288 sub-voxels)
+- Reverse of StaircaseX
+
+**StaircaseZ**: Progressive height in +Z (288 sub-voxels)
+- Each step in Z has progressively more height in Y
+
+**StaircaseNegZ**: Progressive height in -Z (288 sub-voxels)
+- Reverse of StaircaseZ
+
+**Pillar**: Centered 2×2×2 cube (8 sub-voxels)
+- Small centered cube, not a full-height column
 
 ### EntityData
 

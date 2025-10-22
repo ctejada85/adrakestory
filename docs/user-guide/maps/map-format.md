@@ -60,9 +60,10 @@ world: (
 
 ```ron
 (
-    pos: (i32, i32, i32),           // Position in grid
-    voxel_type: VoxelType,          // Material type
-    pattern: Option<SubVoxelPattern>, // Shape pattern
+    pos: (i32, i32, i32),              // Position in grid
+    voxel_type: VoxelType,             // Material type
+    pattern: Option<SubVoxelPattern>,  // Shape pattern
+    rotation_state: Option<RotationState>, // Rotation (optional)
 )
 ```
 
@@ -76,15 +77,44 @@ Stone   // Stone blocks
 
 **SubVoxelPattern Enum:**
 ```ron
-Full        // 8×8×8 solid cube
-Platform    // 8×8×1 thin platform
-Staircase   // 8-step progressive staircase
-Pillar      // 2×2×2 centered column
+Full           // 8×8×8 solid cube
+PlatformXZ     // 8×1×8 horizontal platform (XZ plane)
+PlatformXY     // 8×8×1 vertical wall (XY plane, facing Z)
+PlatformYZ     // 1×8×8 vertical wall (YZ plane, facing X)
+StaircaseX     // Stairs ascending in +X direction
+StaircaseNegX  // Stairs ascending in -X direction
+StaircaseZ     // Stairs ascending in +Z direction
+StaircaseNegZ  // Stairs ascending in -Z direction
+Pillar         // 2×2×2 centered cube
+
+// Backward compatibility (deprecated)
+Platform       // Maps to PlatformXZ
+Staircase      // Maps to StaircaseX
 ```
+
+**RotationState (Optional):**
+```ron
+rotation_state: Some((axis: Y, angle: 1))  // 90° rotation around Y axis
+rotation_state: Some((axis: X, angle: 2))  // 180° rotation around X axis
+rotation_state: None                        // No rotation (default)
+```
+
+**RotationAxis:**
+- `X` - Rotate around X axis
+- `Y` - Rotate around Y axis
+- `Z` - Rotate around Z axis
+
+**Angle Values:**
+- `0` = 0° (no rotation)
+- `1` = 90° clockwise
+- `2` = 180°
+- `3` = 270° clockwise
 
 **Validation:**
 - Position must be within world bounds: `0 <= pos < (width, height, depth)`
 - Pattern is optional (defaults to Full if None)
+- Rotation is optional (no rotation if None)
+- Rotation only affects patterns with orientation (platforms, staircases)
 
 ### EntityData
 
@@ -240,6 +270,48 @@ voxels: [
 ]
 ```
 
+
+### Rotated Platforms
+
+```ron
+voxels: [
+    // Horizontal platform
+    (pos: (0, 1, 0), voxel_type: Stone, pattern: Some(PlatformXZ), rotation_state: None),
+    // Vertical wall facing Z
+    (pos: (2, 1, 0), voxel_type: Stone, pattern: Some(PlatformXY), rotation_state: None),
+    // Vertical wall facing X
+    (pos: (4, 1, 0), voxel_type: Stone, pattern: Some(PlatformYZ), rotation_state: None),
+]
+```
+
+### Rotated Stairs
+
+```ron
+voxels: [
+    // Stairs going East (+X)
+    (pos: (0, 0, 0), voxel_type: Stone, pattern: Some(StaircaseX), rotation_state: None),
+    // Stairs going North (+Z)
+    (pos: (2, 0, 0), voxel_type: Stone, pattern: Some(StaircaseZ), rotation_state: None),
+    // Stairs going West (-X)
+    (pos: (4, 0, 0), voxel_type: Stone, pattern: Some(StaircaseNegX), rotation_state: None),
+    // Stairs going South (-Z)
+    (pos: (6, 0, 0), voxel_type: Stone, pattern: Some(StaircaseNegZ), rotation_state: None),
+]
+```
+
+### Using Rotation State
+
+```ron
+voxels: [
+    // Start with StaircaseX, rotate 90° around Y to face Z
+    (pos: (0, 0, 0), voxel_type: Stone, pattern: Some(StaircaseX), 
+     rotation_state: Some((axis: Y, angle: 1))),
+    
+    // Platform rotated 90° around X to become vertical
+    (pos: (2, 0, 0), voxel_type: Stone, pattern: Some(PlatformXZ),
+     rotation_state: Some((axis: X, angle: 1))),
+]
+```
 ### Platform Series
 
 ```ron

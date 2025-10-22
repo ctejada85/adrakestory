@@ -52,21 +52,44 @@ pub struct MapData {
 - Implements `Clone` for resource storage
 - `Debug` for development/debugging
 
-**SubVoxelPattern**: Defines voxel shapes
+**SubVoxelPattern**: Defines voxel shapes with orientation support
 
 ```rust
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SubVoxelPattern {
-    Full,        // 8×8×8 solid cube
-    Platform,    // 8×8×1 thin platform
-    Staircase,   // Progressive 8-step staircase
-    Pillar,      // 2×2×2 centered column
+    /// Full 8×8×8 cube of sub-voxels (symmetric, no orientation)
+    Full,
+    
+    // Platform variants (thin slabs in different orientations)
+    /// Thin 8×1×8 platform on XZ plane (horizontal, default)
+    #[serde(alias = "Platform")]  // For backward compatibility
+    PlatformXZ,
+    /// Thin 8×8×1 platform on XY plane (vertical wall facing Z)
+    PlatformXY,
+    /// Thin 1×8×8 platform on YZ plane (vertical wall facing X)
+    PlatformYZ,
+    
+    // Staircase variants (progressive height in different directions)
+    /// Stairs ascending in +X direction (default)
+    #[serde(alias = "Staircase")]  // For backward compatibility
+    StaircaseX,
+    /// Stairs ascending in -X direction
+    StaircaseNegX,
+    /// Stairs ascending in +Z direction
+    StaircaseZ,
+    /// Stairs ascending in -Z direction
+    StaircaseNegZ,
+    
+    /// Small 2×2×2 centered column (symmetric, no orientation)
+    Pillar,
 }
 ```
 
 **Implementation Details:**
 - Each pattern generates different sub-voxel configurations
-- Patterns are applied during spawning, not stored per sub-voxel
+- Patterns with orientation variants support proper rotation transformations
+- Backward compatibility: `Platform` maps to `PlatformXZ`, `Staircase` maps to `StaircaseX`
+- Patterns are applied during spawning using the geometry system
 - Enables high detail without excessive memory usage
 
 ### loader.rs - File Loading
@@ -238,60 +261,36 @@ fn spawn_voxels(
 
 **Sub-Voxel Pattern Implementation:**
 
+The actual implementation uses a geometry-based system for flexibility and rotation support:
+
 ```rust
-fn spawn_sub_voxels(
-    commands: &mut Commands,
-    parent: Entity,
-    voxel_data: &VoxelData,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    spatial_grid: &mut SpatialGrid,
-) {
-    let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
-    
-    match pattern {
-        SubVoxelPattern::Full => {
-            // Spawn all 8×8×8 = 512 sub-voxels
-            for x in 0..8 {
-                for y in 0..8 {
-                    for z in 0..8 {
-                        spawn_sub_voxel(commands, parent, IVec3::new(x, y, z), meshes, materials, spatial_grid);
-                    }
-                }
-            }
-        }
-        SubVoxelPattern::Platform => {
-            // Spawn only bottom layer (8×1×8 = 64 sub-voxels)
-            for x in 0..8 {
-                for z in 0..8 {
-                    spawn_sub_voxel(commands, parent, IVec3::new(x, 0, z), meshes, materials, spatial_grid);
-                }
-            }
-        }
-        SubVoxelPattern::Staircase => {
-            // Spawn progressive steps
-            for x in 0..8 {
-                let height = x + 1; // Height increases with x
-                for y in 0..height {
-                    for z in 0..8 {
-                        spawn_sub_voxel(commands, parent, IVec3::new(x, y, z), meshes, materials, spatial_grid);
-                    }
-                }
-            }
-        }
-        SubVoxelPattern::Pillar => {
-            // Spawn centered 2×2×2 column
-            for x in 3..5 {
-                for y in 0..8 {
-                    for z in 3..5 {
-                        spawn_sub_voxel(commands, parent, IVec3::new(x, y, z), meshes, materials, spatial_grid);
-                    }
-                }
-            }
+fn spawn_voxels(ctx: &mut VoxelSpawnContext, map: &MapData, progress: &mut MapLoadProgress) {
+    for (index, voxel_data) in map.world.voxels.iter().enumerate() {
+        let (x, y, z) = voxel_data.pos;
+        
+        // Determine which pattern to use
+        let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
+        
+        // Get the geometry for this pattern with rotation applied
+        let geometry = pattern.geometry_with_rotation(voxel_data.rotation_state);
+        
+        // Spawn all occupied sub-voxels from the geometry
+        for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {
+            spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
         }
     }
 }
 ```
+
+**Pattern Geometry Examples:**
+
+- **Full**: All 512 sub-voxels (8×8×8)
+- **PlatformXZ**: 64 sub-voxels (8×1×8 horizontal)
+- **PlatformXY**: 64 sub-voxels (8×8×1 vertical wall)
+- **StaircaseX**: 288 sub-voxels (progressive height in +X)
+- **Pillar**: 8 sub-voxels (2×2×2 centered cube)
+
+The geometry system allows patterns to be rotated dynamically using the `rotation_state` field.
 
 ### error.rs - Error Handling
 
