@@ -173,7 +173,12 @@ impl SubVoxelPattern {
                     3 => Self::StaircaseNegZ,  // 270° CW around Y: +X -> -Z
                     _ => self,
                 },
-                RotationAxis::Z => Self::StaircaseX,  // Rotation around Z doesn't change X-direction stairs
+                RotationAxis::Z => match angle {
+                    1 => Self::StaircaseX,     // 90° CW around Z: stairs stay in X direction but flip
+                    2 => Self::StaircaseNegX,  // 180°: +X -> -X (flipped)
+                    3 => Self::StaircaseX,     // 270° CW around Z: back to original
+                    _ => self,
+                },
             },
             Self::StaircaseNegX => match axis {
                 RotationAxis::X => Self::StaircaseNegX,
@@ -183,27 +188,42 @@ impl SubVoxelPattern {
                     3 => Self::StaircaseZ,     // 270° CW around Y: -X -> +Z
                     _ => self,
                 },
-                RotationAxis::Z => Self::StaircaseNegX,
+                RotationAxis::Z => match angle {
+                    1 => Self::StaircaseNegX,  // 90° CW around Z: stairs stay in -X direction
+                    2 => Self::StaircaseX,     // 180°: -X -> +X (flipped)
+                    3 => Self::StaircaseNegX,  // 270° CW around Z: back to original
+                    _ => self,
+                },
             },
             Self::StaircaseZ => match axis {
-                RotationAxis::X => Self::StaircaseZ,
+                RotationAxis::X => match angle {
+                    1 => Self::StaircaseZ,     // 90° CW around X: stairs stay in Z direction
+                    2 => Self::StaircaseNegZ,  // 180°: +Z -> -Z (flipped)
+                    3 => Self::StaircaseZ,     // 270° CW around X: back to original
+                    _ => self,
+                },
                 RotationAxis::Y => match angle {
                     1 => Self::StaircaseNegX,  // 90° CW around Y: +Z -> -X
                     2 => Self::StaircaseNegZ,  // 180°: +Z -> -Z
                     3 => Self::StaircaseX,     // 270° CW around Y: +Z -> +X
                     _ => self,
                 },
-                RotationAxis::Z => Self::StaircaseZ,
+                RotationAxis::Z => Self::StaircaseZ,  // Rotation around Z doesn't change Z-direction stairs
             },
             Self::StaircaseNegZ => match axis {
-                RotationAxis::X => Self::StaircaseNegZ,
+                RotationAxis::X => match angle {
+                    1 => Self::StaircaseNegZ,  // 90° CW around X: stairs stay in -Z direction
+                    2 => Self::StaircaseZ,     // 180°: -Z -> +Z (flipped)
+                    3 => Self::StaircaseNegZ,  // 270° CW around X: back to original
+                    _ => self,
+                },
                 RotationAxis::Y => match angle {
                     1 => Self::StaircaseX,     // 90° CW around Y: -Z -> +X
                     2 => Self::StaircaseZ,     // 180°: -Z -> +Z
                     3 => Self::StaircaseNegX,  // 270° CW around Y: -Z -> -X
                     _ => self,
                 },
-                RotationAxis::Z => Self::StaircaseNegZ,
+                RotationAxis::Z => Self::StaircaseNegZ,  // Rotation around Z doesn't change Z-direction stairs
             },
         }
     }
