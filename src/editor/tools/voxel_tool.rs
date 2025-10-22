@@ -56,6 +56,7 @@ pub fn handle_voxel_placement(
         pos: grid_pos,
         voxel_type,
         pattern: Some(pattern),
+        rotation_state: None,
     };
 
     // Add to map

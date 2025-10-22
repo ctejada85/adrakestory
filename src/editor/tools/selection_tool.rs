@@ -892,8 +892,9 @@ pub fn render_rotation_preview(
     let original_positions: std::collections::HashSet<_> =
         active_transform.selected_voxels.iter().map(|v| v.pos).collect();
 
-    // Create preview mesh
-    let preview_mesh = meshes.add(Cuboid::new(0.95, 0.95, 0.95));
+    // Create sub-voxel mesh for detailed preview
+    const SUB_VOXEL_SIZE: f32 = 1.0 / 8.0;
+    let sub_voxel_mesh = meshes.add(Cuboid::new(SUB_VOXEL_SIZE, SUB_VOXEL_SIZE, SUB_VOXEL_SIZE));
 
     for voxel in &active_transform.selected_voxels {
         let new_pos = rotate_position(
@@ -914,6 +915,15 @@ pub fn render_rotation_preview(
             .iter()
             .any(|v| v.pos == new_pos && !original_positions.contains(&v.pos));
 
+        // Get the rotated geometry for preview
+        use crate::systems::game::map::format::{RotationState, SubVoxelPattern};
+        let pattern = voxel.pattern.unwrap_or(SubVoxelPattern::Full);
+        let rotation_state = Some(RotationState::new(
+            active_transform.rotation_axis,
+            active_transform.rotation_angle,
+        ));
+        let geometry = pattern.geometry_with_rotation(rotation_state);
+
         // Create material based on validity
         let material = materials.add(StandardMaterial {
             base_color: if is_valid {
@@ -926,17 +936,24 @@ pub fn render_rotation_preview(
             ..default()
         });
 
-        // Spawn preview
-        commands.spawn((
-            Mesh3d(preview_mesh.clone()),
-            MeshMaterial3d(material),
-            Transform::from_xyz(new_pos.0 as f32, new_pos.1 as f32, new_pos.2 as f32),
-            TransformPreview {
-                original_pos: voxel.pos,
-                preview_pos: new_pos,
-                is_valid,
-            },
-        ));
+        // Spawn preview sub-voxels showing the rotated geometry
+        for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {
+            let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
+            let world_x = new_pos.0 as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
+            let world_y = new_pos.1 as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
+            let world_z = new_pos.2 as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
+
+            commands.spawn((
+                Mesh3d(sub_voxel_mesh.clone()),
+                MeshMaterial3d(material.clone()),
+                Transform::from_xyz(world_x, world_y, world_z),
+                TransformPreview {
+                    original_pos: voxel.pos,
+                    preview_pos: new_pos,
+                    is_valid,
+                },
+            ));
+        }
     }
 }
 
@@ -1000,12 +1017,24 @@ pub fn confirm_rotation(
         {
             map_voxel.pos = new_pos;
             
-            // Transform the subvoxel pattern if present
-            if let Some(pattern) = map_voxel.pattern {
-                map_voxel.pattern = Some(pattern.rotate(
-                    active_transform.rotation_axis,
-                    active_transform.rotation_angle,
-                ));
+            // Update or create rotation state for the voxel
+            if map_voxel.pattern.is_some() {
+                use crate::systems::game::map::format::RotationState;
+                
+                // Compose with existing rotation or create new rotation state
+                map_voxel.rotation_state = Some(
+                    if let Some(existing_rotation) = map_voxel.rotation_state {
+                        existing_rotation.compose(
+                            active_transform.rotation_axis,
+                            active_transform.rotation_angle,
+                        )
+                    } else {
+                        RotationState::new(
+                            active_transform.rotation_axis,
+                            active_transform.rotation_angle,
+                        )
+                    }
+                );
             }
             
             rotated_voxels.push((old_pos, new_pos));
@@ -1032,13 +1061,25 @@ pub fn confirm_rotation(
                         .unwrap()
                         .clone();
                     
-                    // Transform the pattern for the new voxel
-                    let new_pattern = voxel_data.pattern.map(|p| {
-                        p.rotate(
-                            active_transform.rotation_axis,
-                            active_transform.rotation_angle,
+                    // Update rotation state for the new voxel
+                    use crate::systems::game::map::format::RotationState;
+                    let new_rotation_state = if voxel_data.pattern.is_some() {
+                        Some(
+                            if let Some(existing_rotation) = voxel_data.rotation_state {
+                                existing_rotation.compose(
+                                    active_transform.rotation_axis,
+                                    active_transform.rotation_angle,
+                                )
+                            } else {
+                                RotationState::new(
+                                    active_transform.rotation_axis,
+                                    active_transform.rotation_angle,
+                                )
+                            }
                         )
-                    });
+                    } else {
+                        voxel_data.rotation_state
+                    };
                     
                     // Create a remove and place action pair
                     EditorAction::Batch {
@@ -1052,7 +1093,7 @@ pub fn confirm_rotation(
                                 pos: *new_pos,
                                 data: VoxelData {
                                     pos: *new_pos,
-                                    pattern: new_pattern,
+                                    rotation_state: new_rotation_state,
                                     ..voxel_data
                                 },
                             },

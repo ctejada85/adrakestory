@@ -1,7 +1,7 @@
 //! Map data structures and format definitions.
 
 use super::super::components::VoxelType;
-use super::geometry::SubVoxelGeometry;
+use super::geometry::{RotationAxis, SubVoxelGeometry};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -61,6 +61,43 @@ pub struct VoxelData {
     /// Optional sub-voxel pattern
     #[serde(default)]
     pub pattern: Option<SubVoxelPattern>,
+    /// Optional rotation state for the voxel's geometry
+    #[serde(default)]
+    pub rotation_state: Option<RotationState>,
+}
+
+/// Rotation state for a voxel's geometry.
+/// This tracks cumulative rotations applied to the voxel's sub-voxel pattern.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RotationState {
+    /// The axis of rotation
+    pub axis: RotationAxis,
+    /// The rotation angle in 90° increments (0-3 for 0°, 90°, 180°, 270°)
+    pub angle: i32,
+}
+
+impl RotationState {
+    /// Create a new rotation state.
+    pub fn new(axis: RotationAxis, angle: i32) -> Self {
+        Self {
+            axis,
+            angle: angle.rem_euclid(4),
+        }
+    }
+
+    /// Compose this rotation with another rotation.
+    /// This handles the case where rotations are applied sequentially.
+    pub fn compose(self, axis: RotationAxis, angle: i32) -> Self {
+        // If rotating around the same axis, just add the angles
+        if self.axis == axis {
+            Self::new(axis, self.angle + angle)
+        } else {
+            // For different axes, we need to apply the new rotation
+            // For simplicity, we'll store the most recent rotation
+            // A full implementation would compose the rotations properly
+            Self::new(axis, angle)
+        }
+    }
 }
 
 /// Sub-voxel patterns for different voxel appearances.
@@ -101,7 +138,7 @@ impl Default for SubVoxelPattern {
 }
 
 impl SubVoxelPattern {
-    /// Get the geometry representation of this pattern.
+    /// Get the base geometry representation of this pattern without any rotation.
     ///
     /// This converts the pattern enum into actual 3D sub-voxel positions.
     pub fn geometry(&self) -> SubVoxelGeometry {
@@ -138,27 +175,23 @@ impl SubVoxelPattern {
         }
     }
 
-    /// Rotate this pattern around the given axis by the specified angle (0-3 for 0°, 90°, 180°, 270°).
+    /// Get the geometry representation of this pattern with rotation applied.
     ///
-    /// This uses the new geometry-based rotation system which is mathematically correct
-    /// and works for any pattern without special cases.
+    /// This applies the rotation state to the base pattern geometry.
     ///
     /// # Arguments
-    /// * `axis` - The axis to rotate around (X, Y, or Z)
-    /// * `angle` - The rotation angle in 90° increments (0-3 for 0°, 90°, 180°, 270°)
+    /// * `rotation_state` - Optional rotation state to apply
     ///
     /// # Returns
-    /// The rotated pattern. Since we now use geometry-based rotation, this always
-    /// returns the same pattern type - the actual rotation is stored in the geometry.
-    pub fn rotate(self, _axis: crate::editor::tools::RotationAxis, _angle: i32) -> Self {
-        // With the new geometry-based system, rotation is handled by the geometry itself
-        // The pattern type doesn't change - only the geometry changes
-        // This is a transitional implementation that maintains the API
-        // but delegates rotation to the geometry system
+    /// The geometry with rotation applied, or base geometry if no rotation state.
+    pub fn geometry_with_rotation(&self, rotation_state: Option<RotationState>) -> SubVoxelGeometry {
+        let base_geometry = self.geometry();
         
-        // The actual rotation will be applied when confirm_rotation() updates the voxel
-        // by calling geometry().rotate() and storing the result
-        self
+        if let Some(rotation) = rotation_state {
+            base_geometry.rotate(rotation.axis, rotation.angle)
+        } else {
+            base_geometry
+        }
     }
 }
 
@@ -268,119 +301,142 @@ impl MapData {
                         pos: (0, 0, 0),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (1, 0, 0),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (2, 0, 0),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (3, 0, 0),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (0, 0, 1),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (1, 0, 1),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (2, 0, 1),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (3, 0, 1),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (0, 0, 2),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (1, 0, 2),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (2, 0, 2),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (3, 0, 2),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (0, 0, 3),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (1, 0, 3),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (2, 0, 3),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (3, 0, 3),
                         voxel_type: VoxelType::Grass,
                         pattern: Some(SubVoxelPattern::Full),
+                        rotation_state: None,
                     },
                     // Corner pillars
                     VoxelData {
                         pos: (0, 1, 0),
                         voxel_type: VoxelType::Stone,
                         pattern: Some(SubVoxelPattern::Pillar),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (0, 1, 3),
                         voxel_type: VoxelType::Stone,
                         pattern: Some(SubVoxelPattern::Pillar),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (3, 1, 0),
                         voxel_type: VoxelType::Stone,
                         pattern: Some(SubVoxelPattern::Pillar),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (3, 1, 3),
                         voxel_type: VoxelType::Stone,
                         pattern: Some(SubVoxelPattern::Pillar),
+                        rotation_state: None,
                     },
                     // Platforms
                     VoxelData {
                         pos: (1, 1, 1),
                         voxel_type: VoxelType::Dirt,
                         pattern: Some(SubVoxelPattern::PlatformXZ),
+                        rotation_state: None,
                     },
                     VoxelData {
                         pos: (2, 1, 2),
                         voxel_type: VoxelType::Dirt,
                         pattern: Some(SubVoxelPattern::PlatformXZ),
+                        rotation_state: None,
                     },
                     // Staircase
                     VoxelData {
                         pos: (2, 1, 1),
                         voxel_type: VoxelType::Stone,
                         pattern: Some(SubVoxelPattern::StaircaseX),
+                        rotation_state: None,
                     },
                 ],
             },

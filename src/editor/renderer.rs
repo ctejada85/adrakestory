@@ -76,8 +76,8 @@ pub fn render_map_system(
         let (x, y, z) = voxel_data.pos;
         let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
         
-        // Get the geometry for this pattern
-        let geometry = pattern.geometry();
+        // Get the geometry for this pattern with rotation applied
+        let geometry = pattern.geometry_with_rotation(voxel_data.rotation_state);
         
         // Spawn all occupied sub-voxels from the geometry
         for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {

@@ -114,19 +114,12 @@ fn spawn_voxels(ctx: &mut VoxelSpawnContext, map: &MapData, progress: &mut MapLo
         // Determine which pattern to use
         let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
 
-        match pattern {
-            SubVoxelPattern::Full => {
-                spawn_full_voxel_sub_voxels(ctx, x, y, z);
-            }
-            SubVoxelPattern::PlatformXZ | SubVoxelPattern::PlatformXY | SubVoxelPattern::PlatformYZ => {
-                spawn_platform_sub_voxels(ctx, x, y, z, pattern);
-            }
-            SubVoxelPattern::StaircaseX | SubVoxelPattern::StaircaseNegX | SubVoxelPattern::StaircaseZ | SubVoxelPattern::StaircaseNegZ => {
-                spawn_staircase_sub_voxels(ctx, x, y, z, pattern);
-            }
-            SubVoxelPattern::Pillar => {
-                spawn_pillar_sub_voxels(ctx, x, y, z);
-            }
+        // Get the geometry for this pattern with rotation applied
+        let geometry = pattern.geometry_with_rotation(voxel_data.rotation_state);
+
+        // Spawn all occupied sub-voxels from the geometry
+        for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {
+            spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
         }
     }
 }
@@ -258,123 +251,7 @@ fn spawn_camera(commands: &mut Commands, map: &MapData) {
     ));
 }
 
-// Sub-voxel spawning functions (same as in world_generation.rs)
-
-fn spawn_staircase_sub_voxels(ctx: &mut VoxelSpawnContext, x: i32, y: i32, z: i32, pattern: SubVoxelPattern) {
-    match pattern {
-        SubVoxelPattern::StaircaseX => {
-            // Stairs ascending in +X direction
-            for step in 0..SUB_VOXEL_COUNT {
-                let step_height = step + 1;
-                for sub_x in step..(step + 1) {
-                    for sub_y in 0..step_height {
-                        for sub_z in 0..SUB_VOXEL_COUNT {
-                            spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
-                        }
-                    }
-                }
-            }
-        }
-        SubVoxelPattern::StaircaseNegX => {
-            // Stairs ascending in -X direction
-            for step in 0..SUB_VOXEL_COUNT {
-                let step_height = step + 1;
-                let sub_x = SUB_VOXEL_COUNT - 1 - step;
-                for sub_y in 0..step_height {
-                    for sub_z in 0..SUB_VOXEL_COUNT {
-                        spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
-                    }
-                }
-            }
-        }
-        SubVoxelPattern::StaircaseZ => {
-            // Stairs ascending in +Z direction
-            for step in 0..SUB_VOXEL_COUNT {
-                let step_height = step + 1;
-                for sub_z in step..(step + 1) {
-                    for sub_y in 0..step_height {
-                        for sub_x in 0..SUB_VOXEL_COUNT {
-                            spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
-                        }
-                    }
-                }
-            }
-        }
-        SubVoxelPattern::StaircaseNegZ => {
-            // Stairs ascending in -Z direction
-            for step in 0..SUB_VOXEL_COUNT {
-                let step_height = step + 1;
-                let sub_z = SUB_VOXEL_COUNT - 1 - step;
-                for sub_y in 0..step_height {
-                    for sub_x in 0..SUB_VOXEL_COUNT {
-                        spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
-                    }
-                }
-            }
-        }
-        _ => {}
-    }
-}
-
-fn spawn_platform_sub_voxels(ctx: &mut VoxelSpawnContext, x: i32, y: i32, z: i32, pattern: SubVoxelPattern) {
-    match pattern {
-        SubVoxelPattern::PlatformXZ => {
-            // Horizontal platform (8x1x8)
-            for sub_x in 0..SUB_VOXEL_COUNT {
-                for sub_y in 0..1 {
-                    for sub_z in 0..SUB_VOXEL_COUNT {
-                        spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
-                    }
-                }
-            }
-        }
-        SubVoxelPattern::PlatformXY => {
-            // Vertical wall facing Z (8x8x1)
-            for sub_x in 0..SUB_VOXEL_COUNT {
-                for sub_y in 0..SUB_VOXEL_COUNT {
-                    for sub_z in 0..1 {
-                        spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
-                    }
-                }
-            }
-        }
-        SubVoxelPattern::PlatformYZ => {
-            // Vertical wall facing X (1x8x8)
-            for sub_x in 0..1 {
-                for sub_y in 0..SUB_VOXEL_COUNT {
-                    for sub_z in 0..SUB_VOXEL_COUNT {
-                        spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
-                    }
-                }
-            }
-        }
-        _ => {}
-    }
-}
-
-fn spawn_pillar_sub_voxels(ctx: &mut VoxelSpawnContext, x: i32, y: i32, z: i32) {
-    let pillar_count = 2;
-    let pillar_start = 3;
-
-    for sub_x in pillar_start..(pillar_start + pillar_count) {
-        for sub_y in pillar_start..(pillar_start + pillar_count) {
-            for sub_z in pillar_start..(pillar_start + pillar_count) {
-                spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
-            }
-        }
-    }
-}
-
-fn spawn_full_voxel_sub_voxels(ctx: &mut VoxelSpawnContext, x: i32, y: i32, z: i32) {
-    for sub_x in 0..SUB_VOXEL_COUNT {
-        for sub_y in 0..SUB_VOXEL_COUNT {
-            for sub_z in 0..SUB_VOXEL_COUNT {
-                spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
-            }
-        }
-    }
-}
-
+/// Spawn a single sub-voxel at the specified position.
 fn spawn_sub_voxel(
     ctx: &mut VoxelSpawnContext,
     x: i32,
