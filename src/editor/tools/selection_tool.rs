@@ -101,10 +101,17 @@ pub struct UpdateRotation {
 pub fn handle_selection(
     mut editor_state: ResMut<EditorState>,
     mouse_button: Res<ButtonInput<MouseButton>>,
+    mut contexts: EguiContexts,
     mut update_events: EventWriter<UpdateSelectionHighlights>,
 ) {
     // Check if select tool is active
     if !matches!(editor_state.active_tool, EditorTool::Select) {
+        return;
+    }
+
+    // Check if UI wants pointer input (user is interacting with UI elements)
+    let ui_wants_input = contexts.ctx_mut().wants_pointer_input();
+    if ui_wants_input {
         return;
     }
 
@@ -487,12 +494,13 @@ pub fn confirm_transform(
         return;
     }
 
-    // Check if UI wants keyboard input
-    let ui_wants_input = contexts.ctx_mut().wants_keyboard_input();
+    // Check if UI wants input
+    let ui_wants_keyboard = contexts.ctx_mut().wants_keyboard_input();
+    let ui_wants_pointer = contexts.ctx_mut().wants_pointer_input();
     
     // Check for confirmation input (only if UI doesn't want input)
-    let should_confirm = (!ui_wants_input && keyboard.just_pressed(KeyCode::Enter))
-        || (!ui_wants_input && mouse_button.just_pressed(MouseButton::Left))
+    let should_confirm = (!ui_wants_keyboard && keyboard.just_pressed(KeyCode::Enter))
+        || (!ui_wants_pointer && mouse_button.just_pressed(MouseButton::Left))
         || confirm_events.read().count() > 0;
 
     if !should_confirm {
@@ -597,12 +605,13 @@ pub fn cancel_transform(
         return;
     }
 
-    // Check if UI wants keyboard input
-    let ui_wants_input = contexts.ctx_mut().wants_keyboard_input();
+    // Check if UI wants input
+    let ui_wants_keyboard = contexts.ctx_mut().wants_keyboard_input();
+    let ui_wants_pointer = contexts.ctx_mut().wants_pointer_input();
     
     // Check for cancellation input (only if UI doesn't want input)
-    let should_cancel = (!ui_wants_input && keyboard.just_pressed(KeyCode::Escape))
-        || (!ui_wants_input && mouse_button.just_pressed(MouseButton::Right))
+    let should_cancel = (!ui_wants_keyboard && keyboard.just_pressed(KeyCode::Escape))
+        || (!ui_wants_pointer && mouse_button.just_pressed(MouseButton::Right))
         || cancel_events.read().count() > 0;
 
     if should_cancel {
@@ -949,12 +958,13 @@ pub fn confirm_rotation(
         return;
     }
 
-    // Check if UI wants keyboard input
-    let ui_wants_input = contexts.ctx_mut().wants_keyboard_input();
+    // Check if UI wants input
+    let ui_wants_keyboard = contexts.ctx_mut().wants_keyboard_input();
+    let ui_wants_pointer = contexts.ctx_mut().wants_pointer_input();
     
     // Check for confirmation input (only if UI doesn't want input)
-    let should_confirm = (!ui_wants_input && keyboard.just_pressed(KeyCode::Enter))
-        || (!ui_wants_input && mouse_button.just_pressed(MouseButton::Left))
+    let should_confirm = (!ui_wants_keyboard && keyboard.just_pressed(KeyCode::Enter))
+        || (!ui_wants_pointer && mouse_button.just_pressed(MouseButton::Left))
         || confirm_events.read().count() > 0;
 
     if !should_confirm {

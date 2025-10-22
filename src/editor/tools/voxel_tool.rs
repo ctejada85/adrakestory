@@ -4,12 +4,14 @@ use crate::editor::history::{EditorAction, EditorHistory};
 use crate::editor::state::{EditorState, EditorTool};
 use crate::systems::game::map::format::VoxelData;
 use bevy::prelude::*;
+use bevy_egui::EguiContexts;
 
 /// Handle voxel placement when the tool is active
 pub fn handle_voxel_placement(
     mut editor_state: ResMut<EditorState>,
     mut history: ResMut<EditorHistory>,
     mouse_button: Res<ButtonInput<MouseButton>>,
+    mut contexts: EguiContexts,
 ) {
     // Check if voxel place tool is active
     let (voxel_type, pattern) = match &editor_state.active_tool {
@@ -19,6 +21,12 @@ pub fn handle_voxel_placement(
         } => (*voxel_type, *pattern),
         _ => return,
     };
+
+    // Check if UI wants pointer input (user is interacting with UI elements)
+    let ui_wants_input = contexts.ctx_mut().wants_pointer_input();
+    if ui_wants_input {
+        return;
+    }
 
     // Check if left mouse button was just pressed
     if !mouse_button.just_pressed(MouseButton::Left) {
@@ -73,16 +81,21 @@ pub fn handle_voxel_removal(
     mut history: ResMut<EditorHistory>,
     mouse_button: Res<ButtonInput<MouseButton>>,
     keyboard: Res<ButtonInput<KeyCode>>,
+    mut contexts: EguiContexts,
 ) {
     // Check if voxel remove tool is active
     if !matches!(editor_state.active_tool, EditorTool::VoxelRemove) {
         return;
     }
 
-    // Check if left mouse button or delete key was just pressed
-    let should_remove = mouse_button.just_pressed(MouseButton::Left)
-        || keyboard.just_pressed(KeyCode::Delete)
-        || keyboard.just_pressed(KeyCode::Backspace);
+    // Check if UI wants input (user is interacting with UI elements)
+    let ui_wants_pointer = contexts.ctx_mut().wants_pointer_input();
+    let ui_wants_keyboard = contexts.ctx_mut().wants_keyboard_input();
+
+    // Check if left mouse button or delete key was just pressed (only if UI doesn't want input)
+    let should_remove = (!ui_wants_pointer && mouse_button.just_pressed(MouseButton::Left))
+        || (!ui_wants_keyboard && (keyboard.just_pressed(KeyCode::Delete)
+            || keyboard.just_pressed(KeyCode::Backspace)));
 
     if !should_remove {
         return;

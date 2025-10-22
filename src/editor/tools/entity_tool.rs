@@ -4,6 +4,7 @@ use crate::editor::history::{EditorAction, EditorHistory};
 use crate::editor::state::{EditorState, EditorTool};
 use crate::systems::game::map::format::EntityData;
 use bevy::prelude::*;
+use bevy_egui::EguiContexts;
 use std::collections::HashMap;
 
 /// Handle entity placement when the tool is active
@@ -11,12 +12,19 @@ pub fn handle_entity_placement(
     mut editor_state: ResMut<EditorState>,
     mut history: ResMut<EditorHistory>,
     mouse_button: Res<ButtonInput<MouseButton>>,
+    mut contexts: EguiContexts,
 ) {
     // Check if entity place tool is active
     let entity_type = match &editor_state.active_tool {
         EditorTool::EntityPlace { entity_type } => *entity_type,
         _ => return,
     };
+
+    // Check if UI wants pointer input (user is interacting with UI elements)
+    let ui_wants_input = contexts.ctx_mut().wants_pointer_input();
+    if ui_wants_input {
+        return;
+    }
 
     // Check if left mouse button was just pressed
     if !mouse_button.just_pressed(MouseButton::Left) {
