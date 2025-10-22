@@ -11,7 +11,9 @@ Welcome to the comprehensive documentation for the A Drake's Story Map Editor. T
 
 ### 🏗️ Architecture & Design
 - **[Architecture Overview](architecture.md)** - System design, data flow, and component interactions
-- **[Input Handling Guide](input-handling.md)** - Comprehensive guide to UI/canvas input separation
+- **[Input Handling Guide](input-handling.md)** - Unified input architecture and best practices
+- **[Input Refactoring Summary](input-refactoring-summary.md)** ⭐ - Complete refactoring details and results
+- **[Input Refactoring Plan](input-refactoring-plan.md)** - Original design document for input system
 
 ### 🧪 Testing
 - **[Testing Documentation](testing/)** - Complete testing guides
@@ -28,20 +30,24 @@ Welcome to the comprehensive documentation for the A Drake's Story Map Editor. T
 
 ```
 map-editor/
-├── README.md                      # This file - navigation hub
-├── architecture.md                # System architecture and design patterns
-├── design.md                      # Feature specifications
-├── implementation-status.md       # Current development status
-├── roadmap.md                     # Future development plans
-├── input-handling.md              # Input handling patterns and best practices
-├── testing/                       # Testing documentation
-│   ├── README.md                  # Testing overview
-│   ├── move-operations.md         # Move operation testing guide
-│   └── rotation-operations.md     # Rotation operation testing guide
-└── archive/                       # Historical documentation
-    ├── keyboard-input-fix.md      # Resolved: Keyboard input issues
-    ├── ui-input-propagation-fix.md # Resolved: UI click propagation
-    └── move-rotate-plan.md        # Completed: Move/rotate implementation
+├── README.md                          # This file - navigation hub
+├── architecture.md                    # System architecture and design patterns
+├── design.md                          # Feature specifications
+├── implementation-status.md           # Current development status
+├── roadmap.md                         # Future development plans
+├── input-handling.md                  # Unified input architecture guide
+├── input-refactoring-summary.md ⭐    # Input system refactoring results
+├── input-refactoring-plan.md          # Input system design document
+├── rotation-system.md                 # Rotation system documentation
+├── testing/                           # Testing documentation
+│   ├── README.md                      # Testing overview
+│   ├── move-operations.md             # Move operation testing guide
+│   └── rotation-operations.md         # Rotation operation testing guide
+└── archive/                           # Historical documentation
+    ├── README.md                      # Archive index
+    ├── keyboard-input-fix.md          # Resolved: Keyboard input issues
+    ├── ui-input-propagation-fix.md    # Resolved: UI click propagation
+    └── move-rotate-plan.md            # Completed: Move/rotate implementation
 ```
 
 ## Getting Started
@@ -73,7 +79,11 @@ User-facing documentation is located in:
 - **Selection Tool**: Select, move, and rotate voxels
 - **File Operations**: Open and load .ron map files
 - **History System**: Undo/redo for all operations
-- **Input Handling**: Proper UI/canvas input separation
+- **Unified Input System** ⭐: Event-driven architecture with 72% system reduction
+  - Single keyboard input handler
+  - Context-aware key mapping
+  - Clear separation of concerns
+  - Improved maintainability
 
 ### 🚧 In Progress
 - File save operations
@@ -103,6 +113,7 @@ src/editor/
 ├── cursor.rs           # 3D cursor ray casting
 ├── renderer.rs         # Map rendering
 ├── tools/              # Editing tools
+│   ├── input.rs        # Unified input handling ⭐ NEW
 │   ├── voxel_tool.rs   # Voxel placement/removal
 │   ├── entity_tool.rs  # Entity placement
 │   └── selection_tool.rs # Selection and transformation
@@ -131,10 +142,11 @@ src/editor/
 6. Document in design.md and create test guide
 
 ### Adding a Keyboard Shortcut
-1. Add handler system with `wants_keyboard_input()` check
-2. Register system in `map_editor.rs`
-3. Update [Controls Reference](../../../user-guide/map-editor/controls.md)
-4. Add to keyboard shortcuts help dialog
+1. Add key mapping to `handle_keyboard_input()` in `input.rs`
+2. Add corresponding `EditorInputEvent` variant if needed
+3. Handle event in `handle_transformation_operations()` or create new handler
+4. Update [Controls Reference](../../../user-guide/map-editor/controls.md)
+5. Add to keyboard shortcuts help dialog
 
 ### Fixing Input Issues
 1. Review [Input Handling Guide](input-handling.md)
@@ -161,6 +173,7 @@ src/editor/
 - [Main Architecture](../../architecture.md) - Overall game architecture
 - [Map Loader System](../map-loader.md) - Map loading internals
 - [Contributing Guidelines](../../contributing.md) - How to contribute
+- [Input Refactoring Summary](input-refactoring-summary.md) ⭐ - Input system details
 
 ### User Documentation
 - [Map Editor - Getting Started](../../../user-guide/map-editor/getting-started.md)
@@ -174,12 +187,13 @@ src/editor/
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.1.0 | 2025-10-22 | Input system refactoring complete (72% system reduction) |
 | 2.0.0 | 2025-10-22 | Documentation reorganization and consolidation |
 | 1.1.0 | 2025-01-15 | File operations and rendering complete |
 | 1.0.0 | 2025-01-10 | Initial map editor implementation |
 
 ---
 
-**Last Updated**: 2025-10-22  
-**Maintainer**: Development Team  
-**Status**: Active Development
+**Last Updated**: 2025-10-22
+**Maintainer**: Development Team
+**Status**: Active Development - Input System Refactored ⭐

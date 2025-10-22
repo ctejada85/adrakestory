@@ -227,9 +227,33 @@ $ cargo run --bin map_editor
 
 ## ✅ Recently Completed (2025-10-22)
 
+### Input System Refactoring ⭐ MAJOR UPDATE
+- ✅ **Unified Input Architecture**: Replaced 15 scattered input systems with 2 unified systems
+- ✅ **New Module**: Created [`src/editor/tools/input.rs`](../../../../src/editor/tools/input.rs) (673 lines)
+  - `EditorInputEvent` enum for semantic input events
+  - `handle_keyboard_input()` - Single entry point for all keyboard input
+  - `handle_transformation_operations()` - Event-driven transformation execution
+- ✅ **System Reduction**: 72% reduction in total systems (18 → 5)
+  - Input handlers: 7 → 1 (86% reduction)
+  - Transformation systems: 8 → 1 (88% reduction)
+  - Rendering systems: 3 → 3 (unchanged)
+- ✅ **Code Cleanup**: Removed ~500 lines of obsolete code from `selection_tool.rs`
+- ✅ **Benefits Achieved**:
+  - Single UI focus check instead of 7+ duplicates
+  - All keyboard shortcuts in one place
+  - Clear separation of concerns (input reading vs execution)
+  - Event-driven architecture for better testability
+  - Improved maintainability and extensibility
+- ✅ **Documentation**: Complete refactoring plan, summary, and updated architecture docs
+- ✅ **Build Status**: ✅ Verified successful with `cargo build --bin map_editor`
+
 ### Documentation Reorganization
 - ✅ Created comprehensive [map-editor README.md](README.md) for navigation
 - ✅ Consolidated three input handling documents into single [input-handling.md](input-handling.md)
+- ✅ Updated [input-handling.md](input-handling.md) to reflect unified input architecture
+- ✅ Updated [architecture.md](architecture.md) with new data flow diagrams
+- ✅ Created [input-refactoring-summary.md](input-refactoring-summary.md) (315 lines)
+- ✅ Created [input-refactoring-plan.md](input-refactoring-plan.md) (638 lines)
 - ✅ Created [testing/](testing/) directory with organized test documentation
 - ✅ Created [archive/](archive/) directory for historical documents
 - ✅ Moved redundant/outdated docs to archive with proper README
@@ -369,16 +393,18 @@ The following features are implemented but need wiring/integration:
 
 ### Code Statistics
 
-- **Total Lines**: ~4,233
-- **Modules**: 15
-- **Documentation**: 6 comprehensive documents (updated)
+- **Total Lines**: ~4,406 (net +173 after refactoring)
+- **Modules**: 16 (added `input.rs`)
+- **Documentation**: 8 comprehensive documents (updated)
 - **Tests**: Basic unit tests in place
 - **Recent Additions**:
+  - Unified input system (+673 lines in `input.rs`)
+  - Input refactoring documentation (+953 lines)
   - Selection tool Phase 1 (+191 lines)
   - 3D cursor ray casting (+168 lines)
   - Move operation system (+260 lines in selection_tool.rs)
-  - Move/rotate implementation plan (+598 lines)
-  - Move operation testing guide (+227 lines)
+- **Recent Removals**:
+  - Old input systems (-500 lines from `selection_tool.rs`)
 
 ## 🎯 Next Steps
 
@@ -444,5 +470,5 @@ To complete the map editor implementation:
 ---
 
 **Last Updated**: 2025-10-22
-**Status**: Documentation Reorganized, Core Features Complete
-**Next Milestone**: Save functionality and keyboard shortcuts
+**Status**: Input System Refactored, Documentation Complete, Core Features Operational
+**Next Milestone**: Rotation operation (Phase 2), Save functionality
