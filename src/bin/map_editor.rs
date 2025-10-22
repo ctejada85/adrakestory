@@ -31,6 +31,9 @@ fn main() {
         .add_event::<ui::dialogs::FileSelectedEvent>()
         .add_event::<RenderMapEvent>()
         .add_event::<tools::UpdateSelectionHighlights>()
+        // New unified input event
+        .add_event::<tools::EditorInputEvent>()
+        // Keep these events for UI button compatibility
         .add_event::<tools::DeleteSelectedVoxels>()
         .add_event::<tools::StartMoveOperation>()
         .add_event::<tools::StartRotateOperation>()
@@ -55,24 +58,13 @@ fn main() {
         .add_systems(Update, tools::handle_voxel_removal)
         .add_systems(Update, tools::handle_entity_placement)
         .add_systems(Update, tools::handle_selection)
+        // NEW: Unified input handling systems (replaces 15 old systems)
+        .add_systems(Update, tools::handle_keyboard_input)
+        .add_systems(Update, tools::handle_transformation_operations)
+        // Keep rendering systems
         .add_systems(Update, tools::render_selection_highlights)
-        .add_systems(Update, tools::handle_delete_selected)
-        .add_systems(Update, tools::handle_move_shortcut)
-        .add_systems(Update, tools::handle_rotate_shortcut)
-        .add_systems(Update, tools::start_move_operation)
-        .add_systems(Update, tools::start_rotate_operation)
-        .add_systems(Update, tools::handle_arrow_key_movement)
-        .add_systems(Update, tools::handle_arrow_key_rotation)
-        .add_systems(Update, tools::handle_rotation_axis_selection)
-        .add_systems(Update, tools::update_transform_preview)
-        .add_systems(Update, tools::update_rotation)
-        .add_systems(Update, tools::update_rotation_axis)
         .add_systems(Update, tools::render_transform_preview)
         .add_systems(Update, tools::render_rotation_preview)
-        .add_systems(Update, tools::confirm_transform)
-        .add_systems(Update, tools::confirm_rotation)
-        .add_systems(Update, tools::handle_deselect_shortcut)
-        .add_systems(Update, tools::cancel_transform)
         .run();
 }
 
