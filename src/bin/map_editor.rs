@@ -71,6 +71,7 @@ fn main() {
         .add_systems(Update, tools::render_rotation_preview)
         .add_systems(Update, tools::confirm_transform)
         .add_systems(Update, tools::confirm_rotation)
+        .add_systems(Update, tools::handle_deselect_shortcut)
         .add_systems(Update, tools::cancel_transform)
         .run();
 }

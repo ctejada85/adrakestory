@@ -731,6 +731,48 @@ pub fn handle_rotate_shortcut(
         start_events.send(StartRotateOperation);
     }
 }
+/// Handle Escape key to deselect all selected objects
+pub fn handle_deselect_shortcut(
+    mut editor_state: ResMut<EditorState>,
+    active_transform: Res<ActiveTransform>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut contexts: EguiContexts,
+    mut update_events: EventWriter<UpdateSelectionHighlights>,
+) {
+    // Only when Select tool is active
+    if !matches!(editor_state.active_tool, EditorTool::Select) {
+        return;
+    }
+
+    // Don't deselect if in transform mode (let cancel_transform handle it)
+    if active_transform.mode != TransformMode::None {
+        return;
+    }
+
+    // Check if UI wants keyboard input
+    let ui_wants_input = contexts.ctx_mut().wants_keyboard_input();
+    if ui_wants_input {
+        return;
+    }
+
+    // Check for Escape key press
+    if !keyboard.just_pressed(KeyCode::Escape) {
+        return;
+    }
+
+    // Check if there are any selections to clear
+    if editor_state.selected_voxels.is_empty() && editor_state.selected_entities.is_empty() {
+        return;
+    }
+
+    // Clear all selections (both voxels and entities)
+    editor_state.clear_selections();
+    info!("Cleared all selections");
+
+    // Trigger highlight update to remove visual indicators
+    update_events.send(UpdateSelectionHighlights);
+}
+
 
 /// Handle axis selection during rotate operation (X, Y, Z keys)
 pub fn handle_rotation_axis_selection(
