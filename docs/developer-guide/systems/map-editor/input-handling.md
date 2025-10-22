@@ -2,18 +2,28 @@
 
 ## Overview
 
-The map editor uses a layered input handling approach to prevent conflicts between UI interactions and canvas operations. This document describes the pattern that all input handlers should follow.
+The map editor uses a layered input handling approach to prevent conflicts between UI interactions and canvas operations. This document describes the comprehensive pattern that all input handlers must follow to ensure proper separation between UI and viewport interactions.
 
 ## The Problem
 
-When a user clicks on UI elements (buttons, menus, panels), without proper input filtering, the canvas tools would also process these clicks, causing unintended actions like placing voxels or selecting objects.
+When a user clicks on UI elements (buttons, menus, panels), without proper input filtering, the canvas tools would also process these clicks, causing unintended actions like placing voxels or selecting objects. This creates a poor user experience where UI interactions trigger unwanted canvas operations.
 
 ## The Solution: Input Priority System
 
 The map editor uses egui's input capture system to determine whether the UI or the canvas should handle input events. This is implemented through two key methods:
 
-- `wants_pointer_input()` - Returns `true` when the UI wants to handle mouse/pointer events
-- `wants_keyboard_input()` - Returns `true` when the UI wants to handle keyboard events
+- **`wants_pointer_input()`** - Returns `true` when the UI wants to handle mouse/pointer events
+- **`wants_keyboard_input()`** - Returns `true` when the UI wants to handle keyboard events
+
+### When UI Captures Input
+
+egui captures input when:
+- Mouse is hovering over any UI panel
+- A text field has focus
+- A dropdown menu is open
+- Any UI widget is being interacted with
+- Menu items are being clicked
+- Buttons or controls are being activated
 
 ## Implementation Pattern
 
@@ -99,37 +109,37 @@ The following systems implement this pattern:
 
 ### Tool Systems
 
-1. **Voxel Placement** ([`handle_voxel_placement()`](../../../src/editor/tools/voxel_tool.rs:9))
+1. **Voxel Placement** ([`handle_voxel_placement()`](../../../../src/editor/tools/voxel_tool.rs:9))
    - Checks `wants_pointer_input()` before placing voxels on left-click
 
-2. **Voxel Removal** ([`handle_voxel_removal()`](../../../src/editor/tools/voxel_tool.rs:77))
+2. **Voxel Removal** ([`handle_voxel_removal()`](../../../../src/editor/tools/voxel_tool.rs:77))
    - Checks both `wants_pointer_input()` and `wants_keyboard_input()`
    - Handles mouse clicks and Delete/Backspace keys
 
-3. **Entity Placement** ([`handle_entity_placement()`](../../../src/editor/tools/entity_tool.rs:10))
+3. **Entity Placement** ([`handle_entity_placement()`](../../../../src/editor/tools/entity_tool.rs:10))
    - Checks `wants_pointer_input()` before placing entities on left-click
 
-4. **Selection** ([`handle_selection()`](../../../src/editor/tools/selection_tool.rs:101))
+4. **Selection** ([`handle_selection()`](../../../../src/editor/tools/selection_tool.rs:101))
    - Checks `wants_pointer_input()` before selecting voxels on left-click
 
 ### Transform Operations
 
-5. **Transform Confirmation** ([`confirm_transform()`](../../../src/editor/tools/selection_tool.rs:473), [`confirm_rotation()`](../../../src/editor/tools/selection_tool.rs:935))
+5. **Transform Confirmation** ([`confirm_transform()`](../../../../src/editor/tools/selection_tool.rs:473), [`confirm_rotation()`](../../../../src/editor/tools/selection_tool.rs:935))
    - Checks both input types for Enter key and left-click confirmation
 
-6. **Transform Cancellation** ([`cancel_transform()`](../../../src/editor/tools/selection_tool.rs:588))
+6. **Transform Cancellation** ([`cancel_transform()`](../../../../src/editor/tools/selection_tool.rs:588))
    - Checks both input types for Escape key and right-click cancellation
 
-7. **Delete Selected** ([`handle_delete_selected()`](../../../src/editor/tools/selection_tool.rs:202))
+7. **Delete Selected** ([`handle_delete_selected()`](../../../../src/editor/tools/selection_tool.rs:202))
    - Checks `wants_keyboard_input()` for Delete/Backspace keys
 
-8. **Move/Rotate Shortcuts** ([`handle_move_shortcut()`](../../../src/editor/tools/selection_tool.rs:615), [`handle_rotate_shortcut()`](../../../src/editor/tools/selection_tool.rs:699))
+8. **Move/Rotate Shortcuts** ([`handle_move_shortcut()`](../../../../src/editor/tools/selection_tool.rs:615), [`handle_rotate_shortcut()`](../../../../src/editor/tools/selection_tool.rs:699))
    - Check `wants_keyboard_input()` for G and R keys
 
-9. **Arrow Key Operations** ([`handle_arrow_key_movement()`](../../../src/editor/tools/selection_tool.rs:332), [`handle_arrow_key_rotation()`](../../../src/editor/tools/selection_tool.rs:767))
+9. **Arrow Key Operations** ([`handle_arrow_key_movement()`](../../../../src/editor/tools/selection_tool.rs:332), [`handle_arrow_key_rotation()`](../../../../src/editor/tools/selection_tool.rs:767))
    - Check `wants_keyboard_input()` for arrow key navigation
 
-10. **Rotation Axis Selection** ([`handle_rotation_axis_selection()`](../../../src/editor/tools/selection_tool.rs:727))
+10. **Rotation Axis Selection** ([`handle_rotation_axis_selection()`](../../../../src/editor/tools/selection_tool.rs:727))
     - Checks `wants_keyboard_input()` for X, Y, Z keys
 
 ## Best Practices
@@ -144,18 +154,38 @@ The following systems implement this pattern:
 
 5. **Import Statement**: Include `use bevy_egui::EguiContexts;` at the top of your file.
 
-## Testing
+6. **UI Events Don't Need Checks**: Events triggered by UI buttons (like `StartMoveOperation` from the "Move" button) don't need UI focus checks because they're intentional user actions from the UI itself.
+
+## Testing Guidelines
 
 When implementing or modifying input handlers, test the following scenarios:
 
-1. **Menu Interactions**: Click on menu items (File, Edit, View, Tools, Help)
-2. **Toolbar Buttons**: Click on quick action buttons and tool selection buttons
-3. **Properties Panel**: Interact with controls in the properties panel
-4. **Dialog Boxes**: Click buttons in dialogs (New Map, Open, etc.)
-5. **Checkboxes and Sliders**: Interact with UI controls in the View menu
-6. **Text Input**: Type in text fields (if any)
+### Menu Interactions
+- Click on menu items (File, Edit, View, Tools, Help)
+- Verify no canvas operations trigger
 
-In all cases, canvas operations should NOT trigger when interacting with UI elements.
+### Toolbar Buttons
+- Click on quick action buttons and tool selection buttons
+- Verify no canvas operations trigger
+
+### Properties Panel
+- Interact with controls in the properties panel
+- Click buttons, adjust sliders, use dropdowns
+- Verify no canvas operations trigger
+
+### Dialog Boxes
+- Click buttons in dialogs (New Map, Open, etc.)
+- Verify no canvas operations trigger
+
+### Checkboxes and Sliders
+- Interact with UI controls in the View menu
+- Verify no canvas operations trigger
+
+### Text Input
+- Type in text fields (if any)
+- Verify keyboard shortcuts don't trigger while typing
+
+**Expected Behavior**: In all cases, canvas operations should NOT trigger when interacting with UI elements.
 
 ## Common Mistakes
 
@@ -218,8 +248,72 @@ pub fn handle_input(
 }
 ```
 
+## Historical Context
+
+### Keyboard Input Fix (January 2025)
+
+Initially, keyboard shortcuts (G key, arrow keys, Delete, etc.) were not working when voxels were selected. The root cause was that egui was consuming keyboard events before they could reach the game systems. This is a common issue in Bevy applications using egui - when UI elements have focus or when the mouse is over UI panels, egui captures keyboard input to prevent accidental game actions while typing in text fields.
+
+The solution was to add UI focus checks using `EguiContexts::wants_keyboard_input()` before processing keyboard input in all relevant systems.
+
+### UI Input Propagation Fix (January 2025)
+
+When clicking on UI controls in the map editor (menu items, toolbar buttons, properties panel controls), the canvas was also processing these mouse events, causing unintended actions such as:
+- Placing voxels when clicking toolbar buttons
+- Selecting objects when clicking menu items
+- Triggering canvas operations when interacting with dialogs
+
+The root cause was that mouse input handlers were not checking if the UI (egui) wanted to handle pointer input before processing mouse events. This caused both the UI and the canvas to respond to the same click event.
+
+The solution was to add `wants_pointer_input()` checks to all mouse input handlers, following the same pattern already used for keyboard input.
+
+## Performance Considerations
+
+### Optimization Strategies
+
+The `wants_keyboard_input()` and `wants_pointer_input()` checks are very fast (just checking boolean flags) and have negligible performance impact.
+
+### Future Improvements
+
+Consider creating a helper resource or system that caches the UI focus state each frame to avoid multiple `ctx_mut()` calls:
+
+```rust
+#[derive(Resource)]
+pub struct UIFocusState {
+    pub wants_keyboard: bool,
+    pub wants_pointer: bool,
+}
+
+// Update once per frame
+pub fn update_ui_focus_state(
+    mut state: ResMut<UIFocusState>,
+    mut contexts: EguiContexts,
+) {
+    let ctx = contexts.ctx_mut();
+    state.wants_keyboard = ctx.wants_keyboard_input();
+    state.wants_pointer = ctx.wants_pointer_input();
+}
+```
+
+Then systems can just check the resource instead of calling `ctx_mut()`.
+
+## Why Not Global Input Blocking?
+
+We check UI focus in each system rather than globally because:
+1. Different systems may have different requirements
+2. Some systems should work even when UI has focus (e.g., camera controls)
+3. More explicit and easier to debug
+4. Allows fine-grained control per system
+
 ## Related Documentation
 
 - [Map Editor Architecture](architecture.md)
 - [Map Editor Controls](../../../user-guide/map-editor/controls.md)
-- [Keyboard Input Fix](keyboard-input-fix.md)
+- [Archived: Keyboard Input Fix](archive/keyboard-input-fix.md)
+- [Archived: UI Input Propagation Fix](archive/ui-input-propagation-fix.md)
+
+---
+
+**Document Version**: 2.0.0  
+**Last Updated**: 2025-10-22  
+**Status**: Consolidated from multiple sources

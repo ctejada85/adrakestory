@@ -597,8 +597,9 @@ pub fn player_movement_system(/* ... */) {
 - **[Debugging Guide](debugging.md)** - Debug setup and tips
 - **[Contributing Guide](contributing.md)** - Contribution workflow
 - **[Map Loader System](systems/map-loader.md)** - Map system details
+- **[Map Editor Documentation](systems/map-editor/README.md)** - Complete map editor guide
 
 ---
 
-**Architecture Version:** 1.0.0  
-**Last Updated:** 2025-01-10
+**Architecture Version:** 1.0.0
+**Last Updated:** 2025-10-22

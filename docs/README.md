@@ -27,10 +27,14 @@ For contributors and advanced users:
 - **[Debugging Setup](developer-guide/debugging.md)** - VSCode debugging configuration
 - **[Contributing Guidelines](developer-guide/contributing.md)** - How to contribute to the project
 - **[Map Loader System](developer-guide/systems/map-loader.md)** - Map loading internals
-- **[Map Editor - Design](developer-guide/systems/map-editor/design.md)** - Feature specifications
-- **[Map Editor - Architecture](developer-guide/systems/map-editor/architecture.md)** - System design
-- **[Map Editor - Roadmap](developer-guide/systems/map-editor/roadmap.md)** - Implementation plan
-- **[Map Editor - Status](developer-guide/systems/map-editor/implementation-status.md)** - Current progress
+- **[Map Editor Documentation Hub](developer-guide/systems/map-editor/README.md)** - Complete map editor docs
+  - [Design](developer-guide/systems/map-editor/design.md) - Feature specifications
+  - [Architecture](developer-guide/systems/map-editor/architecture.md) - System design
+  - [Input Handling](developer-guide/systems/map-editor/input-handling.md) - Mouse, keyboard, and UI integration
+  - [Roadmap](developer-guide/systems/map-editor/roadmap.md) - Implementation plan
+  - [Status](developer-guide/systems/map-editor/implementation-status.md) - Current progress
+  - [Testing](developer-guide/systems/map-editor/testing/README.md) - Testing guides
+  - [Archive](developer-guide/systems/map-editor/archive/README.md) - Historical documentation
 
 ### API Reference
 Technical specifications:
@@ -70,5 +74,5 @@ This documentation is maintained alongside the codebase. If you find errors or h
 
 ---
 
-**Last Updated**: 2025-01-11
+**Last Updated**: 2025-10-22
 **Version**: 1.0.0
