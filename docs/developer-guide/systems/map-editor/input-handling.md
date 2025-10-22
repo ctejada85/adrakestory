@@ -2,7 +2,16 @@
 
 ## Overview
 
-The map editor uses a layered input handling approach to prevent conflicts between UI interactions and canvas operations. This document describes the comprehensive pattern that all input handlers must follow to ensure proper separation between UI and viewport interactions.
+The map editor uses a **unified, event-driven input handling architecture** with clear separation between input reading and action execution. This document describes the current architecture and the patterns used to prevent conflicts between UI interactions and canvas operations.
+
+## Current Architecture (Post-Refactoring)
+
+As of October 2025, the map editor uses a unified input system with two main components:
+
+1. **[`handle_keyboard_input()`](../../../../src/editor/tools/input.rs:105)** - Single system that reads all keyboard input and emits semantic events
+2. **[`handle_transformation_operations()`](../../../../src/editor/tools/input.rs:234)** - Single system that executes operations based on events
+
+This replaces the previous architecture of 15+ scattered input handler systems. See [Input Refactoring Summary](input-refactoring-summary.md) for details.
 
 ## The Problem
 
@@ -25,11 +34,62 @@ egui captures input when:
 - Menu items are being clicked
 - Buttons or controls are being activated
 
-## Implementation Pattern
+## Unified Input System Pattern
 
-### For Mouse Input Handlers
+### Single Keyboard Input Handler
 
-All systems that handle mouse input must check if the UI wants pointer input before processing mouse events:
+The unified input system uses a single entry point for all keyboard input:
+
+```rust
+pub fn handle_keyboard_input(
+    editor_state: Res<EditorState>,
+    active_transform: Res<ActiveTransform>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut contexts: EguiContexts,
+    mut input_events: EventWriter<EditorInputEvent>,
+) {
+    // Single UI focus check for ALL keyboard input
+    if contexts.ctx_mut().wants_keyboard_input() {
+        return;
+    }
+
+    // Context-aware input mapping based on current mode
+    match active_transform.mode {
+        TransformMode::None => {
+            // Selection mode shortcuts
+            if keyboard.just_pressed(KeyCode::KeyG) {
+                input_events.send(EditorInputEvent::StartMove);
+            }
+            // ... other shortcuts
+        }
+        TransformMode::Move => {
+            // Move mode shortcuts
+            if keyboard.just_pressed(KeyCode::ArrowUp) {
+                input_events.send(EditorInputEvent::UpdateMoveOffset(IVec3::new(0, 0, -1)));
+            }
+            // ... other move controls
+        }
+        TransformMode::Rotate => {
+            // Rotate mode shortcuts
+            // ... rotation controls
+        }
+    }
+}
+```
+
+### Benefits of Unified Approach
+
+1. **Single UI Focus Check**: Only one `wants_keyboard_input()` check instead of 7+
+2. **Context-Aware**: Different key mappings based on current mode
+3. **Centralized**: All keyboard shortcuts visible in one place
+4. **Maintainable**: Easy to add new shortcuts or modify existing ones
+5. **Testable**: Can test input mapping separately from execution
+
+## Legacy Pattern (For Reference)
+
+### For Mouse Input Handlers (Still Used)
+
+Mouse input handlers still use the individual checking pattern:
 
 ```rust
 use bevy::prelude::*;
@@ -103,44 +163,40 @@ pub fn handle_mixed_input(
 }
 ```
 
-## Current Implementations
+## Current System Implementations
 
-The following systems implement this pattern:
+### Unified Input Systems (New Architecture)
 
-### Tool Systems
+1. **Keyboard Input Handler** ([`handle_keyboard_input()`](../../../../src/editor/tools/input.rs:105))
+   - Single system for ALL keyboard input
+   - Context-aware key mapping based on mode
+   - One UI focus check for all shortcuts
 
-1. **Voxel Placement** ([`handle_voxel_placement()`](../../../../src/editor/tools/voxel_tool.rs:9))
+2. **Transformation Operations** ([`handle_transformation_operations()`](../../../../src/editor/tools/input.rs:234))
+   - Executes operations based on events
+   - Handles both keyboard events and UI button events
+   - Separated from input reading
+
+### Mouse Input Systems (Individual Pattern)
+
+3. **Voxel Placement** ([`handle_voxel_placement()`](../../../../src/editor/tools/voxel_tool.rs:9))
    - Checks `wants_pointer_input()` before placing voxels on left-click
 
-2. **Voxel Removal** ([`handle_voxel_removal()`](../../../../src/editor/tools/voxel_tool.rs:77))
-   - Checks both `wants_pointer_input()` and `wants_keyboard_input()`
-   - Handles mouse clicks and Delete/Backspace keys
+4. **Voxel Removal** ([`handle_voxel_removal()`](../../../../src/editor/tools/voxel_tool.rs:77))
+   - Checks `wants_pointer_input()` for mouse clicks
+   - Keyboard deletion now handled by unified system
 
-3. **Entity Placement** ([`handle_entity_placement()`](../../../../src/editor/tools/entity_tool.rs:10))
+5. **Entity Placement** ([`handle_entity_placement()`](../../../../src/editor/tools/entity_tool.rs:10))
    - Checks `wants_pointer_input()` before placing entities on left-click
 
-4. **Selection** ([`handle_selection()`](../../../../src/editor/tools/selection_tool.rs:101))
+6. **Selection** ([`handle_selection()`](../../../../src/editor/tools/selection_tool.rs:101))
    - Checks `wants_pointer_input()` before selecting voxels on left-click
 
-### Transform Operations
+### Rendering Systems (No Input Checks Needed)
 
-5. **Transform Confirmation** ([`confirm_transform()`](../../../../src/editor/tools/selection_tool.rs:473), [`confirm_rotation()`](../../../../src/editor/tools/selection_tool.rs:935))
-   - Checks both input types for Enter key and left-click confirmation
-
-6. **Transform Cancellation** ([`cancel_transform()`](../../../../src/editor/tools/selection_tool.rs:588))
-   - Checks both input types for Escape key and right-click cancellation
-
-7. **Delete Selected** ([`handle_delete_selected()`](../../../../src/editor/tools/selection_tool.rs:202))
-   - Checks `wants_keyboard_input()` for Delete/Backspace keys
-
-8. **Move/Rotate Shortcuts** ([`handle_move_shortcut()`](../../../../src/editor/tools/selection_tool.rs:615), [`handle_rotate_shortcut()`](../../../../src/editor/tools/selection_tool.rs:699))
-   - Check `wants_keyboard_input()` for G and R keys
-
-9. **Arrow Key Operations** ([`handle_arrow_key_movement()`](../../../../src/editor/tools/selection_tool.rs:332), [`handle_arrow_key_rotation()`](../../../../src/editor/tools/selection_tool.rs:767))
-   - Check `wants_keyboard_input()` for arrow key navigation
-
-10. **Rotation Axis Selection** ([`handle_rotation_axis_selection()`](../../../../src/editor/tools/selection_tool.rs:727))
-    - Checks `wants_keyboard_input()` for X, Y, Z keys
+7. **Selection Highlights** ([`render_selection_highlights()`](../../../../src/editor/tools/selection_tool.rs:142))
+8. **Transform Preview** ([`render_transform_preview()`](../../../../src/editor/tools/selection_tool.rs:209))
+9. **Rotation Preview** ([`render_rotation_preview()`](../../../../src/editor/tools/selection_tool.rs:714))
 
 ## Best Practices
 
@@ -250,22 +306,32 @@ pub fn handle_input(
 
 ## Historical Context
 
+### Input System Refactoring (October 2025)
+
+The map editor underwent a major refactoring to unify input handling:
+
+**Before**: 15+ scattered input handler systems, each with duplicate UI focus checks
+**After**: 2 unified systems with single UI focus check and event-driven architecture
+
+**Benefits**:
+- Reduced system count by 72% (18 → 5 total systems)
+- Eliminated code duplication (7+ UI checks → 1)
+- Improved maintainability (all shortcuts in one place)
+- Better separation of concerns (input reading vs execution)
+
+See [Input Refactoring Summary](input-refactoring-summary.md) for complete details.
+
 ### Keyboard Input Fix (January 2025)
 
-Initially, keyboard shortcuts (G key, arrow keys, Delete, etc.) were not working when voxels were selected. The root cause was that egui was consuming keyboard events before they could reach the game systems. This is a common issue in Bevy applications using egui - when UI elements have focus or when the mouse is over UI panels, egui captures keyboard input to prevent accidental game actions while typing in text fields.
+Initially, keyboard shortcuts were not working when voxels were selected. The root cause was that egui was consuming keyboard events before they could reach the game systems.
 
-The solution was to add UI focus checks using `EguiContexts::wants_keyboard_input()` before processing keyboard input in all relevant systems.
+The solution was to add UI focus checks using `EguiContexts::wants_keyboard_input()` before processing keyboard input. This pattern was later unified into the single input handler system.
 
 ### UI Input Propagation Fix (January 2025)
 
-When clicking on UI controls in the map editor (menu items, toolbar buttons, properties panel controls), the canvas was also processing these mouse events, causing unintended actions such as:
-- Placing voxels when clicking toolbar buttons
-- Selecting objects when clicking menu items
-- Triggering canvas operations when interacting with dialogs
+When clicking on UI controls, the canvas was also processing these mouse events, causing unintended actions.
 
-The root cause was that mouse input handlers were not checking if the UI (egui) wanted to handle pointer input before processing mouse events. This caused both the UI and the canvas to respond to the same click event.
-
-The solution was to add `wants_pointer_input()` checks to all mouse input handlers, following the same pattern already used for keyboard input.
+The solution was to add `wants_pointer_input()` checks to all mouse input handlers. This pattern is still used for mouse input systems.
 
 ## Performance Considerations
 
@@ -307,13 +373,15 @@ We check UI focus in each system rather than globally because:
 
 ## Related Documentation
 
-- [Map Editor Architecture](architecture.md)
-- [Map Editor Controls](../../../user-guide/map-editor/controls.md)
-- [Archived: Keyboard Input Fix](archive/keyboard-input-fix.md)
-- [Archived: UI Input Propagation Fix](archive/ui-input-propagation-fix.md)
+- [Input Refactoring Summary](input-refactoring-summary.md) - Details of the unified input system
+- [Input Refactoring Plan](input-refactoring-plan.md) - Original design document
+- [Map Editor Architecture](architecture.md) - Overall editor architecture
+- [Map Editor Controls](../../../user-guide/map-editor/controls.md) - User-facing controls guide
+- [Archived: Keyboard Input Fix](archive/keyboard-input-fix.md) - Historical fix
+- [Archived: UI Input Propagation Fix](archive/ui-input-propagation-fix.md) - Historical fix
 
 ---
 
-**Document Version**: 2.0.0  
-**Last Updated**: 2025-10-22  
-**Status**: Consolidated from multiple sources
+**Document Version**: 3.0.0
+**Last Updated**: 2025-10-22
+**Status**: Updated for unified input architecture

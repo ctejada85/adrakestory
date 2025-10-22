@@ -2,9 +2,9 @@
 
 ## Overview
 
-Successfully refactored the map editor's input handling from 15+ scattered systems to a unified, event-driven architecture with clear separation of concerns.
+Successfully refactored the map editor's input handling from 15+ scattered systems to a unified, event-driven architecture with clear separation of concerns. All old unused code has been removed and the system is fully operational.
 
-**Status**: ✅ **COMPLETE** - Build successful, all systems integrated
+**Status**: ✅ **COMPLETE** - Build successful, all systems integrated, cleanup finished
 
 ## What Was Changed
 
@@ -32,6 +32,12 @@ Successfully refactored the map editor's input handling from 15+ scattered syste
      - `tools::handle_transformation_operations`
    - Kept rendering systems (no changes needed)
    - Kept old event registrations for UI compatibility
+
+4. **[`src/editor/tools/selection_tool.rs`](../../../../src/editor/tools/selection_tool.rs)** (CLEANED UP)
+   - Removed 15 old unused system functions (~500 lines)
+   - Removed duplicate `rotate_position()` function (kept public version)
+   - Cleaned up unused imports
+   - Kept only: rendering systems, helper functions, and data structures
 
 ## Architecture Comparison
 
@@ -221,7 +227,7 @@ The following keyboard shortcuts should still work:
 1. **Old Event Types**: Kept for UI button compatibility
 2. **Rendering Systems**: No changes needed
 3. **Mouse Input**: No changes needed
-4. **Old System Functions**: Still exist in `selection_tool.rs` but are no longer registered
+4. **Helper Functions**: `rotate_position()` kept as public function for rotation preview
 
 ### What Was Added
 
@@ -229,26 +235,26 @@ The following keyboard shortcuts should still work:
 2. **New Event**: `EditorInputEvent`
 3. **New Systems**: `handle_keyboard_input()`, `handle_transformation_operations()`
 
-### What Was Removed (from registration)
+### What Was Removed
 
-The following systems are no longer registered in `map_editor.rs`:
-- `handle_delete_selected`
-- `handle_move_shortcut`
-- `handle_rotate_shortcut`
-- `handle_arrow_key_movement`
-- `handle_arrow_key_rotation`
-- `handle_rotation_axis_selection`
-- `handle_deselect_shortcut`
-- `start_move_operation`
-- `start_rotate_operation`
-- `update_transform_preview`
-- `update_rotation`
-- `update_rotation_axis`
-- `confirm_transform`
-- `confirm_rotation`
-- `cancel_transform`
+The following 15 system functions have been **completely removed** from `selection_tool.rs`:
+- `handle_delete_selected` - Replaced by unified input system
+- `handle_move_shortcut` - Replaced by unified input system
+- `handle_rotate_shortcut` - Replaced by unified input system
+- `handle_arrow_key_movement` - Replaced by unified input system
+- `handle_arrow_key_rotation` - Replaced by unified input system
+- `handle_rotation_axis_selection` - Replaced by unified input system
+- `handle_deselect_shortcut` - Replaced by unified input system
+- `start_move_operation` - Replaced by transformation system
+- `start_rotate_operation` - Replaced by transformation system
+- `update_transform_preview` - Replaced by transformation system
+- `update_rotation` - Replaced by transformation system
+- `update_rotation_axis` - Replaced by transformation system
+- `confirm_transform` - Replaced by transformation system
+- `confirm_rotation` - Replaced by transformation system
+- `cancel_transform` - Replaced by transformation system
 
-**Note**: These functions still exist in `selection_tool.rs` but are no longer used. They can be removed in a future cleanup phase.
+**Total Code Removed**: ~500 lines of duplicate/obsolete code
 
 ## Future Enhancements
 
@@ -266,50 +272,25 @@ Now that the input system is unified, future improvements are easier:
 - [Input Handling Guide](input-handling.md) - General input handling patterns
 - [Architecture Overview](architecture.md) - Overall editor architecture
 
-## Cleanup Tasks (Optional)
-
-The following cleanup tasks can be done in a future PR:
-
-1. Remove unused system functions from `selection_tool.rs`:
-   - `handle_delete_selected()`
-   - `handle_move_shortcut()`
-   - `handle_rotate_shortcut()`
-   - `handle_arrow_key_movement()`
-   - `handle_arrow_key_rotation()`
-   - `handle_rotation_axis_selection()`
-   - `handle_deselect_shortcut()`
-   - `start_move_operation()`
-   - `start_rotate_operation()`
-   - `update_transform_preview()`
-   - `update_rotation()`
-   - `update_rotation_axis()`
-   - `confirm_transform()`
-   - `confirm_rotation()`
-   - `cancel_transform()`
-
-2. Remove unused event types (if UI buttons are refactored):
-   - `UpdateTransformPreview`
-   - `UpdateRotation`
-   - `SetRotationAxis`
-
-3. Update documentation to reflect new architecture
-
 ## Conclusion
 
-The input system refactoring is **complete and successful**. The new architecture:
+The input system refactoring is **complete and successful**, including full cleanup. The new architecture:
 
-✅ Reduces system count by 72% (18 → 5)  
-✅ Eliminates code duplication (7+ UI checks → 1)  
-✅ Improves maintainability (all shortcuts in one place)  
-✅ Maintains backward compatibility (UI buttons still work)  
-✅ Builds successfully with no errors  
+✅ Reduces system count by 72% (18 → 5)
+✅ Eliminates code duplication (7+ UI checks → 1)
+✅ Improves maintainability (all shortcuts in one place)
+✅ Maintains backward compatibility (UI buttons still work)
+✅ Builds successfully with no errors
 ✅ Follows best practices (separation of concerns, DRY, single responsibility)
+✅ **Removes ~500 lines of obsolete code**
+✅ **Clean codebase with no unused functions**
 
-The refactoring achieves all goals outlined in the original plan while maintaining full functionality and backward compatibility.
+The refactoring achieves all goals outlined in the original plan while maintaining full functionality and backward compatibility. All cleanup tasks have been completed.
 
 ---
 
-**Document Version**: 1.0.0  
-**Implementation Date**: 2025-10-22  
-**Status**: Complete  
+**Document Version**: 2.0.0
+**Implementation Date**: 2025-10-22
+**Cleanup Date**: 2025-10-22
+**Status**: Complete with Cleanup
 **Build Status**: ✅ Passing

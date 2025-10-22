@@ -67,10 +67,20 @@ flowchart LR
         UI[UI Interactions]
     end
     
-    subgraph "Event Processing"
-        InputHandler[Input Handler]
-        ToolHandler[Tool Handler]
-        UIHandler[UI Handler]
+    subgraph "Unified Input System"
+        KeyboardHandler[Keyboard Input Handler<br/>Single Entry Point]
+        MouseHandlers[Mouse Input Handlers<br/>Tool-Specific]
+        UIHandler[UI Event Handler]
+    end
+    
+    subgraph "Event System"
+        InputEvents[EditorInputEvent<br/>Semantic Events]
+        UIEvents[UI Button Events]
+    end
+    
+    subgraph "Execution Layer"
+        TransformOps[Transformation Operations<br/>Event-Driven Execution]
+        ToolOps[Tool Operations<br/>Direct Execution]
     end
     
     subgraph "State Management"
@@ -83,13 +93,19 @@ flowchart LR
         UIRender[UI Panels]
     end
     
-    Mouse --> InputHandler
-    Keyboard --> InputHandler
+    Keyboard --> KeyboardHandler
+    Mouse --> MouseHandlers
     UI --> UIHandler
     
-    InputHandler --> ToolHandler
-    UIHandler --> EditorState
-    ToolHandler --> EditorState
+    KeyboardHandler --> InputEvents
+    UIHandler --> UIEvents
+    
+    InputEvents --> TransformOps
+    UIEvents --> TransformOps
+    MouseHandlers --> ToolOps
+    
+    TransformOps --> EditorState
+    ToolOps --> EditorState
     
     EditorState --> History
     EditorState --> Viewport
@@ -442,8 +458,48 @@ InfiniteGridConfig {
 - Uses efficient LineList topology
 - Minimal CPU overhead during static camera
 
+## Input System Architecture (Updated October 2025)
+
+The map editor uses a **unified, event-driven input architecture**:
+
+### System Count Reduction
+
+| Component | Before | After | Change |
+|-----------|--------|-------|--------|
+| Input Handler Systems | 7 | 1 | **-86%** |
+| Transformation Systems | 8 | 1 | **-88%** |
+| Rendering Systems | 3 | 3 | 0% |
+| **Total Systems** | **18** | **5** | **-72%** |
+
+### Key Components
+
+1. **Unified Keyboard Handler** ([`handle_keyboard_input()`](../../../../src/editor/tools/input.rs:105))
+   - Single entry point for all keyboard input
+   - Context-aware key mapping based on mode
+   - One UI focus check instead of 7+
+
+2. **Transformation Operations** ([`handle_transformation_operations()`](../../../../src/editor/tools/input.rs:234))
+   - Event-driven execution
+   - Handles both keyboard and UI button events
+   - Separated from input reading
+
+3. **Event System** ([`EditorInputEvent`](../../../../src/editor/tools/input.rs:15))
+   - Semantic events (StartMove, RotateDelta, etc.)
+   - Decouples input reading from execution
+   - Enables better testing and maintainability
+
+### Benefits
+
+- **Single Responsibility**: Input reading separated from execution
+- **DRY Principle**: One UI focus check instead of 7+
+- **Maintainability**: All shortcuts in one place
+- **Testability**: Can test input mapping separately
+- **Performance**: Fewer systems to run each frame
+
+See [Input Refactoring Summary](input-refactoring-summary.md) for complete details.
+
 ---
 
-**Document Version**: 1.1.0
-**Last Updated**: 2025-10-21
-**Status**: Implementation Complete
+**Document Version**: 2.0.0
+**Last Updated**: 2025-10-22
+**Status**: Updated for unified input architecture
