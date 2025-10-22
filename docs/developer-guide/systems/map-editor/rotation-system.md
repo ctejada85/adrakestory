@@ -46,8 +46,12 @@ Renderer/Spawner applies rotation when displaying voxel
 When a voxel needs to be rendered:
 
 1. Get the base pattern geometry: `pattern.geometry()`
-2. Apply rotation state: `geometry.rotate(axis, angle)`
+2. Apply rotation state: `geometry_with_rotation(rotation_state)`
 3. Spawn sub-voxels at rotated positions
+
+The `geometry_with_rotation()` method is a convenience function that:
+- Returns base geometry if no rotation state exists
+- Applies rotation transformation if rotation state is present
 
 This happens in:
 - **Editor Renderer** ([`src/editor/renderer.rs`](../../../../src/editor/renderer.rs)) - For editor viewport
@@ -108,19 +112,27 @@ pub struct RotationState {
 ### Geometry-Based Rendering
 
 ```rust
-// Get base pattern geometry
-let geometry = pattern.geometry();
-
-// Apply rotation if present
-let rotated_geometry = if let Some(rotation) = voxel_data.rotation_state {
-    geometry.rotate(rotation.axis, rotation.angle)
-} else {
-    geometry
-};
+// Get geometry with rotation applied (if any)
+let geometry = pattern.geometry_with_rotation(voxel_data.rotation_state);
 
 // Spawn sub-voxels from rotated geometry
-for (sub_x, sub_y, sub_z) in rotated_geometry.occupied_positions() {
+for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {
     spawn_sub_voxel(x, y, z, sub_x, sub_y, sub_z);
+}
+```
+
+The `geometry_with_rotation()` method simplifies the rendering code by handling the rotation logic internally:
+
+```rust
+impl SubVoxelPattern {
+    pub fn geometry_with_rotation(&self, rotation_state: Option<RotationState>) -> SubVoxelGeometry {
+        let base_geometry = self.geometry();
+        if let Some(rotation) = rotation_state {
+            base_geometry.rotate(rotation.axis, rotation.angle)
+        } else {
+            base_geometry
+        }
+    }
 }
 ```
 
@@ -158,6 +170,39 @@ See [`rotation-operations.md`](./testing/rotation-operations.md) for comprehensi
 4. Press `Y` then `→` to rotate 90° around Y-axis
 5. Press `Enter` to confirm
 6. Verify the staircase now faces a different direction
+
+### Debugging
+
+The rotation system includes debug logging that can be enabled by running in debug mode:
+
+```bash
+RUST_LOG=debug cargo run --bin map_editor
+```
+
+Debug logs include:
+- Rotation confirmation triggers
+- UI input state checks
+- Voxel rotation state updates
+- Renderer rotation state application
+
+These logs use `debug!()` macro and only appear when debug logging is enabled.
+
+## Troubleshooting
+
+### Rotation Not Visible
+
+If rotation appears to not work:
+
+1. **Check voxel pattern**: Symmetrical patterns (like Full cubes) won't show visible rotation
+2. **Use asymmetrical patterns**: Test with StaircaseX, StaircaseZ, or Platform patterns
+3. **Check camera angle**: Rotation might be subtle from certain viewpoints
+4. **Enable debug logging**: Use `RUST_LOG=debug` to verify rotation state is being saved and applied
+
+### Common Issues
+
+- **Rotation state not persisting**: Ensure you press Enter to confirm the rotation
+- **Preview shows rotation but final doesn't**: This was a bug that has been fixed - rotation state is now properly saved to all voxels
+- **Multiple rotations not composing**: The system currently replaces rotation on axis change; same-axis rotations do compose correctly
 
 ## Future Enhancements
 

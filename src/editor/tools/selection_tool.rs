@@ -970,11 +970,6 @@ pub fn confirm_rotation(
     mut update_events: EventWriter<UpdateSelectionHighlights>,
     preview_query: Query<&TransformPreview>,
 ) {
-    // Debug: Log function entry
-    if active_transform.mode == TransformMode::Rotate {
-        info!("confirm_rotation: In rotate mode");
-    }
-    
     // Only active during rotate mode
     if active_transform.mode != TransformMode::Rotate {
         return;
@@ -984,8 +979,8 @@ pub fn confirm_rotation(
     let ui_wants_keyboard = contexts.ctx_mut().wants_keyboard_input();
     let ui_wants_pointer = contexts.ctx_mut().wants_pointer_input();
     
-    info!("confirm_rotation: UI wants - keyboard: {}, pointer: {}", ui_wants_keyboard, ui_wants_pointer);
-    info!("confirm_rotation: Input state - Enter: {}, Left Click: {}, Events: {}",
+    debug!("confirm_rotation: UI wants - keyboard: {}, pointer: {}", ui_wants_keyboard, ui_wants_pointer);
+    debug!("confirm_rotation: Input state - Enter: {}, Left Click: {}, Events: {}",
           keyboard.just_pressed(KeyCode::Enter),
           mouse_button.just_pressed(MouseButton::Left),
           confirm_events.read().count());
@@ -995,18 +990,18 @@ pub fn confirm_rotation(
         || (!ui_wants_pointer && mouse_button.just_pressed(MouseButton::Left))
         || confirm_events.read().count() > 0;
 
-    info!("confirm_rotation: should_confirm = {}", should_confirm);
+    debug!("confirm_rotation: should_confirm = {}", should_confirm);
 
     if !should_confirm {
         return;
     }
 
-    info!("=== ROTATION CONFIRMATION TRIGGERED ===");
-    info!("Rotation axis: {:?}, angle: {} ({}°)",
+    debug!("=== ROTATION CONFIRMATION TRIGGERED ===");
+    debug!("Rotation axis: {:?}, angle: {} ({}°)",
           active_transform.rotation_axis,
           active_transform.rotation_angle,
           active_transform.rotation_angle * 90);
-    info!("Selected voxels: {}", active_transform.selected_voxels.len());
+    debug!("Selected voxels: {}", active_transform.selected_voxels.len());
 
     // Check if all previews are valid (no collisions)
     let has_collision = preview_query.iter().any(|p| !p.is_valid);
@@ -1053,7 +1048,7 @@ pub fn confirm_rotation(
                 )
             };
             
-            info!("Updating voxel at {:?} -> {:?}, rotation: {:?} angle {}",
+            debug!("Updating voxel at {:?} -> {:?}, rotation: {:?} angle {}",
                   old_pos, new_pos, new_rotation_state.axis, new_rotation_state.angle);
             
             map_voxel.rotation_state = Some(new_rotation_state);

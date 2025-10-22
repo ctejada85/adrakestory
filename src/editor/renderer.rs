@@ -78,7 +78,7 @@ pub fn render_map_system(
         
         // Debug: Log rotation state for each voxel
         if let Some(rot) = voxel_data.rotation_state {
-            info!("Rendering voxel at {:?} with rotation: {:?} angle {}",
+            debug!("Rendering voxel at {:?} with rotation: {:?} angle {}",
                   voxel_data.pos, rot.axis, rot.angle);
         }
         
