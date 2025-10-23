@@ -3,9 +3,9 @@
 //! A standalone GUI application for creating and editing map files.
 
 use adrakestory::editor::{camera, cursor, file_io, grid, renderer, state, tools, ui};
-use adrakestory::editor::{EditorHistory, EditorState, MapRenderState, RenderMapEvent};
+use adrakestory::editor::{EditorHistory, EditorState, KeyboardEditMode, MapRenderState, RenderMapEvent};
 use adrakestory::editor::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
-use adrakestory::editor::handle_keyboard_cursor_movement;
+use adrakestory::editor::{handle_keyboard_cursor_movement, toggle_keyboard_edit_mode};
 use adrakestory::editor::tools::ActiveTransform;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
@@ -31,6 +31,7 @@ fn main() {
         .init_resource::<MapRenderState>()
         .init_resource::<InfiniteGridConfig>()
         .init_resource::<ActiveTransform>()
+        .init_resource::<KeyboardEditMode>()
         .add_event::<ui::dialogs::FileSelectedEvent>()
         .add_event::<SaveMapEvent>()
         .add_event::<SaveMapAsEvent>()
@@ -59,6 +60,7 @@ fn main() {
         .add_systems(
             Update,
             (
+                toggle_keyboard_edit_mode,
                 cursor::update_cursor_position,
                 handle_keyboard_cursor_movement.after(cursor::update_cursor_position),
             ),
@@ -145,6 +147,7 @@ fn render_ui(
     mut ui_state: ResMut<state::EditorUIState>,
     history: Res<EditorHistory>,
     active_transform: Res<ActiveTransform>,
+    keyboard_mode: Res<KeyboardEditMode>,
     dialog_receiver: ResMut<ui::dialogs::FileDialogReceiver>,
     mut delete_events: EventWriter<tools::DeleteSelectedVoxels>,
     mut move_events: EventWriter<tools::StartMoveOperation>,
@@ -182,7 +185,7 @@ fn render_ui(
     ui::render_viewport_controls(ctx);
 
     // Render status bar
-    render_status_bar(ctx, &editor_state, &history);
+    render_status_bar(ctx, &editor_state, &history, &keyboard_mode);
 
     // Render dialogs
     ui::dialogs::render_dialogs(ctx, &mut editor_state, &mut ui_state, &mut save_events);
@@ -192,9 +195,15 @@ fn render_ui(
 }
 
 /// Render the status bar at the bottom
-fn render_status_bar(ctx: &egui::Context, editor_state: &EditorState, history: &EditorHistory) {
+fn render_status_bar(ctx: &egui::Context, editor_state: &EditorState, history: &EditorHistory, keyboard_mode: &KeyboardEditMode) {
     egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
         ui.horizontal(|ui| {
+            // Keyboard edit mode indicator
+            if keyboard_mode.enabled {
+                ui.colored_label(egui::Color32::GREEN, "⌨ KEYBOARD MODE");
+                ui.separator();
+            }
+
             // Current tool
             ui.label(format!("Tool: {}", editor_state.active_tool.name()));
 

@@ -85,7 +85,18 @@ Complete reference for all map editor controls and shortcuts.
 
 ### Keyboard Cursor Navigation
 
-When using **Voxel Tool** (`B`) or **Entity Tool** (`E`), you can move the cursor through the 3D grid using the keyboard, allowing you to place or remove voxels without using the mouse:
+The map editor features a **vim-like keyboard editing mode** that allows you to navigate the 3D grid without using the mouse.
+
+#### Entering/Exiting Keyboard Mode
+
+| Action | Control |
+|--------|---------|
+| **Enter Keyboard Mode** | `I` (like vim's insert mode) |
+| **Exit Keyboard Mode** | `Escape` |
+
+When keyboard edit mode is active, you'll see a green **⌨ KEYBOARD MODE** indicator in the status bar.
+
+#### Movement Controls (When in Keyboard Mode)
 
 | Action | Control | Alternative |
 |--------|---------|-------------|
@@ -97,18 +108,22 @@ When using **Voxel Tool** (`B`) or **Entity Tool** (`E`), you can move the curso
 | **Move Down** | `C` | - |
 | **Fast Movement** | Hold `Shift` + any direction | Moves 5 units instead of 1 |
 
-**Notes:**
-- Keyboard cursor navigation is **only available** when Voxel or Entity tools are active
-- **Disabled during Select tool transformations** (Move/Rotate modes) to avoid conflicts
-- The cursor position is shown by the grid indicator in the 3D viewport
-- After moving the cursor, you can place/remove voxels at the new position using mouse clicks
+#### Behavior Notes
 
-**Workflow Example:**
-1. Select Voxel Tool (`B`)
-2. Use arrow keys to navigate to desired position
-3. Press `Space` to move up or `C` to move down
-4. Left-click to place a voxel at the cursor position
-5. Hold `Shift` + arrow keys for faster navigation
+- **Mouse Override Prevention**: When in keyboard mode, mouse movements won't affect the cursor position
+- **Tool Compatibility**: Works with all tools except Camera tool
+- **Transform Operations**: Automatically disabled during Select tool's Move/Rotate operations
+- **UI Focus**: Won't interfere when typing in text fields (UI has focus)
+- **Visual Feedback**: The cursor indicator updates in real-time as you navigate
+
+#### Workflow Example
+
+1. Press `I` to enter keyboard edit mode (status bar shows **⌨ KEYBOARD MODE**)
+2. Use arrow keys to navigate horizontally (X/Z plane)
+3. Press `Space` to move up or `C` to move down (Y axis)
+4. Hold `Shift` + arrow keys for faster navigation (5 units at a time)
+5. Use tool-specific controls (e.g., left-click to place voxel)
+6. Press `Escape` to return to normal mouse control when done
 
 ### Voxel Tool (`B`)
 

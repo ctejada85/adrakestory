@@ -195,3 +195,33 @@ pub enum PendingAction {
     OpenMap,
     Quit,
 }
+
+/// Resource to track keyboard editing mode (like vim's insert mode)
+/// When enabled, keyboard controls the cursor instead of mouse
+#[derive(Resource, Default)]
+pub struct KeyboardEditMode {
+    /// Whether keyboard edit mode is active
+    pub enabled: bool,
+}
+
+impl KeyboardEditMode {
+    /// Create a new keyboard edit mode (disabled by default)
+    pub fn new() -> Self {
+        Self { enabled: false }
+    }
+
+    /// Enable keyboard edit mode
+    pub fn enable(&mut self) {
+        self.enabled = true;
+    }
+
+    /// Disable keyboard edit mode
+    pub fn disable(&mut self) {
+        self.enabled = false;
+    }
+
+    /// Toggle keyboard edit mode
+    pub fn toggle(&mut self) {
+        self.enabled = !self.enabled;
+    }
+}

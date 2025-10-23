@@ -1,18 +1,55 @@
 //! Cursor ray casting system for detecting voxel positions from mouse input.
 
 use crate::editor::camera::EditorCamera;
-use crate::editor::state::{EditorState, EditorTool};
+use crate::editor::state::{EditorState, EditorTool, KeyboardEditMode};
 use crate::editor::tools::{ActiveTransform, TransformMode};
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_egui::EguiContexts;
 
+/// System to toggle keyboard edit mode (I to enter, Escape to exit)
+pub fn toggle_keyboard_edit_mode(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut keyboard_mode: ResMut<KeyboardEditMode>,
+    mut contexts: EguiContexts,
+) {
+    // Don't toggle if UI wants keyboard input
+    if contexts.ctx_mut().wants_keyboard_input() {
+        return;
+    }
+
+    // Enter keyboard edit mode with I key
+    if keyboard.just_pressed(KeyCode::KeyI) {
+        keyboard_mode.enable();
+        info!("Keyboard edit mode ENABLED");
+    }
+
+    // Exit keyboard edit mode with Escape key
+    if keyboard.just_pressed(KeyCode::Escape) {
+        keyboard_mode.disable();
+        info!("Keyboard edit mode DISABLED");
+    }
+}
+
 /// System to update cursor position and grid position from mouse input
+/// Only updates when keyboard edit mode is disabled
 pub fn update_cursor_position(
     mut editor_state: ResMut<EditorState>,
     camera_query: Query<(&Camera, &GlobalTransform), With<EditorCamera>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
+    keyboard_mode: Res<KeyboardEditMode>,
+    mut contexts: EguiContexts,
 ) {
+    // Don't update cursor from mouse when in keyboard edit mode
+    if keyboard_mode.enabled {
+        return;
+    }
+
+    // Don't update if mouse is over UI
+    if contexts.ctx_mut().is_pointer_over_area() {
+        return;
+    }
+
     let Ok((camera, camera_transform)) = camera_query.get_single() else {
         return;
     };
@@ -164,12 +201,19 @@ fn intersect_ground_plane(ray: &Ray3d) -> Option<Vec3> {
 
 /// System to move cursor position using keyboard (arrow keys, space, C)
 /// Allows navigating the 3D grid step-by-step without using the mouse
+/// Only active when keyboard edit mode is enabled
 pub fn handle_keyboard_cursor_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut contexts: EguiContexts,
     mut editor_state: ResMut<EditorState>,
     active_transform: Res<ActiveTransform>,
+    keyboard_mode: Res<KeyboardEditMode>,
 ) {
+    // Only allow keyboard cursor movement when in keyboard edit mode
+    if !keyboard_mode.enabled {
+        return;
+    }
+
     // Check if UI wants keyboard input (user is typing in text fields, etc.)
     if contexts.ctx_mut().wants_keyboard_input() {
         return;
