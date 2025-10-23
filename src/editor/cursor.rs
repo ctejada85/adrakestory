@@ -2,7 +2,7 @@
 
 use crate::editor::camera::EditorCamera;
 use crate::editor::state::{EditorState, EditorTool, KeyboardEditMode};
-use crate::editor::tools::ActiveTransform;
+use crate::editor::tools::{ActiveTransform, TransformMode};
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_egui::EguiContexts;
@@ -232,10 +232,14 @@ pub fn handle_keyboard_cursor_movement(
         return;
     }
 
-    // Only block keyboard cursor movement for Camera tool
-    // All other tools (including Select) can use keyboard cursor navigation
-    // Note: Keyboard cursor movement now works even during Move/Rotate operations
+    // Block keyboard cursor movement for Camera tool
     if matches!(editor_state.active_tool, EditorTool::Camera) {
+        return;
+    }
+
+    // Block cursor movement during active Move or Rotate operations
+    // This keeps the cursor stationary while transforming selections
+    if _active_transform.mode != TransformMode::None {
         return;
     }
 
