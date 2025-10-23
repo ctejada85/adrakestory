@@ -219,15 +219,9 @@ pub fn handle_keyboard_cursor_movement(
         return;
     }
 
-    // Don't move cursor during active transformations (Move/Rotate mode)
-    // to avoid conflicts with Select tool operations
-    if active_transform.mode != TransformMode::None {
-        return;
-    }
-
     // Only block keyboard cursor movement for Camera tool
     // All other tools (including Select) can use keyboard cursor navigation
-    // Note: Select tool transformations are already blocked by the mode check above
+    // Note: Keyboard cursor movement now works even during Move/Rotate operations
     if matches!(editor_state.active_tool, EditorTool::Camera) {
         return;
     }

@@ -112,7 +112,7 @@ When keyboard edit mode is active, you'll see a green **⌨ KEYBOARD MODE** indi
 
 - **Mouse Override Prevention**: When in keyboard mode, mouse movements won't affect the cursor position
 - **Tool Compatibility**: Works with all tools except Camera tool
-- **Transform Operations**: Automatically disabled during Select tool's Move/Rotate operations
+- **Transform Operations**: Works alongside Select tool's Move/Rotate operations - you can navigate while transforming
 - **UI Focus**: Won't interfere when typing in text fields (UI has focus)
 - **Visual Feedback**: The cursor indicator updates in real-time as you navigate
 
