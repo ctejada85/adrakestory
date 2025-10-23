@@ -67,12 +67,18 @@ Complete reference for all map editor controls and shortcuts.
 
 ### Tool Selection
 
-| Action | Shortcut | Toolbar Button |
-|--------|----------|----------------|
-| **Select Tool** | `V` | First button |
-| **Voxel Tool** | `B` | Second button |
-| **Entity Tool** | `E` | Third button |
-| **Camera Tool** | `C` | Fourth button |
+| Action | Shortcut | Alternative | Toolbar Button |
+|--------|----------|-------------|----------------|
+| **Voxel Place Tool** | `1` | `B` | Second button |
+| **Select Tool** | `2` | `V` | First button |
+| **Entity Tool** | `E` | - | Third button |
+| **Camera Tool** | `C` | - | Fourth button |
+
+**Quick Tool Switching:**
+- Press `1` to quickly switch to Voxel Place tool (most common for building)
+- Press `2` to quickly switch to Select tool (for editing and moving)
+- Number keys work from anywhere (except when typing in text fields)
+- Tool switching preserves your current voxel type and pattern settings
 
 ### Help
 

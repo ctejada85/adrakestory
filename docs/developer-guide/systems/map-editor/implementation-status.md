@@ -348,6 +348,11 @@ The following features are implemented but need wiring/integration:
      - [x] Visual keyboard mode indicator in status bar
      - [x] Mouse override prevention in keyboard mode
      - [x] Viewport hover detection
+   - [x] **Tool switching hotkeys** ⭐ NEW
+     - [x] Number key 1 for VoxelPlace tool
+     - [x] Number key 2 for Select tool
+     - [x] Preserves voxel type and pattern settings
+     - [x] Works from anywhere (except text input)
 
 2. **Auto-Save Feature** (Optional)
    - [ ] Add periodic auto-save functionality
@@ -428,7 +433,7 @@ The following features are implemented but need wiring/integration:
 
 ### Code Statistics
 
-- **Total Lines**: ~4,556 (net +150 after keyboard navigation)
+- **Total Lines**: ~4,586 (net +30 after tool switching)
 - **Modules**: 16 (added `input.rs`)
 - **Documentation**: 8 comprehensive documents (updated)
 - **Tests**: Basic unit tests in place
@@ -436,6 +441,7 @@ The following features are implemented but need wiring/integration:
   - Keyboard cursor navigation (+100 lines in `cursor.rs`)
   - KeyboardEditMode resource (+30 lines in `state.rs`)
   - Keyboard selection system (+50 lines in `cursor.rs`)
+  - Tool switching system (+30 lines in `cursor.rs`)
   - Unified input system (+673 lines in `input.rs`)
   - Input refactoring documentation (+953 lines)
   - Selection tool Phase 1 (+191 lines)

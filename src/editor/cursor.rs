@@ -339,3 +339,36 @@ pub fn handle_keyboard_selection(
     // Trigger highlight update
     update_events.send(crate::editor::tools::UpdateSelectionHighlights);
 }
+
+/// System to handle tool switching with number keys
+/// 1 = VoxelPlace, 2 = Select
+pub fn handle_tool_switching(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut contexts: EguiContexts,
+    mut editor_state: ResMut<EditorState>,
+) {
+    // Check if UI wants keyboard input (user is typing in text fields, etc.)
+    if contexts.ctx_mut().wants_keyboard_input() {
+        return;
+    }
+
+    // Switch to VoxelPlace tool with 1 key
+    if keyboard.just_pressed(KeyCode::Digit1) {
+        // Preserve current voxel type and pattern if already in VoxelPlace mode
+        let (voxel_type, pattern) = if let EditorTool::VoxelPlace { voxel_type, pattern } = &editor_state.active_tool {
+            (*voxel_type, pattern.clone())
+        } else {
+            // Default to Grass and Full pattern
+            (crate::systems::game::components::VoxelType::Grass, crate::systems::game::map::format::SubVoxelPattern::Full)
+        };
+        
+        editor_state.active_tool = EditorTool::VoxelPlace { voxel_type, pattern };
+        info!("Switched to VoxelPlace tool");
+    }
+
+    // Switch to Select tool with 2 key
+    if keyboard.just_pressed(KeyCode::Digit2) {
+        editor_state.active_tool = EditorTool::Select;
+        info!("Switched to Select tool");
+    }
+}

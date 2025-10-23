@@ -97,6 +97,11 @@ User-facing documentation is located in:
   - Smart Escape behavior (clears selections before exiting mode)
   - Visual mode indicator in status bar
   - Mouse override prevention in keyboard mode
+- **Tool Switching Hotkeys** ⭐: Quick tool switching with number keys
+  - Press 1 for VoxelPlace tool
+  - Press 2 for Select tool
+  - Preserves voxel type and pattern settings
+  - Works from anywhere (except text input)
 
 ### 🚧 In Progress
 - Additional keyboard shortcuts (Ctrl+N, Ctrl+O, etc.)
@@ -200,6 +205,7 @@ src/editor/
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.4.0 | 2025-10-23 | Tool switching hotkeys (1 for Place, 2 for Select) ⭐ |
 | 2.3.0 | 2025-10-23 | Keyboard cursor navigation and vim-like editing mode ⭐ |
 | 2.2.0 | 2025-10-23 | Save functionality complete with auto-expand feature ⭐ |
 | 2.1.0 | 2025-10-22 | Input system refactoring complete (72% system reduction) |
@@ -211,4 +217,4 @@ src/editor/
 
 **Last Updated**: 2025-10-23
 **Maintainer**: Development Team
-**Status**: Active Development - Keyboard Navigation Complete ⭐
+**Status**: Active Development - Tool Switching Hotkeys Complete ⭐

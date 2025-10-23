@@ -5,7 +5,7 @@
 use adrakestory::editor::{camera, cursor, file_io, grid, renderer, state, tools, ui};
 use adrakestory::editor::{EditorHistory, EditorState, KeyboardEditMode, MapRenderState, RenderMapEvent};
 use adrakestory::editor::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
-use adrakestory::editor::{handle_keyboard_cursor_movement, handle_keyboard_selection, toggle_keyboard_edit_mode};
+use adrakestory::editor::{handle_keyboard_cursor_movement, handle_keyboard_selection, handle_tool_switching, toggle_keyboard_edit_mode};
 use adrakestory::editor::tools::ActiveTransform;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
@@ -61,6 +61,7 @@ fn main() {
             Update,
             (
                 toggle_keyboard_edit_mode,
+                handle_tool_switching,
                 cursor::update_cursor_position,
                 handle_keyboard_cursor_movement.after(cursor::update_cursor_position),
                 handle_keyboard_selection,
