@@ -154,7 +154,7 @@ flowchart TD
     New -->|Yes| CreateDefault[Create Default Map]
     CreateDefault --> UpdateState[Update Editor State]
     
-    Open -->|Yes| ShowDialog[Show File Dialog]
+    Open -->|Yes| ShowDialog[Show File Dialog<br/>Non-blocking Thread]
     ShowDialog --> LoadFile[Load .ron File]
     LoadFile --> Parse[Parse RON Data]
     Parse --> Validate[Validate Map]
@@ -162,13 +162,14 @@ flowchart TD
     Validate -->|Invalid| ShowError[Show Error Dialog]
     
     Save -->|Yes| HasPath{Has File Path?}
-    HasPath -->|No| ShowSaveDialog[Show Save Dialog]
-    HasPath -->|Yes| ValidateMap[Validate Current Map]
-    ShowSaveDialog --> ValidateMap
+    HasPath -->|No| ShowSaveDialog[Show Save Dialog<br/>Non-blocking Thread]
+    HasPath -->|Yes| AutoExpand[Auto-Expand Dimensions<br/>Fit All Voxels]
+    ShowSaveDialog --> AutoExpand
+    AutoExpand --> ValidateMap[Validate Current Map]
     ValidateMap -->|Valid| SerializeMap[Serialize to RON]
     ValidateMap -->|Invalid| ShowError
     SerializeMap --> WriteFile[Write to File]
-    WriteFile --> ClearDirty[Clear Modified Flag]
+    WriteFile --> ClearDirty[Clear Modified Flag<br/>Update Window Title]
     
     UpdateState --> Render[Render Editor]
     ShowError --> Render
@@ -500,6 +501,6 @@ See [Input Refactoring Summary](archive/input-refactoring-summary.md) for comple
 
 ---
 
-**Document Version**: 2.0.0
-**Last Updated**: 2025-10-22
-**Status**: Updated for unified input architecture
+**Document Version**: 2.1.0
+**Last Updated**: 2025-10-23
+**Status**: Updated for save functionality with auto-expand

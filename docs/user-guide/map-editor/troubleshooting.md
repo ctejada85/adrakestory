@@ -172,6 +172,8 @@ Solution: Run `cargo update` then rebuild
 4. Check disk space
 5. Look for error messages in terminal
 
+**Note**: The save system automatically expands map dimensions to fit all voxels. If you see dimension expansion messages, this is normal behavior.
+
 ### Can't Open Map
 
 **Problem**: Open dialog doesn't show files or fails to load
@@ -265,10 +267,12 @@ Solution: Run `cargo update` then rebuild
 1. Read error messages carefully
 2. Common issues:
    - Missing PlayerSpawn entity
-   - Voxels outside world bounds
    - Invalid voxel types
+   - Invalid entity positions
 3. Fix issues one at a time
 4. Save after each fix
+
+**Note**: "Voxels outside world bounds" errors should no longer occur during save, as the editor automatically expands dimensions to fit all voxels.
 
 ### Lost Work
 
@@ -351,8 +355,8 @@ See [Implementation Status](../../developer-guide/systems/map-editor/implementat
 
 While features are being implemented:
 
-**File Save**: Save button shows but doesn't write files yet - coming soon
-**Keyboard Shortcuts**: Some shortcuts defined but not wired yet
+**File Save**: ✅ Now fully implemented with auto-expand feature
+**Keyboard Shortcuts**: Some shortcuts defined but not wired yet (Ctrl+S and Ctrl+Shift+S work)
 **Undo/Redo**: History system exists but not fully wired to UI
 
 ### Manual Editing

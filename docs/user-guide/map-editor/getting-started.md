@@ -46,9 +46,12 @@ If using VSCode or another IDE, you can configure a launch target for the `map_e
 
 ### Saving Your Work
 
-- **Save**: `Ctrl+S` - Saves to current file
-- **Save As**: `Ctrl+Shift+S` - Saves to new file
+- **Save**: `Ctrl+S` - Saves to current file (or prompts for location if new map)
+- **Save As**: `Ctrl+Shift+S` - Saves to new file location
 - The editor will warn you about unsaved changes when closing
+- **Auto-Expand**: Map dimensions automatically expand to fit all voxels when saving
+
+**Note**: If you place voxels outside the original map dimensions, the editor will automatically expand the map size when saving to ensure all voxels are included. You'll see a log message indicating the new dimensions.
 
 ## Interface Overview
 
@@ -150,9 +153,10 @@ If using VSCode or another IDE, you can configure a launch target for the `map_e
 
 1. **Start Small**: Begin with a small map (10×5×10) to learn the tools
 2. **Use the Grid**: Keep grid visible while learning
-3. **Save Often**: Use `Ctrl+S` frequently
+3. **Save Often**: Use `Ctrl+S` frequently - the editor auto-expands dimensions if needed
 4. **Experiment**: Try different voxel types and patterns
 5. **Test in Game**: Load your map in the game to see how it plays
+6. **Don't Worry About Dimensions**: Place voxels freely - the editor will adjust map size automatically when saving
 
 ## Common Tasks
 

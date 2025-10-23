@@ -4,11 +4,11 @@
 
 This document tracks the implementation status of the A Drake's Story Map Editor.
 
-**Last Updated**: 2025-10-22
-**Status**: ✅ **FULLY FUNCTIONAL** - File operations, rendering, and trackpad controls working
+**Last Updated**: 2025-10-23
+**Status**: ✅ **FULLY FUNCTIONAL** - File operations, rendering, save functionality, and trackpad controls working
 **Build Status**: ✅ Passing
-**Runtime Status**: ✅ Complete with file I/O, 3D rendering, and Mac trackpad support
-**Documentation Status**: ✅ Reorganized and consolidated (2025-10-22)
+**Runtime Status**: ✅ Complete with file I/O, save/load, 3D rendering, and Mac trackpad support
+**Documentation Status**: ✅ Reorganized and consolidated (2025-10-23)
 
 ## ✅ Completed Components
 
@@ -124,13 +124,14 @@ This document tracks the implementation status of the A Drake's Story Map Editor
 - ✅ Positioned in viewport corner
 
 #### Dialogs (`src/editor/ui/dialogs.rs` - 335 lines)
-- ✅ Unsaved changes confirmation
+- ✅ Unsaved changes confirmation with save integration
 - ✅ New map dialog
 - ✅ About dialog
 - ✅ Keyboard shortcuts help
 - ✅ Error dialog for file operations
 - ✅ Non-blocking file dialog (thread-based)
 - ✅ File loading with RON parsing
+- ✅ File saving with RON serialization
 - ✅ Comprehensive error handling
 
 #### Status Bar (in `map_editor.rs`)
@@ -280,21 +281,45 @@ map-editor/
     └── move-rotate-plan.md
 ```
 
+## ✅ Recently Completed (2025-10-23)
+
+### File Save System (`src/editor/file_io.rs` - 233 lines) ⭐ NEW
+- ✅ **Complete Save Functionality**: Full implementation of save operations
+- ✅ **Events**: `SaveMapEvent`, `SaveMapAsEvent`, `FileSavedEvent`
+- ✅ **Resource**: `SaveFileDialogReceiver` for non-blocking save dialogs
+- ✅ **Systems**:
+  - `handle_save_map()` - Saves to existing path or triggers Save As
+  - `handle_save_map_as()` - Opens save file dialog in background thread
+  - `check_save_dialog_result()` - Polls for dialog results without blocking
+  - `handle_file_saved()` - Updates editor state after successful save
+- ✅ **Auto-Expand Feature**: Automatically expands map dimensions to fit all voxels
+  - `calculate_map_bounds()` - Finds bounding box of all voxels
+  - `auto_expand_map_dimensions()` - Adjusts dimensions before saving
+  - Prevents validation errors from voxels outside original bounds
+  - Logs dimension changes for user awareness
+- ✅ **UI Integration**:
+  - Save button (Ctrl+S) in menu and toolbar
+  - Save As button (Ctrl+Shift+S) in menu
+  - Unsaved changes dialog Save button
+  - Modified indicator in status bar
+- ✅ **Error Handling**: User-friendly error dialogs for save failures
+- ✅ **Build Status**: ✅ Verified successful with no warnings
+
+
 ## 🚧 Pending Integrations
 
 The following features are implemented but need wiring/integration:
 
-2. **File Save Operations**
-   - Save button → actual file system write
-   - Save As functionality
-   - Auto-save feature
+2. **Auto-Save Feature** (Optional Enhancement)
+   - Periodic auto-save functionality
+   - Auto-save interval configuration
 
-3. **Keyboard Shortcuts**
-   - Input handling system for keyboard events
-   - Ctrl+Z/Y → undo/redo actions
-   - Ctrl+S → save file
-   - Ctrl+N/O → new/open file
-   - Tool shortcuts (V, B, E, C)
+3. **Keyboard Shortcuts** (Partially Complete)
+   - ✅ Ctrl+S → save file
+   - ✅ Ctrl+Shift+S → save as
+   - ⏳ Ctrl+Z/Y → undo/redo actions
+   - ⏳ Ctrl+N/O → new/open file
+   - ⏳ Tool shortcuts (V, B, E, C)
 
 4. **Undo/Redo Wiring**
    - History system is complete
@@ -314,15 +339,15 @@ The following features are implemented but need wiring/integration:
    - [ ] Update cursor indicator position in real-time
    - [ ] Handle cursor visibility based on viewport hover
 
-2. **File Save Operations**
-   - [ ] Connect Save button to RON serialization
-   - [ ] Implement Save As functionality
-   - [ ] Add auto-save feature
+2. **Auto-Save Feature** (Optional)
+   - [ ] Add periodic auto-save functionality
+   - [ ] Add auto-save interval configuration
+   - [ ] Add auto-save file management
 
-3. **Keyboard Shortcuts System**
-   - [ ] Implement keyboard input handling system
+3. **Keyboard Shortcuts System** (Partially Complete)
+   - [x] Wire Ctrl+S to save ✅
+   - [x] Wire Ctrl+Shift+S to save as ✅
    - [ ] Wire Ctrl+Z/Y to undo/redo
-   - [ ] Wire Ctrl+S to save
    - [ ] Wire Ctrl+N/O to new/open
    - [ ] Wire tool shortcuts (V, B, E, C)
 
@@ -448,8 +473,8 @@ To complete the map editor implementation:
 
 ### Known Technical Debt
 - Some placeholder implementations (marked with TODO)
-- Save operations not yet implemented
-- No async file operations for very large files
+- No async file operations for very large files (save is synchronous)
+- No auto-save feature yet
 - Grid rendering could be optimized for very large maps
 - Camera controls could have smoother interpolation
 - No LOD system for distant voxels yet
@@ -469,6 +494,6 @@ To complete the map editor implementation:
 
 ---
 
-**Last Updated**: 2025-10-22
-**Status**: Input System Refactored, Documentation Complete, Core Features Operational
-**Next Milestone**: Rotation operation (Phase 2), Save functionality
+**Last Updated**: 2025-10-23
+**Status**: Save Functionality Complete, Input System Refactored, Core Features Operational
+**Next Milestone**: Rotation operation (Phase 2), Undo/Redo integration

@@ -77,7 +77,12 @@ User-facing documentation is located in:
 - **Voxel Editing**: Place, remove, and configure voxels
 - **Entity Management**: Place and configure entities
 - **Selection Tool**: Select, move, and rotate voxels
-- **File Operations**: Open and load .ron map files
+- **File Operations** ⭐: Complete save/load functionality
+  - Open and load .ron map files
+  - Save and Save As with RON serialization
+  - Auto-expand map dimensions to fit voxels
+  - Non-blocking file dialogs
+  - Unsaved changes protection
 - **History System**: Undo/redo for all operations
 - **Unified Input System** ⭐: Event-driven architecture with 72% system reduction
   - Single keyboard input handler
@@ -86,9 +91,9 @@ User-facing documentation is located in:
   - Improved maintainability
 
 ### 🚧 In Progress
-- File save operations
-- Additional keyboard shortcuts
+- Additional keyboard shortcuts (Ctrl+N, Ctrl+O, etc.)
 - Enhanced validation display
+- Rotation operations
 
 ### 📋 Planned
 See [Roadmap](roadmap.md) for detailed future plans.
@@ -187,6 +192,7 @@ src/editor/
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.2.0 | 2025-10-23 | Save functionality complete with auto-expand feature ⭐ |
 | 2.1.0 | 2025-10-22 | Input system refactoring complete (72% system reduction) |
 | 2.0.0 | 2025-10-22 | Documentation reorganization and consolidation |
 | 1.1.0 | 2025-01-15 | File operations and rendering complete |
@@ -194,6 +200,6 @@ src/editor/
 
 ---
 
-**Last Updated**: 2025-10-22
+**Last Updated**: 2025-10-23
 **Maintainer**: Development Team
-**Status**: Active Development - Input System Refactored ⭐
+**Status**: Active Development - Save Functionality Complete ⭐
