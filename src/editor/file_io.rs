@@ -146,10 +146,94 @@ pub fn handle_file_saved(
     }
 }
 
+/// Calculate the bounding box of all voxels in the map
+fn calculate_map_bounds(map: &MapData) -> (i32, i32, i32, i32, i32, i32) {
+    if map.world.voxels.is_empty() {
+        // Return default bounds for empty map
+        return (0, 0, 0, 0, 0, 0);
+    }
+
+    let mut min_x = i32::MAX;
+    let mut max_x = i32::MIN;
+    let mut min_y = i32::MAX;
+    let mut max_y = i32::MIN;
+    let mut min_z = i32::MAX;
+    let mut max_z = i32::MIN;
+
+    for voxel in &map.world.voxels {
+        let (x, y, z) = voxel.pos;
+        min_x = min_x.min(x);
+        max_x = max_x.max(x);
+        min_y = min_y.min(y);
+        max_y = max_y.max(y);
+        min_z = min_z.min(z);
+        max_z = max_z.max(z);
+    }
+
+    (min_x, max_x, min_y, max_y, min_z, max_z)
+}
+
+/// Auto-expand map dimensions to fit all voxels
+/// Returns true if dimensions were expanded
+fn auto_expand_map_dimensions(map: &mut MapData) -> bool {
+    let (_min_x, max_x, _min_y, max_y, _min_z, max_z) = calculate_map_bounds(map);
+
+    // Calculate required dimensions (max + 1 because positions are 0-indexed)
+    let required_width = if map.world.voxels.is_empty() {
+        map.world.width.max(1) // Keep at least 1 for empty maps
+    } else {
+        (max_x + 1).max(1)
+    };
+
+    let required_height = if map.world.voxels.is_empty() {
+        map.world.height.max(1)
+    } else {
+        (max_y + 1).max(1)
+    };
+
+    let required_depth = if map.world.voxels.is_empty() {
+        map.world.depth.max(1)
+    } else {
+        (max_z + 1).max(1)
+    };
+
+    // Check if expansion is needed
+    let needs_expansion = required_width > map.world.width
+        || required_height > map.world.height
+        || required_depth > map.world.depth;
+
+    if needs_expansion {
+        let old_width = map.world.width;
+        let old_height = map.world.height;
+        let old_depth = map.world.depth;
+
+        // Expand dimensions
+        map.world.width = required_width.max(map.world.width);
+        map.world.height = required_height.max(map.world.height);
+        map.world.depth = required_depth.max(map.world.depth);
+
+        info!(
+            "Auto-expanded map dimensions: ({}, {}, {}) -> ({}, {}, {})",
+            old_width, old_height, old_depth,
+            map.world.width, map.world.height, map.world.depth
+        );
+
+        true
+    } else {
+        false
+    }
+}
+
 /// Save a map to a file
 fn save_map_to_file(map: &MapData, path: &PathBuf) -> Result<(), String> {
+    // Clone the map so we can modify dimensions without affecting the editor state
+    let mut map_to_save = map.clone();
+
+    // Auto-expand dimensions to fit all voxels
+    auto_expand_map_dimensions(&mut map_to_save);
+
     // Serialize to RON format with pretty printing
-    let ron_string = ron::ser::to_string_pretty(map, ron::ser::PrettyConfig::default())
+    let ron_string = ron::ser::to_string_pretty(&map_to_save, ron::ser::PrettyConfig::default())
         .map_err(|e| format!("Failed to serialize map: {}", e))?;
 
     // Write to file
