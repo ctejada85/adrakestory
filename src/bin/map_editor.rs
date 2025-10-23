@@ -8,6 +8,7 @@ use adrakestory::editor::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent
 use adrakestory::editor::{handle_keyboard_cursor_movement, handle_keyboard_selection, handle_tool_switching, toggle_keyboard_edit_mode};
 use adrakestory::editor::tools::ActiveTransform;
 use bevy::prelude::*;
+use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use grid::InfiniteGridConfig;
 
@@ -111,22 +112,33 @@ fn setup_editor(
     // Get lighting configuration from the current map
     let lighting = &editor_state.current_map.lighting;
 
-    // Spawn directional light using map configuration
+    // Spawn directional light using map configuration with high-quality shadows
     if let Some(dir_light) = &lighting.directional_light {
         let (dx, dy, dz) = dir_light.direction;
         let direction = Vec3::new(dx, dy, dz).normalize();
+
+        let cascade_shadow_config = CascadeShadowConfigBuilder {
+            num_cascades: 4,
+            first_cascade_far_bound: 4.0,
+            maximum_distance: 100.0,
+            ..default()
+        }
+        .build();
 
         commands.spawn((
             DirectionalLight {
                 illuminance: dir_light.illuminance,
                 color: Color::srgb(dir_light.color.0, dir_light.color.1, dir_light.color.2),
                 shadows_enabled: true,
+                shadow_depth_bias: 0.02,
+                shadow_normal_bias: 1.8,
                 ..default()
             },
+            cascade_shadow_config,
             Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, direction)),
         ));
         
-        info!("Spawned directional light: illuminance={}, color={:?}, direction={:?}",
+        info!("Spawned directional light with high-quality shadows: illuminance={}, color={:?}, direction={:?}",
               dir_light.illuminance, dir_light.color, dir_light.direction);
     }
 
@@ -282,22 +294,33 @@ fn update_lighting_on_map_change(
         commands.entity(entity).despawn();
     }
 
-    // Spawn new directional light with map configuration
+    // Spawn new directional light with map configuration and high-quality shadows
     if let Some(dir_light) = &lighting.directional_light {
         let (dx, dy, dz) = dir_light.direction;
         let direction = Vec3::new(dx, dy, dz).normalize();
+
+        let cascade_shadow_config = CascadeShadowConfigBuilder {
+            num_cascades: 4,
+            first_cascade_far_bound: 4.0,
+            maximum_distance: 100.0,
+            ..default()
+        }
+        .build();
 
         commands.spawn((
             DirectionalLight {
                 illuminance: dir_light.illuminance,
                 color: Color::srgb(dir_light.color.0, dir_light.color.1, dir_light.color.2),
                 shadows_enabled: true,
+                shadow_depth_bias: 0.02,
+                shadow_normal_bias: 1.8,
                 ..default()
             },
+            cascade_shadow_config,
             Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, direction)),
         ));
         
-        info!("Updated directional light: illuminance={}, color={:?}, direction={:?}",
+        info!("Updated directional light with high-quality shadows: illuminance={}, color={:?}, direction={:?}",
               dir_light.illuminance, dir_light.color, dir_light.direction);
     }
 }

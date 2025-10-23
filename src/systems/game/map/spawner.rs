@@ -5,6 +5,7 @@ use super::super::resources::{GameInitialized, SpatialGrid};
 use super::format::{EntityType, MapData, SubVoxelPattern};
 use super::loader::{LoadProgress, LoadedMapData, MapLoadProgress};
 use bevy::prelude::*;
+use bevy::pbr::CascadeShadowConfigBuilder;
 
 const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
 const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
@@ -201,18 +202,29 @@ fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
 fn spawn_lighting(commands: &mut Commands, map: &MapData) {
     let lighting = &map.lighting;
 
-    // Spawn directional light if configured
+    // Spawn directional light if configured with high-quality shadows
     if let Some(dir_light) = &lighting.directional_light {
         let (dx, dy, dz) = dir_light.direction;
         let direction = Vec3::new(dx, dy, dz).normalize();
+
+        let cascade_shadow_config = CascadeShadowConfigBuilder {
+            num_cascades: 4,
+            first_cascade_far_bound: 4.0,
+            maximum_distance: 100.0,
+            ..default()
+        }
+        .build();
 
         commands.spawn((
             DirectionalLight {
                 illuminance: dir_light.illuminance,
                 color: Color::srgb(dir_light.color.0, dir_light.color.1, dir_light.color.2),
                 shadows_enabled: true,
+                shadow_depth_bias: 0.02,
+                shadow_normal_bias: 1.8,
                 ..default()
             },
+            cascade_shadow_config,
             Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, direction)),
         ));
     }
