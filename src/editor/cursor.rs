@@ -1,9 +1,11 @@
 //! Cursor ray casting system for detecting voxel positions from mouse input.
 
 use crate::editor::camera::EditorCamera;
-use crate::editor::state::EditorState;
+use crate::editor::state::{EditorState, EditorTool};
+use crate::editor::tools::{ActiveTransform, TransformMode};
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use bevy_egui::EguiContexts;
 
 /// System to update cursor position and grid position from mouse input
 pub fn update_cursor_position(
@@ -158,4 +160,84 @@ fn intersect_ground_plane(ray: &Ray3d) -> Option<Vec3> {
 
     // Calculate world position at intersection
     Some(ray_origin + ray_direction * t)
+}
+
+/// System to move cursor position using keyboard (arrow keys, space, C)
+/// Allows navigating the 3D grid step-by-step without using the mouse
+pub fn handle_keyboard_cursor_movement(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut contexts: EguiContexts,
+    mut editor_state: ResMut<EditorState>,
+    active_transform: Res<ActiveTransform>,
+) {
+    // Check if UI wants keyboard input (user is typing in text fields, etc.)
+    if contexts.ctx_mut().wants_keyboard_input() {
+        return;
+    }
+
+    // Don't move cursor during active transformations (Move/Rotate mode)
+    // to avoid conflicts with Select tool operations
+    if active_transform.mode != TransformMode::None {
+        return;
+    }
+
+    // Only block keyboard cursor movement for Camera tool
+    // All other tools (including Select) can use keyboard cursor navigation
+    // Note: Select tool transformations are already blocked by the mode check above
+    if matches!(editor_state.active_tool, EditorTool::Camera) {
+        return;
+    }
+
+    // Get current cursor position or default to (0, 0, 0)
+    let current_pos = editor_state.cursor_grid_pos.unwrap_or((0, 0, 0));
+    
+    // Calculate movement step (1 or 5 with Shift for fast movement)
+    let step = if keyboard.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
+        5
+    } else {
+        1
+    };
+    
+    let mut new_pos = current_pos;
+    let mut moved = false;
+    
+    // Horizontal movement (X/Z plane)
+    if keyboard.just_pressed(KeyCode::ArrowUp) {
+        new_pos.2 -= step;  // Move forward (negative Z)
+        moved = true;
+    }
+    if keyboard.just_pressed(KeyCode::ArrowDown) {
+        new_pos.2 += step;  // Move backward (positive Z)
+        moved = true;
+    }
+    if keyboard.just_pressed(KeyCode::ArrowLeft) {
+        new_pos.0 -= step;  // Move left (negative X)
+        moved = true;
+    }
+    if keyboard.just_pressed(KeyCode::ArrowRight) {
+        new_pos.0 += step;  // Move right (positive X)
+        moved = true;
+    }
+    
+    // Vertical movement (Y axis)
+    if keyboard.just_pressed(KeyCode::Space) {
+        new_pos.1 += step;  // Move up
+        moved = true;
+    }
+    if keyboard.just_pressed(KeyCode::KeyC) {
+        new_pos.1 -= step;  // Move down
+        moved = true;
+    }
+    
+    // Update cursor position if moved
+    if moved {
+        editor_state.cursor_grid_pos = Some(new_pos);
+        editor_state.cursor_position = Some(Vec3::new(
+            new_pos.0 as f32,
+            new_pos.1 as f32,
+            new_pos.2 as f32,
+        ));
+        
+        info!("Cursor moved to grid position: {:?}", new_pos);
+    }
 }

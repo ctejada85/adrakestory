@@ -14,6 +14,7 @@ pub mod state;
 pub mod tools;
 pub mod ui;
 
+pub use cursor::handle_keyboard_cursor_movement;
 pub use file_io::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
 pub use history::{EditorAction, EditorHistory};
 pub use renderer::{MapRenderState, RenderMapEvent};

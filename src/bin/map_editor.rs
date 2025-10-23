@@ -5,6 +5,7 @@
 use adrakestory::editor::{camera, cursor, file_io, grid, renderer, state, tools, ui};
 use adrakestory::editor::{EditorHistory, EditorState, MapRenderState, RenderMapEvent};
 use adrakestory::editor::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
+use adrakestory::editor::handle_keyboard_cursor_movement;
 use adrakestory::editor::tools::ActiveTransform;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
@@ -55,7 +56,13 @@ fn main() {
         .add_systems(Update, file_io::handle_save_map_as)
         .add_systems(Update, file_io::check_save_dialog_result)
         .add_systems(Update, file_io::handle_file_saved)
-        .add_systems(Update, cursor::update_cursor_position)
+        .add_systems(
+            Update,
+            (
+                cursor::update_cursor_position,
+                handle_keyboard_cursor_movement.after(cursor::update_cursor_position),
+            ),
+        )
         .add_systems(Update, renderer::detect_map_changes)
         .add_systems(Update, renderer::render_map_system)
         .add_systems(Update, camera::handle_camera_input)

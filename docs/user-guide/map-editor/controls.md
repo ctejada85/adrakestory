@@ -83,6 +83,33 @@ Complete reference for all map editor controls and shortcuts.
 
 ## Tool-Specific Controls
 
+### Keyboard Cursor Navigation
+
+When using **Voxel Tool** (`B`) or **Entity Tool** (`E`), you can move the cursor through the 3D grid using the keyboard, allowing you to place or remove voxels without using the mouse:
+
+| Action | Control | Alternative |
+|--------|---------|-------------|
+| **Move Forward** | `Arrow Up` | - |
+| **Move Backward** | `Arrow Down` | - |
+| **Move Left** | `Arrow Left` | - |
+| **Move Right** | `Arrow Right` | - |
+| **Move Up** | `Space` | - |
+| **Move Down** | `C` | - |
+| **Fast Movement** | Hold `Shift` + any direction | Moves 5 units instead of 1 |
+
+**Notes:**
+- Keyboard cursor navigation is **only available** when Voxel or Entity tools are active
+- **Disabled during Select tool transformations** (Move/Rotate modes) to avoid conflicts
+- The cursor position is shown by the grid indicator in the 3D viewport
+- After moving the cursor, you can place/remove voxels at the new position using mouse clicks
+
+**Workflow Example:**
+1. Select Voxel Tool (`B`)
+2. Use arrow keys to navigate to desired position
+3. Press `Space` to move up or `C` to move down
+4. Left-click to place a voxel at the cursor position
+5. Hold `Shift` + arrow keys for faster navigation
+
 ### Voxel Tool (`B`)
 
 When the Voxel Tool is active:
