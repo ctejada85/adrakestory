@@ -89,6 +89,14 @@ User-facing documentation is located in:
   - Context-aware key mapping
   - Clear separation of concerns
   - Improved maintainability
+- **Keyboard Cursor Navigation** ⭐: Vim-like keyboard editing mode
+  - I key to enter keyboard mode, Escape to exit
+  - Arrow keys for X/Z movement, Space/C for Y-axis
+  - Enter key for selection (Select tool)
+  - Shift modifier for fast movement (5 units)
+  - Smart Escape behavior (clears selections before exiting mode)
+  - Visual mode indicator in status bar
+  - Mouse override prevention in keyboard mode
 
 ### 🚧 In Progress
 - Additional keyboard shortcuts (Ctrl+N, Ctrl+O, etc.)
@@ -115,7 +123,7 @@ src/editor/
 ├── history.rs          # Undo/redo system
 ├── camera.rs           # Camera controls
 ├── grid.rs             # Grid visualization
-├── cursor.rs           # 3D cursor ray casting
+├── cursor.rs           # 3D cursor ray casting + keyboard navigation
 ├── renderer.rs         # Map rendering
 ├── tools/              # Editing tools
 │   ├── input.rs        # Unified input handling ⭐ NEW
@@ -192,6 +200,7 @@ src/editor/
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.3.0 | 2025-10-23 | Keyboard cursor navigation and vim-like editing mode ⭐ |
 | 2.2.0 | 2025-10-23 | Save functionality complete with auto-expand feature ⭐ |
 | 2.1.0 | 2025-10-22 | Input system refactoring complete (72% system reduction) |
 | 2.0.0 | 2025-10-22 | Documentation reorganization and consolidation |
@@ -202,4 +211,4 @@ src/editor/
 
 **Last Updated**: 2025-10-23
 **Maintainer**: Development Team
-**Status**: Active Development - Save Functionality Complete ⭐
+**Status**: Active Development - Keyboard Navigation Complete ⭐

@@ -336,8 +336,18 @@ The following features are implemented but need wiring/integration:
    - [x] Calculate grid position from world coordinates (3D)
    - [x] Ray-AABB intersection for voxel detection
    - [x] Support for selecting voxels at any height
-   - [ ] Update cursor indicator position in real-time
-   - [ ] Handle cursor visibility based on viewport hover
+   - [x] Update cursor indicator position in real-time
+   - [x] Handle cursor visibility based on viewport hover
+   - [x] **Keyboard cursor navigation** ⭐ NEW
+     - [x] Arrow keys for X/Z plane movement
+     - [x] Space/C keys for Y-axis movement
+     - [x] Shift modifier for fast movement (5 units)
+     - [x] Keyboard edit mode (I to enter, Escape to exit)
+     - [x] Enter key selection for Select tool
+     - [x] Smart Escape behavior (clears selections before exiting mode)
+     - [x] Visual keyboard mode indicator in status bar
+     - [x] Mouse override prevention in keyboard mode
+     - [x] Viewport hover detection
 
 2. **Auto-Save Feature** (Optional)
    - [ ] Add periodic auto-save functionality
@@ -418,11 +428,14 @@ The following features are implemented but need wiring/integration:
 
 ### Code Statistics
 
-- **Total Lines**: ~4,406 (net +173 after refactoring)
+- **Total Lines**: ~4,556 (net +150 after keyboard navigation)
 - **Modules**: 16 (added `input.rs`)
 - **Documentation**: 8 comprehensive documents (updated)
 - **Tests**: Basic unit tests in place
 - **Recent Additions**:
+  - Keyboard cursor navigation (+100 lines in `cursor.rs`)
+  - KeyboardEditMode resource (+30 lines in `state.rs`)
+  - Keyboard selection system (+50 lines in `cursor.rs`)
   - Unified input system (+673 lines in `input.rs`)
   - Input refactoring documentation (+953 lines)
   - Selection tool Phase 1 (+191 lines)
