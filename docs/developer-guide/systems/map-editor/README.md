@@ -74,6 +74,10 @@ User-facing documentation is located in:
 ### ✅ Implemented
 - **Core Infrastructure**: Window, UI layout, state management
 - **3D Viewport**: Real-time rendering with camera controls
+- **WYSIWYG Lighting** ⭐: Congruent illumination between editor and game
+  - Map-defined directional and ambient lighting
+  - Dynamic lighting updates when loading maps
+  - Identical rendering in editor and gameplay
 - **Voxel Editing**: Place, remove, and configure voxels
 - **Entity Management**: Place and configure entities
 - **Selection Tool**: Select, move, and rotate voxels
@@ -205,6 +209,7 @@ src/editor/
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.5.0 | 2025-10-23 | WYSIWYG lighting - congruent illumination between editor and game ⭐ |
 | 2.4.0 | 2025-10-23 | Tool switching hotkeys (1 for Place, 2 for Select) ⭐ |
 | 2.3.0 | 2025-10-23 | Keyboard cursor navigation and vim-like editing mode ⭐ |
 | 2.2.0 | 2025-10-23 | Save functionality complete with auto-expand feature ⭐ |
@@ -217,4 +222,4 @@ src/editor/
 
 **Last Updated**: 2025-10-23
 **Maintainer**: Development Team
-**Status**: Active Development - Tool Switching Hotkeys Complete ⭐
+**Status**: Active Development - WYSIWYG Lighting Complete ⭐

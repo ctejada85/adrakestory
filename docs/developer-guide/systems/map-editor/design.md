@@ -140,7 +140,15 @@ pub enum EditorAction {
 
 ## Key Features
 
-### 1. Voxel Editing
+### 1. Lighting System (WYSIWYG)
+- **Map-Defined Lighting**: Uses lighting configuration from the current map
+- **Directional Light**: Reads illuminance, color, and direction from map data
+- **Ambient Light**: Converts map's ambient_intensity (0.0-1.0) to Bevy brightness (×1000)
+- **Dynamic Updates**: Automatically updates lighting when loading new maps
+- **Congruent Rendering**: Identical illumination in editor and game mode
+- **Real-time Preview**: What you see in the editor is what you get in-game
+
+### 2. Voxel Editing
 - **Placement**: Click to place voxels at grid positions
 - **Removal**: Right-click or delete key to remove voxels
 - **Type Selection**: Dropdown for Grass, Dirt, Stone, Air
@@ -148,13 +156,13 @@ pub enum EditorAction {
 - **Multi-select**: Shift+click for multiple voxels
 - **Copy/Paste**: Duplicate voxel configurations
 
-### 2. Entity Management
+### 3. Entity Management
 - **Placement**: Click to place entities (PlayerSpawn, etc.)
 - **Properties**: Edit entity position and custom properties
 - **Validation**: Ensure at least one PlayerSpawn exists
 - **Visual Indicators**: Different colors/icons for entity types
 
-### 3. Camera Controls
+### 4. Camera Controls
 - **Orbit**: Right-click and drag to rotate around center
 - **Pan**: Multiple options for accessibility:
   - Middle-click and drag (traditional)
@@ -165,13 +173,13 @@ pub enum EditorAction {
 - **Reset**: Button or Home key to reset to default view
 - **Presets**: Top, Front, Side, Isometric views
 
-### 4. Grid System
+### 5. Grid System
 - **Visualization**: Render grid lines at voxel boundaries
 - **Snapping**: Snap cursor to grid intersections
 - **Opacity**: Adjustable grid transparency
 - **Toggle**: Show/hide grid with keyboard shortcut
 
-### 5. File Operations
+### 6. File Operations
 - **New**: Create new map with default settings
 - **Open**: Load existing .ron file with file picker
 - **Save**: Save to current file path
@@ -179,14 +187,14 @@ pub enum EditorAction {
 - **Auto-save**: Optional periodic auto-save
 - **Recent Files**: Quick access to recently edited maps
 
-### 6. Undo/Redo
+### 7. Undo/Redo
 - **Action History**: Track all editing operations
 - **Undo**: Ctrl+Z to undo last action
 - **Redo**: Ctrl+Y or Ctrl+Shift+Z to redo
 - **History Limit**: Configurable max history size
 - **Clear History**: Option to clear history
 
-### 7. Validation
+### 8. Validation
 - **Real-time**: Validate as user edits
 - **Visual Feedback**: Highlight errors in red
 - **Error Panel**: List all validation errors
@@ -315,6 +323,6 @@ rfd = "0.15"  # Native file dialogs
 
 ---
 
-**Document Version**: 1.0.0  
-**Last Updated**: 2025-01-10  
-**Status**: Design Phase
+**Document Version**: 1.1.0
+**Last Updated**: 2025-10-23
+**Status**: Active Development - WYSIWYG Lighting Implemented
