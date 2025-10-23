@@ -2,7 +2,7 @@
 
 use crate::editor::camera::EditorCamera;
 use crate::editor::state::{EditorState, EditorTool, KeyboardEditMode};
-use crate::editor::tools::{ActiveTransform, TransformMode};
+use crate::editor::tools::ActiveTransform;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_egui::EguiContexts;
@@ -206,7 +206,7 @@ pub fn handle_keyboard_cursor_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut contexts: EguiContexts,
     mut editor_state: ResMut<EditorState>,
-    active_transform: Res<ActiveTransform>,
+    _active_transform: Res<ActiveTransform>,
     keyboard_mode: Res<KeyboardEditMode>,
 ) {
     // Only allow keyboard cursor movement when in keyboard edit mode
@@ -278,4 +278,51 @@ pub fn handle_keyboard_cursor_movement(
         
         info!("Cursor moved to grid position: {:?}", new_pos);
     }
+}
+
+/// System to handle keyboard-based selection (Enter key)
+/// Allows selecting voxels with Enter when in keyboard edit mode
+pub fn handle_keyboard_selection(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut contexts: EguiContexts,
+    mut editor_state: ResMut<EditorState>,
+    keyboard_mode: Res<KeyboardEditMode>,
+    mut update_events: EventWriter<crate::editor::tools::UpdateSelectionHighlights>,
+) {
+    // Only allow keyboard selection when in keyboard edit mode
+    if !keyboard_mode.enabled {
+        return;
+    }
+
+    // Check if UI wants keyboard input (user is typing in text fields, etc.)
+    if contexts.ctx_mut().wants_keyboard_input() {
+        return;
+    }
+
+    // Check if select tool is active
+    if !matches!(editor_state.active_tool, EditorTool::Select) {
+        return;
+    }
+
+    // Check if Enter key was just pressed
+    if !keyboard.just_pressed(KeyCode::Enter) {
+        return;
+    }
+
+    // Get cursor grid position
+    let Some(grid_pos) = editor_state.cursor_grid_pos else {
+        return;
+    };
+
+    // Toggle selection of voxel at this position
+    if editor_state.selected_voxels.contains(&grid_pos) {
+        editor_state.selected_voxels.remove(&grid_pos);
+        info!("Deselected voxel at {:?} (keyboard)", grid_pos);
+    } else {
+        editor_state.selected_voxels.insert(grid_pos);
+        info!("Selected voxel at {:?} (keyboard)", grid_pos);
+    }
+
+    // Trigger highlight update
+    update_events.send(crate::editor::tools::UpdateSelectionHighlights);
 }

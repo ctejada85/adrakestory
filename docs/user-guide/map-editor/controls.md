@@ -107,6 +107,7 @@ When keyboard edit mode is active, you'll see a green **⌨ KEYBOARD MODE** indi
 | **Move Up** | `Space` | - |
 | **Move Down** | `C` | - |
 | **Fast Movement** | Hold `Shift` + any direction | Moves 5 units instead of 1 |
+| **Select Voxel** | `Enter` (Select Tool only) | Toggles selection at cursor position |
 
 #### Behavior Notes
 
@@ -122,7 +123,10 @@ When keyboard edit mode is active, you'll see a green **⌨ KEYBOARD MODE** indi
 2. Use arrow keys to navigate horizontally (X/Z plane)
 3. Press `Space` to move up or `C` to move down (Y axis)
 4. Hold `Shift` + arrow keys for faster navigation (5 units at a time)
-5. Use tool-specific controls (e.g., left-click to place voxel)
+5. Use tool-specific controls:
+   - With Select Tool: Press `Enter` to select/deselect voxel at cursor
+   - With Voxel Tool: Left-click to place voxel
+   - With Entity Tool: Left-click to place entity
 6. Press `Escape` to return to normal mouse control when done
 
 ### Voxel Tool (`B`)
@@ -172,6 +176,7 @@ When the Select Tool is active:
 | Action | Control |
 |--------|---------|
 | **Select Voxel** | Left-click on voxel (works in full 3D space) |
+| **Select Voxel (Keyboard)** | `Enter` (when in keyboard mode) |
 | **Toggle Selection** | Left-click on already selected voxel |
 | **Delete Selected** | `Delete` or `Backspace` key |
 | **Delete via UI** | Click "🗑 Delete Selected" button in Properties panel |
