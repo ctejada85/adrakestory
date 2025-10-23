@@ -123,6 +123,20 @@ app.add_systems(OnEnter(GameState::InGame), setup_game)
    .add_systems(OnExit(GameState::InGame), cleanup_game);
 ```
 
+### Camera Management Across States
+
+The game uses different cameras for different states to prevent rendering conflicts:
+
+- **2D Camera**: Used for UI-only states (IntroAnimation, TitleScreen, LoadingMap, Paused)
+  - Spawned at startup in [`setup()`](../../src/main.rs:121)
+  - Automatically despawned when entering InGame state via [`cleanup_2d_camera()`](../../src/main.rs:127)
+
+- **3D Camera**: Used for gameplay (InGame state)
+  - Spawned when entering InGame state in [`spawn_camera()`](../../src/systems/game/map/spawner.rs:224)
+  - Includes [`GameCamera`](../../src/systems/game/components.rs:38) component for rotation control
+
+This separation prevents camera order ambiguity warnings and ensures only one camera is active per render target at any time.
+
 ## System Organization
 
 ### Module Hierarchy
