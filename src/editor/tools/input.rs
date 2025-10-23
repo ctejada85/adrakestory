@@ -125,11 +125,11 @@ fn handle_move_mode_input(
         offset.x += step;
     }
     
-    // Y-axis movement
-    if keyboard.just_pressed(KeyCode::PageUp) {
+    // Y-axis movement - Space for jump/up, C for crouch/down
+    if keyboard.just_pressed(KeyCode::PageUp) || keyboard.just_pressed(KeyCode::Space) {
         offset.y += step;
     }
-    if keyboard.just_pressed(KeyCode::PageDown) {
+    if keyboard.just_pressed(KeyCode::PageDown) || keyboard.just_pressed(KeyCode::KeyC) {
         offset.y -= step;
     }
     

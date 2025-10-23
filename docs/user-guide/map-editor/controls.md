@@ -146,6 +146,26 @@ When the Select Tool is active:
 - Box selection with Left-click + Drag
 - Move selected voxels
 - Copy/paste operations
+### Move Mode (`G` in Select Tool)
+
+When in Move mode (after pressing `G` with selected voxels):
+
+| Action | Control | Alternative |
+|--------|---------|-------------|
+| **Move Forward/Back** | `Arrow Up/Down` | - |
+| **Move Left/Right** | `Arrow Left/Right` | - |
+| **Move Up (Jump)** | `Space` | `Page Up` |
+| **Move Down (Crouch)** | `C` | `Page Down` |
+| **Fast Movement** | Hold `Shift` + any direction | Moves 5 units instead of 1 |
+| **Confirm Move** | `Enter` | - |
+| **Cancel Move** | `Escape` | - |
+
+**Visual Feedback:**
+- Preview of moved voxels shown in real-time
+- Invalid positions (collisions) shown in red
+- Valid positions shown in green
+- Current offset displayed in Properties panel
+
 
 ### Camera Tool (`C`)
 
