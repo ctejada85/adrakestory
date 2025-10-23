@@ -1,5 +1,6 @@
 //! Toolbar UI with menu bar and quick actions.
 
+use crate::editor::file_io::{SaveMapAsEvent, SaveMapEvent};
 use crate::editor::history::EditorHistory;
 use crate::editor::state::{EditorState, EditorTool, EditorUIState};
 use crate::systems::game::components::VoxelType;
@@ -13,6 +14,8 @@ pub fn render_toolbar(
     editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
     history: &EditorHistory,
+    save_events: &mut EventWriter<SaveMapEvent>,
+    save_as_events: &mut EventWriter<SaveMapAsEvent>,
 ) {
     egui::TopBottomPanel::top("toolbar").show(ctx, |ui| {
         // Menu bar
@@ -43,14 +46,12 @@ pub fn render_toolbar(
                 ui.separator();
 
                 if ui.button("Save").clicked() {
-                    // TODO: Implement save
-                    info!("Save clicked");
+                    save_events.send(SaveMapEvent);
                     ui.close_menu();
                 }
 
                 if ui.button("Save As...").clicked() {
-                    // TODO: Implement save as
-                    info!("Save As clicked");
+                    save_as_events.send(SaveMapAsEvent);
                     ui.close_menu();
                 }
 
@@ -184,7 +185,7 @@ pub fn render_toolbar(
             }
 
             if ui.button("💾 Save").clicked() {
-                info!("Quick save clicked");
+                save_events.send(SaveMapEvent);
             }
 
             ui.separator();

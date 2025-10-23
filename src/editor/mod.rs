@@ -6,6 +6,7 @@
 
 pub mod camera;
 pub mod cursor;
+pub mod file_io;
 pub mod grid;
 pub mod history;
 pub mod renderer;
@@ -13,6 +14,7 @@ pub mod state;
 pub mod tools;
 pub mod ui;
 
+pub use file_io::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
 pub use history::{EditorAction, EditorHistory};
 pub use renderer::{MapRenderState, RenderMapEvent};
 pub use state::{EditorState, EditorTool};

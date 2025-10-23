@@ -1,5 +1,6 @@
 //! Dialog windows for file operations and confirmations.
 
+use crate::editor::file_io::SaveMapEvent;
 use crate::editor::state::{EditorState, EditorUIState, PendingAction};
 use crate::systems::game::map::format::MapData;
 use bevy::prelude::*;
@@ -28,10 +29,11 @@ pub fn render_dialogs(
     ctx: &egui::Context,
     editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
+    save_events: &mut EventWriter<SaveMapEvent>,
 ) {
     // Unsaved changes dialog
     if ui_state.unsaved_changes_dialog_open {
-        render_unsaved_changes_dialog(ctx, editor_state, ui_state);
+        render_unsaved_changes_dialog(ctx, editor_state, ui_state, save_events);
     }
 
     // New map dialog
@@ -60,6 +62,7 @@ fn render_unsaved_changes_dialog(
     ctx: &egui::Context,
     editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
+    save_events: &mut EventWriter<SaveMapEvent>,
 ) {
     egui::Window::new("Unsaved Changes")
         .collapsible(false)
@@ -73,8 +76,7 @@ fn render_unsaved_changes_dialog(
 
             ui.horizontal(|ui| {
                 if ui.button("Save").clicked() {
-                    // TODO: Implement save
-                    info!("Save and continue");
+                    save_events.send(SaveMapEvent);
                     ui_state.unsaved_changes_dialog_open = false;
                     handle_pending_action(editor_state, ui_state);
                 }

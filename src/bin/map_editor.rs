@@ -2,8 +2,9 @@
 //!
 //! A standalone GUI application for creating and editing map files.
 
-use adrakestory::editor::{camera, cursor, grid, renderer, state, tools, ui};
+use adrakestory::editor::{camera, cursor, file_io, grid, renderer, state, tools, ui};
 use adrakestory::editor::{EditorHistory, EditorState, MapRenderState, RenderMapEvent};
+use adrakestory::editor::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
 use adrakestory::editor::tools::ActiveTransform;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
@@ -25,10 +26,14 @@ fn main() {
         .init_resource::<state::EditorUIState>()
         .init_resource::<camera::CameraInputState>()
         .init_resource::<ui::dialogs::FileDialogReceiver>()
+        .init_resource::<SaveFileDialogReceiver>()
         .init_resource::<MapRenderState>()
         .init_resource::<InfiniteGridConfig>()
         .init_resource::<ActiveTransform>()
         .add_event::<ui::dialogs::FileSelectedEvent>()
+        .add_event::<SaveMapEvent>()
+        .add_event::<SaveMapAsEvent>()
+        .add_event::<FileSavedEvent>()
         .add_event::<RenderMapEvent>()
         .add_event::<tools::UpdateSelectionHighlights>()
         // New unified input event
@@ -46,6 +51,10 @@ fn main() {
         .add_systems(Update, render_ui)
         .add_systems(Update, ui::dialogs::check_file_dialog_result)
         .add_systems(Update, ui::dialogs::handle_file_selected)
+        .add_systems(Update, file_io::handle_save_map)
+        .add_systems(Update, file_io::handle_save_map_as)
+        .add_systems(Update, file_io::check_save_dialog_result)
+        .add_systems(Update, file_io::handle_file_saved)
         .add_systems(Update, cursor::update_cursor_position)
         .add_systems(Update, renderer::detect_map_changes)
         .add_systems(Update, renderer::render_map_system)
@@ -135,11 +144,20 @@ fn render_ui(
     mut rotate_events: EventWriter<tools::StartRotateOperation>,
     mut confirm_events: EventWriter<tools::ConfirmTransform>,
     mut cancel_events: EventWriter<tools::CancelTransform>,
+    mut save_events: EventWriter<SaveMapEvent>,
+    mut save_as_events: EventWriter<SaveMapAsEvent>,
 ) {
     let ctx = contexts.ctx_mut();
 
     // Render toolbar
-    ui::render_toolbar(ctx, &mut editor_state, &mut ui_state, &history);
+    ui::render_toolbar(
+        ctx,
+        &mut editor_state,
+        &mut ui_state,
+        &history,
+        &mut save_events,
+        &mut save_as_events,
+    );
 
     // Render properties panel
     ui::render_properties_panel(
@@ -160,7 +178,7 @@ fn render_ui(
     render_status_bar(ctx, &editor_state, &history);
 
     // Render dialogs
-    ui::dialogs::render_dialogs(ctx, &mut editor_state, &mut ui_state);
+    ui::dialogs::render_dialogs(ctx, &mut editor_state, &mut ui_state, &mut save_events);
 
     // Handle file operations
     ui::dialogs::handle_file_operations(&mut ui_state, dialog_receiver);
