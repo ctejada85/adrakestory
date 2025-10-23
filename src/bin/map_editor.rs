@@ -50,6 +50,7 @@ fn main() {
         .add_event::<tools::UpdateRotation>()
         .add_event::<tools::SetRotationAxis>()
         .add_systems(Startup, setup_editor)
+        .add_systems(Update, update_lighting_on_map_change)
         .add_systems(Update, render_ui)
         .add_systems(Update, ui::dialogs::check_file_dialog_result)
         .add_systems(Update, ui::dialogs::handle_file_selected)
@@ -94,6 +95,7 @@ fn setup_editor(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     grid_config: Res<InfiniteGridConfig>,
+    editor_state: Res<EditorState>,
 ) {
     info!("Starting Map Editor");
 
@@ -106,26 +108,37 @@ fn setup_editor(
         camera::EditorCamera::new(),
     ));
 
-    // Spawn directional light
-    commands.spawn((
-        DirectionalLight {
-            illuminance: 10000.0,
-            shadows_enabled: true,
-            ..default()
-        },
-        Transform::from_rotation(Quat::from_euler(
-            EulerRot::XYZ,
-            -std::f32::consts::FRAC_PI_4,
-            -std::f32::consts::FRAC_PI_4,
-            0.0,
-        )),
-    ));
+    // Get lighting configuration from the current map
+    let lighting = &editor_state.current_map.lighting;
 
-    // Spawn ambient light
+    // Spawn directional light using map configuration
+    if let Some(dir_light) = &lighting.directional_light {
+        let (dx, dy, dz) = dir_light.direction;
+        let direction = Vec3::new(dx, dy, dz).normalize();
+
+        commands.spawn((
+            DirectionalLight {
+                illuminance: dir_light.illuminance,
+                color: Color::srgb(dir_light.color.0, dir_light.color.1, dir_light.color.2),
+                shadows_enabled: true,
+                ..default()
+            },
+            Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, direction)),
+        ));
+        
+        info!("Spawned directional light: illuminance={}, color={:?}, direction={:?}",
+              dir_light.illuminance, dir_light.color, dir_light.direction);
+    }
+
+    // Spawn ambient light using map configuration
+    // Convert 0.0-1.0 intensity to brightness (scale by 1000 for Bevy's lighting system)
+    let ambient_brightness = lighting.ambient_intensity * 1000.0;
     commands.insert_resource(AmbientLight {
         color: Color::WHITE,
-        brightness: 300.0,
+        brightness: ambient_brightness,
     });
+    
+    info!("Spawned ambient light with brightness: {}", ambient_brightness);
 
     // Spawn infinite grid
     grid::spawn_infinite_grid(
@@ -242,4 +255,49 @@ fn render_status_bar(ctx: &egui::Context, editor_state: &EditorState, history: &
             });
         });
     });
+}
+
+/// System to update lighting when the map changes (e.g., after loading a new map)
+fn update_lighting_on_map_change(
+    mut commands: Commands,
+    editor_state: Res<EditorState>,
+    mut ambient_light: ResMut<AmbientLight>,
+    directional_lights: Query<Entity, With<DirectionalLight>>,
+) {
+    // Only update if the editor state has changed
+    if !editor_state.is_changed() {
+        return;
+    }
+
+    let lighting = &editor_state.current_map.lighting;
+
+    // Update ambient light
+    let ambient_brightness = lighting.ambient_intensity * 1000.0;
+    ambient_light.brightness = ambient_brightness;
+    
+    info!("Updated ambient light brightness to: {}", ambient_brightness);
+
+    // Remove existing directional lights
+    for entity in directional_lights.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    // Spawn new directional light with map configuration
+    if let Some(dir_light) = &lighting.directional_light {
+        let (dx, dy, dz) = dir_light.direction;
+        let direction = Vec3::new(dx, dy, dz).normalize();
+
+        commands.spawn((
+            DirectionalLight {
+                illuminance: dir_light.illuminance,
+                color: Color::srgb(dir_light.color.0, dir_light.color.1, dir_light.color.2),
+                shadows_enabled: true,
+                ..default()
+            },
+            Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, direction)),
+        ));
+        
+        info!("Updated directional light: illuminance={}, color={:?}, direction={:?}",
+              dir_light.illuminance, dir_light.color, dir_light.direction);
+    }
 }

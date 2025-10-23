@@ -210,15 +210,22 @@ fn spawn_lighting(commands: &mut Commands, map: &MapData) {
             DirectionalLight {
                 illuminance: dir_light.illuminance,
                 color: Color::srgb(dir_light.color.0, dir_light.color.1, dir_light.color.2),
+                shadows_enabled: true,
                 ..default()
             },
             Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, direction)),
         ));
     }
 
-    // Note: Ambient lighting is typically handled by Bevy's environment settings
-    // For now, we'll just log it
-    info!("Map ambient intensity: {}", lighting.ambient_intensity);
+    // Spawn ambient light using map-defined intensity
+    // Convert 0.0-1.0 intensity to brightness (scale by 1000 for Bevy's lighting system)
+    let ambient_brightness = lighting.ambient_intensity * 1000.0;
+    commands.insert_resource(AmbientLight {
+        color: Color::WHITE,
+        brightness: ambient_brightness,
+    });
+    
+    info!("Spawned ambient light with brightness: {}", ambient_brightness);
 }
 
 /// Spawn camera from the map data.
