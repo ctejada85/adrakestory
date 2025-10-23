@@ -70,7 +70,7 @@ fn main() {
             (update_loading_progress, check_map_loaded).run_if(in_state(GameState::LoadingMap)),
         )
         .add_systems(OnExit(GameState::LoadingMap), cleanup_loading_screen)
-        .add_systems(OnEnter(GameState::InGame), spawn_map_system)
+        .add_systems(OnEnter(GameState::InGame), (cleanup_2d_camera, spawn_map_system).chain())
         // Configure system sets to run in a specific order
         .configure_sets(
             Update,
@@ -121,6 +121,15 @@ fn main() {
 fn setup(mut commands: Commands) {
     // 2D camera for UI elements (title screen, loading screen, etc.)
     commands.spawn(Camera2d);
+}
+
+/// System to despawn the 2D camera when entering InGame state.
+/// This prevents camera order ambiguity with the 3D game camera.
+fn cleanup_2d_camera(mut commands: Commands, camera_query: Query<Entity, With<Camera2d>>) {
+    for entity in &camera_query {
+        commands.entity(entity).despawn();
+        info!("Despawned 2D camera before entering InGame state");
+    }
 }
 
 /// System to load the map when entering LoadingMap state.
