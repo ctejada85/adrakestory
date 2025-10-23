@@ -92,9 +92,12 @@ The map editor features a **vim-like keyboard editing mode** that allows you to 
 | Action | Control |
 |--------|---------|
 | **Enter Keyboard Mode** | `I` (like vim's insert mode) |
-| **Exit Keyboard Mode** | `Escape` |
+| **Exit Keyboard Mode** | `Escape` (when no selections) |
+| **Clear Selections** | `Escape` (in Select tool with selections) |
 
 When keyboard edit mode is active, you'll see a green **⌨ KEYBOARD MODE** indicator in the status bar.
+
+**Note:** When using the Select tool with active selections, pressing `Escape` will first clear the selections and keep you in keyboard mode. Press `Escape` again (with no selections) to exit keyboard mode.
 
 #### Movement Controls (When in Keyboard Mode)
 

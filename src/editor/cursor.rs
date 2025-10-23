@@ -8,10 +8,12 @@ use bevy::window::PrimaryWindow;
 use bevy_egui::EguiContexts;
 
 /// System to toggle keyboard edit mode (I to enter, Escape to exit)
+/// Note: Escape only exits keyboard mode when there are no selections in Select tool
 pub fn toggle_keyboard_edit_mode(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut keyboard_mode: ResMut<KeyboardEditMode>,
     mut contexts: EguiContexts,
+    editor_state: Res<EditorState>,
 ) {
     // Don't toggle if UI wants keyboard input
     if contexts.ctx_mut().wants_keyboard_input() {
@@ -25,9 +27,20 @@ pub fn toggle_keyboard_edit_mode(
     }
 
     // Exit keyboard edit mode with Escape key
+    // BUT: Only if we're not in Select tool with active selections
+    // (In Select tool, Escape should clear selections first, handled by handle_selection_mode_input)
     if keyboard.just_pressed(KeyCode::Escape) {
-        keyboard_mode.disable();
-        info!("Keyboard edit mode DISABLED");
+        // Check if we're in Select tool with selections
+        let has_selections = matches!(editor_state.active_tool, EditorTool::Select)
+            && !editor_state.selected_voxels.is_empty();
+        
+        // Only exit keyboard mode if there are no selections
+        if !has_selections {
+            keyboard_mode.disable();
+            info!("Keyboard edit mode DISABLED");
+        }
+        // If there are selections, let handle_selection_mode_input clear them
+        // and keep keyboard mode active
     }
 }
 
