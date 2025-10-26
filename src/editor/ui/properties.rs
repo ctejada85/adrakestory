@@ -10,16 +10,21 @@ use crate::systems::game::map::format::{EntityType, SubVoxelPattern};
 use bevy::prelude::*;
 use bevy_egui::egui;
 
+/// Bundle of event writers for transform operations
+pub struct TransformEvents<'w> {
+    pub delete: EventWriter<'w, DeleteSelectedVoxels>,
+    pub move_start: EventWriter<'w, StartMoveOperation>,
+    pub rotate_start: EventWriter<'w, StartRotateOperation>,
+    pub confirm: EventWriter<'w, ConfirmTransform>,
+    pub cancel: EventWriter<'w, CancelTransform>,
+}
+
 /// Render the right-side properties panel
 pub fn render_properties_panel(
     ctx: &egui::Context,
     editor_state: &mut EditorState,
     active_transform: &ActiveTransform,
-    delete_events: &mut EventWriter<DeleteSelectedVoxels>,
-    move_events: &mut EventWriter<StartMoveOperation>,
-    rotate_events: &mut EventWriter<StartRotateOperation>,
-    confirm_events: &mut EventWriter<ConfirmTransform>,
-    cancel_events: &mut EventWriter<CancelTransform>,
+    events: &mut TransformEvents,
 ) {
     egui::SidePanel::right("properties")
         .default_width(300.0)
@@ -28,16 +33,7 @@ pub fn render_properties_panel(
             ui.separator();
 
             // Tool-specific properties
-            render_tool_properties(
-                ui,
-                editor_state,
-                active_transform,
-                delete_events,
-                move_events,
-                rotate_events,
-                confirm_events,
-                cancel_events,
-            );
+            render_tool_properties(ui, editor_state, active_transform, events);
 
             ui.separator();
 
@@ -56,11 +52,7 @@ fn render_tool_properties(
     ui: &mut egui::Ui,
     editor_state: &mut EditorState,
     active_transform: &ActiveTransform,
-    delete_events: &mut EventWriter<DeleteSelectedVoxels>,
-    move_events: &mut EventWriter<StartMoveOperation>,
-    rotate_events: &mut EventWriter<StartRotateOperation>,
-    confirm_events: &mut EventWriter<ConfirmTransform>,
-    cancel_events: &mut EventWriter<CancelTransform>,
+    events: &mut TransformEvents,
 ) {
     ui.label("Tool Settings");
     ui.separator();
@@ -89,13 +81,33 @@ fn render_tool_properties(
                     .selected_text(format!("{:?}", pattern))
                     .show_ui(ui, |ui| {
                         ui.selectable_value(pattern, SubVoxelPattern::Full, "Full");
-                        ui.selectable_value(pattern, SubVoxelPattern::PlatformXZ, "Platform (Horizontal)");
-                        ui.selectable_value(pattern, SubVoxelPattern::PlatformXY, "Platform (Wall Z)");
-                        ui.selectable_value(pattern, SubVoxelPattern::PlatformYZ, "Platform (Wall X)");
+                        ui.selectable_value(
+                            pattern,
+                            SubVoxelPattern::PlatformXZ,
+                            "Platform (Horizontal)",
+                        );
+                        ui.selectable_value(
+                            pattern,
+                            SubVoxelPattern::PlatformXY,
+                            "Platform (Wall Z)",
+                        );
+                        ui.selectable_value(
+                            pattern,
+                            SubVoxelPattern::PlatformYZ,
+                            "Platform (Wall X)",
+                        );
                         ui.selectable_value(pattern, SubVoxelPattern::StaircaseX, "Staircase (+X)");
-                        ui.selectable_value(pattern, SubVoxelPattern::StaircaseNegX, "Staircase (-X)");
+                        ui.selectable_value(
+                            pattern,
+                            SubVoxelPattern::StaircaseNegX,
+                            "Staircase (-X)",
+                        );
                         ui.selectable_value(pattern, SubVoxelPattern::StaircaseZ, "Staircase (+Z)");
-                        ui.selectable_value(pattern, SubVoxelPattern::StaircaseNegZ, "Staircase (-Z)");
+                        ui.selectable_value(
+                            pattern,
+                            SubVoxelPattern::StaircaseNegZ,
+                            "Staircase (-Z)",
+                        );
                         ui.selectable_value(pattern, SubVoxelPattern::Pillar, "Pillar");
                     });
             });
@@ -129,12 +141,12 @@ fn render_tool_properties(
 
         EditorTool::Select => {
             ui.label("Select Tool");
-            
+
             // Show transform mode status
             if active_transform.mode != TransformMode::None {
                 ui.separator();
                 ui.colored_label(egui::Color32::YELLOW, "🔄 Transform Mode Active");
-                
+
                 match active_transform.mode {
                     TransformMode::Move => {
                         ui.label(format!("Mode: Move"));
@@ -144,17 +156,23 @@ fn render_tool_properties(
                             active_transform.current_offset.y,
                             active_transform.current_offset.z
                         ));
-                        ui.label(format!("Voxels: {}", active_transform.selected_voxels.len()));
+                        ui.label(format!(
+                            "Voxels: {}",
+                            active_transform.selected_voxels.len()
+                        ));
                     }
                     TransformMode::Rotate => {
                         ui.label(format!("Mode: Rotate"));
                         ui.label(format!("Axis: {:?}", active_transform.rotation_axis));
                         ui.label(format!("Angle: {}°", active_transform.rotation_angle * 90));
-                        ui.label(format!("Voxels: {}", active_transform.selected_voxels.len()));
+                        ui.label(format!(
+                            "Voxels: {}",
+                            active_transform.selected_voxels.len()
+                        ));
                     }
                     TransformMode::None => {}
                 }
-                
+
                 ui.separator();
                 ui.label("Controls:");
                 ui.label("• Arrow keys to move");
@@ -162,16 +180,16 @@ fn render_tool_properties(
                 ui.label("• PageUp/Down for Y-axis");
                 ui.label("• Enter to confirm");
                 ui.label("• Escape to cancel");
-                
+
                 ui.separator();
-                
+
                 ui.horizontal(|ui| {
                     if ui.button("✓ Confirm").clicked() {
-                        confirm_events.send(ConfirmTransform);
+                        events.confirm.send(ConfirmTransform);
                     }
-                    
+
                     if ui.button("✗ Cancel").clicked() {
-                        cancel_events.send(CancelTransform);
+                        events.cancel.send(CancelTransform);
                     }
                 });
             } else {
@@ -213,24 +231,30 @@ fn render_tool_properties(
 
                     ui.horizontal(|ui| {
                         if ui.button("🔄 Move").clicked() {
-                            move_events.send(StartMoveOperation);
-                            info!("Move button clicked for {} voxels", editor_state.selected_voxels.len());
+                            events.move_start.send(StartMoveOperation);
+                            info!(
+                                "Move button clicked for {} voxels",
+                                editor_state.selected_voxels.len()
+                            );
                         }
-                        
+
                         if ui.button("🔃 Rotate").clicked() {
-                            rotate_events.send(StartRotateOperation);
-                            info!("Rotate button clicked for {} voxels", editor_state.selected_voxels.len());
+                            events.rotate_start.send(StartRotateOperation);
+                            info!(
+                                "Rotate button clicked for {} voxels",
+                                editor_state.selected_voxels.len()
+                            );
                         }
-                        
+
                         if ui.button("🗑 Delete").clicked() {
-                            delete_events.send(DeleteSelectedVoxels);
+                            events.delete.send(DeleteSelectedVoxels);
                             info!(
                                 "Delete button clicked for {} voxels",
                                 editor_state.selected_voxels.len()
                             );
                         }
                     });
-                    
+
                     ui.horizontal(|ui| {
                         if ui.button("Clear Selection").clicked() {
                             editor_state.clear_selections();

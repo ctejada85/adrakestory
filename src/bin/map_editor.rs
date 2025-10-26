@@ -2,13 +2,19 @@
 //!
 //! A standalone GUI application for creating and editing map files.
 
-use adrakestory::editor::{camera, cursor, file_io, grid, renderer, state, tools, ui};
-use adrakestory::editor::{EditorHistory, EditorState, KeyboardEditMode, MapRenderState, RenderMapEvent};
-use adrakestory::editor::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
-use adrakestory::editor::{handle_keyboard_cursor_movement, handle_keyboard_selection, handle_tool_switching, toggle_keyboard_edit_mode};
 use adrakestory::editor::tools::ActiveTransform;
-use bevy::prelude::*;
+use adrakestory::editor::ui::properties::TransformEvents;
+use adrakestory::editor::{camera, cursor, file_io, grid, renderer, state, tools, ui};
+use adrakestory::editor::{
+    handle_keyboard_cursor_movement, handle_keyboard_selection, handle_tool_switching,
+    toggle_keyboard_edit_mode,
+};
+use adrakestory::editor::{
+    EditorHistory, EditorState, KeyboardEditMode, MapRenderState, RenderMapEvent,
+};
+use adrakestory::editor::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
 use bevy::pbr::CascadeShadowConfigBuilder;
+use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use grid::InfiniteGridConfig;
 
@@ -137,7 +143,7 @@ fn setup_editor(
             cascade_shadow_config,
             Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, direction)),
         ));
-        
+
         info!("Spawned directional light with high-quality shadows: illuminance={}, color={:?}, direction={:?}",
               dir_light.illuminance, dir_light.color, dir_light.direction);
     }
@@ -149,8 +155,11 @@ fn setup_editor(
         color: Color::WHITE,
         brightness: ambient_brightness,
     });
-    
-    info!("Spawned ambient light with brightness: {}", ambient_brightness);
+
+    info!(
+        "Spawned ambient light with brightness: {}",
+        ambient_brightness
+    );
 
     // Spawn infinite grid
     grid::spawn_infinite_grid(
@@ -176,11 +185,11 @@ fn render_ui(
     active_transform: Res<ActiveTransform>,
     keyboard_mode: Res<KeyboardEditMode>,
     dialog_receiver: ResMut<ui::dialogs::FileDialogReceiver>,
-    mut delete_events: EventWriter<tools::DeleteSelectedVoxels>,
-    mut move_events: EventWriter<tools::StartMoveOperation>,
-    mut rotate_events: EventWriter<tools::StartRotateOperation>,
-    mut confirm_events: EventWriter<tools::ConfirmTransform>,
-    mut cancel_events: EventWriter<tools::CancelTransform>,
+    delete_events: EventWriter<tools::DeleteSelectedVoxels>,
+    move_events: EventWriter<tools::StartMoveOperation>,
+    rotate_events: EventWriter<tools::StartRotateOperation>,
+    confirm_events: EventWriter<tools::ConfirmTransform>,
+    cancel_events: EventWriter<tools::CancelTransform>,
     mut save_events: EventWriter<SaveMapEvent>,
     mut save_as_events: EventWriter<SaveMapAsEvent>,
 ) {
@@ -201,11 +210,13 @@ fn render_ui(
         ctx,
         &mut editor_state,
         &active_transform,
-        &mut delete_events,
-        &mut move_events,
-        &mut rotate_events,
-        &mut confirm_events,
-        &mut cancel_events,
+        &mut TransformEvents {
+            delete: delete_events,
+            move_start: move_events,
+            rotate_start: rotate_events,
+            confirm: confirm_events,
+            cancel: cancel_events,
+        },
     );
 
     // Render viewport controls
@@ -222,7 +233,12 @@ fn render_ui(
 }
 
 /// Render the status bar at the bottom
-fn render_status_bar(ctx: &egui::Context, editor_state: &EditorState, history: &EditorHistory, keyboard_mode: &KeyboardEditMode) {
+fn render_status_bar(
+    ctx: &egui::Context,
+    editor_state: &EditorState,
+    history: &EditorHistory,
+    keyboard_mode: &KeyboardEditMode,
+) {
     egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
         ui.horizontal(|ui| {
             // Keyboard edit mode indicator
@@ -286,8 +302,11 @@ fn update_lighting_on_map_change(
     // Update ambient light
     let ambient_brightness = lighting.ambient_intensity * 1000.0;
     ambient_light.brightness = ambient_brightness;
-    
-    info!("Updated ambient light brightness to: {}", ambient_brightness);
+
+    info!(
+        "Updated ambient light brightness to: {}",
+        ambient_brightness
+    );
 
     // Remove existing directional lights
     for entity in directional_lights.iter() {
@@ -319,7 +338,7 @@ fn update_lighting_on_map_change(
             cascade_shadow_config,
             Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, direction)),
         ));
-        
+
         info!("Updated directional light with high-quality shadows: illuminance={}, color={:?}, direction={:?}",
               dir_light.illuminance, dir_light.color, dir_light.direction);
     }
