@@ -4,8 +4,8 @@ use super::super::components::{CollisionBox, GameCamera, Player, SubVoxel, Voxel
 use super::super::resources::{GameInitialized, SpatialGrid};
 use super::format::{EntityType, MapData, SubVoxelPattern};
 use super::loader::{LoadProgress, LoadedMapData, MapLoadProgress};
-use bevy::prelude::*;
 use bevy::pbr::CascadeShadowConfigBuilder;
+use bevy::prelude::*;
 
 const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
 const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
@@ -222,7 +222,6 @@ fn spawn_lighting(commands: &mut Commands, map: &MapData) {
                 shadows_enabled: true,
                 shadow_depth_bias: 0.02,
                 shadow_normal_bias: 1.8,
-                ..default()
             },
             cascade_shadow_config,
             Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, direction)),
@@ -236,8 +235,11 @@ fn spawn_lighting(commands: &mut Commands, map: &MapData) {
         color: Color::WHITE,
         brightness: ambient_brightness,
     });
-    
-    info!("Spawned ambient light with brightness: {}", ambient_brightness);
+
+    info!(
+        "Spawned ambient light with brightness: {}",
+        ambient_brightness
+    );
 }
 
 /// Spawn camera from the map data.
