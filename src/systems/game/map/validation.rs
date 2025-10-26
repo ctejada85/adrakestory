@@ -167,6 +167,7 @@ mod tests {
             pos: (100, 0, 0), // Outside bounds
             voxel_type: crate::systems::game::components::VoxelType::Stone,
             pattern: None,
+            rotation_state: None,
         });
         assert!(validate_map(&map).is_err());
     }
