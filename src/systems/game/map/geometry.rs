@@ -49,7 +49,7 @@ impl SubVoxelGeometry {
     /// # Returns
     /// `true` if the sub-voxel is occupied, `false` otherwise.
     pub fn is_occupied(&self, x: i32, y: i32, z: i32) -> bool {
-        if x < 0 || x >= 8 || y < 0 || y >= 8 || z < 0 || z >= 8 {
+        if !(0..8).contains(&x) || !(0..8).contains(&y) || !(0..8).contains(&z) {
             return false;
         }
         let bit_index = (z * 8 + x) as u64;
@@ -63,7 +63,7 @@ impl SubVoxelGeometry {
     /// * `y` - Y coordinate (0-7)
     /// * `z` - Z coordinate (0-7)
     pub fn set_occupied(&mut self, x: i32, y: i32, z: i32) {
-        if x < 0 || x >= 8 || y < 0 || y >= 8 || z < 0 || z >= 8 {
+        if !(0..8).contains(&x) || !(0..8).contains(&y) || !(0..8).contains(&z) {
             return;
         }
         let bit_index = (z * 8 + x) as u64;
@@ -77,7 +77,7 @@ impl SubVoxelGeometry {
     /// * `y` - Y coordinate (0-7)
     /// * `z` - Z coordinate (0-7)
     pub fn clear(&mut self, x: i32, y: i32, z: i32) {
-        if x < 0 || x >= 8 || y < 0 || y >= 8 || z < 0 || z >= 8 {
+        if !(0..8).contains(&x) || !(0..8).contains(&y) || !(0..8).contains(&z) {
             return;
         }
         let bit_index = (z * 8 + x) as u64;
@@ -104,7 +104,10 @@ impl SubVoxelGeometry {
 
     /// Count the number of occupied sub-voxels.
     pub fn count_occupied(&self) -> usize {
-        self.layers.iter().map(|layer| layer.count_ones() as usize).sum()
+        self.layers
+            .iter()
+            .map(|layer| layer.count_ones() as usize)
+            .sum()
     }
 
     /// Rotate this geometry around the given axis by the specified angle.
@@ -146,21 +149,21 @@ impl SubVoxelGeometry {
 
         let (rx, ry, rz) = match axis {
             RotationAxis::X => match angle {
-                1 => (cx, -cz, cy),   // 90° CW around X
-                2 => (cx, -cy, -cz),  // 180° around X
-                3 => (cx, cz, -cy),   // 270° CW around X
+                1 => (cx, -cz, cy),  // 90° CW around X
+                2 => (cx, -cy, -cz), // 180° around X
+                3 => (cx, cz, -cy),  // 270° CW around X
                 _ => (cx, cy, cz),
             },
             RotationAxis::Y => match angle {
-                1 => (cz, cy, -cx),   // 90° CW around Y
-                2 => (-cx, cy, -cz),  // 180° around Y
-                3 => (-cz, cy, cx),   // 270° CW around Y
+                1 => (cz, cy, -cx),  // 90° CW around Y
+                2 => (-cx, cy, -cz), // 180° around Y
+                3 => (-cz, cy, cx),  // 270° CW around Y
                 _ => (cx, cy, cz),
             },
             RotationAxis::Z => match angle {
-                1 => (-cy, cx, cz),   // 90° CW around Z
-                2 => (-cx, -cy, cz),  // 180° around Z
-                3 => (cy, -cx, cz),   // 270° CW around Z
+                1 => (-cy, cx, cz),  // 90° CW around Z
+                2 => (-cx, -cy, cz), // 180° around Z
+                3 => (cy, -cx, cz),  // 270° CW around Z
                 _ => (cx, cy, cz),
             },
         };
@@ -332,9 +335,7 @@ mod tests {
     fn test_rotation_180_twice_returns_original() {
         let geom = SubVoxelGeometry::platform_horizontal();
 
-        let rotated = geom
-            .rotate(RotationAxis::X, 2)
-            .rotate(RotationAxis::X, 2);
+        let rotated = geom.rotate(RotationAxis::X, 2).rotate(RotationAxis::X, 2);
 
         assert_eq!(geom, rotated);
     }
@@ -387,13 +388,13 @@ mod tests {
     #[test]
     fn test_bounds_checking() {
         let mut geom = SubVoxelGeometry::new();
-        
+
         // Out of bounds should not panic
         geom.set_occupied(-1, 0, 0);
         geom.set_occupied(8, 0, 0);
         geom.set_occupied(0, -1, 0);
         geom.set_occupied(0, 8, 0);
-        
+
         assert_eq!(geom.count_occupied(), 0);
         assert!(!geom.is_occupied(-1, 0, 0));
         assert!(!geom.is_occupied(8, 0, 0));
