@@ -142,7 +142,8 @@ fn setup_editor(
             num_cascades: 4,
             first_cascade_far_bound: 4.0,
             maximum_distance: 100.0,
-            ..default()
+            minimum_distance: 0.1,
+            overlap_proportion: 0.3,
         }
         .build();
 
@@ -153,7 +154,6 @@ fn setup_editor(
                 shadows_enabled: true,
                 shadow_depth_bias: 0.02,
                 shadow_normal_bias: 1.8,
-                ..default()
             },
             cascade_shadow_config,
             Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, direction)),
@@ -329,7 +329,8 @@ fn update_lighting_on_map_change(
             num_cascades: 4,
             first_cascade_far_bound: 4.0,
             maximum_distance: 100.0,
-            ..default()
+            minimum_distance: 0.1,
+            overlap_proportion: 0.3,
         }
         .build();
 
@@ -340,7 +341,6 @@ fn update_lighting_on_map_change(
                 shadows_enabled: true,
                 shadow_depth_bias: 0.02,
                 shadow_normal_bias: 1.8,
-                ..default()
             },
             cascade_shadow_config,
             Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, direction)),

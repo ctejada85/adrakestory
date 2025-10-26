@@ -150,7 +150,7 @@ fn render_tool_properties(
 
                 match active_transform.mode {
                     TransformMode::Move => {
-                        ui.label(format!("Mode: Move"));
+                        ui.label("Mode: Move");
                         ui.label(format!(
                             "Offset: ({}, {}, {})",
                             active_transform.current_offset.x,
@@ -163,7 +163,7 @@ fn render_tool_properties(
                         ));
                     }
                     TransformMode::Rotate => {
-                        ui.label(format!("Mode: Rotate"));
+                        ui.label("Mode: Rotate");
                         ui.label(format!("Axis: {:?}", active_transform.rotation_axis));
                         ui.label(format!("Angle: {}°", active_transform.rotation_angle * 90));
                         ui.label(format!(
