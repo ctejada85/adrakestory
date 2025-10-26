@@ -18,6 +18,21 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use grid::InfiniteGridConfig;
 
+/// Bundle of event writers for save operations
+#[derive(bevy::ecs::system::SystemParam)]
+struct SaveEvents<'w> {
+    save: EventWriter<'w, SaveMapEvent>,
+    save_as: EventWriter<'w, SaveMapAsEvent>,
+}
+
+/// Bundle of UI-related resources
+#[derive(bevy::ecs::system::SystemParam)]
+struct UIResources<'w> {
+    editor_state: ResMut<'w, EditorState>,
+    ui_state: ResMut<'w, state::EditorUIState>,
+    dialog_receiver: ResMut<'w, ui::dialogs::FileDialogReceiver>,
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -179,57 +194,49 @@ fn setup_editor(
 /// Render the UI
 fn render_ui(
     mut contexts: EguiContexts,
-    mut editor_state: ResMut<EditorState>,
-    mut ui_state: ResMut<state::EditorUIState>,
+    mut ui_resources: UIResources,
     history: Res<EditorHistory>,
     active_transform: Res<ActiveTransform>,
     keyboard_mode: Res<KeyboardEditMode>,
-    dialog_receiver: ResMut<ui::dialogs::FileDialogReceiver>,
-    delete_events: EventWriter<tools::DeleteSelectedVoxels>,
-    move_events: EventWriter<tools::StartMoveOperation>,
-    rotate_events: EventWriter<tools::StartRotateOperation>,
-    confirm_events: EventWriter<tools::ConfirmTransform>,
-    cancel_events: EventWriter<tools::CancelTransform>,
-    mut save_events: EventWriter<SaveMapEvent>,
-    mut save_as_events: EventWriter<SaveMapAsEvent>,
+    mut transform_events: TransformEvents,
+    mut save_events: SaveEvents,
 ) {
     let ctx = contexts.ctx_mut();
 
     // Render toolbar
     ui::render_toolbar(
         ctx,
-        &mut editor_state,
-        &mut ui_state,
+        &mut ui_resources.editor_state,
+        &mut ui_resources.ui_state,
         &history,
-        &mut save_events,
-        &mut save_as_events,
+        &mut save_events.save,
+        &mut save_events.save_as,
     );
 
     // Render properties panel
     ui::render_properties_panel(
         ctx,
-        &mut editor_state,
+        &mut ui_resources.editor_state,
         &active_transform,
-        &mut TransformEvents {
-            delete: delete_events,
-            move_start: move_events,
-            rotate_start: rotate_events,
-            confirm: confirm_events,
-            cancel: cancel_events,
-        },
+        &mut transform_events,
     );
 
     // Render viewport controls
     ui::render_viewport_controls(ctx);
 
     // Render status bar
-    render_status_bar(ctx, &editor_state, &history, &keyboard_mode);
+    render_status_bar(ctx, &ui_resources.editor_state, &history, &keyboard_mode);
 
     // Render dialogs
-    ui::dialogs::render_dialogs(ctx, &mut editor_state, &mut ui_state, &mut save_events);
+    ui::dialogs::render_dialogs(
+        ctx,
+        &mut ui_resources.editor_state,
+        &mut ui_resources.ui_state,
+        &mut save_events.save,
+    );
 
     // Handle file operations
-    ui::dialogs::handle_file_operations(&mut ui_state, dialog_receiver);
+    ui::dialogs::handle_file_operations(&mut ui_resources.ui_state, ui_resources.dialog_receiver);
 }
 
 /// Render the status bar at the bottom

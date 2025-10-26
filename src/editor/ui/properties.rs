@@ -11,6 +11,7 @@ use bevy::prelude::*;
 use bevy_egui::egui;
 
 /// Bundle of event writers for transform operations
+#[derive(bevy::ecs::system::SystemParam)]
 pub struct TransformEvents<'w> {
     pub delete: EventWriter<'w, DeleteSelectedVoxels>,
     pub move_start: EventWriter<'w, StartMoveOperation>,
