@@ -33,7 +33,7 @@ pub fn toggle_keyboard_edit_mode(
         // Check if we're in Select tool with selections
         let has_selections = matches!(editor_state.active_tool, EditorTool::Select)
             && !editor_state.selected_voxels.is_empty();
-        
+
         // Only exit keyboard mode if there are no selections
         if !has_selections {
             keyboard_mode.disable();
@@ -122,7 +122,7 @@ fn find_closest_voxel_intersection(
     // Check each voxel in the map
     for voxel_data in &editor_state.current_map.world.voxels {
         let voxel_pos = voxel_data.pos;
-        
+
         // Check if ray intersects this voxel's bounding box
         if let Some(distance) = ray_box_intersection(
             ray,
@@ -245,45 +245,45 @@ pub fn handle_keyboard_cursor_movement(
 
     // Get current cursor position or default to (0, 0, 0)
     let current_pos = editor_state.cursor_grid_pos.unwrap_or((0, 0, 0));
-    
+
     // Calculate movement step (1 or 5 with Shift for fast movement)
     let step = if keyboard.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
         5
     } else {
         1
     };
-    
+
     let mut new_pos = current_pos;
     let mut moved = false;
-    
+
     // Horizontal movement (X/Z plane)
     if keyboard.just_pressed(KeyCode::ArrowUp) {
-        new_pos.2 -= step;  // Move forward (negative Z)
+        new_pos.2 -= step; // Move forward (negative Z)
         moved = true;
     }
     if keyboard.just_pressed(KeyCode::ArrowDown) {
-        new_pos.2 += step;  // Move backward (positive Z)
+        new_pos.2 += step; // Move backward (positive Z)
         moved = true;
     }
     if keyboard.just_pressed(KeyCode::ArrowLeft) {
-        new_pos.0 -= step;  // Move left (negative X)
+        new_pos.0 -= step; // Move left (negative X)
         moved = true;
     }
     if keyboard.just_pressed(KeyCode::ArrowRight) {
-        new_pos.0 += step;  // Move right (positive X)
+        new_pos.0 += step; // Move right (positive X)
         moved = true;
     }
-    
+
     // Vertical movement (Y axis)
     if keyboard.just_pressed(KeyCode::Space) {
-        new_pos.1 += step;  // Move up
+        new_pos.1 += step; // Move up
         moved = true;
     }
     if keyboard.just_pressed(KeyCode::KeyC) {
-        new_pos.1 -= step;  // Move down
+        new_pos.1 -= step; // Move down
         moved = true;
     }
-    
+
     // Update cursor position if moved
     if moved {
         editor_state.cursor_grid_pos = Some(new_pos);
@@ -292,7 +292,7 @@ pub fn handle_keyboard_cursor_movement(
             new_pos.1 as f32,
             new_pos.2 as f32,
         ));
-        
+
         info!("Cursor moved to grid position: {:?}", new_pos);
     }
 }
@@ -359,14 +359,24 @@ pub fn handle_tool_switching(
     // Switch to VoxelPlace tool with 1 key
     if keyboard.just_pressed(KeyCode::Digit1) {
         // Preserve current voxel type and pattern if already in VoxelPlace mode
-        let (voxel_type, pattern) = if let EditorTool::VoxelPlace { voxel_type, pattern } = &editor_state.active_tool {
-            (*voxel_type, pattern.clone())
+        let (voxel_type, pattern) = if let EditorTool::VoxelPlace {
+            voxel_type,
+            pattern,
+        } = &editor_state.active_tool
+        {
+            (*voxel_type, *pattern)
         } else {
             // Default to Grass and Full pattern
-            (crate::systems::game::components::VoxelType::Grass, crate::systems::game::map::format::SubVoxelPattern::Full)
+            (
+                crate::systems::game::components::VoxelType::Grass,
+                crate::systems::game::map::format::SubVoxelPattern::Full,
+            )
         };
-        
-        editor_state.active_tool = EditorTool::VoxelPlace { voxel_type, pattern };
+
+        editor_state.active_tool = EditorTool::VoxelPlace {
+            voxel_type,
+            pattern,
+        };
         info!("Switched to VoxelPlace tool");
     }
 
