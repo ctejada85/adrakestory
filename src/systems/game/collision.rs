@@ -70,18 +70,17 @@ pub fn calculate_sub_voxel_world_pos(sub_voxel: &SubVoxel) -> Vec3 {
 
 /// Get the axis-aligned bounding box (AABB) of a sub-voxel.
 ///
+/// This function now returns the cached bounds from the SubVoxel component,
+/// eliminating the need to recalculate them every frame.
+///
 /// # Arguments
 /// * `sub_voxel` - The sub-voxel component
 ///
 /// # Returns
 /// A tuple of (min, max) corners of the AABB
+#[inline]
 pub fn get_sub_voxel_bounds(sub_voxel: &SubVoxel) -> (Vec3, Vec3) {
-    let center = calculate_sub_voxel_world_pos(sub_voxel);
-    let half_size = SUB_VOXEL_SIZE / 2.0;
-    (
-        center - Vec3::splat(half_size),
-        center + Vec3::splat(half_size),
-    )
+    sub_voxel.bounds
 }
 
 /// Check if a player sphere collides with any sub-voxels at the given position.

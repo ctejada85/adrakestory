@@ -3,9 +3,14 @@
 ## Overview
 This document analyzes the [`apply_physics`](../../../src/systems/game/physics.rs:41) function in the physics system and identifies performance inefficiencies and optimization opportunities.
 
-**Status**: ✅ Critical optimization implemented (Spatial Grid Query)
+**Status**: ✅ All major optimizations implemented
 
 **Last Updated**: 2025-10-28
+
+### Implemented Optimizations
+1. ✅ **Critical**: Spatial Grid Query (99% reduction in collision checks)
+2. ✅ **Moderate**: Cached Bounds Calculation (eliminates redundant computation)
+3. ✅ **Moderate**: Loop-Invariant Value Extraction
 
 ## Current Implementation Analysis
 
@@ -73,30 +78,69 @@ for entity in relevant_entities {
 - ✅ ~99% reduction in collision checks per frame (2M → ~2K)
 - ✅ Extracted loop-invariant values (player_x, player_z, player_radius)
 
-## Remaining Inefficiencies
+### ✅ Fixed: Redundant Bounds Calculation (Priority 2)
 
-### 🟡 Low Priority: Redundant Bounds Calculation
+**Status**: IMPLEMENTED
+**Date**: 2025-10-28
 
-**Location**: Line 82
-
-**Status**: Low priority after spatial grid optimization
-
-**Problem**:
+**Original Problem** (Line 82):
 ```rust
+// OLD CODE - Calculated every frame
 let (min, max) = get_sub_voxel_bounds(sub_voxel);
+
+// get_sub_voxel_bounds performed:
+// 1. calculate_sub_voxel_world_pos (7 operations)
+// 2. Vector math (2 operations)
+// = 9 operations per sub-voxel per frame
 ```
 
-[`get_sub_voxel_bounds`](../../../src/systems/game/collision.rs:78) is called for every nearby sub-voxel. This function:
-1. Calls [`calculate_sub_voxel_world_pos`](../../../src/systems/game/collision.rs:62) (7 arithmetic operations)
-2. Performs additional vector math (2 operations)
-
 **Impact**:
-- With spatial grid optimization, we now only process ~2K sub-voxels instead of 2M
-- This makes the bounds calculation cost negligible (~18K operations vs 18M previously)
-- Further optimization would provide diminishing returns
+- Even with spatial grid optimization (~2K checks), this was still ~18K operations per frame
+- Unnecessary computation since bounds never change after spawn
 
-**Potential Solution** (if needed):
-Cache bounds in the [`SubVoxel`](../../../src/systems/game/components.rs:21) component or use a separate cache resource.
+**Solution Implemented**:
+
+1. **Added cached bounds to [`SubVoxel`](../../../src/systems/game/components.rs:21) component**:
+```rust
+#[derive(Component)]
+pub struct SubVoxel {
+    pub parent_x: i32,
+    pub parent_y: i32,
+    pub parent_z: i32,
+    pub sub_x: i32,
+    pub sub_y: i32,
+    pub sub_z: i32,
+    /// Cached bounding box (min, max) to avoid recalculation every frame
+    pub bounds: (Vec3, Vec3),
+}
+```
+
+2. **Updated [`spawn_sub_voxel`](../../../src/systems/game/map/spawner.rs:276) to calculate bounds once at spawn time**:
+```rust
+// Calculate and cache bounds at spawn time
+let center = Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
+let half_size = SUB_VOXEL_SIZE / 2.0;
+let bounds = (
+    center - Vec3::splat(half_size),
+    center + Vec3::splat(half_size),
+);
+```
+
+3. **Optimized [`get_sub_voxel_bounds`](../../../src/systems/game/collision.rs:71) to return cached value**:
+```rust
+#[inline]
+pub fn get_sub_voxel_bounds(sub_voxel: &SubVoxel) -> (Vec3, Vec3) {
+    sub_voxel.bounds  // Direct field access, no computation
+}
+```
+
+**Results**:
+- ✅ Eliminated 9 arithmetic operations per sub-voxel per frame
+- ✅ Reduced from ~18K operations to 0 per frame
+- ✅ Added `#[inline]` attribute for zero-cost abstraction
+- ✅ Bounds calculated once at spawn, reused forever
+
+## Remaining Inefficiencies
 
 ### 🟢 Minor: Multiple Condition Checks
 
@@ -167,16 +211,11 @@ At 60 FPS: 103,680 checks/second
 
 These optimizations would provide diminishing returns given the current performance improvements:
 
-1. **Cache Sub-Voxel Bounds** (Low effort, minimal impact)
-   - Store computed bounds in [`SubVoxel`](../../../src/systems/game/components.rs:21) component
-   - Would save ~18K arithmetic operations per frame
-   - Not critical given spatial grid optimization already achieved 99% reduction
-
-2. **Combine Condition Checks** (Trivial effort, minimal impact)
+1. **Combine Condition Checks** (Trivial effort, minimal impact)
    - Reorder or combine sequential checks for slightly better readability
    - Performance impact negligible
 
-3. **Consistent Epsilon Usage** (Trivial effort, code quality)
+2. **Consistent Epsilon Usage** (Trivial effort, code quality)
    - Document or standardize floating-point comparison patterns
    - Primarily a code quality improvement
 
@@ -190,16 +229,26 @@ Both [`apply_physics`](../../../src/systems/game/physics.rs:39) and horizontal c
 
 ## Conclusion
 
-✅ **The critical performance issue has been resolved.**
+✅ **All major performance issues have been resolved.**
 
-The primary inefficiency in [`apply_physics`](../../../src/systems/game/physics.rs:41) was the **O(n) iteration over all sub-voxels**. This has been successfully fixed by implementing spatial grid optimization, which:
+The [`apply_physics`](../../../src/systems/game/physics.rs:41) function has been successfully optimized through two key improvements:
 
-- Reduces collision checks by ~99% (from 2M to ~2K per frame)
+### 1. Spatial Grid Optimization (Priority 1)
+- Reduced collision checks by ~99% (from 2M to ~2K per frame)
+- Changed from O(n) to O(k) complexity where k << n
 - Improves scalability for large worlds
-- Maintains consistency with [`check_sub_voxel_collision`](../../../src/systems/game/collision.rs:101) implementation
-- Uses existing infrastructure ([`SpatialGrid`](../../../src/systems/game/resources.rs:6))
 
-The remaining inefficiencies are minor and would provide diminishing returns. The function is now well-optimized for production use.
+### 2. Cached Bounds (Priority 2)
+- Eliminated ~18K redundant arithmetic operations per frame
+- Bounds calculated once at spawn, reused forever
+- Zero-cost abstraction with `#[inline]` attribute
+
+### Combined Impact
+- **Before**: 2M collision checks + 18M arithmetic operations per frame
+- **After**: 2K collision checks + 0 redundant operations per frame
+- **Total Reduction**: >99.9% of unnecessary computation eliminated
+
+The remaining inefficiencies are minor code quality improvements that would provide negligible performance gains. The function is now highly optimized for production use.
 
 ## Appendix: Visual Comparisons
 

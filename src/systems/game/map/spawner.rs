@@ -294,6 +294,14 @@ fn spawn_sub_voxel(
     let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
     let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
 
+    // Calculate and cache bounds at spawn time
+    let center = Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
+    let half_size = SUB_VOXEL_SIZE / 2.0;
+    let bounds = (
+        center - Vec3::splat(half_size),
+        center + Vec3::splat(half_size),
+    );
+
     let sub_voxel_entity = ctx
         .commands
         .spawn((
@@ -307,6 +315,7 @@ fn spawn_sub_voxel(
                 sub_x,
                 sub_y,
                 sub_z,
+                bounds,
             },
         ))
         .id();

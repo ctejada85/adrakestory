@@ -25,6 +25,8 @@ pub struct SubVoxel {
     pub sub_x: i32,
     pub sub_y: i32,
     pub sub_z: i32,
+    /// Cached bounding box (min, max) to avoid recalculation every frame
+    pub bounds: (Vec3, Vec3),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
