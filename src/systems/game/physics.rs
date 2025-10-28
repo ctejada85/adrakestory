@@ -105,8 +105,10 @@ pub fn apply_physics(
 
             // Check if player's bottom would go through the top of this sub-voxel
             // Player was above (or very close due to floating-point errors), and would now be at or below the top
-            // Use epsilon tolerance to handle floating-point precision issues after step-ups
-            if current_bottom >= max.y - GROUND_DETECTION_EPSILON && player_bottom <= max.y {
+            // Use epsilon tolerance on both comparisons to handle floating-point precision issues consistently
+            if current_bottom >= max.y - GROUND_DETECTION_EPSILON
+                && player_bottom <= max.y + GROUND_DETECTION_EPSILON
+            {
                 highest_collision_y = highest_collision_y.max(max.y);
                 hit_ground = true;
             }
