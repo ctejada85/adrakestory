@@ -1,28 +1,68 @@
 //! Camera control system for the game.
 //!
 //! This module handles:
-//! - Camera rotation around the world center
+//! - Camera following the player with smooth interpolation
+//! - Camera rotation around the player
 //! - Smooth interpolation between rotation states
 //! - Delete key input for temporary rotation
 
-use super::components::GameCamera;
+use super::components::{GameCamera, Player};
 use bevy::prelude::*;
+
+/// System that makes the camera smoothly follow the player.
+///
+/// This system:
+/// - Queries the player's current position
+/// - Calculates the target camera position based on the follow offset
+/// - Applies the camera's current rotation to the offset
+/// - Smoothly interpolates the camera position using lerp
+/// - Updates the target_position for the rotation system to use
+///
+/// The follow offset is rotated by the camera's current rotation, so the camera
+/// maintains its relative position to the player even when rotated.
+pub fn follow_player_camera(
+    time: Res<Time>,
+    player_query: Query<&Transform, With<Player>>,
+    mut camera_query: Query<(&mut GameCamera, &mut Transform), Without<Player>>,
+) {
+    if let Ok(player_transform) = player_query.get_single() {
+        if let Ok((mut game_camera, mut camera_transform)) = camera_query.get_single_mut() {
+            let player_position = player_transform.translation;
+
+            // Update the target position for rotation system
+            game_camera.target_position = player_position;
+
+            // Calculate the offset in world space by rotating it with the camera's current rotation
+            let rotated_offset = camera_transform.rotation * game_camera.follow_offset;
+
+            // Calculate target camera position
+            let target_position = player_position + rotated_offset;
+
+            // Smoothly interpolate camera position
+            camera_transform.translation = camera_transform.translation.lerp(
+                target_position,
+                game_camera.follow_speed * time.delta_secs(),
+            );
+        }
+    }
+}
 
 /// System that handles camera rotation based on keyboard input.
 ///
 /// The camera can be temporarily rotated 90 degrees to the left by holding
 /// the Delete key. When released, it smoothly returns to its original position.
 ///
-/// The rotation is performed around a fixed center point (1.5, 0.0, 1.5),
-/// which is the center of the game world. The camera's position and rotation
-/// are both updated to maintain the view of the center point.
+/// The rotation is performed around the player's position (target_position),
+/// which is updated by the follow_player_camera system. The camera's position
+/// and rotation are both updated to maintain the view of the player.
 pub fn rotate_camera(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut camera_query: Query<(&mut GameCamera, &mut Transform)>,
 ) {
     if let Ok((mut game_camera, mut transform)) = camera_query.get_single_mut() {
-        let center = Vec3::new(1.5, 0.0, 1.5);
+        // Use the player's position as the rotation center
+        let center = game_camera.target_position;
 
         // Check if Delete key is pressed
         if keyboard_input.pressed(KeyCode::Delete) {

@@ -23,8 +23,8 @@ enum GameSystemSet {
 }
 use systems::game::map::{spawn_map_system, LoadedMapData, MapLoadProgress, MapLoader};
 use systems::game::systems::{
-    apply_gravity, apply_physics, handle_escape_key, move_player, rotate_camera,
-    toggle_collision_box, update_collision_box,
+    apply_gravity, apply_physics, follow_player_camera, handle_escape_key, move_player,
+    rotate_camera, toggle_collision_box, update_collision_box,
 };
 use systems::intro_animation::systems::{animate_intro, cleanup_intro, setup_intro};
 use systems::loading_screen::{
@@ -100,8 +100,13 @@ fn main() {
         )
         // Visual phase: Update visual elements after all position changes
         .add_systems(Update, update_collision_box.in_set(GameSystemSet::Visual))
-        // Camera phase: Update camera last
-        .add_systems(Update, rotate_camera.in_set(GameSystemSet::Camera))
+        // Camera phase: Update camera last (follow then rotate)
+        .add_systems(
+            Update,
+            (follow_player_camera, rotate_camera)
+                .chain()
+                .in_set(GameSystemSet::Camera),
+        )
         .add_systems(OnEnter(GameState::Paused), pause_menu::setup_pause_menu)
         .add_systems(
             Update,

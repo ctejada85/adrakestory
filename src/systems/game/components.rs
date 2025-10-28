@@ -41,4 +41,10 @@ pub struct GameCamera {
     pub original_rotation: Quat,
     pub target_rotation: Quat,
     pub rotation_speed: f32,
+    /// Offset from the player in local camera space (before rotation is applied)
+    pub follow_offset: Vec3,
+    /// Speed at which the camera follows the player (higher = more responsive)
+    pub follow_speed: f32,
+    /// Current target position the camera is following (typically the player's position)
+    pub target_position: Vec3,
 }

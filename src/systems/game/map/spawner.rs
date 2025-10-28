@@ -260,6 +260,13 @@ fn spawn_camera(commands: &mut Commands, map: &MapData) {
     }
 
     let original_rotation = camera_transform.rotation;
+    
+    // Calculate initial follow offset from camera position to look_at point
+    let look_at_point = Vec3::new(lx, ly, lz);
+    let initial_offset = camera_transform.translation - look_at_point;
+    
+    // Transform offset to local camera space (inverse of camera rotation)
+    let follow_offset = camera_transform.rotation.inverse() * initial_offset;
 
     commands.spawn((
         Camera3d::default(),
@@ -268,6 +275,9 @@ fn spawn_camera(commands: &mut Commands, map: &MapData) {
             original_rotation,
             target_rotation: original_rotation,
             rotation_speed: 5.0,
+            follow_offset,
+            follow_speed: 5.0, // Medium responsiveness
+            target_position: look_at_point, // Initially look at the map's look_at point
         },
     ));
 }

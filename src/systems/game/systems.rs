@@ -18,7 +18,7 @@ pub use super::player_movement::move_player;
 pub use super::physics::{apply_gravity, apply_physics};
 
 // Re-export camera control
-pub use super::camera::rotate_camera;
+pub use super::camera::{follow_player_camera, rotate_camera};
 
 // Re-export input handling
 pub use super::input::{handle_escape_key, toggle_collision_box, update_collision_box};
