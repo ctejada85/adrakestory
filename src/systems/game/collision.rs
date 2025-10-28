@@ -52,22 +52,6 @@ impl CollisionResult {
     }
 }
 
-/// Calculate the world position of a sub-voxel's center.
-///
-/// # Arguments
-/// * `sub_voxel` - The sub-voxel component containing parent and local coordinates
-///
-/// # Returns
-/// The world-space position of the sub-voxel's center
-pub fn calculate_sub_voxel_world_pos(sub_voxel: &SubVoxel) -> Vec3 {
-    let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
-    Vec3::new(
-        sub_voxel.parent_x as f32 + offset + (sub_voxel.sub_x as f32 * SUB_VOXEL_SIZE),
-        sub_voxel.parent_y as f32 + offset + (sub_voxel.sub_y as f32 * SUB_VOXEL_SIZE),
-        sub_voxel.parent_z as f32 + offset + (sub_voxel.sub_z as f32 * SUB_VOXEL_SIZE),
-    )
-}
-
 /// Get the axis-aligned bounding box (AABB) of a sub-voxel.
 ///
 /// This function now returns the cached bounds from the SubVoxel component,

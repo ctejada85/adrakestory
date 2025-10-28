@@ -17,15 +17,14 @@ pub struct CollisionBox;
 #[derive(Component)]
 pub struct Voxel;
 
+/// Sub-voxel component with cached bounding box for efficient collision detection.
+///
+/// Previously stored parent and sub-voxel coordinates to calculate bounds on-demand,
+/// but now caches the computed bounds at spawn time for better performance.
 #[derive(Component)]
 pub struct SubVoxel {
-    pub parent_x: i32,
-    pub parent_y: i32,
-    pub parent_z: i32,
-    pub sub_x: i32,
-    pub sub_y: i32,
-    pub sub_z: i32,
-    /// Cached bounding box (min, max) to avoid recalculation every frame
+    /// Cached bounding box (min, max) to avoid recalculation every frame.
+    /// Calculated once at spawn time and reused for all collision checks.
     pub bounds: (Vec3, Vec3),
 }
 

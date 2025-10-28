@@ -294,7 +294,7 @@ fn spawn_sub_voxel(
     let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
     let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
 
-    // Calculate and cache bounds at spawn time
+    // Calculate and cache bounds at spawn time for efficient collision detection
     let center = Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
     let half_size = SUB_VOXEL_SIZE / 2.0;
     let bounds = (
@@ -308,15 +308,7 @@ fn spawn_sub_voxel(
             Mesh3d(ctx.sub_voxel_mesh.clone()),
             MeshMaterial3d(sub_voxel_material),
             Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
-            SubVoxel {
-                parent_x: x,
-                parent_y: y,
-                parent_z: z,
-                sub_x,
-                sub_y,
-                sub_z,
-                bounds,
-            },
+            SubVoxel { bounds },
         ))
         .id();
 
