@@ -8,6 +8,7 @@
 
 use super::collision::get_sub_voxel_bounds;
 use super::components::{Player, SubVoxel};
+use super::resources::SpatialGrid;
 use bevy::prelude::*;
 
 const GRAVITY: f32 = -32.0;
@@ -34,10 +35,12 @@ pub fn apply_gravity(time: Res<Time>, mut player_query: Query<&mut Player>) {
 /// - Stops downward movement when hitting the ground
 /// - Sets the player's grounded state
 ///
-/// The system checks all sub-voxels below the player to find the highest
-/// collision point, ensuring the player lands on the correct surface.
+/// Uses spatial grid optimization to only check nearby sub-voxels instead of
+/// iterating through all sub-voxels in the world, providing significant
+/// performance improvements in large worlds.
 pub fn apply_physics(
     time: Res<Time>,
+    spatial_grid: Res<SpatialGrid>,
     sub_voxel_query: Query<&SubVoxel, Without<Player>>,
     mut player_query: Query<(&mut Player, &mut Transform)>,
 ) {
@@ -50,36 +53,55 @@ pub fn apply_physics(
         let player_bottom = new_y - player.radius;
         let current_bottom = transform.translation.y - player.radius;
 
+        // Extract player position (loop-invariant values)
+        let player_x = transform.translation.x;
+        let player_z = transform.translation.z;
+        let player_radius = player.radius;
+
         let mut hit_ground = false;
         let mut highest_collision_y = f32::MIN;
 
-        // Check collision with sub-voxels below
-        for sub_voxel in sub_voxel_query.iter() {
-            let (min, max) = get_sub_voxel_bounds(sub_voxel);
+        // Use spatial grid to get only nearby sub-voxels
+        // This reduces checks from O(n) to O(k) where k << n
+        let player_min = Vec3::new(
+            player_x - player_radius,
+            new_y - player_radius,
+            player_z - player_radius,
+        );
+        let player_max = Vec3::new(
+            player_x + player_radius,
+            new_y + player_radius,
+            player_z + player_radius,
+        );
 
-            // Only check sub-voxels that are below the player's bottom
-            // This ensures we check all sub-voxels that could support the player
-            if max.y > new_y + player.radius {
-                continue;
-            }
+        let relevant_entities = spatial_grid.get_entities_in_aabb(player_min, player_max);
 
-            // Check if player sphere is above this sub-voxel horizontally
-            let player_x = transform.translation.x;
-            let player_z = transform.translation.z;
+        // Check collision with nearby sub-voxels only
+        for entity in relevant_entities {
+            if let Ok(sub_voxel) = sub_voxel_query.get(entity) {
+                let (min, max) = get_sub_voxel_bounds(sub_voxel);
 
-            // Check horizontal overlap
-            let horizontal_overlap = player_x + player.radius > min.x
-                && player_x - player.radius < max.x
-                && player_z + player.radius > min.z
-                && player_z - player.radius < max.z;
+                // Only check sub-voxels that are below the player's bottom
+                // This ensures we check all sub-voxels that could support the player
+                if max.y > new_y + player.radius {
+                    continue;
+                }
 
-            if horizontal_overlap && player.velocity.y <= 0.0 {
-                // Check if player's bottom would go through the top of this sub-voxel
-                // Player was above (or very close due to floating-point errors), and would now be at or below the top
-                // Use epsilon tolerance to handle floating-point precision issues after step-ups
-                if current_bottom >= max.y - GROUND_DETECTION_EPSILON && player_bottom <= max.y {
-                    highest_collision_y = highest_collision_y.max(max.y);
-                    hit_ground = true;
+                // Check horizontal overlap
+                let horizontal_overlap = player_x + player_radius > min.x
+                    && player_x - player_radius < max.x
+                    && player_z + player_radius > min.z
+                    && player_z - player_radius < max.z;
+
+                if horizontal_overlap && player.velocity.y <= 0.0 {
+                    // Check if player's bottom would go through the top of this sub-voxel
+                    // Player was above (or very close due to floating-point errors), and would now be at or below the top
+                    // Use epsilon tolerance to handle floating-point precision issues after step-ups
+                    if current_bottom >= max.y - GROUND_DETECTION_EPSILON && player_bottom <= max.y
+                    {
+                        highest_collision_y = highest_collision_y.max(max.y);
+                        hit_ground = true;
+                    }
                 }
             }
         }
