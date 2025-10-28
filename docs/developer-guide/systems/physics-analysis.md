@@ -3,7 +3,7 @@
 ## Overview
 This document analyzes the [`apply_physics`](../../../src/systems/game/physics.rs:41) function in the physics system and identifies performance inefficiencies and optimization opportunities.
 
-**Status**: ✅ All major optimizations implemented
+**Status**: ✅ All optimizations implemented
 
 **Last Updated**: 2025-10-28
 
@@ -11,6 +11,7 @@ This document analyzes the [`apply_physics`](../../../src/systems/game/physics.r
 1. ✅ **Critical**: Spatial Grid Query (99% reduction in collision checks)
 2. ✅ **Moderate**: Cached Bounds Calculation (eliminates redundant computation)
 3. ✅ **Moderate**: Loop-Invariant Value Extraction
+4. ✅ **Minor**: Optimized Condition Checks (improved readability and early exits)
 
 ## Current Implementation Analysis
 
@@ -140,37 +141,93 @@ pub fn get_sub_voxel_bounds(sub_voxel: &SubVoxel) -> (Vec3, Vec3) {
 - ✅ Added `#[inline]` attribute for zero-cost abstraction
 - ✅ Bounds calculated once at spawn, reused forever
 
-## Remaining Inefficiencies
+### ✅ Fixed: Multiple Condition Checks (Priority 3)
 
-### 🟢 Minor: Multiple Condition Checks
+**Status**: IMPLEMENTED
+**Date**: 2025-10-28
 
-**Location**: Lines 86-88, 96
-
-**Status**: Minor issue, not critical
-
-**Problem**:
+**Original Problem** (Lines 80-106):
 ```rust
-if max.y > new_y + player.radius {
-    continue;
+// OLD CODE - Nested conditions
+for entity in relevant_entities {
+    if let Ok(sub_voxel) = sub_voxel_query.get(entity) {
+        let (min, max) = get_sub_voxel_bounds(sub_voxel);
+        
+        if max.y > new_y + player.radius {
+            continue;
+        }
+        
+        let horizontal_overlap = player_x + player_radius > min.x
+            && player_x - player_radius < max.x
+            && player_z + player_radius > min.z
+            && player_z - player_radius < max.z;
+        
+        if horizontal_overlap && player.velocity.y <= 0.0 {
+            // collision check
+        }
+    }
 }
-// ... later ...
-if horizontal_overlap && player.velocity.y <= 0.0 {
 ```
 
-The function performs multiple sequential checks that could be combined or reordered for early exit.
+**Issues**:
+- Nested if-let pattern reduced readability
+- Combined conditions made logic flow unclear
+- Positive overlap checks less intuitive than negative checks
 
-**Impact**:
-- Minimal performance impact with current optimization
-- Slightly harder to read
+**Solution Implemented** (Lines 80-109):
+```rust
+// NEW CODE - Early exits with guard clauses
+for entity in relevant_entities {
+    let Ok(sub_voxel) = sub_voxel_query.get(entity) else {
+        continue;
+    };
+    
+    let (min, max) = get_sub_voxel_bounds(sub_voxel);
+    
+    // Early exit: Skip sub-voxels above the player
+    if max.y > new_y + player_radius {
+        continue;
+    }
+    
+    // Early exit: Only check when moving downward
+    if player.velocity.y > 0.0 {
+        continue;
+    }
+    
+    // Early exit: Check horizontal overlap (AABB test)
+    if player_x + player_radius <= min.x
+        || player_x - player_radius >= max.x
+        || player_z + player_radius <= min.z
+        || player_z - player_radius >= max.z
+    {
+        continue;
+    }
+    
+    // Collision check
+}
+```
 
-**Solution**:
-Combine related checks or use guard clauses more effectively (low priority).
+**Improvements**:
+- ✅ Used `let-else` pattern for cleaner error handling
+- ✅ Separated each check into its own early-exit guard clause
+- ✅ Inverted horizontal overlap logic (check for non-overlap, which is clearer)
+- ✅ Added descriptive comments for each guard clause
+- ✅ Flattened nesting from 3 levels to 1 level
+- ✅ Separated velocity check from overlap check for clarity
+
+**Benefits**:
+- Better readability and maintainability
+- Clearer intent with explicit early exits
+- Easier to understand the collision detection flow
+- Potential minor performance improvement from early exits
+
+## Remaining Inefficiencies
 
 ### 🟢 Minor: Floating-Point Comparison Pattern
 
-**Location**: Line 100
+**Location**: Line 106
 
-**Status**: Minor issue, not critical
+**Status**: Minor issue, acceptable as-is
 
 **Problem**:
 ```rust
@@ -211,11 +268,7 @@ At 60 FPS: 103,680 checks/second
 
 These optimizations would provide diminishing returns given the current performance improvements:
 
-1. **Combine Condition Checks** (Trivial effort, minimal impact)
-   - Reorder or combine sequential checks for slightly better readability
-   - Performance impact negligible
-
-2. **Consistent Epsilon Usage** (Trivial effort, code quality)
+1. **Consistent Epsilon Usage** (Trivial effort, code quality)
    - Document or standardize floating-point comparison patterns
    - Primarily a code quality improvement
 
@@ -229,26 +282,34 @@ Both [`apply_physics`](../../../src/systems/game/physics.rs:39) and horizontal c
 
 ## Conclusion
 
-✅ **All major performance issues have been resolved.**
+✅ **All identified performance issues have been resolved.**
 
-The [`apply_physics`](../../../src/systems/game/physics.rs:41) function has been successfully optimized through two key improvements:
+The [`apply_physics`](../../../src/systems/game/physics.rs:41) function has been successfully optimized through multiple improvements:
 
-### 1. Spatial Grid Optimization (Priority 1)
+### 1. Spatial Grid Optimization (Priority 1 - Critical)
 - Reduced collision checks by ~99% (from 2M to ~2K per frame)
 - Changed from O(n) to O(k) complexity where k << n
 - Improves scalability for large worlds
 
-### 2. Cached Bounds (Priority 2)
+### 2. Cached Bounds (Priority 2 - Moderate)
 - Eliminated ~18K redundant arithmetic operations per frame
 - Bounds calculated once at spawn, reused forever
 - Zero-cost abstraction with `#[inline]` attribute
+- Simplified SubVoxel component structure
+
+### 3. Optimized Condition Checks (Priority 3 - Minor)
+- Improved code readability with early-exit guard clauses
+- Flattened nesting from 3 levels to 1 level
+- Clearer logic flow with explicit checks
+- Better maintainability
 
 ### Combined Impact
 - **Before**: 2M collision checks + 18M arithmetic operations per frame
 - **After**: 2K collision checks + 0 redundant operations per frame
 - **Total Reduction**: >99.9% of unnecessary computation eliminated
+- **Code Quality**: Significantly improved readability and maintainability
 
-The remaining inefficiencies are minor code quality improvements that would provide negligible performance gains. The function is now highly optimized for production use.
+The remaining item (epsilon usage consistency) is a minor code quality improvement that would provide negligible benefits. The function is now highly optimized and production-ready.
 
 ## Appendix: Visual Comparisons
 
