@@ -220,16 +220,11 @@ pub struct Voxel;
 ```rust
 #[derive(Component)]
 pub struct SubVoxel {
-    pub parent_x: i32,
-    pub parent_y: i32,
-    pub parent_z: i32,
-    pub sub_x: i32,
-    pub sub_y: i32,
-    pub sub_z: i32,
+    pub bounds: (Vec3, Vec3),  // (min, max) AABB bounds
 }
 ```
 
-**Purpose**: Represents individual sub-voxels within a voxel (8×8×8 grid).
+**Purpose**: Represents individual sub-voxels within a voxel (8×8×8 grid). The bounds are pre-calculated and cached at spawn time for efficient collision detection, eliminating the need to compute them during physics updates. See [`physics-analysis.md`](systems/physics-analysis.md) for optimization details.
 
 ### GameCamera Component
 

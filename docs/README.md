@@ -27,6 +27,7 @@ For contributors and advanced users:
 - **[Debugging Setup](developer-guide/debugging.md)** - VSCode debugging configuration
 - **[Contributing Guidelines](developer-guide/contributing.md)** - How to contribute to the project
 - **[Map Loader System](developer-guide/systems/map-loader.md)** - Map loading internals
+- **[Physics System Analysis](developer-guide/systems/physics-analysis.md)** - Physics optimization details
 - **[Map Editor Documentation Hub](developer-guide/systems/map-editor/README.md)** - Complete map editor docs
   - [Design](developer-guide/systems/map-editor/design.md) - Feature specifications
   - [Architecture](developer-guide/systems/map-editor/architecture.md) - System design
