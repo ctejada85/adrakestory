@@ -12,6 +12,7 @@ Welcome to the comprehensive documentation for the A Drake's Story Map Editor. T
 ### 🏗️ Architecture & Design
 - **[Architecture Overview](architecture.md)** - System design, data flow, and component interactions
 - **[Input Handling Guide](input-handling.md)** - Unified input architecture and best practices
+- **[Face-Aware Placement System](face-aware-placement.md)** ⭐ - Voxel placement on face detection
 
 ### 🧪 Testing
 - **[Testing Documentation](testing/)** - Complete testing guides
@@ -38,6 +39,7 @@ map-editor/
 ├── roadmap.md                         # Future development plans
 ├── input-handling.md                  # Unified input architecture guide
 ├── rotation-system.md                 # Rotation system documentation
+├── face-aware-placement.md            # Face-aware voxel placement system ⭐ NEW
 ├── testing/                           # Testing documentation
 │   ├── README.md                      # Testing overview
 │   ├── move-operations.md             # Move operation testing guide
@@ -82,6 +84,12 @@ User-facing documentation is located in:
   - Separate cursor state to prevent change detection pollution
   - Identical rendering in editor and gameplay
 - **Voxel Editing**: Place, remove, and configure voxels
+- **Face-Aware Placement** ⭐: Intelligent voxel placement on target faces
+  - Enhanced ray-box intersection with face detection
+  - Adjacent placement on voxel faces (±X, ±Y, ±Z)
+  - Grid snapping for consistent placement
+  - Tool-aware cursor rendering
+  - Keyboard mode support
 - **Entity Management**: Place and configure entities
 - **Selection Tool**: Select, move, and rotate voxels
 - **File Operations** ⭐: Complete save/load functionality
@@ -212,6 +220,7 @@ src/editor/
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.7.0 | 2025-10-30 | Face-aware voxel placement system ⭐ |
 | 2.6.0 | 2025-10-30 | Lighting performance optimization - event-based updates (99.9% improvement) ⭐ |
 | 2.5.0 | 2025-10-23 | WYSIWYG lighting - congruent illumination between editor and game ⭐ |
 | 2.4.0 | 2025-10-23 | Tool switching hotkeys (1 for Place, 2 for Select) ⭐ |
@@ -226,4 +235,4 @@ src/editor/
 
 **Last Updated**: 2025-10-30
 **Maintainer**: Development Team
-**Status**: Active Development - Lighting Performance Optimized ⭐
+**Status**: Active Development - Face-Aware Placement Implemented ⭐

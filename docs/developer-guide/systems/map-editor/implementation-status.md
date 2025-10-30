@@ -206,13 +206,20 @@ $ cargo run --bin map_editor
 
 ## ✅ Recently Completed (2025-10-21)
 
-### Cursor Ray Casting System (`src/editor/cursor.rs` - 168 lines)
+### Cursor Ray Casting System (`src/editor/cursor.rs` - 403 lines)
 - ✅ 3D ray-voxel intersection using AABB algorithm
 - ✅ Ray casting from screen space to world space
 - ✅ Voxel selection at any height in 3D space
 - ✅ Closest voxel detection along ray path
 - ✅ Fallback to ground plane for empty areas
 - ✅ Grid position calculation from world coordinates
+- ✅ **Face-aware voxel placement** (2025-10-30)
+  - ✅ Enhanced ray-box intersection with face detection
+  - ✅ Hit face normal calculation (±X, ±Y, ±Z)
+  - ✅ Adjacent placement position tracking
+  - ✅ Grid snapping for placement preview
+  - ✅ Tool-aware cursor rendering
+  - ✅ Keyboard mode placement support
 
 ### Move Operation System (2025-10-21)
 - ✅ Complete move operation implementation
@@ -280,6 +287,18 @@ map-editor/
     ├── ui-input-propagation-fix.md
     └── move-rotate-plan.md
 ```
+
+## ✅ Recently Completed (2025-10-30)
+
+### Face-Aware Voxel Placement System ⭐ NEW
+- ✅ **Enhanced Ray-Box Intersection**: Ray-box intersection now detects which face (±X, ±Y, ±Z) was hit
+- ✅ **Face Normal Tracking**: `CursorState` extended with `hit_face_normal`, `placement_pos`, and `placement_grid_pos`
+- ✅ **Adjacent Placement**: Voxels now place on the face of the target voxel, not centered on it
+- ✅ **Grid Snapping**: Placement position snaps to integer coordinates for consistent placement
+- ✅ **Tool-Aware Rendering**: Cursor indicator shows placement position for VoxelPlace tool
+- ✅ **Keyboard Mode Support**: Placement position calculated correctly in keyboard navigation mode
+- ✅ **Documentation**: Complete architectural documentation in [`face-aware-placement.md`](face-aware-placement.md)
+- ✅ **Build Status**: ✅ Verified successful with no errors
 
 ## ✅ Recently Completed (2025-10-23)
 
@@ -433,7 +452,7 @@ The following features are implemented but need wiring/integration:
 
 ### Code Statistics
 
-- **Total Lines**: ~4,586 (net +30 after tool switching)
+- **Total Lines**: ~4,821 (net +235 after face-aware placement)
 - **Modules**: 16 (added `input.rs`)
 - **Documentation**: 8 comprehensive documents (updated)
 - **Tests**: Basic unit tests in place
@@ -447,6 +466,9 @@ The following features are implemented but need wiring/integration:
   - Selection tool Phase 1 (+191 lines)
   - 3D cursor ray casting (+168 lines)
   - Move operation system (+260 lines in selection_tool.rs)
+- **Recent Additions (2025-10-30)**:
+  - Face-aware placement system (+235 lines across cursor.rs, grid.rs, voxel_tool.rs)
+  - Face-aware placement documentation (+180 lines in face-aware-placement.md)
 - **Recent Removals**:
   - Old input systems (-500 lines from `selection_tool.rs`)
 
@@ -513,6 +535,6 @@ To complete the map editor implementation:
 
 ---
 
-**Last Updated**: 2025-10-23
-**Status**: Save Functionality Complete, Input System Refactored, Core Features Operational
+**Last Updated**: 2025-10-30
+**Status**: Face-Aware Placement Complete, Save Functionality Complete, Input System Refactored, Core Features Operational
 **Next Milestone**: Rotation operation (Phase 2), Undo/Redo integration
