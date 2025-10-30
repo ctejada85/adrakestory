@@ -4,6 +4,7 @@ pub mod systems;
 
 // New focused modules
 mod camera;
+pub mod character;
 mod collision;
 mod input;
 pub mod map;

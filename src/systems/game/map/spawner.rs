@@ -1,9 +1,11 @@
 //! Map spawning system that instantiates loaded map data into the game world.
 
+use super::super::character::CharacterModel;
 use super::super::components::{CollisionBox, GameCamera, Player, SubVoxel, Voxel};
 use super::super::resources::{GameInitialized, SpatialGrid};
 use super::format::{EntityType, MapData, SubVoxelPattern};
 use super::loader::{LoadProgress, LoadedMapData, MapLoadProgress};
+use bevy::gltf::GltfAssetLabel;
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::prelude::*;
 
@@ -23,6 +25,7 @@ struct EntitySpawnContext<'w, 's, 'a> {
     commands: Commands<'w, 's>,
     meshes: &'a mut Assets<Mesh>,
     materials: &'a mut Assets<StandardMaterial>,
+    asset_server: &'a AssetServer,
 }
 
 /// System that spawns a loaded map into the game world.
@@ -35,6 +38,7 @@ pub fn spawn_map_system(
     mut progress: ResMut<MapLoadProgress>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
     game_initialized: Option<Res<GameInitialized>>,
 ) {
     // If game is already initialized, don't spawn again
@@ -76,6 +80,7 @@ pub fn spawn_map_system(
             commands,
             meshes: meshes.as_mut(),
             materials: materials.as_mut(),
+            asset_server: &asset_server,
         };
         spawn_entities(&mut entity_ctx, map, &mut progress);
         entity_ctx.commands
@@ -159,25 +164,53 @@ fn spawn_entities(ctx: &mut EntitySpawnContext, map: &MapData, progress: &mut Ma
     }
 }
 
-/// Spawn the player entity.
+/// Spawn the player entity with a 3D character model.
+///
+/// This function creates:
+/// 1. A player entity with physics components (no visible mesh)
+/// 2. A GLB character model as a child entity for visuals
+/// 3. An invisible collision box for debugging
+///
+/// The physics collision uses a sphere collider (radius: 0.3) which is kept
+/// separate from the visual model for flexibility and performance.
 fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
     let player_radius = 0.3;
-    let player_mesh = ctx.meshes.add(Sphere::new(player_radius));
-    let player_material = ctx.materials.add(Color::srgb(0.8, 0.2, 0.2));
 
+    // Load the character model (GLB file) with explicit scene specification
+    // Using GltfAssetLabel::Scene(0) to load the first (default) scene from the GLB file
+    let character_scene: Handle<Scene> = ctx.asset_server.load(
+        GltfAssetLabel::Scene(0).from_asset("characters/base_basic_pbr.glb")
+    );
+
+    info!("Loading character model: characters/base_basic_pbr.glb#Scene0");
+
+    // Spawn the main player entity (parent) with physics components
+    // No visible mesh - the GLB model will be the visual representation
+    let player_entity = ctx
+        .commands
+        .spawn((
+            Transform::from_translation(position),
+            Visibility::default(),
+            Player {
+                speed: 3.0,
+                velocity: Vec3::ZERO,
+                is_grounded: true,
+                radius: player_radius,
+            },
+            CharacterModel::new(character_scene.clone()),
+        ))
+        .id();
+
+    // Spawn the character model as a child entity
+    // The model scale and offset can be adjusted here if needed
     ctx.commands.spawn((
-        Mesh3d(player_mesh),
-        MeshMaterial3d(player_material),
-        Transform::from_translation(position),
-        Player {
-            speed: 3.0,
-            velocity: Vec3::ZERO,
-            is_grounded: true,
-            radius: player_radius,
-        },
-    ));
+        SceneRoot(character_scene),
+        Transform::from_scale(Vec3::splat(1.0)),
+    )).set_parent(player_entity);
 
-    // Create collision box (invisible by default)
+    info!("Spawned player with character model at position: {:?}", position);
+
+    // Create collision box (invisible by default, for debugging)
     let collision_box_mesh = ctx.meshes.add(Cuboid::new(
         player_radius * 2.0,
         player_radius * 2.0,
