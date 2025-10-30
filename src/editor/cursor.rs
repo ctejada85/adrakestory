@@ -142,15 +142,23 @@ pub fn update_cursor_position(
     } else {
         // No voxel intersection, fall back to ground plane intersection
         if let Some(ground_pos) = intersect_ground_plane(&ray) {
+            // Keep cursor position as exact intersection for free movement
             cursor_state.position = Some(ground_pos);
+            
+            // Snap grid position to nearest integer coordinates
             let grid_x = ground_pos.x.round() as i32;
             let grid_y = 0;
             let grid_z = ground_pos.z.round() as i32;
             cursor_state.grid_pos = Some((grid_x, grid_y, grid_z));
             cursor_state.hit_face_normal = Some(Vec3::Y); // Upward
-            // For ground plane, placement = cursor position
-            cursor_state.placement_pos = cursor_state.position;
-            cursor_state.placement_grid_pos = cursor_state.grid_pos;
+            
+            // Placement position snaps to grid (integer coordinates)
+            cursor_state.placement_grid_pos = Some((grid_x, grid_y, grid_z));
+            cursor_state.placement_pos = Some(Vec3::new(
+                grid_x as f32,
+                grid_y as f32,
+                grid_z as f32,
+            ));
         } else {
             cursor_state.position = None;
             cursor_state.grid_pos = None;
