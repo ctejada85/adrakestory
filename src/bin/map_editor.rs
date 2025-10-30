@@ -10,9 +10,10 @@ use adrakestory::editor::{
     toggle_keyboard_edit_mode,
 };
 use adrakestory::editor::{
-    EditorHistory, EditorState, KeyboardEditMode, MapRenderState, RenderMapEvent,
+    CursorState, EditorHistory, EditorState, KeyboardEditMode, MapRenderState, RenderMapEvent,
 };
 use adrakestory::editor::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
+use adrakestory::editor::ui::dialogs::MapDataChangedEvent;
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
@@ -45,6 +46,7 @@ fn main() {
         }))
         .add_plugins(EguiPlugin)
         .init_resource::<EditorState>()
+        .init_resource::<CursorState>()
         .init_resource::<EditorHistory>()
         .init_resource::<state::EditorUIState>()
         .init_resource::<camera::CameraInputState>()
@@ -59,6 +61,7 @@ fn main() {
         .add_event::<SaveMapAsEvent>()
         .add_event::<FileSavedEvent>()
         .add_event::<RenderMapEvent>()
+        .add_event::<MapDataChangedEvent>()
         .add_event::<tools::UpdateSelectionHighlights>()
         // New unified input event
         .add_event::<tools::EditorInputEvent>()
@@ -118,6 +121,7 @@ fn setup_editor(
     mut materials: ResMut<Assets<StandardMaterial>>,
     grid_config: Res<InfiniteGridConfig>,
     editor_state: Res<EditorState>,
+    mut map_changed_events: EventWriter<MapDataChangedEvent>,
 ) {
     info!("Starting Map Editor");
 
@@ -188,6 +192,9 @@ fn setup_editor(
     // Spawn cursor indicator
     grid::spawn_cursor_indicator(&mut commands, &mut meshes, &mut materials);
 
+    // Send event to trigger initial lighting setup
+    map_changed_events.send(MapDataChangedEvent);
+
     info!("Map editor setup complete");
 }
 
@@ -195,11 +202,13 @@ fn setup_editor(
 fn render_ui(
     mut contexts: EguiContexts,
     mut ui_resources: UIResources,
+    cursor_state: Res<CursorState>,
     history: Res<EditorHistory>,
     active_transform: Res<ActiveTransform>,
     keyboard_mode: Res<KeyboardEditMode>,
     mut transform_events: TransformEvents,
     mut save_events: SaveEvents,
+    mut map_changed_events: EventWriter<MapDataChangedEvent>,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -217,6 +226,7 @@ fn render_ui(
     ui::render_properties_panel(
         ctx,
         &mut ui_resources.editor_state,
+        &cursor_state,
         &active_transform,
         &mut transform_events,
     );
@@ -233,6 +243,7 @@ fn render_ui(
         &mut ui_resources.editor_state,
         &mut ui_resources.ui_state,
         &mut save_events.save,
+        &mut map_changed_events,
     );
 
     // Handle file operations
@@ -298,9 +309,10 @@ fn update_lighting_on_map_change(
     editor_state: Res<EditorState>,
     mut ambient_light: ResMut<AmbientLight>,
     directional_lights: Query<Entity, With<DirectionalLight>>,
+    mut map_changed_events: EventReader<MapDataChangedEvent>,
 ) {
-    // Only update if the editor state has changed
-    if !editor_state.is_changed() {
+    // Only update if we received a map data changed event
+    if map_changed_events.read().next().is_none() {
         return;
     }
 

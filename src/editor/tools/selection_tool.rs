@@ -1,5 +1,6 @@
 //! Selection tool for selecting and manipulating objects.
 
+use crate::editor::cursor::CursorState;
 use crate::editor::state::{EditorState, EditorTool};
 use crate::systems::game::map::format::VoxelData;
 use crate::systems::game::map::geometry::RotationAxis;
@@ -97,6 +98,7 @@ pub struct UpdateRotation {
 
 /// Handle selection when the tool is active
 pub fn handle_selection(
+    cursor_state: Res<CursorState>,
     mut editor_state: ResMut<EditorState>,
     mouse_button: Res<ButtonInput<MouseButton>>,
     mut contexts: EguiContexts,
@@ -119,7 +121,7 @@ pub fn handle_selection(
     }
 
     // Get cursor grid position
-    let Some(grid_pos) = editor_state.cursor_grid_pos else {
+    let Some(grid_pos) = cursor_state.grid_pos else {
         return;
     };
 

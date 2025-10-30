@@ -7,6 +7,24 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_egui::EguiContexts;
 
+/// Resource to track cursor position separately from editor state.
+/// This prevents cursor updates from triggering change detection on EditorState.
+#[derive(Resource, Default)]
+pub struct CursorState {
+    /// Current cursor position in world space
+    pub position: Option<Vec3>,
+    
+    /// Current cursor grid position
+    pub grid_pos: Option<(i32, i32, i32)>,
+}
+
+impl CursorState {
+    /// Create a new cursor state
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 /// System to toggle keyboard edit mode (I to enter, Escape to exit)
 /// Note: Escape only exits keyboard mode when there are no selections in Select tool
 pub fn toggle_keyboard_edit_mode(
@@ -47,7 +65,8 @@ pub fn toggle_keyboard_edit_mode(
 /// System to update cursor position and grid position from mouse input
 /// Only updates when keyboard edit mode is disabled
 pub fn update_cursor_position(
-    mut editor_state: ResMut<EditorState>,
+    mut cursor_state: ResMut<CursorState>,
+    editor_state: Res<EditorState>,
     camera_query: Query<(&Camera, &GlobalTransform), With<EditorCamera>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     keyboard_mode: Res<KeyboardEditMode>,
@@ -73,15 +92,15 @@ pub fn update_cursor_position(
 
     // Get cursor position in window
     let Some(cursor_position) = window.cursor_position() else {
-        editor_state.cursor_position = None;
-        editor_state.cursor_grid_pos = None;
+        cursor_state.position = None;
+        cursor_state.grid_pos = None;
         return;
     };
 
     // Convert cursor position to world ray
     let Ok(ray) = camera.viewport_to_world(camera_transform, cursor_position) else {
-        editor_state.cursor_position = None;
-        editor_state.cursor_grid_pos = None;
+        cursor_state.position = None;
+        cursor_state.grid_pos = None;
         return;
     };
 
@@ -90,8 +109,8 @@ pub fn update_cursor_position(
 
     if let Some(voxel_pos) = closest_voxel {
         // Set cursor to the intersected voxel
-        editor_state.cursor_grid_pos = Some(voxel_pos);
-        editor_state.cursor_position = Some(Vec3::new(
+        cursor_state.grid_pos = Some(voxel_pos);
+        cursor_state.position = Some(Vec3::new(
             voxel_pos.0 as f32,
             voxel_pos.1 as f32,
             voxel_pos.2 as f32,
@@ -99,14 +118,14 @@ pub fn update_cursor_position(
     } else {
         // No voxel intersection, fall back to ground plane intersection
         if let Some(ground_pos) = intersect_ground_plane(&ray) {
-            editor_state.cursor_position = Some(ground_pos);
+            cursor_state.position = Some(ground_pos);
             let grid_x = ground_pos.x.round() as i32;
             let grid_y = 0;
             let grid_z = ground_pos.z.round() as i32;
-            editor_state.cursor_grid_pos = Some((grid_x, grid_y, grid_z));
+            cursor_state.grid_pos = Some((grid_x, grid_y, grid_z));
         } else {
-            editor_state.cursor_position = None;
-            editor_state.cursor_grid_pos = None;
+            cursor_state.position = None;
+            cursor_state.grid_pos = None;
         }
     }
 }
@@ -218,7 +237,8 @@ fn intersect_ground_plane(ray: &Ray3d) -> Option<Vec3> {
 pub fn handle_keyboard_cursor_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut contexts: EguiContexts,
-    mut editor_state: ResMut<EditorState>,
+    mut cursor_state: ResMut<CursorState>,
+    editor_state: Res<EditorState>,
     _active_transform: Res<ActiveTransform>,
     keyboard_mode: Res<KeyboardEditMode>,
 ) {
@@ -244,7 +264,7 @@ pub fn handle_keyboard_cursor_movement(
     }
 
     // Get current cursor position or default to (0, 0, 0)
-    let current_pos = editor_state.cursor_grid_pos.unwrap_or((0, 0, 0));
+    let current_pos = cursor_state.grid_pos.unwrap_or((0, 0, 0));
 
     // Calculate movement step (1 or 5 with Shift for fast movement)
     let step = if keyboard.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
@@ -286,8 +306,8 @@ pub fn handle_keyboard_cursor_movement(
 
     // Update cursor position if moved
     if moved {
-        editor_state.cursor_grid_pos = Some(new_pos);
-        editor_state.cursor_position = Some(Vec3::new(
+        cursor_state.grid_pos = Some(new_pos);
+        cursor_state.position = Some(Vec3::new(
             new_pos.0 as f32,
             new_pos.1 as f32,
             new_pos.2 as f32,
@@ -302,6 +322,7 @@ pub fn handle_keyboard_cursor_movement(
 pub fn handle_keyboard_selection(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut contexts: EguiContexts,
+    cursor_state: Res<CursorState>,
     mut editor_state: ResMut<EditorState>,
     keyboard_mode: Res<KeyboardEditMode>,
     mut update_events: EventWriter<crate::editor::tools::UpdateSelectionHighlights>,
@@ -327,7 +348,7 @@ pub fn handle_keyboard_selection(
     }
 
     // Get cursor grid position
-    let Some(grid_pos) = editor_state.cursor_grid_pos else {
+    let Some(grid_pos) = cursor_state.grid_pos else {
         return;
     };
 

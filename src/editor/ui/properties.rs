@@ -1,5 +1,6 @@
 //! Properties panel UI for editing object properties.
 
+use crate::editor::cursor::CursorState;
 use crate::editor::state::{EditorState, EditorTool};
 use crate::editor::tools::{
     ActiveTransform, CancelTransform, ConfirmTransform, DeleteSelectedVoxels, StartMoveOperation,
@@ -24,6 +25,7 @@ pub struct TransformEvents<'w> {
 pub fn render_properties_panel(
     ctx: &egui::Context,
     editor_state: &mut EditorState,
+    cursor_state: &CursorState,
     active_transform: &ActiveTransform,
     events: &mut TransformEvents,
 ) {
@@ -44,7 +46,7 @@ pub fn render_properties_panel(
             ui.separator();
 
             // Cursor information
-            render_cursor_info(ui, editor_state);
+            render_cursor_info(ui, cursor_state);
         });
 }
 
@@ -330,11 +332,11 @@ fn render_map_info(ui: &mut egui::Ui, editor_state: &mut EditorState) {
 }
 
 /// Render cursor information section
-fn render_cursor_info(ui: &mut egui::Ui, editor_state: &EditorState) {
+fn render_cursor_info(ui: &mut egui::Ui, cursor_state: &CursorState) {
     ui.label("Cursor");
     ui.separator();
 
-    if let Some(grid_pos) = editor_state.cursor_grid_pos {
+    if let Some(grid_pos) = cursor_state.grid_pos {
         ui.label(format!(
             "Grid: ({}, {}, {})",
             grid_pos.0, grid_pos.1, grid_pos.2
@@ -343,7 +345,7 @@ fn render_cursor_info(ui: &mut egui::Ui, editor_state: &EditorState) {
         ui.label("Grid: -");
     }
 
-    if let Some(world_pos) = editor_state.cursor_position {
+    if let Some(world_pos) = cursor_state.position {
         ui.label(format!(
             "World: ({:.2}, {:.2}, {:.2})",
             world_pos.x, world_pos.y, world_pos.z

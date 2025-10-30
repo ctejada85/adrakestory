@@ -18,6 +18,10 @@ pub struct FileSelectedEvent {
     pub path: PathBuf,
 }
 
+/// Event sent when map data changes (needs to be public for map_editor.rs)
+#[derive(Event)]
+pub struct MapDataChangedEvent;
+
 /// Resource to track the file dialog receiver
 #[derive(Resource, Default)]
 pub struct FileDialogReceiver {
@@ -30,6 +34,7 @@ pub fn render_dialogs(
     editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
     save_events: &mut EventWriter<SaveMapEvent>,
+    map_changed_events: &mut EventWriter<MapDataChangedEvent>,
 ) {
     // Unsaved changes dialog
     if ui_state.unsaved_changes_dialog_open {
@@ -38,7 +43,7 @@ pub fn render_dialogs(
 
     // New map dialog
     if ui_state.new_map_dialog_open {
-        render_new_map_dialog(ctx, editor_state, ui_state);
+        render_new_map_dialog(ctx, editor_state, ui_state, map_changed_events);
     }
 
     // About dialog
@@ -118,6 +123,7 @@ fn render_new_map_dialog(
     ctx: &egui::Context,
     editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
+    map_changed_events: &mut EventWriter<MapDataChangedEvent>,
 ) {
     egui::Window::new("New Map")
         .collapsible(false)
@@ -135,6 +141,8 @@ fn render_new_map_dialog(
                     editor_state.current_map = MapData::default_map();
                     ui_state.new_map_dialog_open = false;
                     info!("Created new map");
+                    // Send event to trigger lighting update
+                    map_changed_events.send(MapDataChangedEvent);
                 }
 
                 if ui.button("Cancel").clicked() {
@@ -297,6 +305,7 @@ pub fn handle_file_selected(
     mut events: EventReader<FileSelectedEvent>,
     mut editor_state: ResMut<EditorState>,
     mut ui_state: ResMut<EditorUIState>,
+    mut map_changed_events: EventWriter<MapDataChangedEvent>,
 ) {
     for event in events.read() {
         match load_map_from_file(&event.path) {
@@ -306,6 +315,8 @@ pub fn handle_file_selected(
                 editor_state.file_path = Some(event.path.clone());
                 editor_state.clear_modified();
                 editor_state.clear_selections();
+                // Send event to trigger lighting update
+                map_changed_events.send(MapDataChangedEvent);
             }
             Err(e) => {
                 error!("Failed to load map: {}", e);

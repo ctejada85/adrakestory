@@ -35,12 +35,6 @@ pub struct EditorState {
 
     /// Whether to snap cursor to grid
     pub snap_to_grid: bool,
-
-    /// Current cursor position in world space
-    pub cursor_position: Option<Vec3>,
-
-    /// Current cursor grid position
-    pub cursor_grid_pos: Option<(i32, i32, i32)>,
 }
 
 impl Default for EditorState {
@@ -58,8 +52,6 @@ impl Default for EditorState {
             show_grid: true,
             grid_opacity: 0.3,
             snap_to_grid: true,
-            cursor_position: None,
-            cursor_grid_pos: None,
         }
     }
 }

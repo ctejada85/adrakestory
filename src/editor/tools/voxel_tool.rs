@@ -1,5 +1,6 @@
 //! Voxel placement and removal tools.
 
+use crate::editor::cursor::CursorState;
 use crate::editor::history::{EditorAction, EditorHistory};
 use crate::editor::state::{EditorState, EditorTool};
 use crate::systems::game::map::format::VoxelData;
@@ -8,6 +9,7 @@ use bevy_egui::EguiContexts;
 
 /// Handle voxel placement when the tool is active
 pub fn handle_voxel_placement(
+    cursor_state: Res<CursorState>,
     mut editor_state: ResMut<EditorState>,
     mut history: ResMut<EditorHistory>,
     mouse_button: Res<ButtonInput<MouseButton>>,
@@ -34,7 +36,7 @@ pub fn handle_voxel_placement(
     }
 
     // Get cursor grid position
-    let Some(grid_pos) = editor_state.cursor_grid_pos else {
+    let Some(grid_pos) = cursor_state.grid_pos else {
         return;
     };
 
@@ -78,6 +80,7 @@ pub fn handle_voxel_placement(
 
 /// Handle voxel removal when the tool is active
 pub fn handle_voxel_removal(
+    cursor_state: Res<CursorState>,
     mut editor_state: ResMut<EditorState>,
     mut history: ResMut<EditorHistory>,
     mouse_button: Res<ButtonInput<MouseButton>>,
@@ -103,7 +106,7 @@ pub fn handle_voxel_removal(
     }
 
     // Get cursor grid position
-    let Some(grid_pos) = editor_state.cursor_grid_pos else {
+    let Some(grid_pos) = cursor_state.grid_pos else {
         return;
     };
 

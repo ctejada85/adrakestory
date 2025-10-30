@@ -313,11 +313,11 @@ fn create_cursor_mesh() -> Mesh {
 
 /// Update cursor indicator position
 pub fn update_cursor_indicator(
-    editor_state: Res<crate::editor::state::EditorState>,
+    cursor_state: Res<crate::editor::cursor::CursorState>,
     mut cursor_query: Query<&mut Transform, With<CursorIndicator>>,
 ) {
     for mut transform in cursor_query.iter_mut() {
-        if let Some(grid_pos) = editor_state.cursor_grid_pos {
+        if let Some(grid_pos) = cursor_state.grid_pos {
             // Show cursor at grid position (centered on voxel)
             transform.translation =
                 Vec3::new(grid_pos.0 as f32, grid_pos.1 as f32, grid_pos.2 as f32);

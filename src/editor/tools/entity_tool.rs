@@ -1,5 +1,6 @@
 //! Entity placement tool.
 
+use crate::editor::cursor::CursorState;
 use crate::editor::history::{EditorAction, EditorHistory};
 use crate::editor::state::{EditorState, EditorTool};
 use crate::systems::game::map::format::EntityData;
@@ -9,6 +10,7 @@ use std::collections::HashMap;
 
 /// Handle entity placement when the tool is active
 pub fn handle_entity_placement(
+    cursor_state: Res<CursorState>,
     mut editor_state: ResMut<EditorState>,
     mut history: ResMut<EditorHistory>,
     mouse_button: Res<ButtonInput<MouseButton>>,
@@ -32,7 +34,7 @@ pub fn handle_entity_placement(
     }
 
     // Get cursor position (use world position for entities, not grid)
-    let Some(cursor_pos) = editor_state.cursor_position else {
+    let Some(cursor_pos) = cursor_state.position else {
         return;
     };
 
