@@ -258,3 +258,152 @@ If implementing Option 1, existing code that accesses `editor_state.cursor_posit
 Search pattern: `editor_state\.cursor_(position|grid_pos)`
 
 Estimated affected systems: ~10 systems across 5 files.
+
+---
+
+## Implementation Summary
+
+### Solution Implemented: Hybrid Approach (Option 1 + Option 3)
+
+The final implementation combined **Option 1 (Separate Cursor State)** with **Option 3 (Event-Based Architecture)** for maximum robustness and clarity.
+
+### Phase 1: Cursor State Separation ✅
+
+**Created `CursorState` Resource** ([`src/editor/cursor.rs`](../../src/editor/cursor.rs))
+```rust
+#[derive(Resource, Default)]
+pub struct CursorState {
+    pub position: Option<Vec3>,
+    pub grid_pos: Option<(i32, i32, i32)>,
+}
+```
+
+**Removed from `EditorState`** ([`src/editor/state.rs`](../../src/editor/state.rs))
+- Deleted `cursor_position: Option<Vec3>` field
+- Deleted `cursor_grid_pos: Option<(i32, i32, i32)>` field
+
+**Updated Systems**:
+- [`cursor.rs:49-112`](../../src/editor/cursor.rs:49) - `update_cursor_position` now uses `ResMut<CursorState>`
+- [`cursor.rs:114-158`](../../src/editor/cursor.rs:114) - `handle_keyboard_cursor_movement` uses `CursorState`
+- [`cursor.rs:160-204`](../../src/editor/cursor.rs:160) - `handle_keyboard_selection` reads from `CursorState`
+
+### Phase 2: Event-Based Map Change Detection ✅
+
+**Created `MapDataChangedEvent`** ([`src/editor/ui/dialogs.rs:22-24`](../../src/editor/ui/dialogs.rs:22))
+```rust
+#[derive(Event)]
+pub struct MapDataChangedEvent;
+```
+
+**Updated Lighting System** ([`src/bin/map_editor.rs:298-355`](../../src/bin/map_editor.rs:298))
+```rust
+fn update_lighting_on_map_change(
+    mut commands: Commands,
+    editor_state: Res<EditorState>,  // Changed from ResMut to Res
+    mut ambient_light: ResMut<AmbientLight>,
+    directional_lights: Query<Entity, With<DirectionalLight>>,
+    mut map_changed_events: EventReader<MapDataChangedEvent>,
+) {
+    // Only update if we received a map data changed event
+    if map_changed_events.read().next().is_none() {
+        return;
+    }
+    // ... lighting update logic
+}
+```
+
+**Event Emission Points**:
+1. **Startup** ([`src/bin/map_editor.rs:193`](../../src/bin/map_editor.rs:193)) - Initial lighting setup
+2. **Map Loading** ([`src/editor/ui/dialogs.rs:310`](../../src/editor/ui/dialogs.rs:310)) - When user opens a map file
+3. **New Map Creation** ([`src/editor/ui/dialogs.rs:138`](../../src/editor/ui/dialogs.rs:138)) - When user creates a new map
+
+### Phase 3: Updated Cursor Consumers ✅
+
+**Tool Systems Updated**:
+- [`voxel_tool.rs`](../../src/editor/tools/voxel_tool.rs) - `handle_voxel_placement` and `handle_voxel_removal`
+- [`entity_tool.rs`](../../src/editor/tools/entity_tool.rs) - `handle_entity_placement`
+- [`selection_tool.rs`](../../src/editor/tools/selection_tool.rs) - `handle_selection`
+
+**Grid System Updated**:
+- [`grid.rs:315-320`](../../src/editor/grid.rs:315) - `update_cursor_indicator` now uses `Res<CursorState>`
+
+**UI System Updated**:
+- [`properties.rs:335-356`](../../src/editor/ui/properties.rs:335) - `render_cursor_info` displays cursor state
+- [`map_editor.rs:199`](../../src/bin/map_editor.rs:199) - `render_ui` passes `CursorState` to UI
+
+### Phase 4: Testing & Verification ✅
+
+**Test Results**:
+
+| Test Case | Before Fix | After Fix | Status |
+|-----------|-----------|-----------|--------|
+| Cursor Movement | Lighting updated every frame (30-60 Hz) | No lighting updates | ✅ PASS |
+| Keyboard Navigation | Lighting updated every frame | No lighting updates | ✅ PASS |
+| Map Loading | Lighting updated + spam | Single lighting update | ✅ PASS |
+| New Map Creation | Lighting updated + spam | Single lighting update | ✅ PASS |
+| Startup | Multiple redundant updates | Two updates (setup + render) | ✅ PASS |
+
+**Performance Impact**:
+- **Before**: ~60 lighting updates per second (one per frame)
+- **After**: 2-3 lighting updates total during startup, then only on actual map operations
+- **Improvement**: ~99.9% reduction in unnecessary lighting updates
+
+**Log Output Comparison**:
+
+Before:
+```
+2025-10-30T12:16:18.269787Z  INFO map_editor: Updated ambient light brightness to: 300
+2025-10-30T12:16:18.270079Z  INFO map_editor: Updated directional light...
+2025-10-30T12:16:18.299005Z  INFO map_editor: Updated ambient light brightness to: 300
+2025-10-30T12:16:18.299349Z  INFO map_editor: Updated directional light...
+[... hundreds more lines ...]
+```
+
+After:
+```
+2025-10-30T12:37:16.084690Z  INFO map_editor: Spawned directional light...
+2025-10-30T12:37:16.084778Z  INFO map_editor: Spawned ambient light with brightness: 300
+2025-10-30T12:37:16.090378Z  INFO map_editor: Updated ambient light brightness to: 300
+2025-10-30T12:37:16.090636Z  INFO map_editor: Updated directional light...
+[... no more updates until actual map changes ...]
+```
+
+## Key Takeaways
+
+### What Worked Well
+
+1. **Separation of Concerns**: Moving cursor state to its own resource eliminated the root cause
+2. **Event-Based Architecture**: Using events made map changes explicit and debuggable
+3. **Bevy's Change Detection**: Once properly isolated, change detection worked as intended
+4. **Hybrid Approach**: Combining two solutions provided defense in depth
+
+### Lessons Learned
+
+1. **UI Mutations Trigger Change Detection**: Any `ResMut` access marks a resource as changed, even for UI interactions like checkboxes
+2. **Cursor State is Special**: High-frequency updates (like cursor movement) should be isolated from low-frequency state
+3. **Events > Flags**: Event-based architecture is more maintainable than manual flag management
+4. **Test Early**: The issue was immediately visible in logs, making verification straightforward
+
+### Future Improvements
+
+1. **Additional Events**: Consider adding events for other map lifecycle operations:
+   - `MapSaved` - When map is saved to disk
+   - `MapValidated` - After validation passes
+   - `VoxelModified` - For fine-grained change tracking
+
+2. **Event Batching**: If multiple rapid changes occur, batch events to avoid redundant updates
+
+3. **Lighting Presets**: Add UI for common lighting configurations to reduce manual adjustments
+
+## Related Documentation
+
+- [Map Editor Architecture](./architecture.md)
+- [Input Handling System](./input-handling.md)
+- [Cursor System](./cursor-system.md) *(to be created)*
+- [Event System Design](./event-system.md) *(to be created)*
+
+## References
+
+- [Bevy Change Detection](https://bevyengine.org/learn/book/migration-guides/0.11-0.12/#change-detection)
+- [Bevy Events](https://bevyengine.org/learn/book/getting-started/events/)
+- [Resource Best Practices](https://bevyengine.org/learn/book/getting-started/resources/)

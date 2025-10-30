@@ -12,6 +12,7 @@ Welcome to the comprehensive documentation for the A Drake's Story Map Editor. T
 ### 🏗️ Architecture & Design
 - **[Architecture Overview](architecture.md)** - System design, data flow, and component interactions
 - **[Input Handling Guide](input-handling.md)** - Unified input architecture and best practices
+- **[Lighting Update Fix](lighting-update-fix.md)** - Performance optimization and change detection solution
 
 ### 🧪 Testing
 - **[Testing Documentation](testing/)** - Complete testing guides
@@ -36,6 +37,7 @@ map-editor/
 ├── implementation-status.md           # Current development status
 ├── roadmap.md                         # Future development plans
 ├── input-handling.md                  # Unified input architecture guide
+├── lighting-update-fix.md             # Lighting performance optimization
 ├── rotation-system.md                 # Rotation system documentation
 ├── testing/                           # Testing documentation
 │   ├── README.md                      # Testing overview
@@ -76,7 +78,8 @@ User-facing documentation is located in:
 - **3D Viewport**: Real-time rendering with camera controls
 - **WYSIWYG Lighting** ⭐: Congruent illumination between editor and game
   - Map-defined directional and ambient lighting
-  - Dynamic lighting updates when loading maps
+  - Event-driven lighting updates (99.9% performance improvement)
+  - Separate cursor state to prevent change detection pollution
   - Identical rendering in editor and gameplay
 - **Voxel Editing**: Place, remove, and configure voxels
 - **Entity Management**: Place and configure entities
@@ -209,6 +212,7 @@ src/editor/
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.6.0 | 2025-10-30 | Lighting performance optimization - event-based updates (99.9% improvement) ⭐ |
 | 2.5.0 | 2025-10-23 | WYSIWYG lighting - congruent illumination between editor and game ⭐ |
 | 2.4.0 | 2025-10-23 | Tool switching hotkeys (1 for Place, 2 for Select) ⭐ |
 | 2.3.0 | 2025-10-23 | Keyboard cursor navigation and vim-like editing mode ⭐ |
@@ -220,6 +224,6 @@ src/editor/
 
 ---
 
-**Last Updated**: 2025-10-23
+**Last Updated**: 2025-10-30
 **Maintainer**: Development Team
-**Status**: Active Development - WYSIWYG Lighting Complete ⭐
+**Status**: Active Development - Lighting Performance Optimized ⭐

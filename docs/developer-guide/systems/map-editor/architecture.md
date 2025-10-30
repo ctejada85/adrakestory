@@ -243,6 +243,11 @@ classDiagram
         +snap_to_grid: bool
     }
     
+    class CursorState {
+        +position: Option~Vec3~
+        +grid_pos: Option~Tuple~
+    }
+    
     class MapData {
         +metadata: MapMetadata
         +world: WorldData
@@ -499,8 +504,50 @@ The map editor uses a **unified, event-driven input architecture**:
 
 See [Input Refactoring Summary](archive/input-refactoring-summary.md) for complete details.
 
+## Change Detection & Performance (Added October 2025)
+
+### Cursor State Separation
+
+To prevent change detection pollution, cursor state was separated from `EditorState`:
+
+**Problem**: Cursor updates every frame triggered `EditorState.is_changed()`, causing unnecessary lighting updates.
+
+**Solution**: Created dedicated `CursorState` resource ([`cursor.rs`](../../../../src/editor/cursor.rs))
+```rust
+#[derive(Resource, Default)]
+pub struct CursorState {
+    pub position: Option<Vec3>,
+    pub grid_pos: Option<(i32, i32, i32)>,
+}
+```
+
+**Impact**: 99.9% reduction in lighting updates (from 60/sec to 2-3 total during startup)
+
+### Event-Based Map Changes
+
+Lighting updates now use `MapDataChangedEvent` instead of change detection:
+
+```rust
+fn update_lighting_on_map_change(
+    mut map_changed_events: EventReader<MapDataChangedEvent>,
+    // ... other params
+) {
+    if map_changed_events.read().next().is_none() {
+        return;  // No map changes, skip update
+    }
+    // ... update lighting
+}
+```
+
+**Benefits**:
+- Explicit about when map data changes
+- No false positives from UI interactions
+- Better performance and debuggability
+
+See [Lighting Update Fix](lighting-update-fix.md) for complete analysis and implementation details.
+
 ---
 
-**Document Version**: 2.1.0
-**Last Updated**: 2025-10-23
-**Status**: Updated for save functionality with auto-expand
+**Document Version**: 2.2.0
+**Last Updated**: 2025-10-30
+**Status**: Updated for lighting performance optimization
