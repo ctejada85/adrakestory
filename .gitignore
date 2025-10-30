@@ -15,3 +15,6 @@ Thumbs.db
 
 # Bevy
 *.pdb
+
+# 3D Assets
+*.glb
