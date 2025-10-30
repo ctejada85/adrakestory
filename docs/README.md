@@ -26,6 +26,7 @@ For contributors and advanced users:
 - **[Architecture Overview](developer-guide/architecture.md)** - ECS architecture and system design
 - **[Debugging Setup](developer-guide/debugging.md)** - VSCode debugging configuration
 - **[Contributing Guidelines](developer-guide/contributing.md)** - How to contribute to the project
+- **[Character System](developer-guide/systems/character-system.md)** - Character model management
 - **[Map Loader System](developer-guide/systems/map-loader.md)** - Map loading internals
 - **[Physics System Analysis](developer-guide/systems/physics-analysis.md)** - Physics optimization details
 - **[Map Editor Documentation Hub](developer-guide/systems/map-editor/README.md)** - Complete map editor docs

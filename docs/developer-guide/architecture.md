@@ -37,10 +37,10 @@ A Drake's Story is built using the **Entity Component System (ECS)** architectur
 
 ```toml
 [dependencies]
-bevy = "0.15"                          # Game engine
-serde = { version = "1.0", features = ["derive"] }  # Serialization
-ron = "0.8"                            # Map format
-thiserror = "1.0"                      # Error handling
+bevy = { version = "0.15", features = ["bevy_gltf"] }  # Game engine with GLTF support
+serde = { version = "1.0", features = ["derive"] }     # Serialization
+ron = "0.8"                                            # Map format
+thiserror = "1.0"                                      # Error handling
 ```
 
 ### Development Tools
@@ -153,6 +153,8 @@ src/
 │   │   ├── resources.rs    # Game resources
 │   │   ├── systems.rs      # System re-exports
 │   │   ├── camera.rs       # Camera control
+│   │   ├── character/      # Character model system
+│   │   │   └── mod.rs      # CharacterModel component
 │   │   ├── collision.rs    # Collision detection
 │   │   ├── input.rs        # Input handling
 │   │   ├── physics.rs      # Physics simulation
@@ -175,6 +177,7 @@ src/
 
 **1. Game Systems** (`systems/game/`)
 - Core gameplay logic
+- Character model management
 - Physics and collision
 - Player movement
 - Camera control
@@ -200,11 +203,24 @@ pub struct Player {
     pub speed: f32,          // Movement speed
     pub velocity: Vec3,      // Current velocity
     pub is_grounded: bool,   // On ground?
-    pub radius: f32,         // Collision radius
+    pub radius: f32,         // Collision radius (0.3)
 }
 ```
 
-**Purpose**: Represents the player character with physics state.
+**Purpose**: Represents the player character with physics state. The visual representation is handled separately by the [`CharacterModel`](#charactermodel-component) component.
+
+### CharacterModel Component
+
+```rust
+#[derive(Component)]
+pub struct CharacterModel {
+    pub scene_handle: Handle<Scene>,  // GLB/GLTF scene handle
+    pub scale: f32,                   // Model scale factor
+    pub offset: Vec3,                 // Position offset
+}
+```
+
+**Purpose**: Manages the player's 3D visual model (GLB/GLTF format). The model is spawned as a child entity of the player, separating visuals from physics. See [Character System](systems/character-system.md) for details.
 
 ### Voxel Component
 
@@ -300,6 +316,7 @@ pub struct GameInitialized(pub bool);
 
 **Responsibilities:**
 - Core gameplay logic
+- Character model management
 - Physics simulation
 - Collision detection
 - Player movement
@@ -311,6 +328,7 @@ pub struct GameInitialized(pub bool);
 - `resources.rs`: Game-specific resources
 - `systems.rs`: System function re-exports
 - `camera.rs`: Camera control system
+- `character/mod.rs`: Character model component
 - `collision.rs`: Collision detection
 - `input.rs`: Input handling
 - `physics.rs`: Physics simulation
@@ -609,6 +627,7 @@ pub fn player_movement_system(/* ... */) {
 
 - **[Debugging Guide](debugging.md)** - Debug setup and tips
 - **[Contributing Guide](contributing.md)** - Contribution workflow
+- **[Character System](systems/character-system.md)** - Character model management
 - **[Map Loader System](systems/map-loader.md)** - Map system details
 - **[Map Editor Documentation](systems/map-editor/README.md)** - Complete map editor guide
 
