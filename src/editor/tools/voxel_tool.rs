@@ -35,8 +35,8 @@ pub fn handle_voxel_placement(
         return;
     }
 
-    // Get cursor grid position
-    let Some(grid_pos) = cursor_state.grid_pos else {
+    // Use placement_grid_pos instead of grid_pos for face-aware placement
+    let Some(grid_pos) = cursor_state.placement_grid_pos else {
         return;
     };
 

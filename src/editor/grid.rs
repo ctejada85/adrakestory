@@ -314,9 +314,20 @@ fn create_cursor_mesh() -> Mesh {
 /// Update cursor indicator position
 pub fn update_cursor_indicator(
     cursor_state: Res<crate::editor::cursor::CursorState>,
+    editor_state: Res<crate::editor::state::EditorState>,
     mut cursor_query: Query<&mut Transform, With<CursorIndicator>>,
 ) {
     for mut transform in cursor_query.iter_mut() {
+        // For VoxelPlace tool, show placement position (adjacent to hit face)
+        if matches!(editor_state.active_tool, crate::editor::state::EditorTool::VoxelPlace { .. }) {
+            if let Some(placement_pos) = cursor_state.placement_pos {
+                transform.translation = placement_pos;
+                transform.scale = Vec3::splat(1.0);
+                continue;
+            }
+        }
+        
+        // For other tools (Select, Remove, etc.), show original cursor position
         if let Some(grid_pos) = cursor_state.grid_pos {
             // Show cursor at grid position (centered on voxel)
             transform.translation =

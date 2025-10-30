@@ -11,11 +11,20 @@ use bevy_egui::EguiContexts;
 /// This prevents cursor updates from triggering change detection on EditorState.
 #[derive(Resource, Default)]
 pub struct CursorState {
-    /// Current cursor position in world space
+    /// Current cursor position in world space (voxel being pointed at)
     pub position: Option<Vec3>,
     
-    /// Current cursor grid position
+    /// Current cursor grid position (voxel being pointed at)
     pub grid_pos: Option<(i32, i32, i32)>,
+    
+    /// Face normal of the hit surface
+    pub hit_face_normal: Option<Vec3>,
+    
+    /// Position where a new voxel would be placed (adjacent to hit face)
+    pub placement_pos: Option<Vec3>,
+    
+    /// Grid position where a new voxel would be placed
+    pub placement_grid_pos: Option<(i32, i32, i32)>,
 }
 
 impl CursorState {
@@ -104,16 +113,31 @@ pub fn update_cursor_position(
         return;
     };
 
-    // Find the closest voxel that the ray intersects
-    let closest_voxel = find_closest_voxel_intersection(&editor_state, &ray);
+    // Find the closest voxel that the ray intersects with face information
+    let closest_voxel_hit = find_closest_voxel_intersection_with_face(&editor_state, &ray);
 
-    if let Some(voxel_pos) = closest_voxel {
+    if let Some((voxel_pos, hit_info)) = closest_voxel_hit {
         // Set cursor to the intersected voxel
         cursor_state.grid_pos = Some(voxel_pos);
         cursor_state.position = Some(Vec3::new(
             voxel_pos.0 as f32,
             voxel_pos.1 as f32,
             voxel_pos.2 as f32,
+        ));
+        cursor_state.hit_face_normal = Some(hit_info.face_normal);
+        
+        // Calculate adjacent placement position
+        let offset = hit_info.face_normal;
+        let placement_grid = (
+            voxel_pos.0 + offset.x as i32,
+            voxel_pos.1 + offset.y as i32,
+            voxel_pos.2 + offset.z as i32,
+        );
+        cursor_state.placement_grid_pos = Some(placement_grid);
+        cursor_state.placement_pos = Some(Vec3::new(
+            placement_grid.0 as f32,
+            placement_grid.1 as f32,
+            placement_grid.2 as f32,
         ));
     } else {
         // No voxel intersection, fall back to ground plane intersection
@@ -123,44 +147,58 @@ pub fn update_cursor_position(
             let grid_y = 0;
             let grid_z = ground_pos.z.round() as i32;
             cursor_state.grid_pos = Some((grid_x, grid_y, grid_z));
+            cursor_state.hit_face_normal = Some(Vec3::Y); // Upward
+            // For ground plane, placement = cursor position
+            cursor_state.placement_pos = cursor_state.position;
+            cursor_state.placement_grid_pos = cursor_state.grid_pos;
         } else {
             cursor_state.position = None;
             cursor_state.grid_pos = None;
+            cursor_state.hit_face_normal = None;
+            cursor_state.placement_pos = None;
+            cursor_state.placement_grid_pos = None;
         }
     }
 }
 
-/// Find the closest voxel that the ray intersects
-fn find_closest_voxel_intersection(
+/// Information about a ray-box intersection
+#[derive(Debug, Clone, Copy)]
+struct RayHitInfo {
+    distance: f32,
+    face_normal: Vec3,
+}
+
+/// Find the closest voxel that the ray intersects with face information
+fn find_closest_voxel_intersection_with_face(
     editor_state: &EditorState,
     ray: &Ray3d,
-) -> Option<(i32, i32, i32)> {
+) -> Option<((i32, i32, i32), RayHitInfo)> {
     let mut closest_distance = f32::MAX;
-    let mut closest_voxel = None;
+    let mut closest_result = None;
 
     // Check each voxel in the map
     for voxel_data in &editor_state.current_map.world.voxels {
         let voxel_pos = voxel_data.pos;
 
         // Check if ray intersects this voxel's bounding box
-        if let Some(distance) = ray_box_intersection(
+        if let Some(hit_info) = ray_box_intersection_with_face(
             ray,
             Vec3::new(voxel_pos.0 as f32, voxel_pos.1 as f32, voxel_pos.2 as f32),
             Vec3::splat(1.0), // Voxel size is 1x1x1
         ) {
-            if distance < closest_distance {
-                closest_distance = distance;
-                closest_voxel = Some(voxel_pos);
+            if hit_info.distance < closest_distance {
+                closest_distance = hit_info.distance;
+                closest_result = Some((voxel_pos, hit_info));
             }
         }
     }
 
-    closest_voxel
+    closest_result
 }
 
-/// Ray-box intersection test (AABB)
-/// Returns the distance along the ray if there's an intersection, None otherwise
-fn ray_box_intersection(ray: &Ray3d, box_center: Vec3, box_size: Vec3) -> Option<f32> {
+/// Ray-box intersection test (AABB) with face detection
+/// Returns hit information including which face was hit
+fn ray_box_intersection_with_face(ray: &Ray3d, box_center: Vec3, box_size: Vec3) -> Option<RayHitInfo> {
     let box_min = box_center - box_size * 0.5;
     let box_max = box_center + box_size * 0.5;
 
@@ -170,13 +208,22 @@ fn ray_box_intersection(ray: &Ray3d, box_center: Vec3, box_size: Vec3) -> Option
     // Calculate intersection distances for each axis
     let mut tmin = f32::NEG_INFINITY;
     let mut tmax = f32::INFINITY;
+    let mut hit_axis = 0; // 0=X, 1=Y, 2=Z
+    let mut hit_min_face = true; // true if hit min face, false if hit max face
 
     // X axis
     if ray_dir.x.abs() > 0.0001 {
         let tx1 = (box_min.x - ray_origin.x) / ray_dir.x;
         let tx2 = (box_max.x - ray_origin.x) / ray_dir.x;
-        tmin = tmin.max(tx1.min(tx2));
-        tmax = tmax.min(tx1.max(tx2));
+        let tx_min = tx1.min(tx2);
+        let tx_max = tx1.max(tx2);
+        
+        if tx_min > tmin {
+            tmin = tx_min;
+            hit_axis = 0;
+            hit_min_face = tx1 < tx2;
+        }
+        tmax = tmax.min(tx_max);
     } else if ray_origin.x < box_min.x || ray_origin.x > box_max.x {
         return None;
     }
@@ -185,8 +232,15 @@ fn ray_box_intersection(ray: &Ray3d, box_center: Vec3, box_size: Vec3) -> Option
     if ray_dir.y.abs() > 0.0001 {
         let ty1 = (box_min.y - ray_origin.y) / ray_dir.y;
         let ty2 = (box_max.y - ray_origin.y) / ray_dir.y;
-        tmin = tmin.max(ty1.min(ty2));
-        tmax = tmax.min(ty1.max(ty2));
+        let ty_min = ty1.min(ty2);
+        let ty_max = ty1.max(ty2);
+        
+        if ty_min > tmin {
+            tmin = ty_min;
+            hit_axis = 1;
+            hit_min_face = ty1 < ty2;
+        }
+        tmax = tmax.min(ty_max);
     } else if ray_origin.y < box_min.y || ray_origin.y > box_max.y {
         return None;
     }
@@ -195,16 +249,38 @@ fn ray_box_intersection(ray: &Ray3d, box_center: Vec3, box_size: Vec3) -> Option
     if ray_dir.z.abs() > 0.0001 {
         let tz1 = (box_min.z - ray_origin.z) / ray_dir.z;
         let tz2 = (box_max.z - ray_origin.z) / ray_dir.z;
-        tmin = tmin.max(tz1.min(tz2));
-        tmax = tmax.min(tz1.max(tz2));
+        let tz_min = tz1.min(tz2);
+        let tz_max = tz1.max(tz2);
+        
+        if tz_min > tmin {
+            tmin = tz_min;
+            hit_axis = 2;
+            hit_min_face = tz1 < tz2;
+        }
+        tmax = tmax.min(tz_max);
     } else if ray_origin.z < box_min.z || ray_origin.z > box_max.z {
         return None;
     }
 
     // Check if there's a valid intersection
     if tmax >= tmin && tmax >= 0.0 {
-        // Return the closest intersection point (tmin if positive, otherwise tmax)
-        Some(if tmin >= 0.0 { tmin } else { tmax })
+        let distance = if tmin >= 0.0 { tmin } else { tmax };
+        
+        // Calculate face normal based on hit axis and face
+        let face_normal = match (hit_axis, hit_min_face) {
+            (0, true) => Vec3::NEG_X,
+            (0, false) => Vec3::X,
+            (1, true) => Vec3::NEG_Y,
+            (1, false) => Vec3::Y,
+            (2, true) => Vec3::NEG_Z,
+            (2, false) => Vec3::Z,
+            _ => Vec3::Y, // fallback
+        };
+        
+        Some(RayHitInfo {
+            distance,
+            face_normal,
+        })
     } else {
         None
     }
@@ -311,6 +387,16 @@ pub fn handle_keyboard_cursor_movement(
             new_pos.0 as f32,
             new_pos.1 as f32,
             new_pos.2 as f32,
+        ));
+        
+        // For keyboard movement, assume placement on top (+Y direction)
+        cursor_state.hit_face_normal = Some(Vec3::Y);
+        let placement_grid = (new_pos.0, new_pos.1 + 1, new_pos.2);
+        cursor_state.placement_grid_pos = Some(placement_grid);
+        cursor_state.placement_pos = Some(Vec3::new(
+            placement_grid.0 as f32,
+            placement_grid.1 as f32,
+            placement_grid.2 as f32,
         ));
 
         info!("Cursor moved to grid position: {:?}", new_pos);
