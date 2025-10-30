@@ -12,7 +12,6 @@ Welcome to the comprehensive documentation for the A Drake's Story Map Editor. T
 ### 🏗️ Architecture & Design
 - **[Architecture Overview](architecture.md)** - System design, data flow, and component interactions
 - **[Input Handling Guide](input-handling.md)** - Unified input architecture and best practices
-- **[Lighting Update Fix](lighting-update-fix.md)** - Performance optimization and change detection solution
 
 ### 🧪 Testing
 - **[Testing Documentation](testing/)** - Complete testing guides
@@ -21,6 +20,7 @@ Welcome to the comprehensive documentation for the A Drake's Story Map Editor. T
 
 ### 📚 Archive
 - **[Archived Documentation](archive/)** - Historical documents and resolved issues
+  - [Lighting Performance Optimization](archive/lighting-performance-optimization.md) ⭐ - Change detection fix
   - [Input Refactoring Summary](archive/input-refactoring-summary.md) ⭐ - Complete refactoring details
   - [Input Refactoring Plan](archive/input-refactoring-plan.md) - Original design document
   - [Keyboard Input Fix](archive/keyboard-input-fix.md)
@@ -37,7 +37,6 @@ map-editor/
 ├── implementation-status.md           # Current development status
 ├── roadmap.md                         # Future development plans
 ├── input-handling.md                  # Unified input architecture guide
-├── lighting-update-fix.md             # Lighting performance optimization
 ├── rotation-system.md                 # Rotation system documentation
 ├── testing/                           # Testing documentation
 │   ├── README.md                      # Testing overview
@@ -45,6 +44,7 @@ map-editor/
 │   └── rotation-operations.md         # Rotation operation testing guide
 └── archive/                           # Historical documentation
     ├── README.md                      # Archive index
+    ├── lighting-performance-optimization.md  # Completed: Lighting performance fix ⭐
     ├── input-refactoring-summary.md   # Completed: Input system refactoring ⭐
     ├── input-refactoring-plan.md      # Completed: Input system design
     ├── keyboard-input-fix.md          # Resolved: Keyboard input issues

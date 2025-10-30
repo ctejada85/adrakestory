@@ -544,7 +544,7 @@ fn update_lighting_on_map_change(
 - No false positives from UI interactions
 - Better performance and debuggability
 
-See [Lighting Update Fix](lighting-update-fix.md) for complete analysis and implementation details.
+See [Lighting Performance Optimization](archive/lighting-performance-optimization.md) for complete analysis and implementation details.
 
 ---
 

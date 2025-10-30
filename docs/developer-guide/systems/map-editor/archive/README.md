@@ -87,6 +87,30 @@ This resulted in a 72% reduction in input systems (from 15 to 2) and ~500 lines 
 - Testing guides: [testing/move-operations.md](../testing/move-operations.md) and [testing/rotation-operations.md](../testing/rotation-operations.md)
 - Architecture: [architecture.md](../architecture.md)
 
+### [lighting-performance-optimization.md](lighting-performance-optimization.md)
+**Archived**: 2025-10-30
+**Reason**: Implementation completed, optimization document moved to archive for historical reference
+
+**Original Purpose**: Comprehensive documentation of the lighting system performance optimization that eliminated unnecessary per-frame updates.
+
+**Historical Context**: In October 2025, the map editor was updating ambient and directional lighting every frame due to Bevy's change detection being triggered by UI interactions. The lighting system checked `editor_state.is_changed()`, but UI systems needed mutable access to `EditorState` for checkboxes, text fields, and tool selections, causing the lighting to update continuously even when the map data hadn't changed.
+
+**Key Achievements**:
+- 99.9% reduction in lighting updates (from every frame to only on actual map changes)
+- Event-driven architecture with `MapDataChangedEvent`
+- Separated `CursorState` resource to prevent cursor movement from polluting change detection
+- Improved performance and reduced log spam
+
+**Solution Implemented**: Option 3 - Cursor State Separation + Event-Based Architecture
+- Created dedicated `CursorState` resource for high-frequency cursor updates
+- Implemented `MapDataChangedEvent` for explicit map change signaling
+- Updated lighting system to respond to events instead of change detection
+- Maintained clean separation of concerns
+
+**Current Documentation**:
+- Architecture: [architecture.md](../architecture.md) - Updated with CursorState and change detection patterns
+- Implementation status: [implementation-status.md](../implementation-status.md)
+
 ## Why Archive Instead of Delete?
 
 These documents are archived rather than deleted for several reasons:
@@ -137,5 +161,5 @@ Archived Documentation
 ---
 
 **Archive Created**: 2025-10-22
-**Last Updated**: 2025-10-22 (Added input refactoring documents)
+**Last Updated**: 2025-10-30 (Added lighting performance optimization)
 **Maintainer**: Development Team
