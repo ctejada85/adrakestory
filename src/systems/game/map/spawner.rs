@@ -202,10 +202,11 @@ fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
         .id();
 
     // Spawn the character model as a child entity
-    // The model scale and offset can be adjusted here if needed
+    // Scale down to 0.3 and offset down by 0.3 units to align with collision sphere
     ctx.commands.spawn((
         SceneRoot(character_scene),
-        Transform::from_scale(Vec3::splat(1.0)),
+        Transform::from_translation(Vec3::new(0.0, -0.3, 0.0))
+            .with_scale(Vec3::splat(0.5)),
     )).set_parent(player_entity);
 
     info!("Spawned player with character model at position: {:?}", position);
