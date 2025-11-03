@@ -14,8 +14,18 @@ Complete keyboard and mouse controls for A Drake's Story.
 
 **Notes:**
 - Movement is relative to camera direction
+- Character automatically rotates to face movement direction
+- Smooth rotation with 0.2 second duration (snappy, arcade-like)
 - Physics system applies gravity and collision
 - Speed is constant (no sprint/walk toggle yet)
+
+### Character Rotation
+The character model automatically rotates to face the direction you're moving:
+- **Instant Response:** Rotation begins immediately when direction changes
+- **Smooth Animation:** Uses ease-in-out cubic easing for natural movement
+- **Fixed Duration:** All rotations (45°, 90°, 180°) take 0.2 seconds
+- **Shortest Path:** Character always rotates the shortest way around
+- **8 Directions:** Supports all cardinal and diagonal movement directions
 
 ## Camera Controls
 
@@ -85,6 +95,8 @@ Complete keyboard and mouse controls for A Drake's Story.
 2. **Precision**: Release keys early when approaching edges
 3. **Camera First**: Adjust camera before moving in tight spaces
 4. **Physics**: Let gravity settle before making precise movements
+5. **Direction Changes**: Character smoothly rotates when you change direction
+6. **Visual Feedback**: Watch the character model to see which way you're facing
 
 ### Camera Tips
 1. **Find Your Angle**: Experiment with Q/E to find comfortable viewing angles
@@ -146,7 +158,7 @@ Future updates may include:
 ```
 ┌─────────────────────────────────────┐
 │         MOVEMENT                    │
-│  W/A/S/D - Move                     │
+│  W/A/S/D - Move (auto-rotate)       │
 │  Mouse   - Look around              │
 │  Q/E     - Rotate camera            │
 ├─────────────────────────────────────┤

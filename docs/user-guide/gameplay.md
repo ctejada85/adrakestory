@@ -21,6 +21,30 @@ A Drake's Story is a 3D voxel-based exploration game featuring physics-driven mo
 - Movement is relative to camera direction
 - Constant speed (no sprint yet)
 - Physics applies gravity and collision
+- Character automatically rotates to face movement direction
+
+#### Character Rotation
+The character model smoothly rotates to face the direction you're moving:
+
+**Rotation Features:**
+- **Automatic:** No manual rotation needed - just move!
+- **Smooth Animation:** Uses ease-in-out cubic easing for natural feel
+- **Fixed Duration:** All rotations take 0.2 seconds (snappy, arcade-like)
+- **Shortest Path:** Character always rotates the most efficient way
+- **8 Directions:** Supports all cardinal (N/S/E/W) and diagonal directions
+- **Instant Response:** Rotation begins immediately when you change direction
+
+**Direction Mapping:**
+| Keys | Character Faces |
+|------|-----------------|
+| W | Forward |
+| S | Backward |
+| A | Left |
+| D | Right |
+| W+D | Forward-Right (diagonal) |
+| W+A | Forward-Left (diagonal) |
+| S+D | Backward-Right (diagonal) |
+| S+A | Backward-Left (diagonal) |
 
 #### Grounding
 - Player automatically detects ground beneath
@@ -33,6 +57,7 @@ A Drake's Story is a 3D voxel-based exploration game featuring physics-driven mo
 - Navigate around obstacles
 - Climb staircases
 - Jump between platforms (when jumping is implemented)
+- Character faces the direction of travel for better spatial awareness
 
 ## Terrain Types
 
@@ -157,12 +182,17 @@ A Drake's Story is a 3D voxel-based exploration game featuring physics-driven mo
 2. **Camera First**: Adjust view before moving in tight spaces
 3. **Edge Awareness**: Be careful near platform edges
 4. **Strafing**: Use A/D for precise positioning
+5. **Watch Your Character**: The character model shows which way you're facing
+6. **Direction Changes**: Character smoothly rotates when you change direction
+7. **Diagonal Movement**: Combine keys (W+D, W+A, etc.) for diagonal movement
 
 ### Navigation Tips
 1. **Plan Routes**: Look ahead before moving
 2. **Use Staircases**: Easier than trying to jump
 3. **Test Surfaces**: Try walking on new terrain types
 4. **Save Progress**: (Coming soon) Save before risky moves
+5. **Visual Feedback**: Character rotation helps you understand your movement direction
+6. **Smooth Turns**: The 0.2 second rotation creates responsive, arcade-like feel
 
 ### Camera Tips
 1. **Multiple Angles**: Try different views for different situations
