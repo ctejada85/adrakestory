@@ -9,6 +9,7 @@ use super::collision::check_sub_voxel_collision;
 use super::components::{Player, SubVoxel};
 use super::resources::SpatialGrid;
 use bevy::prelude::*;
+use std::f32::consts::FRAC_PI_2;
 
 /// System that handles player movement based on keyboard input.
 ///
@@ -73,9 +74,9 @@ pub fn move_player(
             direction = direction.normalize();
 
             // Calculate target rotation based on movement direction
-            // Using atan2(z, -x) to correctly map movement to rotation:
+            // The character model faces right by default, so we subtract π/2 (90°) to align it
             // W (+X) should face forward, S (-X) backward, A (-Z) left, D (+Z) right
-            player.target_rotation = direction.z.atan2(-direction.x);
+            player.target_rotation = direction.z.atan2(-direction.x) - FRAC_PI_2;
 
             let current_pos = transform.translation;
             let move_delta = direction * player.speed * delta;
