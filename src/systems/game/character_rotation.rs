@@ -1,13 +1,30 @@
 //! Character rotation system that smoothly rotates the character model to face the movement direction.
 //!
 //! This module handles:
-//! - Smooth interpolation of character rotation
+//! - Smooth interpolation of character rotation with easing
 //! - Updating the visual character model (child entity) rotation
 //! - Shortest path rotation algorithm to avoid spinning the long way
 
 use super::components::Player;
 use bevy::prelude::*;
 use std::f32::consts::PI;
+
+/// Ease-in-out cubic easing function.
+/// Starts slow, accelerates quickly in the middle, then decelerates at the end.
+///
+/// # Arguments
+/// * `t` - Progress value between 0.0 and 1.0
+///
+/// # Returns
+/// Eased value between 0.0 and 1.0
+fn ease_in_out_cubic(t: f32) -> f32 {
+    if t < 0.5 {
+        4.0 * t * t * t
+    } else {
+        let f = -2.0 * t + 2.0;
+        1.0 - f * f * f / 2.0
+    }
+}
 
 /// System that smoothly rotates the character model to face the movement direction.
 ///
@@ -39,23 +56,39 @@ pub fn rotate_character_model(
             angle_diff += 2.0 * PI;
         }
 
-        // Calculate rotation step based on rotation speed and delta time
-        let rotation_step = player.rotation_speed * delta;
-
-        // Clamp the angle difference to prevent overshooting
-        let clamped_diff = angle_diff.clamp(-rotation_step, rotation_step);
-
-        // Update current rotation
-        player.current_rotation += clamped_diff;
-
-        // Normalize current rotation to [0, 2*PI] range
-        player.current_rotation = player.current_rotation.rem_euclid(2.0 * PI);
+        // Only rotate if there's a significant difference
+        if angle_diff.abs() > 0.001 {
+            // Calculate base rotation step
+            let rotation_step = player.rotation_speed * delta;
+            
+            // Calculate progress towards target (0 to 1)
+            // This represents how close we are to the target
+            let distance_ratio = (angle_diff.abs() / PI).min(1.0);
+            
+            // Apply easing to the speed multiplier
+            // When far from target (distance_ratio high), use eased value for acceleration
+            // This creates the "start slow, then quick" effect
+            let speed_multiplier = ease_in_out_cubic(1.0 - distance_ratio) + 0.5;
+            
+            // Calculate rotation amount with eased speed
+            let eased_step = rotation_step * speed_multiplier;
+            let rotation_amount = if angle_diff.abs() <= eased_step {
+                angle_diff // Snap to target if close enough
+            } else {
+                angle_diff.signum() * eased_step
+            };
+            
+            // Update current rotation
+            player.current_rotation += rotation_amount;
+            
+            // Normalize current rotation to [0, 2*PI] range
+            player.current_rotation = player.current_rotation.rem_euclid(2.0 * PI);
+        }
 
         // Find and update the character model child entity
         for &child in children.iter() {
             if let Ok(mut transform) = transform_query.get_mut(child) {
                 // Apply Y-axis rotation to the character model
-                // Note: We use current_rotation directly as it's already in radians
                 transform.rotation = Quat::from_rotation_y(player.current_rotation);
             }
         }
