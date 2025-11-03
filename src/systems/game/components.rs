@@ -7,6 +7,12 @@ pub struct Player {
     pub velocity: Vec3,
     pub is_grounded: bool,
     pub radius: f32,
+    /// Target rotation angle in radians (Y-axis rotation)
+    pub target_rotation: f32,
+    /// Current rotation angle in radians (Y-axis rotation)
+    pub current_rotation: f32,
+    /// Speed of rotation interpolation in radians per second
+    pub rotation_speed: f32,
 }
 
 #[derive(Component)]

@@ -14,6 +14,9 @@
 // Re-export player movement
 pub use super::player_movement::move_player;
 
+// Re-export character rotation
+pub use super::character_rotation::rotate_character_model;
+
 // Re-export physics systems
 pub use super::physics::{apply_gravity, apply_physics};
 
