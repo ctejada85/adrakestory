@@ -73,8 +73,9 @@ pub fn move_player(
             direction = direction.normalize();
 
             // Calculate target rotation based on movement direction
-            // atan2(z, x) gives us the angle in radians for Y-axis rotation
-            player.target_rotation = direction.z.atan2(direction.x);
+            // Using -atan2(x, z) to correctly map movement to rotation:
+            // W (+X) should face forward, S (-X) backward, A (-Z) left, D (+Z) right
+            player.target_rotation = -direction.x.atan2(direction.z);
 
             let current_pos = transform.translation;
             let move_delta = direction * player.speed * delta;
