@@ -106,19 +106,19 @@ impl RotationState {
 pub enum SubVoxelPattern {
     /// Full 8x8x8 cube of sub-voxels (symmetric, no orientation)
     Full,
-    
+
     // Platform variants (thin slabs in different orientations)
     /// Thin 8x1x8 platform on XZ plane (horizontal, default)
-    #[serde(alias = "Platform")]  // For backward compatibility
+    #[serde(alias = "Platform")] // For backward compatibility
     PlatformXZ,
     /// Thin 8x8x1 platform on XY plane (vertical wall facing Z)
     PlatformXY,
     /// Thin 1x8x8 platform on YZ plane (vertical wall facing X)
     PlatformYZ,
-    
+
     // Staircase variants (progressive height in different directions)
     /// Stairs ascending in +X direction (default)
-    #[serde(alias = "Staircase")]  // For backward compatibility
+    #[serde(alias = "Staircase")] // For backward compatibility
     StaircaseX,
     /// Stairs ascending in -X direction
     StaircaseNegX,
@@ -126,7 +126,7 @@ pub enum SubVoxelPattern {
     StaircaseZ,
     /// Stairs ascending in -Z direction
     StaircaseNegZ,
-    
+
     /// Small 2x2x2 centered column (symmetric, no orientation)
     Pillar,
 }
@@ -158,18 +158,15 @@ impl SubVoxelPattern {
             Self::StaircaseX => SubVoxelGeometry::staircase_x(),
             Self::StaircaseNegX => {
                 // Staircase rotated 180° around Y
-                SubVoxelGeometry::staircase_x()
-                    .rotate(crate::editor::tools::RotationAxis::Y, 2)
+                SubVoxelGeometry::staircase_x().rotate(crate::editor::tools::RotationAxis::Y, 2)
             }
             Self::StaircaseZ => {
                 // Staircase rotated 90° around Y
-                SubVoxelGeometry::staircase_x()
-                    .rotate(crate::editor::tools::RotationAxis::Y, 1)
+                SubVoxelGeometry::staircase_x().rotate(crate::editor::tools::RotationAxis::Y, 1)
             }
             Self::StaircaseNegZ => {
                 // Staircase rotated 270° around Y
-                SubVoxelGeometry::staircase_x()
-                    .rotate(crate::editor::tools::RotationAxis::Y, 3)
+                SubVoxelGeometry::staircase_x().rotate(crate::editor::tools::RotationAxis::Y, 3)
             }
             Self::Pillar => SubVoxelGeometry::pillar(),
         }
@@ -184,9 +181,12 @@ impl SubVoxelPattern {
     ///
     /// # Returns
     /// The geometry with rotation applied, or base geometry if no rotation state.
-    pub fn geometry_with_rotation(&self, rotation_state: Option<RotationState>) -> SubVoxelGeometry {
+    pub fn geometry_with_rotation(
+        &self,
+        rotation_state: Option<RotationState>,
+    ) -> SubVoxelGeometry {
         let base_geometry = self.geometry();
-        
+
         if let Some(rotation) = rotation_state {
             base_geometry.rotate(rotation.axis, rotation.angle)
         } else {
@@ -281,6 +281,30 @@ impl Default for CameraData {
 }
 
 impl MapData {
+    /// Create an empty map with minimal dimensions for starting a new map.
+    /// This provides a blank canvas for map creation.
+    pub fn empty_map() -> Self {
+        Self {
+            metadata: MapMetadata {
+                name: "Untitled Map".to_string(),
+                author: "".to_string(),
+                description: "".to_string(),
+                version: "1.0.0".to_string(),
+                created: "".to_string(),
+            },
+            world: WorldData {
+                width: 1,
+                height: 1,
+                depth: 1,
+                voxels: vec![],
+            },
+            entities: vec![],
+            lighting: LightingData::default(),
+            camera: CameraData::default(),
+            custom_properties: HashMap::new(),
+        }
+    }
+
     /// Create a default map data for testing or fallback.
     pub fn default_map() -> Self {
         Self {

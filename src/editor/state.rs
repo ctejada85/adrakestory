@@ -40,7 +40,7 @@ pub struct EditorState {
 impl Default for EditorState {
     fn default() -> Self {
         Self {
-            current_map: MapData::default_map(),
+            current_map: MapData::empty_map(),
             file_path: None,
             is_modified: false,
             active_tool: EditorTool::VoxelPlace {
