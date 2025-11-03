@@ -73,10 +73,18 @@ pub fn move_player(
         if direction.length() > 0.0 {
             direction = direction.normalize();
 
-            // Calculate target rotation based on movement direction
+            // Calculate new target rotation based on movement direction
             // The character model faces right by default, so we subtract π/2 (90°) to align it
             // W (+X) should face forward, S (-X) backward, A (-Z) left, D (+Z) right
-            player.target_rotation = direction.z.atan2(-direction.x) - FRAC_PI_2;
+            let new_target = direction.z.atan2(-direction.x) - FRAC_PI_2;
+
+            // Check if target rotation changed (with small threshold for floating point comparison)
+            if (new_target - player.target_rotation).abs() > 0.01 {
+                // Target changed - reset easing
+                player.start_rotation = player.current_rotation;
+                player.rotation_elapsed = 0.0;
+                player.target_rotation = new_target;
+            }
 
             let current_pos = transform.translation;
             let move_delta = direction * player.speed * delta;

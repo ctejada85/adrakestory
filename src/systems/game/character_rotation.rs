@@ -28,27 +28,25 @@ fn ease_in_out_cubic(t: f32) -> f32 {
 
 /// System that smoothly rotates the character model to face the movement direction.
 ///
-/// This system:
-/// - Queries for Player entities with their rotation state
-/// - Finds the character model child entity (SceneRoot)
-/// - Smoothly interpolates the current rotation toward the target rotation
-/// - Applies the rotation to the character model's Transform
+/// This system uses a fixed-duration rotation approach where all rotations
+/// (45°, 90°, 180°, etc.) take the same amount of time. The easing is applied
+/// to the progress (0.0 to 1.0) from start angle to target angle.
 ///
-/// The rotation uses the shortest path algorithm to ensure the character
-/// doesn't spin the long way around when changing direction.
+/// Key features:
+/// - Fixed duration for all rotations (0.2 seconds by default)
+/// - Progress-based easing (ease-in-out cubic)
+/// - Shortest path rotation algorithm
+/// - Easing resets when target changes (handled in player_movement system)
 pub fn rotate_character_model(
     time: Res<Time>,
     mut player_query: Query<(&mut Player, &Children)>,
     mut transform_query: Query<&mut Transform, With<SceneRoot>>,
 ) {
     for (mut player, children) in player_query.iter_mut() {
-        let delta = time.delta_secs();
-
-        // Calculate the angle difference
-        let mut angle_diff = player.target_rotation - player.current_rotation;
+        // Calculate the angle difference from start to target (shortest path)
+        let mut angle_diff = player.target_rotation - player.start_rotation;
 
         // Normalize angle difference to [-PI, PI] for shortest path rotation
-        // This ensures the character rotates the shortest way around
         while angle_diff > PI {
             angle_diff -= 2.0 * PI;
         }
@@ -58,28 +56,17 @@ pub fn rotate_character_model(
 
         // Only rotate if there's a significant difference
         if angle_diff.abs() > 0.001 {
-            // Calculate base rotation step
-            let rotation_step = player.rotation_speed * delta;
+            // Update elapsed time
+            player.rotation_elapsed += time.delta_secs();
             
-            // Calculate progress towards target (0 to 1)
-            // This represents how close we are to the target
-            let distance_ratio = (angle_diff.abs() / PI).min(1.0);
+            // Calculate progress (0.0 to 1.0) clamped to max 1.0
+            let progress = (player.rotation_elapsed / player.rotation_duration).min(1.0);
             
-            // Apply easing to the speed multiplier
-            // When far from target (distance_ratio high), use eased value for acceleration
-            // This creates the "start slow, then quick" effect
-            let speed_multiplier = ease_in_out_cubic(1.0 - distance_ratio) + 0.5;
+            // Apply easing to progress
+            let eased_progress = ease_in_out_cubic(progress);
             
-            // Calculate rotation amount with eased speed
-            let eased_step = rotation_step * speed_multiplier;
-            let rotation_amount = if angle_diff.abs() <= eased_step {
-                angle_diff // Snap to target if close enough
-            } else {
-                angle_diff.signum() * eased_step
-            };
-            
-            // Update current rotation
-            player.current_rotation += rotation_amount;
+            // Lerp from start_rotation to target_rotation using eased progress
+            player.current_rotation = player.start_rotation + (angle_diff * eased_progress);
             
             // Normalize current rotation to [0, 2*PI] range
             player.current_rotation = player.current_rotation.rem_euclid(2.0 * PI);

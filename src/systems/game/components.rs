@@ -11,8 +11,12 @@ pub struct Player {
     pub target_rotation: f32,
     /// Current rotation angle in radians (Y-axis rotation)
     pub current_rotation: f32,
-    /// Speed of rotation interpolation in radians per second
-    pub rotation_speed: f32,
+    /// Rotation angle when the current rotation started (for easing)
+    pub start_rotation: f32,
+    /// Time elapsed since rotation started (for easing)
+    pub rotation_elapsed: f32,
+    /// Fixed duration for all rotations in seconds
+    pub rotation_duration: f32,
 }
 
 #[derive(Component)]

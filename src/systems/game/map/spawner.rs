@@ -198,7 +198,9 @@ fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
                 radius: player_radius,
                 target_rotation: 0.0,
                 current_rotation: 0.0,
-                rotation_speed: 5.0, // 5 radians per second for smooth rotation
+                start_rotation: 0.0,
+                rotation_elapsed: 0.0,
+                rotation_duration: 0.2, // Fixed 0.2 second duration for all rotations
             },
             CharacterModel::new(character_scene.clone()),
         ))
