@@ -33,6 +33,7 @@ impl Default for CharacterModel {
     }
 }
 
+#[allow(dead_code)]
 impl CharacterModel {
     /// Create a new character model with the given scene handle.
     pub fn new(scene_handle: Handle<Scene>) -> Self {
