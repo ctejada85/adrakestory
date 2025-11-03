@@ -22,16 +22,19 @@ If using VSCode or another IDE, you can configure a launch target for the `map_e
 
 ## First Steps
 
+When you launch the map editor, it starts with a **blank canvas** - an empty workspace ready for you to create your map from scratch. The canvas has minimal dimensions (1×1×1) that will automatically expand as you place voxels.
+
 ### Creating a New Map
 
-1. Launch the map editor
-2. Click **File → New** or press `Ctrl+N`
-3. Enter map details in the dialog:
+1. Launch the map editor - you'll see an empty 3D viewport
+2. Start placing voxels immediately, or
+3. Click **File → New** or press `Ctrl+N` to set map metadata:
    - **Name**: Your map's name
    - **Author**: Your name
    - **Description**: Brief description
-   - **Dimensions**: Width, Height, Depth (in voxels)
-4. Click **Create**
+4. Begin building your map!
+
+**Note**: You don't need to worry about map dimensions - they automatically expand as you place voxels.
 
 ### Opening an Existing Map
 

@@ -77,6 +77,11 @@ User-facing documentation is located in:
 
 ### ✅ Implemented
 - **Core Infrastructure**: Window, UI layout, state management
+- **Blank Canvas Start** ⭐: Editor starts with empty map for new creations
+  - Empty map with 0 voxels and minimal dimensions (1×1×1)
+  - Default lighting configuration preserved
+  - Auto-expand dimensions on save
+  - `default_map()` retained for testing and fallback
 - **3D Viewport**: Real-time rendering with camera controls
 - **WYSIWYG Lighting** ⭐: Congruent illumination between editor and game
   - Map-defined directional and ambient lighting
@@ -220,6 +225,7 @@ src/editor/
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.8.0 | 2025-11-03 | Blank canvas start - editor opens with empty map ⭐ |
 | 2.7.0 | 2025-10-30 | Face-aware voxel placement system ⭐ |
 | 2.6.0 | 2025-10-30 | Lighting performance optimization - event-based updates (99.9% improvement) ⭐ |
 | 2.5.0 | 2025-10-23 | WYSIWYG lighting - congruent illumination between editor and game ⭐ |
@@ -233,6 +239,6 @@ src/editor/
 
 ---
 
-**Last Updated**: 2025-10-30
+**Last Updated**: 2025-11-03
 **Maintainer**: Development Team
-**Status**: Active Development - Face-Aware Placement Implemented ⭐
+**Status**: Active Development - Blank Canvas Start Implemented ⭐
