@@ -163,11 +163,12 @@ flowchart TD
     
     Save -->|Yes| HasPath{Has File Path?}
     HasPath -->|No| ShowSaveDialog[Show Save Dialog<br/>Non-blocking Thread]
-    HasPath -->|Yes| AutoExpand[Auto-Expand Dimensions<br/>Fit All Voxels]
-    ShowSaveDialog --> AutoExpand
-    AutoExpand --> ValidateMap[Validate Current Map]
-    ValidateMap -->|Valid| SerializeMap[Serialize to RON]
-    ValidateMap -->|Invalid| ShowError
+    HasPath -->|Yes| Normalize[Normalize Coordinates<br/>Shift to Origin]
+    ShowSaveDialog --> Normalize
+    Normalize --> CalcBounds[Calculate Bounding Box]
+    CalcBounds --> ShiftCoords[Shift Voxels/Entities/Camera<br/>to Start at 0,0,0]
+    ShiftCoords --> SetDimensions[Set Dimensions<br/>Based on Actual Span]
+    SetDimensions --> SerializeMap[Serialize to RON]
     SerializeMap --> WriteFile[Write to File]
     WriteFile --> ClearDirty[Clear Modified Flag<br/>Update Window Title]
     
@@ -176,6 +177,32 @@ flowchart TD
     ClearDirty --> Render
     Render --> End([Done])
 ```
+
+### Coordinate Normalization (Added November 2025)
+
+When saving maps, the editor automatically normalizes coordinates to ensure all voxels start at (0, 0, 0):
+
+**Process:**
+1. Calculate bounding box of all voxels
+2. Determine offset needed to shift minimum coordinates to origin
+3. Apply offset to all voxels, entities, and camera positions
+4. Set dimensions based on actual voxel span (not just maximum values)
+
+**Benefits:**
+- Prevents "Invalid voxel position" errors from negative coordinates
+- Ensures saved maps always pass validation
+- Maintains spatial relationships between all objects
+- Backward compatible (maps already at origin are unchanged)
+
+**Example:**
+```
+Before: Voxels at X: [-5, 4], Y: [0, 1], Z: [0, 3]
+Offset: (5, 0, 0)
+After:  Voxels at X: [0, 9], Y: [0, 1], Z: [0, 3]
+Dimensions: width=10, height=2, depth=4
+```
+
+See [`file_io.rs:normalize_map_coordinates()`](../../../../src/editor/file_io.rs:176) for implementation details.
 
 ## Tool System Architecture
 

@@ -92,6 +92,14 @@ struct WorldData {
 - Y-axis: bottom to top (height)
 - Z-axis: front to back (depth)
 
+**Note on Coordinate Normalization (Map Editor):**
+When saving maps through the map editor, coordinates are automatically normalized to ensure all voxels start at (0,0,0). If you manually create maps with negative coordinates, they will be rejected during validation. The map editor handles this automatically by:
+1. Calculating the bounding box of all voxels
+2. Shifting all voxels, entities, and camera positions to start at origin
+3. Adjusting dimensions to match the actual span
+
+This ensures all saved maps are valid and can be loaded without errors.
+
 ### VoxelData
 
 **Type**: Struct  

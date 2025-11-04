@@ -121,6 +121,8 @@ world: (
 - Z: Depth (front to back)
 - Origin (0,0,0) is bottom-front-left corner
 
+**Important:** All voxel coordinates must be non-negative (≥ 0). The map editor automatically normalizes coordinates when saving, so you don't need to worry about this when using the editor. However, if you manually create or edit map files, ensure all voxel positions are within the valid range [0, width), [0, height), [0, depth).
+
 ### Voxel Definitions
 
 Each voxel has a position, type, and optional pattern:
