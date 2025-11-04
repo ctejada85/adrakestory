@@ -1,0 +1,67 @@
+(
+    metadata: (
+        name: "Test Map with Negative Coordinates",
+        author: "Test",
+        description: "Map to test coordinate normalization",
+        version: "1.0.0",
+        created: "2025-01-10",
+    ),
+    world: (
+        width: 5,
+        height: 3,
+        depth: 4,
+        voxels: [
+            (
+                pos: (-2, 0, 0),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (-1, 0, 0),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (0, 0, 0),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (1, 0, 0),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (2, 0, 0),
+                voxel_type: Stone,
+                pattern: Some(Pillar),
+                rotation_state: None,
+            ),
+        ],
+    ),
+    entities: [
+        (
+            entity_type: PlayerSpawn,
+            position: (0.5, 0.5, 0.5),
+            properties: {},
+        ),
+    ],
+    lighting: (
+        ambient_intensity: 0.3,
+        directional_light: Some((
+            direction: (-0.5, -1.0, -0.5),
+            illuminance: 10000.0,
+            color: (1.0, 1.0, 1.0),
+        )),
+    ),
+    camera: (
+        position: (0.0, 5.0, 3.0),
+        look_at: (0.0, 0.0, 0.0),
+        rotation_offset: -1.5707964,
+    ),
+    custom_properties: {},
+)
