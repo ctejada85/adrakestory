@@ -154,6 +154,7 @@ pub fn move_player(
 
 /// Applies movement checking each axis individually for wall sliding behavior.
 #[inline]
+#[allow(clippy::too_many_arguments)]
 fn apply_axis_movement(
     spatial_grid: &SpatialGrid,
     sub_voxel_query: &Query<&SubVoxel, Without<Player>>,
