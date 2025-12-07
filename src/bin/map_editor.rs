@@ -3,6 +3,7 @@
 //! A standalone GUI application for creating and editing map files.
 
 use adrakestory::editor::tools::ActiveTransform;
+use adrakestory::editor::ui::dialogs::MapDataChangedEvent;
 use adrakestory::editor::ui::properties::TransformEvents;
 use adrakestory::editor::{camera, cursor, file_io, grid, renderer, state, tools, ui};
 use adrakestory::editor::{
@@ -13,7 +14,6 @@ use adrakestory::editor::{
     CursorState, EditorHistory, EditorState, KeyboardEditMode, MapRenderState, RenderMapEvent,
 };
 use adrakestory::editor::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
-use adrakestory::editor::ui::dialogs::MapDataChangedEvent;
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
@@ -32,6 +32,15 @@ struct UIResources<'w> {
     editor_state: ResMut<'w, EditorState>,
     ui_state: ResMut<'w, state::EditorUIState>,
     dialog_receiver: ResMut<'w, ui::dialogs::FileDialogReceiver>,
+}
+
+/// Bundle of read-only editor state resources
+#[derive(bevy::ecs::system::SystemParam)]
+struct EditorReadResources<'w> {
+    cursor_state: Res<'w, CursorState>,
+    history: Res<'w, EditorHistory>,
+    active_transform: Res<'w, ActiveTransform>,
+    keyboard_mode: Res<'w, KeyboardEditMode>,
 }
 
 fn main() {
@@ -202,10 +211,7 @@ fn setup_editor(
 fn render_ui(
     mut contexts: EguiContexts,
     mut ui_resources: UIResources,
-    cursor_state: Res<CursorState>,
-    history: Res<EditorHistory>,
-    active_transform: Res<ActiveTransform>,
-    keyboard_mode: Res<KeyboardEditMode>,
+    read_resources: EditorReadResources,
     mut transform_events: TransformEvents,
     mut save_events: SaveEvents,
     mut map_changed_events: EventWriter<MapDataChangedEvent>,
@@ -217,7 +223,7 @@ fn render_ui(
         ctx,
         &mut ui_resources.editor_state,
         &mut ui_resources.ui_state,
-        &history,
+        &read_resources.history,
         &mut save_events.save,
         &mut save_events.save_as,
     );
@@ -226,8 +232,8 @@ fn render_ui(
     ui::render_properties_panel(
         ctx,
         &mut ui_resources.editor_state,
-        &cursor_state,
-        &active_transform,
+        &read_resources.cursor_state,
+        &read_resources.active_transform,
         &mut transform_events,
     );
 
@@ -235,7 +241,12 @@ fn render_ui(
     ui::render_viewport_controls(ctx);
 
     // Render status bar
-    render_status_bar(ctx, &ui_resources.editor_state, &history, &keyboard_mode);
+    render_status_bar(
+        ctx,
+        &ui_resources.editor_state,
+        &read_resources.history,
+        &read_resources.keyboard_mode,
+    );
 
     // Render dialogs
     ui::dialogs::render_dialogs(
