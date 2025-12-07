@@ -23,6 +23,8 @@ Before implementing these optimizations, consider:
 
 ## Optimization 1: SpatialGrid AABB Query - Reduce Allocations
 
+### Status: ✅ IMPLEMENTED (2025-12-07)
+
 ### Problem
 
 In `src/systems/game/resources.rs`, the `get_entities_in_aabb` function creates a new `Vec` without capacity hints, causing potential reallocations during vector growth.

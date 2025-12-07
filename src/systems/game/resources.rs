@@ -23,17 +23,26 @@ impl SpatialGrid {
         self.cells.get(&grid_coords)
     }
 
-    // Helper to get entities in a bounding box (e.g., player's collision area)
+    /// Get entities in a bounding box (e.g., player's collision area).
+    ///
+    /// Pre-allocates vector capacity based on expected entity count to reduce
+    /// heap allocations during collision checks.
     pub fn get_entities_in_aabb(&self, min_world: Vec3, max_world: Vec3) -> Vec<Entity> {
         let min_grid = Self::world_to_grid_coords(min_world);
         let max_grid = Self::world_to_grid_coords(max_world);
 
-        let mut entities = Vec::new();
+        // Pre-allocate capacity based on expected entity count
+        // Estimate: number of cells × average entities per cell (~8 sub-voxels per voxel)
+        let num_cells = ((max_grid.x - min_grid.x + 1)
+            * (max_grid.y - min_grid.y + 1)
+            * (max_grid.z - min_grid.z + 1)) as usize;
+        let mut entities = Vec::with_capacity(num_cells * 8);
+
         for x in min_grid.x..=max_grid.x {
             for y in min_grid.y..=max_grid.y {
                 for z in min_grid.z..=max_grid.z {
                     if let Some(cell_entities) = self.get_entities_in_cell(IVec3::new(x, y, z)) {
-                        entities.extend(cell_entities.iter().copied());
+                        entities.extend_from_slice(cell_entities);
                     }
                 }
             }
