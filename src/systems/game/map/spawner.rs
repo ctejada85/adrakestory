@@ -170,12 +170,19 @@ pub fn spawn_map_system(
 }
 
 /// Spawn all voxels from the map data.
+///
+/// Sub-voxels are sorted by material index before spawning to enable
+/// optimal GPU instancing (Bevy batches entities with same mesh + material).
 fn spawn_voxels(ctx: &mut VoxelSpawnContext, map: &MapData, progress: &mut MapLoadProgress) {
     let total_voxels = map.world.voxels.len();
 
+    // Collect all sub-voxels with their material indices for sorting
+    // This enables GPU instancing by spawning same-material entities consecutively
+    let mut sub_voxels: Vec<(i32, i32, i32, i32, i32, i32, usize)> = Vec::new();
+
     for (index, voxel_data) in map.world.voxels.iter().enumerate() {
-        // Update progress
-        let voxel_progress = (index as f32) / (total_voxels as f32);
+        // Update progress (collection phase)
+        let voxel_progress = (index as f32) / (total_voxels as f32) * 0.5;
         progress.update(LoadProgress::SpawningVoxels(voxel_progress));
 
         let (x, y, z) = voxel_data.pos;
@@ -189,10 +196,25 @@ fn spawn_voxels(ctx: &mut VoxelSpawnContext, map: &MapData, progress: &mut MapLo
         // Get the geometry for this pattern with rotation applied
         let geometry = pattern.geometry_with_rotation(voxel_data.rotation_state);
 
-        // Spawn all occupied sub-voxels from the geometry
+        // Collect all occupied sub-voxels with their material indices
         for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {
-            spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
+            let mat_idx = VoxelMaterialPalette::get_material_index(x, y, z, sub_x, sub_y, sub_z);
+            sub_voxels.push((x, y, z, sub_x, sub_y, sub_z, mat_idx));
         }
+    }
+
+    // Sort by material index for optimal GPU instancing
+    sub_voxels.sort_unstable_by_key(|v| v.6);
+
+    // Spawn sub-voxels in sorted order (spawning phase)
+    let total_sub_voxels = sub_voxels.len();
+    for (index, (x, y, z, sub_x, sub_y, sub_z, _)) in sub_voxels.into_iter().enumerate() {
+        // Update progress (spawning phase)
+        if index % 1000 == 0 {
+            let spawn_progress = 0.5 + (index as f32) / (total_sub_voxels as f32) * 0.5;
+            progress.update(LoadProgress::SpawningVoxels(spawn_progress));
+        }
+        spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
     }
 }
 

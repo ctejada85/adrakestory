@@ -87,7 +87,10 @@ pub fn render_map_system(
         new_palette
     };
 
-    // Spawn voxels from the current map using geometry-based rendering
+    // Collect all sub-voxels with their material indices for sorting
+    // This enables GPU instancing by spawning same-material entities consecutively
+    let mut sub_voxels: Vec<(i32, i32, i32, i32, i32, i32, usize)> = Vec::new();
+
     for voxel_data in &editor_state.current_map.world.voxels {
         let (x, y, z) = voxel_data.pos;
         let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
@@ -103,20 +106,29 @@ pub fn render_map_system(
         // Get the geometry for this pattern with rotation applied
         let geometry = pattern.geometry_with_rotation(voxel_data.rotation_state);
 
-        // Spawn all occupied sub-voxels from the geometry
+        // Collect all occupied sub-voxels with their material indices
         for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {
-            spawn_sub_voxel(
-                &mut commands,
-                &sub_voxel_mesh,
-                &palette,
-                x,
-                y,
-                z,
-                sub_x,
-                sub_y,
-                sub_z,
-            );
+            let mat_idx = VoxelMaterialPalette::get_material_index(x, y, z, sub_x, sub_y, sub_z);
+            sub_voxels.push((x, y, z, sub_x, sub_y, sub_z, mat_idx));
         }
+    }
+
+    // Sort by material index for optimal GPU instancing
+    sub_voxels.sort_unstable_by_key(|v| v.6);
+
+    // Spawn sub-voxels in sorted order
+    for (x, y, z, sub_x, sub_y, sub_z, _) in sub_voxels {
+        spawn_sub_voxel(
+            &mut commands,
+            &sub_voxel_mesh,
+            &palette,
+            x,
+            y,
+            z,
+            sub_x,
+            sub_y,
+            sub_z,
+        );
     }
 
     info!("Map rendering complete");
