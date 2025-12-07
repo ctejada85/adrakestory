@@ -95,6 +95,8 @@ pub fn get_entities_in_aabb(&self, min_world: Vec3, max_world: Vec3) -> Vec<Enti
 
 ## Optimization 2: Diagonal Movement Optimization
 
+### Status: ✅ IMPLEMENTED (2025-12-07)
+
 ### Problem
 
 In `src/systems/game/player_movement.rs`, the movement system performs separate collision checks for X and Z axes, even when the player is moving diagonally without obstacles.
