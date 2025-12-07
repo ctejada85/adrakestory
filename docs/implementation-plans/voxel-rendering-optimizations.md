@@ -4,7 +4,7 @@
 
 This document outlines performance optimizations for the voxel rendering system. The current implementation creates individual entities and materials for each sub-voxel, which causes significant performance issues at scale.
 
-**Status**: 📋 Planned  
+**Status**: 🚧 In Progress (Tiers 1-3 Complete)  
 **Priority**: High  
 **Estimated Total Impact**: 10-100x performance improvement  
 **Last Updated**: 2025-12-07
@@ -234,7 +234,7 @@ fn spawn_voxels(ctx: &mut VoxelSpawnContext, map: &MapData, progress: &mut MapLo
 
 ## Tier 3: Chunk-Based Meshing (Highest Impact, High Effort)
 
-### Status: 📋 Not Started
+### Status: ✅ IMPLEMENTED (2025-12-07)
 
 ### Problem
 

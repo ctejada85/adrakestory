@@ -29,4 +29,6 @@ pub mod spawner;
 pub mod validation;
 
 pub use loader::{LoadProgress, LoadedMapData, MapLoadProgress, MapLoader};
-pub use spawner::{spawn_map_system, VoxelMaterialPalette};
+// VoxelChunk and VoxelMaterialPalette exported for potential external use (chunk management, material access)
+#[allow(unused_imports)]
+pub use spawner::{spawn_map_system, VoxelChunk, VoxelMaterialPalette};

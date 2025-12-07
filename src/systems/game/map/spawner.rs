@@ -8,9 +8,200 @@ use super::loader::{LoadProgress, LoadedMapData, MapLoadProgress};
 use bevy::gltf::GltfAssetLabel;
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::prelude::*;
+use bevy::render::mesh::{Indices, PrimitiveTopology, VertexAttributeValues};
+use bevy::render::render_asset::RenderAssetUsages;
+use std::collections::HashMap;
 
 const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
 const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
+
+/// Chunk size in voxels (16x16x16 voxels per chunk)
+pub const CHUNK_SIZE: i32 = 16;
+
+/// Marker component for chunk entities
+#[derive(Component)]
+#[allow(dead_code)]
+pub struct VoxelChunk {
+    /// The chunk position for potential future use (chunk updates, unloading)
+    pub chunk_pos: IVec3,
+}
+
+/// Builder for constructing chunk meshes from multiple cubes.
+/// Combines all sub-voxels in a chunk into a single mesh with vertex colors.
+#[derive(Default)]
+pub struct ChunkMeshBuilder {
+    positions: Vec<[f32; 3]>,
+    normals: Vec<[f32; 3]>,
+    uvs: Vec<[f32; 2]>,
+    colors: Vec<[f32; 4]>,
+    indices: Vec<u32>,
+}
+
+impl ChunkMeshBuilder {
+    /// Add a cube to the mesh at the given position with the given color.
+    pub fn add_cube(&mut self, position: Vec3, size: f32, color: Color) {
+        let half = size / 2.0;
+        let base_index = self.positions.len() as u32;
+
+        // Convert color to linear RGBA
+        let color_array = color.to_linear().to_f32_array();
+
+        // 8 vertices of the cube
+        let vertices = [
+            // Front face (facing +Z)
+            [position.x - half, position.y - half, position.z + half], // 0: bottom-left
+            [position.x + half, position.y - half, position.z + half], // 1: bottom-right
+            [position.x + half, position.y + half, position.z + half], // 2: top-right
+            [position.x - half, position.y + half, position.z + half], // 3: top-left
+            // Back face (facing -Z)
+            [position.x + half, position.y - half, position.z - half], // 4: bottom-left
+            [position.x - half, position.y - half, position.z - half], // 5: bottom-right
+            [position.x - half, position.y + half, position.z - half], // 6: top-right
+            [position.x + half, position.y + half, position.z - half], // 7: top-left
+            // Right face (facing +X)
+            [position.x + half, position.y - half, position.z + half], // 8
+            [position.x + half, position.y - half, position.z - half], // 9
+            [position.x + half, position.y + half, position.z - half], // 10
+            [position.x + half, position.y + half, position.z + half], // 11
+            // Left face (facing -X)
+            [position.x - half, position.y - half, position.z - half], // 12
+            [position.x - half, position.y - half, position.z + half], // 13
+            [position.x - half, position.y + half, position.z + half], // 14
+            [position.x - half, position.y + half, position.z - half], // 15
+            // Top face (facing +Y)
+            [position.x - half, position.y + half, position.z + half], // 16
+            [position.x + half, position.y + half, position.z + half], // 17
+            [position.x + half, position.y + half, position.z - half], // 18
+            [position.x - half, position.y + half, position.z - half], // 19
+            // Bottom face (facing -Y)
+            [position.x - half, position.y - half, position.z - half], // 20
+            [position.x + half, position.y - half, position.z - half], // 21
+            [position.x + half, position.y - half, position.z + half], // 22
+            [position.x - half, position.y - half, position.z + half], // 23
+        ];
+
+        let normals = [
+            // Front face
+            [0.0, 0.0, 1.0],
+            [0.0, 0.0, 1.0],
+            [0.0, 0.0, 1.0],
+            [0.0, 0.0, 1.0],
+            // Back face
+            [0.0, 0.0, -1.0],
+            [0.0, 0.0, -1.0],
+            [0.0, 0.0, -1.0],
+            [0.0, 0.0, -1.0],
+            // Right face
+            [1.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            // Left face
+            [-1.0, 0.0, 0.0],
+            [-1.0, 0.0, 0.0],
+            [-1.0, 0.0, 0.0],
+            [-1.0, 0.0, 0.0],
+            // Top face
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            // Bottom face
+            [0.0, -1.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [0.0, -1.0, 0.0],
+        ];
+
+        let uvs = [
+            // Front
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.0],
+            [0.0, 0.0],
+            // Back
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.0],
+            [0.0, 0.0],
+            // Right
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.0],
+            [0.0, 0.0],
+            // Left
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.0],
+            [0.0, 0.0],
+            // Top
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.0],
+            [0.0, 0.0],
+            // Bottom
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.0],
+            [0.0, 0.0],
+        ];
+
+        // Add vertices
+        self.positions.extend_from_slice(&vertices);
+        self.normals.extend_from_slice(&normals);
+        self.uvs.extend_from_slice(&uvs);
+
+        // Add colors for all 24 vertices
+        for _ in 0..24 {
+            self.colors.push(color_array);
+        }
+
+        // Add indices for 6 faces (2 triangles each = 36 indices)
+        #[rustfmt::skip]
+        let face_indices: [u32; 36] = [
+            // Front
+            0, 1, 2, 2, 3, 0,
+            // Back
+            4, 5, 6, 6, 7, 4,
+            // Right
+            8, 9, 10, 10, 11, 8,
+            // Left
+            12, 13, 14, 14, 15, 12,
+            // Top
+            16, 17, 18, 18, 19, 16,
+            // Bottom
+            20, 21, 22, 22, 23, 20,
+        ];
+
+        for idx in face_indices {
+            self.indices.push(base_index + idx);
+        }
+    }
+
+    /// Build the final mesh from accumulated geometry.
+    pub fn build(self) -> Mesh {
+        let mut mesh = Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
+        );
+
+        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, self.positions);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, self.normals);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, self.uvs);
+        mesh.insert_attribute(
+            Mesh::ATTRIBUTE_COLOR,
+            VertexAttributeValues::Float32x4(self.colors),
+        );
+        mesh.insert_indices(Indices::U32(self.indices));
+
+        mesh
+    }
+
+    /// Check if the builder has any geometry.
+    pub fn is_empty(&self) -> bool {
+        self.positions.is_empty()
+    }
+}
 
 /// Pre-generated material palette for efficient voxel rendering.
 ///
@@ -75,14 +266,6 @@ impl VoxelMaterialPalette {
     }
 }
 
-/// Context for spawning voxels and sub-voxels.
-struct VoxelSpawnContext<'w, 's, 'a> {
-    commands: Commands<'w, 's>,
-    spatial_grid: &'a mut SpatialGrid,
-    sub_voxel_mesh: &'a Handle<Mesh>,
-    material_palette: &'a VoxelMaterialPalette,
-}
-
 /// Context for spawning entities.
 struct EntitySpawnContext<'w, 's, 'a> {
     commands: Commands<'w, 's>,
@@ -91,10 +274,21 @@ struct EntitySpawnContext<'w, 's, 'a> {
     asset_server: &'a AssetServer,
 }
 
+/// Context for chunk-based voxel spawning.
+struct ChunkSpawnContext<'w, 's, 'a> {
+    commands: Commands<'w, 's>,
+    spatial_grid: &'a mut SpatialGrid,
+    meshes: &'a mut Assets<Mesh>,
+    chunk_material: Handle<StandardMaterial>,
+}
+
 /// System that spawns a loaded map into the game world.
 ///
 /// This system reads the LoadedMapData resource and creates all the
 /// necessary entities (voxels, sub-voxels, entities, lighting, camera).
+///
+/// Uses chunk-based meshing to combine sub-voxels into larger meshes,
+/// dramatically reducing entity count and improving performance.
 pub fn spawn_map_system(
     mut commands: Commands,
     map_data: Res<LoadedMapData>,
@@ -119,23 +313,24 @@ pub fn spawn_map_system(
 
     let map = &map_data.map;
 
-    // Create sub-voxel mesh
-    let sub_voxel_mesh = meshes.add(Cuboid::new(SUB_VOXEL_SIZE, SUB_VOXEL_SIZE, SUB_VOXEL_SIZE));
+    // Create a single material for all chunks (vertex colors provide variation)
+    let chunk_material = materials.add(StandardMaterial {
+        base_color: Color::WHITE,
+        // Use vertex colors for per-voxel coloring
+        ..default()
+    });
 
-    // Create material palette (64 materials instead of millions)
-    let material_palette = VoxelMaterialPalette::new(materials.as_mut());
-
-    // Stage 4: Spawn voxels (60-90%)
+    // Stage 4: Spawn voxels using chunk-based meshing (60-90%)
     progress.update(LoadProgress::SpawningVoxels(0.0));
     commands = {
-        let mut voxel_ctx = VoxelSpawnContext {
+        let mut chunk_ctx = ChunkSpawnContext {
             commands,
             spatial_grid: &mut spatial_grid,
-            sub_voxel_mesh: &sub_voxel_mesh,
-            material_palette: &material_palette,
+            meshes: meshes.as_mut(),
+            chunk_material,
         };
-        spawn_voxels(&mut voxel_ctx, map, &mut progress);
-        voxel_ctx.commands
+        spawn_voxels_chunked(&mut chunk_ctx, map, &mut progress);
+        chunk_ctx.commands
     };
     progress.update(LoadProgress::SpawningVoxels(1.0));
 
@@ -169,16 +364,47 @@ pub fn spawn_map_system(
     progress.update(LoadProgress::Complete);
 }
 
-/// Spawn all voxels from the map data.
+/// Calculate color for a sub-voxel based on its position.
+/// Uses the same hash-based coloring as the material palette for consistency.
+#[inline]
+fn get_sub_voxel_color(x: i32, y: i32, z: i32, sub_x: i32, sub_y: i32, sub_z: i32) -> Color {
+    let index = VoxelMaterialPalette::get_material_index(x, y, z, sub_x, sub_y, sub_z);
+    let t = index as f32 / VoxelMaterialPalette::PALETTE_SIZE as f32;
+    Color::srgb(
+        0.2 + t * 0.6,
+        0.3 + ((t * std::f32::consts::PI * 2.0).sin() * 0.5 + 0.5) * 0.4,
+        0.4 + ((t * std::f32::consts::PI * 3.0).cos() * 0.5 + 0.5) * 0.4,
+    )
+}
+
+/// Calculate world position for a sub-voxel.
+#[inline]
+fn calculate_sub_voxel_pos(x: i32, y: i32, z: i32, sub_x: i32, sub_y: i32, sub_z: i32) -> Vec3 {
+    let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
+    Vec3::new(
+        x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE),
+        y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE),
+        z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE),
+    )
+}
+
+/// Spawn all voxels using chunk-based meshing.
 ///
-/// Sub-voxels are sorted by material index before spawning to enable
-/// optimal GPU instancing (Bevy batches entities with same mesh + material).
-fn spawn_voxels(ctx: &mut VoxelSpawnContext, map: &MapData, progress: &mut MapLoadProgress) {
+/// This function groups sub-voxels by chunk (16x16x16), builds a single mesh
+/// per chunk with vertex colors, and spawns one entity per chunk instead of
+/// one entity per sub-voxel. This dramatically reduces entity count.
+fn spawn_voxels_chunked(
+    ctx: &mut ChunkSpawnContext,
+    map: &MapData,
+    progress: &mut MapLoadProgress,
+) {
     let total_voxels = map.world.voxels.len();
 
-    // Collect all sub-voxels with their material indices for sorting
-    // This enables GPU instancing by spawning same-material entities consecutively
-    let mut sub_voxels: Vec<(i32, i32, i32, i32, i32, i32, usize)> = Vec::new();
+    // Group sub-voxels by chunk
+    let mut chunks: HashMap<IVec3, ChunkMeshBuilder> = HashMap::new();
+
+    // Also collect sub-voxel data for spatial grid (collision detection still needs it)
+    let mut sub_voxel_positions: Vec<(Vec3, (Vec3, Vec3))> = Vec::new();
 
     for (index, voxel_data) in map.world.voxels.iter().enumerate() {
         // Update progress (collection phase)
@@ -196,26 +422,78 @@ fn spawn_voxels(ctx: &mut VoxelSpawnContext, map: &MapData, progress: &mut MapLo
         // Get the geometry for this pattern with rotation applied
         let geometry = pattern.geometry_with_rotation(voxel_data.rotation_state);
 
-        // Collect all occupied sub-voxels with their material indices
+        // Add each sub-voxel to the appropriate chunk
         for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {
-            let mat_idx = VoxelMaterialPalette::get_material_index(x, y, z, sub_x, sub_y, sub_z);
-            sub_voxels.push((x, y, z, sub_x, sub_y, sub_z, mat_idx));
+            let world_pos = calculate_sub_voxel_pos(x, y, z, sub_x, sub_y, sub_z);
+            let color = get_sub_voxel_color(x, y, z, sub_x, sub_y, sub_z);
+
+            // Determine which chunk this sub-voxel belongs to
+            let chunk_pos = IVec3::new(
+                (world_pos.x / CHUNK_SIZE as f32).floor() as i32,
+                (world_pos.y / CHUNK_SIZE as f32).floor() as i32,
+                (world_pos.z / CHUNK_SIZE as f32).floor() as i32,
+            );
+
+            // Add cube to chunk mesh builder
+            let builder = chunks.entry(chunk_pos).or_default();
+            builder.add_cube(world_pos, SUB_VOXEL_SIZE, color);
+
+            // Calculate bounds for collision detection
+            let half_size = SUB_VOXEL_SIZE / 2.0;
+            let bounds = (
+                world_pos - Vec3::splat(half_size),
+                world_pos + Vec3::splat(half_size),
+            );
+            sub_voxel_positions.push((world_pos, bounds));
         }
     }
 
-    // Sort by material index for optimal GPU instancing
-    sub_voxels.sort_unstable_by_key(|v| v.6);
+    // Spawn chunk entities
+    let total_chunks = chunks.len();
+    for (index, (chunk_pos, builder)) in chunks.into_iter().enumerate() {
+        if builder.is_empty() {
+            continue;
+        }
 
-    // Spawn sub-voxels in sorted order (spawning phase)
-    let total_sub_voxels = sub_voxels.len();
-    for (index, (x, y, z, sub_x, sub_y, sub_z, _)) in sub_voxels.into_iter().enumerate() {
         // Update progress (spawning phase)
-        if index % 1000 == 0 {
-            let spawn_progress = 0.5 + (index as f32) / (total_sub_voxels as f32) * 0.5;
-            progress.update(LoadProgress::SpawningVoxels(spawn_progress));
-        }
-        spawn_sub_voxel(ctx, x, y, z, sub_x, sub_y, sub_z);
+        let spawn_progress = 0.5 + (index as f32) / (total_chunks as f32) * 0.3;
+        progress.update(LoadProgress::SpawningVoxels(spawn_progress));
+
+        let mesh = ctx.meshes.add(builder.build());
+        ctx.commands.spawn((
+            Mesh3d(mesh),
+            MeshMaterial3d(ctx.chunk_material.clone()),
+            Transform::default(),
+            VoxelChunk { chunk_pos },
+        ));
     }
+
+    // Spawn invisible collision entities for the spatial grid
+    // These are needed for physics/collision detection
+    let total_sub_voxels = sub_voxel_positions.len();
+    for (index, (world_pos, bounds)) in sub_voxel_positions.into_iter().enumerate() {
+        // Update progress (collision setup phase)
+        if index % 1000 == 0 {
+            let collision_progress = 0.8 + (index as f32) / (total_sub_voxels as f32) * 0.2;
+            progress.update(LoadProgress::SpawningVoxels(collision_progress));
+        }
+
+        // Spawn invisible entity for collision detection only
+        let sub_voxel_entity = ctx.commands.spawn(SubVoxel { bounds }).id();
+
+        // Add to spatial grid
+        let grid_coords = SpatialGrid::world_to_grid_coords(world_pos);
+        ctx.spatial_grid
+            .cells
+            .entry(grid_coords)
+            .or_default()
+            .push(sub_voxel_entity);
+    }
+
+    info!(
+        "Spawned {} chunks with {} collision entities",
+        total_chunks, total_sub_voxels
+    );
 }
 
 /// Spawn entities from the map data.
@@ -411,51 +689,4 @@ fn spawn_camera(commands: &mut Commands, map: &MapData) {
             target_position: look_at_point, // Initially look at the map's look_at point
         },
     ));
-}
-
-/// Spawn a single sub-voxel at the specified position.
-fn spawn_sub_voxel(
-    ctx: &mut VoxelSpawnContext,
-    x: i32,
-    y: i32,
-    z: i32,
-    sub_x: i32,
-    sub_y: i32,
-    sub_z: i32,
-) {
-    // Use material palette instead of creating a new material per sub-voxel
-    let sub_voxel_material = ctx
-        .material_palette
-        .get_material(x, y, z, sub_x, sub_y, sub_z);
-
-    let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
-    let sub_x_pos = x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
-    let sub_y_pos = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
-    let sub_z_pos = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
-
-    // Calculate and cache bounds at spawn time for efficient collision detection
-    let center = Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
-    let half_size = SUB_VOXEL_SIZE / 2.0;
-    let bounds = (
-        center - Vec3::splat(half_size),
-        center + Vec3::splat(half_size),
-    );
-
-    let sub_voxel_entity = ctx
-        .commands
-        .spawn((
-            Mesh3d(ctx.sub_voxel_mesh.clone()),
-            MeshMaterial3d(sub_voxel_material),
-            Transform::from_xyz(sub_x_pos, sub_y_pos, sub_z_pos),
-            SubVoxel { bounds },
-        ))
-        .id();
-
-    let sub_voxel_world_pos = Vec3::new(sub_x_pos, sub_y_pos, sub_z_pos);
-    let grid_coords = SpatialGrid::world_to_grid_coords(sub_voxel_world_pos);
-    ctx.spatial_grid
-        .cells
-        .entry(grid_coords)
-        .or_default()
-        .push(sub_voxel_entity);
 }
