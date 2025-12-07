@@ -29,4 +29,4 @@ pub mod spawner;
 pub mod validation;
 
 pub use loader::{LoadProgress, LoadedMapData, MapLoadProgress, MapLoader};
-pub use spawner::spawn_map_system;
+pub use spawner::{spawn_map_system, VoxelMaterialPalette};

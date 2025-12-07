@@ -5,10 +5,12 @@
 
 use crate::editor::state::EditorState;
 use crate::systems::game::map::format::SubVoxelPattern;
+use crate::systems::game::map::spawner::VoxelMaterialPalette;
 use bevy::prelude::*;
 
 const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
 const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
+
 /// Marker component for voxels spawned by the editor
 #[derive(Component)]
 pub struct EditorVoxel;
@@ -19,6 +21,10 @@ pub struct MapRenderState {
     pub needs_render: bool,
     pub last_voxel_count: usize,
 }
+
+/// Resource to cache the editor's material palette
+#[derive(Resource)]
+pub struct EditorMaterialPalette(pub VoxelMaterialPalette);
 
 /// Event sent when the map should be re-rendered
 #[derive(Event)]
@@ -52,6 +58,7 @@ pub fn render_map_system(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     existing_voxels: Query<Entity, With<EditorVoxel>>,
+    palette_res: Option<Res<EditorMaterialPalette>>,
 ) {
     // Only render if we received an event
     if render_events.read().count() == 0 {
@@ -71,6 +78,15 @@ pub fn render_map_system(
     // Create sub-voxel mesh (reused for all sub-voxels)
     let sub_voxel_mesh = meshes.add(Cuboid::new(SUB_VOXEL_SIZE, SUB_VOXEL_SIZE, SUB_VOXEL_SIZE));
 
+    // Get or create material palette
+    let palette = if let Some(ref p) = palette_res {
+        p.0.clone()
+    } else {
+        let new_palette = VoxelMaterialPalette::new(materials.as_mut());
+        commands.insert_resource(EditorMaterialPalette(new_palette.clone()));
+        new_palette
+    };
+
     // Spawn voxels from the current map using geometry-based rendering
     for voxel_data in &editor_state.current_map.world.voxels {
         let (x, y, z) = voxel_data.pos;
@@ -87,7 +103,7 @@ pub fn render_map_system(
         
         // Spawn all occupied sub-voxels from the geometry
         for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {
-            spawn_sub_voxel(&mut commands, &sub_voxel_mesh, &mut materials, x, y, z, sub_x, sub_y, sub_z);
+            spawn_sub_voxel(&mut commands, &sub_voxel_mesh, &palette, x, y, z, sub_x, sub_y, sub_z);
         }
     }
 
@@ -99,7 +115,7 @@ pub fn render_map_system(
 fn spawn_sub_voxel(
     commands: &mut Commands,
     mesh: &Handle<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    palette: &VoxelMaterialPalette,
     x: i32,
     y: i32,
     z: i32,
@@ -107,13 +123,8 @@ fn spawn_sub_voxel(
     sub_y: i32,
     sub_z: i32,
 ) {
-    // Calculate color based on position (same as game)
-    let color = Color::srgb(
-        0.2 + (x as f32 * 0.2) + (sub_x as f32 * 0.01),
-        0.3 + (z as f32 * 0.15) + (sub_z as f32 * 0.01),
-        0.4 + (y as f32 * 0.2) + (sub_y as f32 * 0.01),
-    );
-    let material = materials.add(color);
+    // Use material palette instead of creating a new material per sub-voxel
+    let material = palette.get_material(x, y, z, sub_x, sub_y, sub_z);
 
     // Calculate world position
     let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
