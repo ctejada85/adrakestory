@@ -177,12 +177,8 @@ impl ChunkMeshBuilder {
 
         self.positions.extend_from_slice(&vertices);
         self.normals.extend_from_slice(&[normal; 4]);
-        self.uvs.extend_from_slice(&[
-            [0.0, 1.0],
-            [1.0, 1.0],
-            [1.0, 0.0],
-            [0.0, 0.0],
-        ]);
+        self.uvs
+            .extend_from_slice(&[[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]]);
         for _ in 0..4 {
             self.colors.push(color_array);
         }
@@ -202,7 +198,13 @@ impl ChunkMeshBuilder {
     /// Only adds faces where the neighbor array indicates no adjacent sub-voxel.
     /// neighbors order: [+X, -X, +Y, -Y, +Z, -Z]
     #[inline]
-    pub fn add_cube_culled(&mut self, position: Vec3, size: f32, color: Color, neighbors: [bool; 6]) {
+    pub fn add_cube_culled(
+        &mut self,
+        position: Vec3,
+        size: f32,
+        color: Color,
+        neighbors: [bool; 6],
+    ) {
         if !neighbors[0] {
             self.add_face(position, size, Face::PosX, color);
         }
@@ -594,10 +596,10 @@ fn spawn_voxels_chunked(
     // First pass: Build occupancy grid for neighbor lookups
     progress.update(LoadProgress::SpawningVoxels(0.0));
     let mut occupancy = OccupancyGrid::new();
-    
+
     // Collect all sub-voxel data for both passes
     let mut all_sub_voxels: Vec<(i32, i32, i32, i32, i32, i32, Vec3, Color)> = Vec::new();
-    
+
     for (index, voxel_data) in map.world.voxels.iter().enumerate() {
         // Update progress (occupancy collection phase: 0-20%)
         if index % 100 == 0 {
@@ -619,7 +621,7 @@ fn spawn_voxels_chunked(
         // Add each sub-voxel to occupancy grid and collect data
         for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {
             occupancy.insert(x, y, z, sub_x, sub_y, sub_z);
-            
+
             let world_pos = calculate_sub_voxel_pos(x, y, z, sub_x, sub_y, sub_z);
             let color = get_sub_voxel_color(x, y, z, sub_x, sub_y, sub_z);
             all_sub_voxels.push((x, y, z, sub_x, sub_y, sub_z, world_pos, color));
@@ -629,9 +631,11 @@ fn spawn_voxels_chunked(
     // Second pass: Build chunk meshes with face culling
     let mut chunks: HashMap<IVec3, ChunkMeshBuilder> = HashMap::new();
     let mut sub_voxel_positions: Vec<(Vec3, (Vec3, Vec3))> = Vec::new();
-    
+
     let total_sub_voxels_count = all_sub_voxels.len();
-    for (index, (x, y, z, sub_x, sub_y, sub_z, world_pos, color)) in all_sub_voxels.into_iter().enumerate() {
+    for (index, (x, y, z, sub_x, sub_y, sub_z, world_pos, color)) in
+        all_sub_voxels.into_iter().enumerate()
+    {
         // Update progress (mesh building phase: 20-50%)
         if index % 1000 == 0 {
             let build_progress = 0.2 + (index as f32) / (total_sub_voxels_count as f32) * 0.3;
