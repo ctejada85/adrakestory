@@ -13,7 +13,7 @@ const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
 const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
 
 /// Pre-generated material palette for efficient voxel rendering.
-/// 
+///
 /// Instead of creating a unique material for each sub-voxel (which would be millions
 /// of materials in a large world), we pre-create a fixed palette and hash positions
 /// to palette indices. This enables GPU batching and reduces memory usage by 99.99%.
@@ -244,9 +244,9 @@ fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
 
     // Load the character model (GLB file) with explicit scene specification
     // Using GltfAssetLabel::Scene(0) to load the first (default) scene from the GLB file
-    let character_scene: Handle<Scene> = ctx.asset_server.load(
-        GltfAssetLabel::Scene(0).from_asset("characters/base_basic_pbr.glb")
-    );
+    let character_scene: Handle<Scene> = ctx
+        .asset_server
+        .load(GltfAssetLabel::Scene(0).from_asset("characters/base_basic_pbr.glb"));
 
     info!("Loading character model: characters/base_basic_pbr.glb#Scene0");
 
@@ -274,13 +274,17 @@ fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
 
     // Spawn the character model as a child entity
     // Scale down to 0.3 and offset down by 0.3 units to align with collision sphere
-    ctx.commands.spawn((
-        SceneRoot(character_scene),
-        Transform::from_translation(Vec3::new(0.0, -0.3, 0.0))
-            .with_scale(Vec3::splat(0.5)),
-    )).set_parent(player_entity);
+    ctx.commands
+        .spawn((
+            SceneRoot(character_scene),
+            Transform::from_translation(Vec3::new(0.0, -0.3, 0.0)).with_scale(Vec3::splat(0.5)),
+        ))
+        .set_parent(player_entity);
 
-    info!("Spawned player with character model at position: {:?}", position);
+    info!(
+        "Spawned player with character model at position: {:?}",
+        position
+    );
 
     // Create collision box (invisible by default, for debugging)
     let collision_box_mesh = ctx.meshes.add(Cuboid::new(
@@ -365,11 +369,11 @@ fn spawn_camera(commands: &mut Commands, map: &MapData) {
     }
 
     let original_rotation = camera_transform.rotation;
-    
+
     // Calculate initial follow offset from camera position to look_at point
     let look_at_point = Vec3::new(lx, ly, lz);
     let initial_offset = camera_transform.translation - look_at_point;
-    
+
     // Transform offset to local camera space (inverse of camera rotation)
     let follow_offset = camera_transform.rotation.inverse() * initial_offset;
 
@@ -381,7 +385,7 @@ fn spawn_camera(commands: &mut Commands, map: &MapData) {
             target_rotation: original_rotation,
             rotation_speed: 5.0,
             follow_offset,
-            follow_speed: 5.0, // Medium responsiveness
+            follow_speed: 5.0,              // Medium responsiveness
             target_position: look_at_point, // Initially look at the map's look_at point
         },
     ));
@@ -398,7 +402,9 @@ fn spawn_sub_voxel(
     sub_z: i32,
 ) {
     // Use material palette instead of creating a new material per sub-voxel
-    let sub_voxel_material = ctx.material_palette.get_material(x, y, z, sub_x, sub_y, sub_z);
+    let sub_voxel_material = ctx
+        .material_palette
+        .get_material(x, y, z, sub_x, sub_y, sub_z);
 
     let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
     let sub_x_pos = x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);

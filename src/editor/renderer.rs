@@ -91,19 +91,31 @@ pub fn render_map_system(
     for voxel_data in &editor_state.current_map.world.voxels {
         let (x, y, z) = voxel_data.pos;
         let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
-        
+
         // Debug: Log rotation state for each voxel
         if let Some(rot) = voxel_data.rotation_state {
-            debug!("Rendering voxel at {:?} with rotation: {:?} angle {}",
-                  voxel_data.pos, rot.axis, rot.angle);
+            debug!(
+                "Rendering voxel at {:?} with rotation: {:?} angle {}",
+                voxel_data.pos, rot.axis, rot.angle
+            );
         }
-        
+
         // Get the geometry for this pattern with rotation applied
         let geometry = pattern.geometry_with_rotation(voxel_data.rotation_state);
-        
+
         // Spawn all occupied sub-voxels from the geometry
         for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {
-            spawn_sub_voxel(&mut commands, &sub_voxel_mesh, &palette, x, y, z, sub_x, sub_y, sub_z);
+            spawn_sub_voxel(
+                &mut commands,
+                &sub_voxel_mesh,
+                &palette,
+                x,
+                y,
+                z,
+                sub_x,
+                sub_y,
+                sub_z,
+            );
         }
     }
 
