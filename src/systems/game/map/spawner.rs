@@ -27,7 +27,7 @@ pub struct VoxelChunk {
 }
 
 /// Face direction for hidden face culling.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Face {
     /// +X direction
     PosX,
@@ -114,6 +114,174 @@ impl OccupancyGrid {
     }
 }
 
+/// A visible face with position and color information for greedy meshing.
+#[derive(Clone, Copy)]
+#[allow(dead_code)]
+struct VisibleFace {
+    /// Global sub-voxel coordinates
+    global_x: i32,
+    global_y: i32,
+    global_z: i32,
+    /// Color index (from palette hash) for merging same-color faces
+    color_index: usize,
+    /// The actual color
+    color: Color,
+}
+
+/// Greedy mesher that merges adjacent coplanar faces of the same color.
+///
+/// Algorithm:
+/// 1. For each face direction, collect all visible faces into 2D slices
+/// 2. For each slice, find maximal rectangles of same-color faces
+/// 3. Emit single quads for merged rectangles instead of individual faces
+pub struct GreedyMesher {
+    /// Faces grouped by direction and then by slice depth
+    /// Key: (Face direction, slice depth) -> Vec of (u, v, color_index, color)
+    /// where u,v are the 2D coordinates within the slice
+    slices: HashMap<(Face, i32), Vec<(i32, i32, usize, Color)>>,
+}
+
+impl GreedyMesher {
+    pub fn new() -> Self {
+        Self {
+            slices: HashMap::new(),
+        }
+    }
+
+    /// Add a visible face to the mesher.
+    #[inline]
+    pub fn add_face(
+        &mut self,
+        global_x: i32,
+        global_y: i32,
+        global_z: i32,
+        face: Face,
+        color_index: usize,
+        color: Color,
+    ) {
+        // Convert 3D coordinates to 2D slice coordinates based on face direction
+        let (depth, u, v) = match face {
+            Face::PosX | Face::NegX => (global_x, global_y, global_z),
+            Face::PosY | Face::NegY => (global_y, global_x, global_z),
+            Face::PosZ | Face::NegZ => (global_z, global_x, global_y),
+        };
+
+        self.slices
+            .entry((face, depth))
+            .or_default()
+            .push((u, v, color_index, color));
+    }
+
+    /// Build greedy-meshed geometry into a ChunkMeshBuilder.
+    pub fn build_into(self, builder: &mut ChunkMeshBuilder) {
+        for ((face, depth), faces) in self.slices {
+            Self::mesh_slice(builder, face, depth, faces);
+        }
+    }
+
+    /// Mesh a single 2D slice using greedy meshing.
+    fn mesh_slice(
+        builder: &mut ChunkMeshBuilder,
+        face: Face,
+        depth: i32,
+        faces: Vec<(i32, i32, usize, Color)>,
+    ) {
+        if faces.is_empty() {
+            return;
+        }
+
+        // Build a 2D grid of the slice
+        // Key: (u, v) -> (color_index, color, used)
+        let mut grid: HashMap<(i32, i32), (usize, Color, bool)> = HashMap::new();
+        for (u, v, color_index, color) in faces {
+            grid.insert((u, v), (color_index, color, false));
+        }
+
+        // Find all unique (u, v) positions and sort them for consistent iteration
+        let mut positions: Vec<(i32, i32)> = grid.keys().copied().collect();
+        positions.sort();
+
+        // Greedy rectangle finding
+        for (start_u, start_v) in positions {
+            // Skip if already used
+            if let Some((_, _, used)) = grid.get(&(start_u, start_v)) {
+                if *used {
+                    continue;
+                }
+            } else {
+                continue;
+            }
+
+            let (color_index, color, _) = *grid.get(&(start_u, start_v)).unwrap();
+
+            // Expand in U direction as far as possible with same color
+            let mut end_u = start_u;
+            while let Some((ci, _, used)) = grid.get(&(end_u + 1, start_v)) {
+                if *used || *ci != color_index {
+                    break;
+                }
+                end_u += 1;
+            }
+
+            // Expand in V direction as far as possible, checking entire U span has same color
+            let mut end_v = start_v;
+            'v_expand: loop {
+                let next_v = end_v + 1;
+                // Check all cells in the U span at next_v
+                for u in start_u..=end_u {
+                    match grid.get(&(u, next_v)) {
+                        Some((ci, _, used)) if !*used && *ci == color_index => {}
+                        _ => break 'v_expand,
+                    }
+                }
+                end_v = next_v;
+            }
+
+            // Mark all cells in the rectangle as used
+            for u in start_u..=end_u {
+                for v in start_v..=end_v {
+                    if let Some(cell) = grid.get_mut(&(u, v)) {
+                        cell.2 = true;
+                    }
+                }
+            }
+
+            // Emit the merged quad
+            let width = (end_u - start_u + 1) as f32 * SUB_VOXEL_SIZE;
+            let height = (end_v - start_v + 1) as f32 * SUB_VOXEL_SIZE;
+
+            // Calculate center position of the merged quad
+            let (center_x, center_y, center_z) = Self::slice_to_world(
+                face,
+                depth,
+                start_u as f32 + (end_u - start_u) as f32 / 2.0,
+                start_v as f32 + (end_v - start_v) as f32 / 2.0,
+            );
+
+            let center = Vec3::new(center_x, center_y, center_z);
+            builder.add_quad(center, face, width, height, color);
+        }
+    }
+
+    /// Convert slice coordinates back to world coordinates.
+    #[inline]
+    fn slice_to_world(face: Face, depth: i32, u: f32, v: f32) -> (f32, f32, f32) {
+        let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
+        let d = depth as f32 / SUB_VOXEL_COUNT as f32 + offset;
+        let u_world = u / SUB_VOXEL_COUNT as f32 + offset;
+        let v_world = v / SUB_VOXEL_COUNT as f32 + offset;
+
+        match face {
+            Face::PosX => (d + SUB_VOXEL_SIZE / 2.0, u_world, v_world),
+            Face::NegX => (d - SUB_VOXEL_SIZE / 2.0, u_world, v_world),
+            Face::PosY => (u_world, d + SUB_VOXEL_SIZE / 2.0, v_world),
+            Face::NegY => (u_world, d - SUB_VOXEL_SIZE / 2.0, v_world),
+            Face::PosZ => (u_world, v_world, d + SUB_VOXEL_SIZE / 2.0),
+            Face::NegZ => (u_world, v_world, d - SUB_VOXEL_SIZE / 2.0),
+        }
+    }
+}
+
 /// Builder for constructing chunk meshes from multiple cubes.
 /// Combines all sub-voxels in a chunk into a single mesh with vertex colors.
 /// Supports hidden face culling to reduce triangle count.
@@ -127,58 +295,77 @@ pub struct ChunkMeshBuilder {
 }
 
 impl ChunkMeshBuilder {
-    /// Add a single face to the mesh.
+    /// Add a single face to the mesh (uniform size).
     #[inline]
+    #[allow(dead_code)]
     pub fn add_face(&mut self, position: Vec3, size: f32, face: Face, color: Color) {
-        let half = size / 2.0;
+        self.add_quad(position, face, size, size, color);
+    }
+
+    /// Add a quad with variable width and height for greedy meshing.
+    /// Width is in the first axis of the face plane, height is in the second.
+    #[inline]
+    pub fn add_quad(&mut self, position: Vec3, face: Face, width: f32, height: f32, color: Color) {
+        let half_w = width / 2.0;
+        let half_h = height / 2.0;
         let base_index = self.positions.len() as u32;
         let color_array = color.to_linear().to_f32_array();
         let normal = face.normal();
 
-        // Generate 4 vertices for the face
+        // Generate 4 vertices for the quad based on face direction
+        // Width and height map differently based on face orientation
         let vertices: [[f32; 3]; 4] = match face {
             Face::PosZ => [
-                [position.x - half, position.y - half, position.z + half],
-                [position.x + half, position.y - half, position.z + half],
-                [position.x + half, position.y + half, position.z + half],
-                [position.x - half, position.y + half, position.z + half],
+                [position.x - half_w, position.y - half_h, position.z],
+                [position.x + half_w, position.y - half_h, position.z],
+                [position.x + half_w, position.y + half_h, position.z],
+                [position.x - half_w, position.y + half_h, position.z],
             ],
             Face::NegZ => [
-                [position.x + half, position.y - half, position.z - half],
-                [position.x - half, position.y - half, position.z - half],
-                [position.x - half, position.y + half, position.z - half],
-                [position.x + half, position.y + half, position.z - half],
+                [position.x + half_w, position.y - half_h, position.z],
+                [position.x - half_w, position.y - half_h, position.z],
+                [position.x - half_w, position.y + half_h, position.z],
+                [position.x + half_w, position.y + half_h, position.z],
             ],
             Face::PosX => [
-                [position.x + half, position.y - half, position.z + half],
-                [position.x + half, position.y - half, position.z - half],
-                [position.x + half, position.y + half, position.z - half],
-                [position.x + half, position.y + half, position.z + half],
+                [position.x, position.y - half_w, position.z + half_h],
+                [position.x, position.y - half_w, position.z - half_h],
+                [position.x, position.y + half_w, position.z - half_h],
+                [position.x, position.y + half_w, position.z + half_h],
             ],
             Face::NegX => [
-                [position.x - half, position.y - half, position.z - half],
-                [position.x - half, position.y - half, position.z + half],
-                [position.x - half, position.y + half, position.z + half],
-                [position.x - half, position.y + half, position.z - half],
+                [position.x, position.y - half_w, position.z - half_h],
+                [position.x, position.y - half_w, position.z + half_h],
+                [position.x, position.y + half_w, position.z + half_h],
+                [position.x, position.y + half_w, position.z - half_h],
             ],
             Face::PosY => [
-                [position.x - half, position.y + half, position.z + half],
-                [position.x + half, position.y + half, position.z + half],
-                [position.x + half, position.y + half, position.z - half],
-                [position.x - half, position.y + half, position.z - half],
+                [position.x - half_w, position.y, position.z + half_h],
+                [position.x + half_w, position.y, position.z + half_h],
+                [position.x + half_w, position.y, position.z - half_h],
+                [position.x - half_w, position.y, position.z - half_h],
             ],
             Face::NegY => [
-                [position.x - half, position.y - half, position.z - half],
-                [position.x + half, position.y - half, position.z - half],
-                [position.x + half, position.y - half, position.z + half],
-                [position.x - half, position.y - half, position.z + half],
+                [position.x - half_w, position.y, position.z - half_h],
+                [position.x + half_w, position.y, position.z - half_h],
+                [position.x + half_w, position.y, position.z + half_h],
+                [position.x - half_w, position.y, position.z + half_h],
             ],
         };
 
         self.positions.extend_from_slice(&vertices);
         self.normals.extend_from_slice(&[normal; 4]);
-        self.uvs
-            .extend_from_slice(&[[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]]);
+
+        // Scale UVs based on quad dimensions for proper texture tiling
+        let uv_scale_w = width / SUB_VOXEL_SIZE;
+        let uv_scale_h = height / SUB_VOXEL_SIZE;
+        self.uvs.extend_from_slice(&[
+            [0.0, uv_scale_h],
+            [uv_scale_w, uv_scale_h],
+            [uv_scale_w, 0.0],
+            [0.0, 0.0],
+        ]);
+
         for _ in 0..4 {
             self.colors.push(color_array);
         }
@@ -198,6 +385,7 @@ impl ChunkMeshBuilder {
     /// Only adds faces where the neighbor array indicates no adjacent sub-voxel.
     /// neighbors order: [+X, -X, +Y, -Y, +Z, -Z]
     #[inline]
+    #[allow(dead_code)]
     pub fn add_cube_culled(
         &mut self,
         position: Vec3,
@@ -576,16 +764,15 @@ fn calculate_sub_voxel_pos(x: i32, y: i32, z: i32, sub_x: i32, sub_y: i32, sub_z
     )
 }
 
-/// Spawn all voxels using chunk-based meshing with hidden face culling.
+/// Spawn all voxels using chunk-based meshing with greedy face merging.
 ///
 /// This function:
 /// 1. First pass: Collects all occupied sub-voxel positions into an OccupancyGrid
-/// 2. Second pass: Groups sub-voxels by chunk (16x16x16), applies face culling,
-///    builds a single mesh per chunk with vertex colors
-/// 3. Spawns one entity per chunk instead of one entity per sub-voxel
+/// 2. Second pass: For each sub-voxel, determine visible faces and add to GreedyMesher
+/// 3. Third pass: Greedy mesher merges adjacent same-color faces into larger quads
+/// 4. Spawns one entity per chunk with optimized mesh
 ///
-/// Hidden face culling removes interior faces between adjacent sub-voxels,
-/// reducing triangle count by 60-90% for solid geometry.
+/// Greedy meshing reduces quad count by 90%+ for large flat surfaces.
 fn spawn_voxels_chunked(
     ctx: &mut ChunkSpawnContext,
     map: &MapData,
@@ -597,13 +784,13 @@ fn spawn_voxels_chunked(
     progress.update(LoadProgress::SpawningVoxels(0.0));
     let mut occupancy = OccupancyGrid::new();
 
-    // Collect all sub-voxel data for both passes
-    let mut all_sub_voxels: Vec<(i32, i32, i32, i32, i32, i32, Vec3, Color)> = Vec::new();
+    // Collect all sub-voxel data for subsequent passes
+    let mut all_sub_voxels: Vec<(i32, i32, i32, i32, i32, i32, Vec3, usize, Color)> = Vec::new();
 
     for (index, voxel_data) in map.world.voxels.iter().enumerate() {
-        // Update progress (occupancy collection phase: 0-20%)
+        // Update progress (occupancy collection phase: 0-15%)
         if index % 100 == 0 {
-            let voxel_progress = (index as f32) / (total_voxels as f32) * 0.2;
+            let voxel_progress = (index as f32) / (total_voxels as f32) * 0.15;
             progress.update(LoadProgress::SpawningVoxels(voxel_progress));
         }
 
@@ -623,35 +810,26 @@ fn spawn_voxels_chunked(
             occupancy.insert(x, y, z, sub_x, sub_y, sub_z);
 
             let world_pos = calculate_sub_voxel_pos(x, y, z, sub_x, sub_y, sub_z);
+            let color_index =
+                VoxelMaterialPalette::get_material_index(x, y, z, sub_x, sub_y, sub_z);
             let color = get_sub_voxel_color(x, y, z, sub_x, sub_y, sub_z);
-            all_sub_voxels.push((x, y, z, sub_x, sub_y, sub_z, world_pos, color));
+            all_sub_voxels.push((x, y, z, sub_x, sub_y, sub_z, world_pos, color_index, color));
         }
     }
 
-    // Second pass: Build chunk meshes with face culling
-    let mut chunks: HashMap<IVec3, ChunkMeshBuilder> = HashMap::new();
+    // Second pass: Collect visible faces into per-chunk greedy meshers
+    let mut chunk_meshers: HashMap<IVec3, GreedyMesher> = HashMap::new();
     let mut sub_voxel_positions: Vec<(Vec3, (Vec3, Vec3))> = Vec::new();
 
     let total_sub_voxels_count = all_sub_voxels.len();
-    for (index, (x, y, z, sub_x, sub_y, sub_z, world_pos, color)) in
+    for (index, (x, y, z, sub_x, sub_y, sub_z, world_pos, color_index, color)) in
         all_sub_voxels.into_iter().enumerate()
     {
-        // Update progress (mesh building phase: 20-50%)
+        // Update progress (face collection phase: 15-35%)
         if index % 1000 == 0 {
-            let build_progress = 0.2 + (index as f32) / (total_sub_voxels_count as f32) * 0.3;
+            let build_progress = 0.15 + (index as f32) / (total_sub_voxels_count as f32) * 0.2;
             progress.update(LoadProgress::SpawningVoxels(build_progress));
         }
-
-        // Check all 6 neighbors for face culling
-        // neighbors order: [+X, -X, +Y, -Y, +Z, -Z]
-        let neighbors = [
-            occupancy.has_neighbor(x, y, z, sub_x, sub_y, sub_z, Face::PosX),
-            occupancy.has_neighbor(x, y, z, sub_x, sub_y, sub_z, Face::NegX),
-            occupancy.has_neighbor(x, y, z, sub_x, sub_y, sub_z, Face::PosY),
-            occupancy.has_neighbor(x, y, z, sub_x, sub_y, sub_z, Face::NegY),
-            occupancy.has_neighbor(x, y, z, sub_x, sub_y, sub_z, Face::PosZ),
-            occupancy.has_neighbor(x, y, z, sub_x, sub_y, sub_z, Face::NegZ),
-        ];
 
         // Determine which chunk this sub-voxel belongs to
         let chunk_pos = IVec3::new(
@@ -660,9 +838,29 @@ fn spawn_voxels_chunked(
             (world_pos.z / CHUNK_SIZE as f32).floor() as i32,
         );
 
-        // Add cube with culled faces to chunk mesh builder
-        let builder = chunks.entry(chunk_pos).or_default();
-        builder.add_cube_culled(world_pos, SUB_VOXEL_SIZE, color, neighbors);
+        // Global sub-voxel coordinates for the greedy mesher
+        let global_x = x * SUB_VOXEL_COUNT + sub_x;
+        let global_y = y * SUB_VOXEL_COUNT + sub_y;
+        let global_z = z * SUB_VOXEL_COUNT + sub_z;
+
+        let mesher = chunk_meshers
+            .entry(chunk_pos)
+            .or_insert_with(GreedyMesher::new);
+
+        // Check each face and add visible ones to the mesher
+        let faces = [
+            Face::PosX,
+            Face::NegX,
+            Face::PosY,
+            Face::NegY,
+            Face::PosZ,
+            Face::NegZ,
+        ];
+        for face in faces {
+            if !occupancy.has_neighbor(x, y, z, sub_x, sub_y, sub_z, face) {
+                mesher.add_face(global_x, global_y, global_z, face, color_index, color);
+            }
+        }
 
         // Calculate bounds for collision detection
         let half_size = SUB_VOXEL_SIZE / 2.0;
@@ -673,16 +871,24 @@ fn spawn_voxels_chunked(
         sub_voxel_positions.push((world_pos, bounds));
     }
 
-    // Spawn chunk entities
-    let total_chunks = chunks.len();
-    for (index, (chunk_pos, builder)) in chunks.into_iter().enumerate() {
+    // Third pass: Build greedy meshes and spawn chunk entities
+    let total_chunks = chunk_meshers.len();
+    let mut total_quads = 0usize;
+
+    for (index, (chunk_pos, mesher)) in chunk_meshers.into_iter().enumerate() {
+        // Update progress (mesh building phase: 35-60%)
+        let spawn_progress = 0.35 + (index as f32) / (total_chunks as f32) * 0.25;
+        progress.update(LoadProgress::SpawningVoxels(spawn_progress));
+
+        let mut builder = ChunkMeshBuilder::default();
+        mesher.build_into(&mut builder);
+
         if builder.is_empty() {
             continue;
         }
 
-        // Update progress (spawning phase)
-        let spawn_progress = 0.5 + (index as f32) / (total_chunks as f32) * 0.3;
-        progress.update(LoadProgress::SpawningVoxels(spawn_progress));
+        // Count quads for stats (4 vertices per quad)
+        total_quads += builder.positions.len() / 4;
 
         let mesh = ctx.meshes.add(builder.build());
         ctx.commands.spawn((
@@ -694,12 +900,11 @@ fn spawn_voxels_chunked(
     }
 
     // Spawn invisible collision entities for the spatial grid
-    // These are needed for physics/collision detection
     let total_sub_voxels = sub_voxel_positions.len();
     for (index, (world_pos, bounds)) in sub_voxel_positions.into_iter().enumerate() {
-        // Update progress (collision setup phase)
+        // Update progress (collision setup phase: 60-100%)
         if index % 1000 == 0 {
-            let collision_progress = 0.8 + (index as f32) / (total_sub_voxels as f32) * 0.2;
+            let collision_progress = 0.6 + (index as f32) / (total_sub_voxels as f32) * 0.4;
             progress.update(LoadProgress::SpawningVoxels(collision_progress));
         }
 
@@ -716,8 +921,8 @@ fn spawn_voxels_chunked(
     }
 
     info!(
-        "Spawned {} chunks with {} collision entities",
-        total_chunks, total_sub_voxels
+        "Spawned {} chunks with {} quads ({} collision entities) - greedy meshing enabled",
+        total_chunks, total_quads, total_sub_voxels
     );
 }
 

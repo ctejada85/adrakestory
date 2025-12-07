@@ -4,7 +4,7 @@
 
 This document outlines performance optimizations for the voxel rendering system. The current implementation creates individual entities and materials for each sub-voxel, which causes significant performance issues at scale.
 
-**Status**: 🚧 In Progress (Tiers 1-4 Complete)  
+**Status**: 🚧 In Progress (Tiers 1-5 Complete)  
 **Priority**: High  
 **Estimated Total Impact**: 10-100x performance improvement  
 **Last Updated**: 2025-12-07
@@ -398,7 +398,7 @@ impl ChunkMeshBuilder {
 
 ## Tier 5: Greedy Meshing (High Impact, High Effort)
 
-### Status: 📋 Not Started
+### Status: ✅ IMPLEMENTED (2025-12-07)
 
 ### Problem
 
