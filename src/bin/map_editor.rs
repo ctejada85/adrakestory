@@ -131,9 +131,14 @@ fn main() {
         .add_systems(Update, tools::handle_voxel_removal.after(render_ui))
         .add_systems(Update, tools::handle_entity_placement.after(render_ui))
         .add_systems(Update, tools::handle_selection.after(render_ui))
-        // NEW: Unified input handling systems (replaces 15 old systems)
+        // Unified input handling systems - must run in order:
+        // 1. handle_keyboard_input reads keyboard and sends EditorInputEvent
+        // 2. handle_transformation_operations processes those events
         .add_systems(Update, tools::handle_keyboard_input)
-        .add_systems(Update, tools::handle_transformation_operations)
+        .add_systems(
+            Update,
+            tools::handle_transformation_operations.after(tools::handle_keyboard_input),
+        )
         // Keep rendering systems
         .add_systems(Update, tools::render_selection_highlights)
         .add_systems(Update, tools::render_transform_preview)

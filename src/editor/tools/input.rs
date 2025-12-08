@@ -100,11 +100,12 @@ fn handle_selection_mode_input(
         events.send(EditorInputEvent::DeselectAll);
     }
 
-    // Entity movement with arrow keys (fine-grained movement for entities)
+    // Entity movement with arrow keys (grid-aligned movement for entities)
+    // Entities should move in full grid units to stay aligned with voxels
     let step = if keyboard.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
-        1.0
+        5.0 // Move 5 grid units with Shift
     } else {
-        0.5
+        1.0 // Move 1 grid unit normally
     };
 
     let mut offset = Vec3::ZERO;
