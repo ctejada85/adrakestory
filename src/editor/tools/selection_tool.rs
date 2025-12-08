@@ -56,6 +56,21 @@ pub enum TransformMode {
     Rotate,
 }
 
+/// Resource tracking drag-to-select state
+#[derive(Resource, Default)]
+pub struct DragSelectState {
+    /// Whether we're currently in a drag-select operation
+    pub is_dragging: bool,
+    /// Last grid position we added to selection (to avoid duplicates)
+    pub last_grid_pos: Option<(i32, i32, i32)>,
+    /// The initial grid position when click started (for toggle detection)
+    pub start_grid_pos: Option<(i32, i32, i32)>,
+    /// Whether the cursor moved to a different voxel during drag
+    pub did_drag_move: bool,
+    /// Whether the starting voxel was already selected (for toggle on release)
+    pub start_was_selected: bool,
+}
+
 /// Event to trigger selection highlight update
 #[derive(Event)]
 pub struct UpdateSelectionHighlights;
@@ -105,6 +120,7 @@ pub fn handle_selection(
     mouse_button: Res<ButtonInput<MouseButton>>,
     mut contexts: EguiContexts,
     mut update_events: EventWriter<UpdateSelectionHighlights>,
+    mut drag_state: ResMut<DragSelectState>,
     camera_query: Query<(&Camera, &GlobalTransform), With<EditorCamera>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
@@ -117,6 +133,28 @@ pub fn handle_selection(
     // Also check is_using_pointer() for active interactions like dragging resize handles
     let ctx = contexts.ctx_mut();
     if ctx.is_pointer_over_area() || ctx.is_using_pointer() {
+        return;
+    }
+
+    // Handle mouse release - stop drag selection and handle toggle
+    if mouse_button.just_released(MouseButton::Left) {
+        if drag_state.is_dragging {
+            // If we didn't move during drag and the voxel was already selected, deselect it
+            if !drag_state.did_drag_move && drag_state.start_was_selected {
+                if let Some(start_pos) = drag_state.start_grid_pos {
+                    editor_state.selected_voxels.remove(&start_pos);
+                    info!("Deselected voxel at {:?}", start_pos);
+                    update_events.send(UpdateSelectionHighlights);
+                }
+            }
+
+            // Reset drag state
+            drag_state.is_dragging = false;
+            drag_state.last_grid_pos = None;
+            drag_state.start_grid_pos = None;
+            drag_state.did_drag_move = false;
+            drag_state.start_was_selected = false;
+        }
         return;
     }
 
@@ -157,7 +195,7 @@ pub fn handle_selection(
         }
     }
 
-    // If we found an entity, select/deselect it
+    // If we found an entity, select/deselect it (no drag for entities)
     if let Some(entity_idx) = closest_entity_index {
         // Clear voxel selection when selecting entities
         editor_state.selected_voxels.clear();
@@ -185,17 +223,90 @@ pub fn handle_selection(
     // Clear entity selection when selecting voxels
     editor_state.selected_entities.clear();
 
-    // Toggle selection of voxel at this position
-    if editor_state.selected_voxels.contains(&grid_pos) {
-        editor_state.selected_voxels.remove(&grid_pos);
-        info!("Deselected voxel at {:?}", grid_pos);
-    } else {
+    // Check if this voxel was already selected (for toggle on release)
+    let was_selected = editor_state.selected_voxels.contains(&grid_pos);
+
+    // Start drag-select mode
+    drag_state.is_dragging = true;
+    drag_state.last_grid_pos = Some(grid_pos);
+    drag_state.start_grid_pos = Some(grid_pos);
+    drag_state.did_drag_move = false;
+    drag_state.start_was_selected = was_selected;
+
+    // Add voxel to selection (we'll handle deselect on release if no drag occurred)
+    if !was_selected {
         editor_state.selected_voxels.insert(grid_pos);
         info!("Selected voxel at {:?}", grid_pos);
     }
 
     // Trigger highlight update
     update_events.send(UpdateSelectionHighlights);
+}
+
+/// Handle continuous drag selection while mouse is held
+pub fn handle_drag_selection(
+    cursor_state: Res<CursorState>,
+    mut editor_state: ResMut<EditorState>,
+    mouse_button: Res<ButtonInput<MouseButton>>,
+    mut contexts: EguiContexts,
+    mut update_events: EventWriter<UpdateSelectionHighlights>,
+    mut drag_state: ResMut<DragSelectState>,
+) {
+    // Only process if we're in drag-select mode
+    if !drag_state.is_dragging {
+        return;
+    }
+
+    // Check if select tool is active
+    if !matches!(editor_state.active_tool, EditorTool::Select) {
+        drag_state.is_dragging = false;
+        drag_state.last_grid_pos = None;
+        drag_state.start_grid_pos = None;
+        drag_state.did_drag_move = false;
+        drag_state.start_was_selected = false;
+        return;
+    }
+
+    // Stop drag if mouse is released
+    if !mouse_button.pressed(MouseButton::Left) {
+        drag_state.is_dragging = false;
+        drag_state.last_grid_pos = None;
+        drag_state.start_grid_pos = None;
+        drag_state.did_drag_move = false;
+        drag_state.start_was_selected = false;
+        return;
+    }
+
+    // Check if pointer is over any UI area
+    let ctx = contexts.ctx_mut();
+    if ctx.is_pointer_over_area() || ctx.is_using_pointer() {
+        return;
+    }
+
+    // Get cursor grid position
+    let Some(grid_pos) = cursor_state.grid_pos else {
+        return;
+    };
+
+    // Only process if this is a different position than last time
+    if drag_state.last_grid_pos == Some(grid_pos) {
+        return;
+    }
+
+    // Mark that we've moved to a different voxel
+    drag_state.did_drag_move = true;
+
+    // Update last position
+    drag_state.last_grid_pos = Some(grid_pos);
+
+    // Add voxel to selection if not already selected
+    if !editor_state.selected_voxels.contains(&grid_pos) {
+        editor_state.selected_voxels.insert(grid_pos);
+        info!("Drag-selected voxel at {:?}", grid_pos);
+
+        // Trigger highlight update
+        update_events.send(UpdateSelectionHighlights);
+    }
 }
 
 /// Ray-sphere intersection test

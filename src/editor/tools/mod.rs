@@ -16,11 +16,13 @@ pub use input::{
 
 // Keep selection tool exports for rendering and mouse selection
 pub use selection_tool::{
+    handle_drag_selection,
     handle_selection,
     render_rotation_preview,
     render_selection_highlights,
     render_transform_preview,
     ActiveTransform,
+    DragSelectState,
     TransformMode,
     UpdateSelectionHighlights,
     // Keep these events for UI button compatibility

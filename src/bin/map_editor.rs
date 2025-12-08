@@ -4,6 +4,7 @@
 
 use adrakestory::editor::recent_files::{OpenRecentFileEvent, RecentFiles};
 use adrakestory::editor::tools::ActiveTransform;
+use adrakestory::editor::tools::DragSelectState;
 use adrakestory::editor::ui::dialogs::{AppExitEvent, MapDataChangedEvent};
 use adrakestory::editor::ui::properties::TransformEvents;
 use adrakestory::editor::{camera, cursor, file_io, grid, renderer, state, tools, ui};
@@ -71,6 +72,7 @@ fn main() {
         .init_resource::<InfiniteGridConfig>()
         .init_resource::<ActiveTransform>()
         .init_resource::<KeyboardEditMode>()
+        .init_resource::<DragSelectState>()
         .init_resource::<ui::OutlinerState>()
         .insert_resource(RecentFiles::load()) // Load recent files from disk
         .add_event::<ui::dialogs::FileSelectedEvent>()
@@ -133,6 +135,10 @@ fn main() {
         .add_systems(Update, tools::handle_voxel_removal.after(render_ui))
         .add_systems(Update, tools::handle_entity_placement.after(render_ui))
         .add_systems(Update, tools::handle_selection.after(render_ui))
+        .add_systems(
+            Update,
+            tools::handle_drag_selection.after(tools::handle_selection),
+        )
         // Unified input handling systems - must run in order:
         // 1. handle_keyboard_input reads keyboard and sends EditorInputEvent
         // 2. handle_transformation_operations processes those events
