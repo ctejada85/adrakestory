@@ -7,7 +7,7 @@
 //! - Setting grounded state
 
 use super::collision::get_sub_voxel_bounds;
-use super::components::{Player, SubVoxel};
+use super::components::{Npc, Player, SubVoxel};
 use super::resources::SpatialGrid;
 use bevy::prelude::*;
 
@@ -121,6 +121,54 @@ pub fn apply_physics(
         } else {
             transform.translation.y = new_y;
             player.is_grounded = false;
+        }
+    }
+}
+
+/// System that handles collision between the player and NPCs.
+///
+/// This system:
+/// - Detects sphere-sphere collision between player and NPCs
+/// - Pushes the player away from NPCs when colliding
+/// - Prevents the player from walking through NPCs
+pub fn apply_npc_collision(
+    npc_query: Query<(&Npc, &Transform), Without<Player>>,
+    mut player_query: Query<(&Player, &mut Transform)>,
+) {
+    let Ok((player, mut player_transform)) = player_query.get_single_mut() else {
+        return;
+    };
+
+    let player_pos = player_transform.translation;
+    let player_radius = player.radius;
+
+    // Check collision with all NPCs (sphere-sphere collision)
+    for (npc, npc_transform) in &npc_query {
+        let npc_pos = npc_transform.translation;
+
+        // Calculate horizontal distance (ignore Y for now to allow jumping over)
+        let dx = player_pos.x - npc_pos.x;
+        let dz = player_pos.z - npc_pos.z;
+        let horizontal_distance = (dx * dx + dz * dz).sqrt();
+
+        // Check if there's vertical overlap (player and NPC are at similar heights)
+        let vertical_overlap = (player_pos.y - npc_pos.y).abs() < (player_radius + npc.radius);
+
+        let min_distance = player_radius + npc.radius;
+
+        if horizontal_distance < min_distance && vertical_overlap {
+            // Push player away from NPC horizontally
+            if horizontal_distance > 0.001 {
+                let penetration = min_distance - horizontal_distance;
+                let direction_x = dx / horizontal_distance;
+                let direction_z = dz / horizontal_distance;
+
+                player_transform.translation.x += direction_x * penetration;
+                player_transform.translation.z += direction_z * penetration;
+            } else {
+                // Player is exactly on NPC, push in arbitrary direction
+                player_transform.translation.x += min_distance;
+            }
         }
     }
 }

@@ -18,7 +18,7 @@ pub use super::player_movement::move_player;
 pub use super::character_rotation::rotate_character_model;
 
 // Re-export physics systems
-pub use super::physics::{apply_gravity, apply_physics};
+pub use super::physics::{apply_gravity, apply_npc_collision, apply_physics};
 
 // Re-export camera control
 pub use super::camera::{follow_player_camera, rotate_camera};

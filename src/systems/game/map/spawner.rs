@@ -1,7 +1,7 @@
 //! Map spawning system that instantiates loaded map data into the game world.
 
 use super::super::character::CharacterModel;
-use super::super::components::{CollisionBox, GameCamera, Player, SubVoxel, Voxel};
+use super::super::components::{CollisionBox, GameCamera, Npc, Player, SubVoxel, Voxel};
 use super::super::resources::{GameInitialized, SpatialGrid};
 use super::format::{EntityType, MapData, SubVoxelPattern};
 use super::loader::{LoadProgress, LoadedMapData, MapLoadProgress};
@@ -1158,6 +1158,9 @@ fn spawn_entities(ctx: &mut EntitySpawnContext, map: &MapData, progress: &mut Ma
             EntityType::PlayerSpawn => {
                 spawn_player(ctx, Vec3::new(x, y, z));
             }
+            EntityType::Npc => {
+                spawn_npc(ctx, Vec3::new(x, y, z), &entity_data.properties);
+            }
             EntityType::Enemy => {
                 // TODO: Implement enemy spawning
                 info!("Enemy spawn at ({}, {}, {}) - not yet implemented", x, y, z);
@@ -1252,6 +1255,66 @@ fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
         Visibility::Hidden,
         CollisionBox,
     ));
+}
+
+/// Spawn an NPC entity with a 3D character model.
+///
+/// This function creates:
+/// 1. An NPC entity with collision data (no visible mesh)
+/// 2. A GLB character model as a child entity for visuals
+///
+/// NPCs are static (non-moving) and block player movement.
+/// Properties can customize the NPC's name, model, and collision radius.
+fn spawn_npc(
+    ctx: &mut EntitySpawnContext,
+    position: Vec3,
+    properties: &std::collections::HashMap<String, String>,
+) {
+    // Parse NPC properties with defaults
+    let npc_radius = properties
+        .get("radius")
+        .and_then(|r| r.parse::<f32>().ok())
+        .unwrap_or(0.3);
+
+    let npc_name = properties
+        .get("name")
+        .cloned()
+        .unwrap_or_else(|| "NPC".to_string());
+
+    // Load the NPC model (GLB file) - using the same default model as player for now
+    // TODO: Support custom models via properties when Bevy supports dynamic asset paths
+    let npc_scene: Handle<Scene> = ctx
+        .asset_server
+        .load(GltfAssetLabel::Scene(0).from_asset("characters/base_basic_pbr.glb"));
+
+    info!("Loading NPC model: characters/base_basic_pbr.glb#Scene0");
+
+    // Spawn the NPC entity (parent) with collision component
+    let npc_entity = ctx
+        .commands
+        .spawn((
+            Transform::from_translation(position),
+            Visibility::default(),
+            Npc {
+                name: npc_name.clone(),
+                radius: npc_radius,
+            },
+        ))
+        .id();
+
+    // Spawn the character model as a child entity
+    // Scale and offset to align with collision sphere
+    ctx.commands
+        .spawn((
+            SceneRoot(npc_scene),
+            Transform::from_translation(Vec3::new(0.0, -0.3, 0.0)).with_scale(Vec3::splat(0.5)),
+        ))
+        .set_parent(npc_entity);
+
+    info!(
+        "Spawned NPC '{}' at position: {:?} with radius {}",
+        npc_name, position, npc_radius
+    );
 }
 
 /// Spawn lighting from the map data.

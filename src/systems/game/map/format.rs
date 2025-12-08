@@ -207,6 +207,8 @@ pub struct EntityData {
 pub enum EntityType {
     /// Player spawn point
     PlayerSpawn,
+    /// NPC spawn point (static, non-moving characters)
+    Npc,
     /// Enemy spawn point
     Enemy,
     /// Item spawn point

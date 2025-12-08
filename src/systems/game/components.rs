@@ -58,3 +58,22 @@ pub struct GameCamera {
     /// Current target position the camera is following (typically the player's position)
     pub target_position: Vec3,
 }
+
+/// Component for NPC entities.
+/// NPCs are static characters that the player can interact with.
+#[derive(Component)]
+pub struct Npc {
+    /// Display name of the NPC
+    pub name: String,
+    /// Collision radius for player collision
+    pub radius: f32,
+}
+
+impl Default for Npc {
+    fn default() -> Self {
+        Self {
+            name: "NPC".to_string(),
+            radius: 0.3,
+        }
+    }
+}

@@ -229,6 +229,13 @@
             position: (4.5, 0.5, 1.5),
             properties: {},
         ),
+        (
+            entity_type: Npc,
+            position: (5.5, 1.0, 2.5),
+            properties: {
+                "name": "Village Elder",
+            },
+        ),
     ],
     lighting: (
         ambient_intensity: 0.3,

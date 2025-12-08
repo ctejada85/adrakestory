@@ -25,8 +25,8 @@ use systems::game::map::{
     spawn_map_system, update_chunk_lods, LoadedMapData, MapLoadProgress, MapLoader,
 };
 use systems::game::systems::{
-    apply_gravity, apply_physics, follow_player_camera, handle_escape_key, move_player,
-    rotate_camera, rotate_character_model, toggle_collision_box, toggle_fullscreen,
+    apply_gravity, apply_npc_collision, apply_physics, follow_player_camera, handle_escape_key,
+    move_player, rotate_camera, rotate_character_model, toggle_collision_box, toggle_fullscreen,
     update_collision_box,
 };
 use systems::intro_animation::systems::{animate_intro, cleanup_intro, setup_intro};
@@ -102,7 +102,7 @@ fn main() {
         // Physics phase: Apply gravity and physics (in order)
         .add_systems(
             Update,
-            (apply_gravity, apply_physics)
+            (apply_gravity, apply_physics, apply_npc_collision)
                 .chain()
                 .in_set(GameSystemSet::Physics),
         )
