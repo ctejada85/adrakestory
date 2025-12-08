@@ -306,11 +306,9 @@ fn render_entities_section(
                     ui.memory_mut(|mem| mem.toggle_popup(ui.make_persistent_id("add_entity_popup")));
                 }
                 
-                if !editor_state.selected_entities.is_empty() {
-                    if ui.small_button("Deselect").clicked() {
-                        editor_state.selected_entities.clear();
-                        selection_events.send(UpdateSelectionHighlights);
-                    }
+                if !editor_state.selected_entities.is_empty() && ui.small_button("Deselect").clicked() {
+                    editor_state.selected_entities.clear();
+                    selection_events.send(UpdateSelectionHighlights);
                 }
             });
         });
