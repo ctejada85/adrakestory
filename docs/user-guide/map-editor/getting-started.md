@@ -90,7 +90,7 @@ When you launch the map editor, it starts with a **blank canvas** - an empty wor
 
 ### Placing Voxels
 
-1. Select the **Voxel Tool** (click toolbar button or press `B`)
+1. Select the **Voxel Place Tool** (click toolbar button or press `B`)
 2. Choose voxel type from Properties panel:
    - **Grass**: Green terrain
    - **Dirt**: Brown terrain
@@ -101,12 +101,22 @@ When you launch the map editor, it starts with a **blank canvas** - an empty wor
    - **Staircase**: Diagonal steps
    - **Pillar**: Vertical column
 4. Click in the viewport to place voxels
+5. **Drag to place multiple**: Hold left-click and drag to draw lines of voxels
 
 ### Removing Voxels
 
-1. Select the **Voxel Tool**
-2. Right-click on a voxel to remove it
-3. Or select voxels and press `Delete`
+1. Select the **Voxel Remove Tool** (press `X`)
+2. Click on a voxel to remove it
+3. **Drag to remove multiple**: Hold left-click and drag across voxels to remove them
+4. Or select voxels with the Select Tool and press `Delete`
+
+### Selecting Voxels
+
+1. Select the **Select Tool** (press `V`)
+2. Click on voxels to select them
+3. **Drag to select multiple**: Hold left-click and drag across voxels to select them all
+4. Click on a selected voxel to deselect it
+5. Use `Delete` or `Backspace` to remove selected voxels
 
 ### Placing Entities
 

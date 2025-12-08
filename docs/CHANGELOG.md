@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Map Editor - Drag-to-Place Voxels**: Hold left-click and drag with Voxel Place tool to place multiple voxels
+  - Voxels placed in direction of cursor movement
+  - Extends from the last placed voxel position
+  - Makes drawing lines and walls much faster
+
+- **Map Editor - Drag-to-Remove Voxels**: Hold left-click and drag with Voxel Remove tool to remove multiple voxels
+  - Removes each voxel the cursor passes over
+  - Quickly clear areas by dragging across them
+
+- **Map Editor - Drag-to-Select**: Hold left-click and drag with Select tool to select multiple voxels
+  - Selects each voxel the cursor passes over
+  - Click on already-selected voxel (without dragging) to deselect
+
 - **Map Editor - Recent Files**: Added Recent Files feature to File menu
   - Tracks last 10 opened map files
   - Persists across editor sessions (stored in user config directory)

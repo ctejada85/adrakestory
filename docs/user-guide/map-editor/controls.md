@@ -14,11 +14,14 @@ Complete reference for all map editor controls and shortcuts.
 | **Pan Camera (Alt 2)** | Space + Left-click + Drag |
 | **Pan Camera (Trackpad)** | Cmd/Ctrl + Left-click + Drag |
 | **Zoom In/Out** | Mouse Wheel |
-| **Place Voxel** | Left-click (Voxel Tool active) |
-| **Remove Voxel** | Right-click on voxel (Voxel Tool active) |
+| **Place Voxel** | Left-click (Voxel Place Tool) |
+| **Drag Place Voxels** | Left-click + Drag (Voxel Place Tool) |
+| **Remove Voxel** | Left-click (Voxel Remove Tool) |
+| **Drag Remove Voxels** | Left-click + Drag (Voxel Remove Tool) |
 | **Place Entity** | Left-click (Entity Tool active) |
 | **Select Item** | Left-click (Select Tool active) |
-| **Multi-Select** | Shift + Left-click |
+| **Drag Select** | Left-click + Drag (Select Tool) |
+| **Toggle Selection** | Click on already selected voxel |
 
 ### UI Interactions
 
@@ -145,17 +148,18 @@ When keyboard edit mode is active, you'll see a green **⌨ KEYBOARD MODE** indi
    - With Entity Tool: Left-click to place entity
 6. Press `Escape` to return to normal mouse control when done
 
-### Voxel Tool (`B`)
+### Voxel Place Tool (`B`)
 
-When the Voxel Tool is active:
+When the Voxel Place Tool is active:
 
 | Action | Control |
 |--------|---------|
 | **Place Voxel** | Left-click in viewport |
-| **Remove Voxel** | Right-click on voxel |
+| **Drag Place** | Left-click + Drag to place multiple voxels |
 | **Change Type** | Use dropdown in Properties panel |
 | **Change Pattern** | Use dropdown in Properties panel |
-| **Quick Delete** | Hold `Shift` + Left-click |
+
+> **Tip:** When dragging to place voxels, they are placed in the direction of your cursor movement, extending from the last placed voxel. This makes it easy to draw lines and walls.
 
 **Available Voxel Types:**
 - Grass (Green terrain)
@@ -168,6 +172,18 @@ When the Voxel Tool is active:
 - Platform (Flat surface)
 - Staircase (Diagonal steps)
 - Pillar (Vertical column)
+
+### Voxel Remove Tool (`X`)
+
+When the Voxel Remove Tool is active:
+
+| Action | Control |
+|--------|---------|
+| **Remove Voxel** | Left-click on voxel |
+| **Drag Remove** | Left-click + Drag to remove multiple voxels |
+| **Quick Delete** | `Delete` or `Backspace` key |
+
+> **Tip:** Drag across voxels to quickly clear areas. Each voxel under the cursor as you drag will be removed.
 
 ### Entity Tool (`E`)
 
@@ -192,11 +208,14 @@ When the Select Tool is active:
 | Action | Control |
 |--------|---------|
 | **Select Voxel** | Left-click on voxel (works in full 3D space) |
+| **Drag Select** | Left-click + Drag to select multiple voxels |
 | **Select Voxel (Keyboard)** | `Enter` (when in keyboard mode) |
-| **Toggle Selection** | Left-click on already selected voxel |
+| **Toggle Selection** | Click on already selected voxel (without dragging) |
 | **Delete Selected** | `Delete` or `Backspace` key |
 | **Delete via UI** | Click "🗑 Delete Selected" button in Properties panel |
 | **Clear Selection** | Click "Clear Selection" button in Properties panel |
+
+> **Tip:** Drag across voxels to quickly select multiple voxels at once. Clicking on an already-selected voxel will deselect it (if you don't drag).
 
 **Visual Feedback:**
 - Selected voxels are highlighted with a bright yellow wireframe outline
@@ -204,11 +223,6 @@ When the Select Tool is active:
 - Selection persists until cleared or tool is changed
 - **3D Selection**: Can select voxels at any height in the 3D space, not just ground level
 
-**Future Features (Phase 2):**
-- Multi-select with `Shift` + Left-click
-- Box selection with Left-click + Drag
-- Move selected voxels
-- Copy/paste operations
 ### Move Mode (`G` in Select Tool)
 
 When in Move mode (after pressing `G` with selected voxels):

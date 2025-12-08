@@ -4,8 +4,8 @@
 
 This document tracks the implementation status of the A Drake's Story Map Editor.
 
-**Last Updated**: 2025-10-24
-**Status**: ✅ **FULLY FUNCTIONAL** - File operations, rendering, save functionality, recent files, and complete keyboard shortcuts
+**Last Updated**: 2025-12-08
+**Status**: ✅ **FULLY FUNCTIONAL** - File operations, rendering, save functionality, recent files, drag operations, and complete keyboard shortcuts
 **Build Status**: ✅ Passing
 **Runtime Status**: ✅ Complete with file I/O, save/load, 3D rendering, recent files, and all tool shortcuts
 **Documentation Status**: ✅ Reorganized and consolidated (2025-10-24)
@@ -95,9 +95,9 @@ This document tracks the implementation status of the A Drake's Story Map Editor
   - ✅ Confirm (Enter) / Cancel (Escape)
   - ✅ History integration for undo/redo
   - ✅ UI controls (Move/Confirm/Cancel buttons)
+- ✅ **Drag-to-Select** - Drag to select multiple voxels
 - ⏳ Rotation operation (R key) (Phase 2)
 - ⏳ Multi-select with Shift (Phase 2)
-- ⏳ Box selection with drag (Phase 2)
 - ⏳ Copy/paste operations (Phase 2)
 
 ### 6. UI Components
@@ -299,6 +299,24 @@ map-editor/
 - ✅ **Keyboard Mode Support**: Placement position calculated correctly in keyboard navigation mode
 - ✅ **Documentation**: Complete architectural documentation in [`face-aware-placement.md`](face-aware-placement.md)
 - ✅ **Build Status**: ✅ Verified successful with no errors
+
+## ✅ Recently Completed (2025-12-08)
+
+### Drag Operations for Tools ⭐ NEW
+- ✅ **Drag-to-Place Voxels**: Hold left-click and drag to place multiple voxels
+  - `VoxelDragState` resource tracks drag operation
+  - Places voxels in direction of cursor movement (dominant axis)
+  - Extends from last placed position for intuitive line drawing
+  - `handle_voxel_drag_placement()` system processes continuous placement
+- ✅ **Drag-to-Remove Voxels**: Hold left-click and drag to remove multiple voxels
+  - `VoxelRemoveDragState` resource tracks removal drag
+  - Removes each voxel the cursor passes over
+  - `handle_voxel_drag_removal()` system processes continuous removal
+- ✅ **Drag-to-Select**: Hold left-click and drag to select multiple voxels
+  - `DragSelectState` resource with movement tracking
+  - Selects each voxel the cursor passes over
+  - Click without drag on selected voxel toggles selection off
+  - Tracks `did_drag_move` to distinguish click vs drag
 
 ## ✅ Recently Completed (2025-10-24)
 
