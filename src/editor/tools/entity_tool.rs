@@ -34,15 +34,18 @@ pub fn handle_entity_placement(
         return;
     }
 
-    // Get cursor position (use world position for entities, not grid)
-    let Some(cursor_pos) = cursor_state.position else {
+    // Get cursor grid position for grid-aligned entity placement
+    let Some(grid_pos) = cursor_state.placement_grid_pos else {
         return;
     };
+
+    // Convert grid position to world coordinates (centered on grid cell)
+    let position = (grid_pos.0 as f32, grid_pos.1 as f32, grid_pos.2 as f32);
 
     // Create new entity data
     let entity_data = EntityData {
         entity_type,
-        position: (cursor_pos.x, cursor_pos.y, cursor_pos.z),
+        position,
         properties: HashMap::new(),
     };
 
@@ -57,5 +60,5 @@ pub fn handle_entity_placement(
         data: entity_data,
     });
 
-    info!("Placed {:?} entity at {:?}", entity_type, cursor_pos);
+    info!("Placed {:?} entity at grid {:?}", entity_type, grid_pos);
 }

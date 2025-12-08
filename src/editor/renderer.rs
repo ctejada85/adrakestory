@@ -211,7 +211,9 @@ pub fn render_entities_system(
     // Spawn markers for each entity
     for (index, entity_data) in editor_state.current_map.entities.iter().enumerate() {
         let (x, y, z) = entity_data.position;
-        let position = Vec3::new(x, y, z);
+        // Snap to grid center for consistent alignment with voxels
+        // Entity positions should be at integer coordinates (grid cell centers)
+        let position = Vec3::new(x.round(), y.round(), z.round());
 
         // Get color and size based on entity type
         let (color, size) = match entity_data.entity_type {
