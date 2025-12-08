@@ -120,10 +120,54 @@ pub fn handle_selection(
         return;
     }
 
+    // Get cursor world position for entity selection
+    let cursor_world_pos = cursor_state.position;
+
+    // First, try to select an entity (entities take priority)
+    if let Some(world_pos) = cursor_world_pos {
+        let selection_radius = 0.5;
+        let mut closest_entity_index: Option<usize> = None;
+        let mut closest_distance = f32::MAX;
+
+        for (index, entity_data) in editor_state.current_map.entities.iter().enumerate() {
+            let (ex, ey, ez) = entity_data.position;
+            let entity_pos = Vec3::new(ex, ey, ez);
+            let distance = world_pos.distance(entity_pos);
+
+            if distance < selection_radius && distance < closest_distance {
+                closest_distance = distance;
+                closest_entity_index = Some(index);
+            }
+        }
+
+        // If we found an entity nearby, select/deselect it
+        if let Some(entity_idx) = closest_entity_index {
+            // Clear voxel selection when selecting entities
+            editor_state.selected_voxels.clear();
+
+            if editor_state.selected_entities.contains(&entity_idx) {
+                editor_state.selected_entities.remove(&entity_idx);
+                info!("Deselected entity at index {}", entity_idx);
+            } else {
+                editor_state.selected_entities.clear(); // Single selection for now
+                editor_state.selected_entities.insert(entity_idx);
+                info!("Selected entity at index {}", entity_idx);
+            }
+
+            // Trigger highlight update
+            update_events.send(UpdateSelectionHighlights);
+            return;
+        }
+    }
+
+    // If no entity was clicked, try voxel selection
     // Get cursor grid position
     let Some(grid_pos) = cursor_state.grid_pos else {
         return;
     };
+
+    // Clear entity selection when selecting voxels
+    editor_state.selected_entities.clear();
 
     // Toggle selection of voxel at this position
     if editor_state.selected_voxels.contains(&grid_pos) {

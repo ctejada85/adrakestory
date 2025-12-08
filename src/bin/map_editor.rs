@@ -104,6 +104,7 @@ fn main() {
         )
         .add_systems(Update, renderer::detect_map_changes)
         .add_systems(Update, renderer::render_map_system)
+        .add_systems(Update, renderer::render_entities_system)
         .add_systems(Update, camera::handle_camera_input)
         .add_systems(Update, camera::update_editor_camera)
         .add_systems(Update, grid::update_infinite_grid)

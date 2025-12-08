@@ -14,8 +14,11 @@ pub mod state;
 pub mod tools;
 pub mod ui;
 
-pub use cursor::{CursorState, handle_keyboard_cursor_movement, handle_keyboard_selection, handle_tool_switching, toggle_keyboard_edit_mode};
+pub use cursor::{
+    handle_keyboard_cursor_movement, handle_keyboard_selection, handle_tool_switching,
+    toggle_keyboard_edit_mode, CursorState,
+};
 pub use file_io::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
 pub use history::{EditorAction, EditorHistory};
-pub use renderer::{MapRenderState, RenderMapEvent};
+pub use renderer::{render_entities_system, EditorEntityMarker, MapRenderState, RenderMapEvent};
 pub use state::{EditorState, EditorTool, KeyboardEditMode};

@@ -40,6 +40,12 @@ pub fn render_properties_panel(
 
             ui.separator();
 
+            // Selected entity properties (if any entity is selected)
+            if !editor_state.selected_entities.is_empty() {
+                render_selected_entity_properties(ui, editor_state);
+                ui.separator();
+            }
+
             // Map information
             render_map_info(ui, editor_state);
 
@@ -133,6 +139,7 @@ fn render_tool_properties(
                     .selected_text(format!("{:?}", entity_type))
                     .show_ui(ui, |ui| {
                         ui.selectable_value(entity_type, EntityType::PlayerSpawn, "Player Spawn");
+                        ui.selectable_value(entity_type, EntityType::Npc, "NPC");
                         ui.selectable_value(entity_type, EntityType::Enemy, "Enemy");
                         ui.selectable_value(entity_type, EntityType::Item, "Item");
                         ui.selectable_value(entity_type, EntityType::Trigger, "Trigger");
@@ -352,5 +359,110 @@ fn render_cursor_info(ui: &mut egui::Ui, cursor_state: &CursorState) {
         ));
     } else {
         ui.label("World: -");
+    }
+}
+
+/// Render properties for selected entities
+fn render_selected_entity_properties(ui: &mut egui::Ui, editor_state: &mut EditorState) {
+    ui.label("Selected Entity");
+    ui.separator();
+
+    // For simplicity, edit first selected entity
+    let index = match editor_state.selected_entities.iter().next() {
+        Some(&idx) => idx,
+        None => return,
+    };
+
+    // Need to check bounds and get entity info
+    if index >= editor_state.current_map.entities.len() {
+        ui.label("Invalid entity selection");
+        return;
+    }
+
+    // Display entity type
+    let entity_type = editor_state.current_map.entities[index].entity_type;
+    ui.label(format!("Type: {:?}", entity_type));
+
+    // Position editing
+    ui.horizontal(|ui| {
+        ui.label("Position:");
+    });
+
+    let mut position_changed = false;
+    let (mut x, mut y, mut z) = editor_state.current_map.entities[index].position;
+
+    ui.horizontal(|ui| {
+        ui.label("X:");
+        if ui.add(egui::DragValue::new(&mut x).speed(0.1)).changed() {
+            position_changed = true;
+        }
+        ui.label("Y:");
+        if ui.add(egui::DragValue::new(&mut y).speed(0.1)).changed() {
+            position_changed = true;
+        }
+        ui.label("Z:");
+        if ui.add(egui::DragValue::new(&mut z).speed(0.1)).changed() {
+            position_changed = true;
+        }
+    });
+
+    if position_changed {
+        editor_state.current_map.entities[index].position = (x, y, z);
+        editor_state.mark_modified();
+    }
+
+    // NPC-specific properties
+    if entity_type == EntityType::Npc {
+        ui.separator();
+        ui.label("NPC Properties:");
+
+        // Name
+        let current_name = editor_state.current_map.entities[index]
+            .properties
+            .get("name")
+            .cloned()
+            .unwrap_or_else(|| "NPC".to_string());
+        let mut name = current_name.clone();
+
+        ui.horizontal(|ui| {
+            ui.label("Name:");
+            if ui.text_edit_singleline(&mut name).changed() {
+                editor_state.current_map.entities[index]
+                    .properties
+                    .insert("name".to_string(), name);
+                editor_state.mark_modified();
+            }
+        });
+
+        // Radius
+        let current_radius: f32 = editor_state.current_map.entities[index]
+            .properties
+            .get("radius")
+            .and_then(|r| r.parse().ok())
+            .unwrap_or(0.3);
+        let mut radius = current_radius;
+
+        ui.horizontal(|ui| {
+            ui.label("Radius:");
+            if ui
+                .add(egui::Slider::new(&mut radius, 0.1..=1.0).step_by(0.05))
+                .changed()
+            {
+                editor_state.current_map.entities[index]
+                    .properties
+                    .insert("radius".to_string(), format!("{:.2}", radius));
+                editor_state.mark_modified();
+            }
+        });
+    }
+
+    ui.separator();
+
+    // Delete button
+    if ui.button("🗑 Delete Entity").clicked() {
+        editor_state.current_map.entities.remove(index);
+        editor_state.selected_entities.clear();
+        editor_state.mark_modified();
+        info!("Deleted entity at index {}", index);
     }
 }
