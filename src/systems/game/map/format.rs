@@ -102,9 +102,10 @@ impl RotationState {
 
 /// Sub-voxel patterns for different voxel appearances.
 /// Patterns with orientation variants support proper rotation transformations.
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum SubVoxelPattern {
     /// Full 8x8x8 cube of sub-voxels (symmetric, no orientation)
+    #[default]
     Full,
 
     // Platform variants (thin slabs in different orientations)
@@ -129,12 +130,6 @@ pub enum SubVoxelPattern {
 
     /// Small 2x2x2 centered column (symmetric, no orientation)
     Pillar,
-}
-
-impl Default for SubVoxelPattern {
-    fn default() -> Self {
-        Self::Full
-    }
 }
 
 impl SubVoxelPattern {
