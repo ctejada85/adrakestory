@@ -5,7 +5,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Maximum number of recent files to track
 const MAX_RECENT_FILES: usize = 10;
@@ -36,7 +36,11 @@ impl RecentFiles {
                         Ok(mut recent) => {
                             // Filter out files that no longer exist
                             recent.files.retain(|p| p.exists());
-                            info!("Loaded {} recent files from {:?}", recent.files.len(), config_path);
+                            info!(
+                                "Loaded {} recent files from {:?}",
+                                recent.files.len(),
+                                config_path
+                            );
                             return recent;
                         }
                         Err(e) => {
@@ -55,7 +59,7 @@ impl RecentFiles {
     /// Save recent files to the config directory
     pub fn save(&self) {
         let config_path = get_config_path();
-        
+
         // Ensure config directory exists
         if let Some(parent) = config_path.parent() {
             if let Err(e) = fs::create_dir_all(parent) {
@@ -70,7 +74,11 @@ impl RecentFiles {
                 if let Err(e) = fs::write(&config_path, contents) {
                     error!("Failed to write recent files config: {}", e);
                 } else {
-                    info!("Saved {} recent files to {:?}", self.files.len(), config_path);
+                    info!(
+                        "Saved {} recent files to {:?}",
+                        self.files.len(),
+                        config_path
+                    );
                 }
             }
             Err(e) => {
@@ -86,9 +94,8 @@ impl RecentFiles {
         let path = path.canonicalize().unwrap_or(path);
 
         // Remove if already in list (will re-add at front)
-        self.files.retain(|p| {
-            p.canonicalize().unwrap_or_else(|_| p.clone()) != path
-        });
+        self.files
+            .retain(|p| p.canonicalize().unwrap_or_else(|_| p.clone()) != path);
 
         // Add to front
         self.files.insert(0, path);
@@ -119,7 +126,7 @@ impl RecentFiles {
     }
 
     /// Get a display name for a file path (filename only)
-    pub fn get_display_name(path: &PathBuf) -> String {
+    pub fn get_display_name(path: &Path) -> String {
         path.file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("Unknown")
@@ -127,7 +134,7 @@ impl RecentFiles {
     }
 
     /// Get a shortened path for display (last 2-3 components)
-    pub fn get_short_path(path: &PathBuf) -> String {
+    pub fn get_short_path(path: &Path) -> String {
         let components: Vec<_> = path.components().collect();
         if components.len() <= 3 {
             path.display().to_string()
