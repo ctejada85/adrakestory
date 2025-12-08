@@ -1,23 +1,24 @@
 //! General input handling systems for the game.
 //!
 //! This module handles:
-//! - Escape key for pausing the game
+//! - Escape key / Start button for pausing the game
 //! - Collision box visibility toggle
 //! - Collision box position synchronization
 
 use super::components::{CollisionBox, Player};
+use super::gamepad::PlayerInput;
 use bevy::prelude::*;
 use bevy::window::{MonitorSelection, WindowMode};
 
-/// System that handles the Escape key to pause the game.
+/// System that handles pause input (Escape key or Start button).
 ///
-/// When the Escape key is pressed, the game transitions to the Paused state,
+/// When the pause input is triggered, the game transitions to the Paused state,
 /// which displays the pause menu.
 pub fn handle_escape_key(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
+    player_input: Res<PlayerInput>,
     mut next_state: ResMut<NextState<crate::states::GameState>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Escape) {
+    if player_input.pause_just_pressed {
         next_state.set(crate::states::GameState::Paused);
     }
 }

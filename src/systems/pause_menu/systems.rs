@@ -1,6 +1,7 @@
 use super::components::{PauseMenuRoot, QuitButton, ResumeButton, ScalableText};
 use super::resources::SelectedPauseMenuIndex;
 use crate::states::GameState;
+use crate::systems::game::gamepad::{get_menu_gamepad_input, ActiveGamepad, GamepadSettings};
 use bevy::prelude::*;
 use bevy::window::WindowResized;
 
@@ -110,33 +111,60 @@ pub fn setup_pause_menu(mut commands: Commands) {
         });
 }
 
-/// Handles ESC key to resume game from pause menu
+/// Handles ESC key or B button to resume game from pause menu
 pub fn pause_menu_input(
     keyboard_input: Res<ButtonInput<KeyCode>>,
+    active_gamepad: Res<ActiveGamepad>,
+    gamepad_query: Query<&Gamepad>,
+    settings: Res<GamepadSettings>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Escape) {
+    // Get gamepad input (we use back/B button to resume)
+    let (_gp_up, _gp_down, _gp_select, gp_back) =
+        get_menu_gamepad_input(&active_gamepad, &gamepad_query, &settings);
+
+    // Also check Start button to unpause
+    let gp_start = if let Some(gamepad_entity) = active_gamepad.0 {
+        if let Ok(gamepad) = gamepad_query.get(gamepad_entity) {
+            gamepad.just_pressed(bevy::input::gamepad::GamepadButton::Start)
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    if keyboard_input.just_pressed(KeyCode::Escape) || gp_back || gp_start {
         next_state.set(GameState::InGame);
     }
 }
 
-/// Handles keyboard navigation for the pause menu
+/// Handles keyboard and gamepad navigation for the pause menu
 pub fn keyboard_navigation(
     keyboard_input: Res<ButtonInput<KeyCode>>,
+    active_gamepad: Res<ActiveGamepad>,
+    gamepad_query: Query<&Gamepad>,
+    settings: Res<GamepadSettings>,
     mut selected: ResMut<SelectedPauseMenuIndex>,
     mut next_state: ResMut<NextState<GameState>>,
     mut exit: EventWriter<AppExit>,
 ) {
-    // Navigate menu with arrow keys
-    if keyboard_input.just_pressed(KeyCode::ArrowUp) && selected.index > 0 {
+    // Get gamepad input
+    let (gp_up, gp_down, gp_select, _gp_back) =
+        get_menu_gamepad_input(&active_gamepad, &gamepad_query, &settings);
+
+    // Navigate menu with arrow keys or gamepad D-pad
+    if (keyboard_input.just_pressed(KeyCode::ArrowUp) || gp_up) && selected.index > 0 {
         selected.index -= 1;
     }
-    if keyboard_input.just_pressed(KeyCode::ArrowDown) && selected.index < selected.total - 1 {
+    if (keyboard_input.just_pressed(KeyCode::ArrowDown) || gp_down)
+        && selected.index < selected.total - 1
+    {
         selected.index += 1;
     }
 
-    // Select option with Enter
-    if keyboard_input.just_pressed(KeyCode::Enter) {
+    // Select option with Enter or A button
+    if keyboard_input.just_pressed(KeyCode::Enter) || gp_select {
         match selected.index {
             0 => {
                 // Resume

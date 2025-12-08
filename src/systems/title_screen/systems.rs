@@ -1,6 +1,7 @@
 use super::components::{MenuButton, ScalableText, TitleScreenBackground, TitleScreenUI};
 use super::resources::{SelectedMenuIndex, TitleScreenFadeTimer};
 use crate::states::GameState;
+use crate::systems::game::gamepad::{get_menu_gamepad_input, ActiveGamepad, GamepadSettings};
 use bevy::prelude::*;
 use bevy::window::WindowResized;
 
@@ -197,20 +198,29 @@ pub fn scale_text_on_resize(
 
 pub fn keyboard_navigation(
     keyboard_input: Res<ButtonInput<KeyCode>>,
+    active_gamepad: Res<ActiveGamepad>,
+    gamepad_query: Query<&Gamepad>,
+    settings: Res<GamepadSettings>,
     mut selected: ResMut<SelectedMenuIndex>,
     mut next_state: ResMut<NextState<GameState>>,
     mut exit: EventWriter<AppExit>,
 ) {
-    // Navigate menu with arrow keys
-    if keyboard_input.just_pressed(KeyCode::ArrowUp) && selected.index > 0 {
+    // Get gamepad input
+    let (gp_up, gp_down, gp_select, _gp_back) =
+        get_menu_gamepad_input(&active_gamepad, &gamepad_query, &settings);
+
+    // Navigate menu with arrow keys or gamepad D-pad
+    if (keyboard_input.just_pressed(KeyCode::ArrowUp) || gp_up) && selected.index > 0 {
         selected.index -= 1;
     }
-    if keyboard_input.just_pressed(KeyCode::ArrowDown) && selected.index < selected.total - 1 {
+    if (keyboard_input.just_pressed(KeyCode::ArrowDown) || gp_down)
+        && selected.index < selected.total - 1
+    {
         selected.index += 1;
     }
 
-    // Select option with Enter
-    if keyboard_input.just_pressed(KeyCode::Enter) {
+    // Select option with Enter or A button
+    if keyboard_input.just_pressed(KeyCode::Enter) || gp_select {
         match selected.index {
             0 => {
                 info!("Starting new game...");

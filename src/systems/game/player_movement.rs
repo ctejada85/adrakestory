@@ -2,31 +2,33 @@
 //!
 //! This module handles:
 //! - WASD/Arrow key input for movement
-//! - Space bar for jumping
+//! - Gamepad left stick for movement
+//! - Space bar / A button for jumping
 //! - Collision detection during movement
 
 use super::collision::check_sub_voxel_collision;
 use super::components::{Player, SubVoxel};
+use super::gamepad::PlayerInput;
 use super::resources::SpatialGrid;
 use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
 
-/// System that handles player movement based on keyboard input.
+/// System that handles player movement based on unified input (keyboard or gamepad).
 ///
 /// This system:
-/// - Processes WASD/Arrow keys for directional movement
-/// - Handles Space bar for jumping
+/// - Reads from PlayerInput resource for movement direction and jump
+/// - Handles both keyboard (WASD) and gamepad (left stick) input
 /// - Applies collision detection
 /// - Updates player position and grounded state
 ///
 /// Movement is adjusted for the camera rotation:
-/// - W/Up moves in +X direction
-/// - S/Down moves in -X direction
-/// - A/Left moves in -Z direction
-/// - D/Right moves in +Z direction
+/// - Forward (+Y input) moves in +X direction
+/// - Back (-Y input) moves in -X direction
+/// - Left (-X input) moves in -Z direction
+/// - Right (+X input) moves in +Z direction
 pub fn move_player(
     time: Res<Time>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
+    player_input: Res<PlayerInput>,
     spatial_grid: Res<SpatialGrid>,
     sub_voxel_query: Query<&SubVoxel, Without<Player>>,
     mut player_query: Query<(&mut Player, &mut Transform)>,
@@ -35,48 +37,25 @@ pub fn move_player(
         // Clamp delta time to prevent physics issues when window regains focus
         let delta = time.delta_secs().min(0.1);
 
-        let mut direction = Vec3::ZERO;
+        // Convert 2D input to 3D movement direction
+        // PlayerInput.movement: x = left/right, y = forward/back
+        // Game world: x = forward/back, z = left/right
+        let direction = Vec3::new(player_input.movement.y, 0.0, player_input.movement.x);
 
-        // Adjusted for camera rotation: up moves in +X, right moves in -Z
-        // Support both regular arrow keys and Fn + arrow keys (PageUp/PageDown/Home/End on macOS)
-        if keyboard_input.pressed(KeyCode::KeyW)
-            || keyboard_input.pressed(KeyCode::ArrowUp)
-            || keyboard_input.pressed(KeyCode::PageUp)
-        {
-            direction.x += 1.0;
-        }
-        if keyboard_input.pressed(KeyCode::KeyS)
-            || keyboard_input.pressed(KeyCode::ArrowDown)
-            || keyboard_input.pressed(KeyCode::PageDown)
-        {
-            direction.x -= 1.0;
-        }
-        if keyboard_input.pressed(KeyCode::KeyA)
-            || keyboard_input.pressed(KeyCode::ArrowLeft)
-            || keyboard_input.pressed(KeyCode::Home)
-        {
-            direction.z -= 1.0;
-        }
-        if keyboard_input.pressed(KeyCode::KeyD)
-            || keyboard_input.pressed(KeyCode::ArrowRight)
-            || keyboard_input.pressed(KeyCode::End)
-        {
-            direction.z += 1.0;
-        }
-
-        // Jump
-        if keyboard_input.just_pressed(KeyCode::Space) && player.is_grounded {
+        // Jump - use just_pressed for responsive jumping
+        if player_input.jump_just_pressed && player.is_grounded {
             player.velocity.y = 8.0;
             player.is_grounded = false;
         }
 
         if direction.length() > 0.0 {
-            direction = direction.normalize();
+            // For analog input, preserve the magnitude for variable speed
+            let magnitude = direction.length().min(1.0);
+            let normalized_dir = direction.normalize();
 
             // Calculate new target rotation based on movement direction
             // The character model faces right by default, so we subtract π/2 (90°) to align it
-            // W (+X) should face forward, S (-X) backward, A (-Z) left, D (+Z) right
-            let new_target = direction.z.atan2(-direction.x) - FRAC_PI_2;
+            let new_target = normalized_dir.z.atan2(-normalized_dir.x) - FRAC_PI_2;
 
             // Check if target rotation changed (with small threshold for floating point comparison)
             if (new_target - player.target_rotation).abs() > 0.01 {
@@ -87,17 +66,16 @@ pub fn move_player(
             }
 
             let current_pos = transform.translation;
-            let move_delta = direction * player.speed * delta;
+            // Apply magnitude for analog movement (stick pushed halfway = half speed)
+            let move_delta = normalized_dir * magnitude * player.speed * delta;
 
             // Calculate current floor Y position (bottom of player sphere)
-            // This will be updated after each step-up to handle stairs correctly
             let mut current_floor_y = current_pos.y - player.radius;
 
             let new_x = current_pos.x + move_delta.x;
             let new_z = current_pos.z + move_delta.z;
 
             // Optimization: Try diagonal movement first when moving in both axes
-            // This reduces collision checks from 2 to 1 in open areas (~33% reduction)
             let moving_diagonally = move_delta.x != 0.0 && move_delta.z != 0.0;
 
             if moving_diagonally {
@@ -112,18 +90,15 @@ pub fn move_player(
                 );
 
                 if !diagonal_collision.has_collision {
-                    // Fast path: Can move diagonally without obstacles
                     transform.translation.x = new_x;
                     transform.translation.z = new_z;
                 } else if diagonal_collision.can_step_up && player.is_grounded {
-                    // Diagonal step-up
                     transform.translation.x = new_x;
                     transform.translation.z = new_z;
                     transform.translation.y =
                         current_floor_y + diagonal_collision.step_up_height + player.radius;
                     player.velocity.y = 0.0;
                 } else {
-                    // Fall back to individual axis checks for wall sliding behavior
                     apply_axis_movement(
                         &spatial_grid,
                         &sub_voxel_query,
@@ -136,7 +111,6 @@ pub fn move_player(
                     );
                 }
             } else {
-                // Moving in only one axis - use individual axis logic
                 apply_axis_movement(
                     &spatial_grid,
                     &sub_voxel_query,

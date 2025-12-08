@@ -5,12 +5,16 @@ mod states;
 mod systems;
 
 use states::GameState;
+use systems::game::gamepad::{
+    gather_gamepad_input, gather_keyboard_input, handle_gamepad_connections, reset_player_input,
+    ActiveGamepad, GamepadSettings, PlayerInput,
+};
 
 /// System sets for organizing game loop execution order.
 /// These sets ensure proper sequencing of game logic phases.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 enum GameSystemSet {
-    /// Handle user input (keyboard, mouse, etc.)
+    /// Handle user input (keyboard, mouse, gamepad)
     Input,
     /// Process player movement based on input
     Movement,
@@ -44,15 +48,19 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .init_state::<GameState>()
         .init_resource::<MapLoadProgress>()
+        // Initialize gamepad resources
+        .init_resource::<ActiveGamepad>()
+        .init_resource::<GamepadSettings>()
+        .init_resource::<PlayerInput>()
         .add_systems(Startup, setup)
+        // Global systems that run in any state
+        .add_systems(Update, (toggle_fullscreen, handle_gamepad_connections))
         .add_systems(OnEnter(GameState::IntroAnimation), setup_intro)
         .add_systems(
             Update,
             animate_intro.run_if(in_state(GameState::IntroAnimation)),
         )
         .add_systems(OnExit(GameState::IntroAnimation), cleanup_intro)
-        // Global systems that run in any state
-        .add_systems(Update, toggle_fullscreen)
         .add_systems(OnEnter(GameState::TitleScreen), setup_title_screen)
         .add_systems(
             Update,
@@ -92,10 +100,18 @@ fn main() {
                 .chain()
                 .run_if(in_state(GameState::InGame)),
         )
-        // Input phase: Handle user input
+        // Input phase: Gather input from all sources, then handle game-specific input
         .add_systems(
             Update,
-            (handle_escape_key, toggle_collision_box).in_set(GameSystemSet::Input),
+            (
+                reset_player_input,
+                gather_gamepad_input,
+                gather_keyboard_input,
+                handle_escape_key,
+                toggle_collision_box,
+            )
+                .chain()
+                .in_set(GameSystemSet::Input),
         )
         // Movement phase: Process player movement
         .add_systems(Update, move_player.in_set(GameSystemSet::Movement))

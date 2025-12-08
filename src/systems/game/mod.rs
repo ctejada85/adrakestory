@@ -1,4 +1,5 @@
 pub mod components;
+pub mod gamepad;
 pub mod resources;
 pub mod systems;
 
