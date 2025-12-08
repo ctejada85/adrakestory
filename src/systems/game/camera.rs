@@ -2,9 +2,9 @@
 //!
 //! This module handles:
 //! - Camera following the player with smooth interpolation
-//! - Camera rotation around the player (keyboard and gamepad)
+//! - Camera rotation around the player (keyboard only - Delete key)
 //! - Smooth interpolation between rotation states
-//! - Delete key / right stick input for camera control
+//! - Note: Gamepad right stick controls character facing direction, not camera
 
 use super::components::{GameCamera, Player};
 use super::gamepad::{InputSource, PlayerInput};
@@ -48,11 +48,13 @@ pub fn follow_player_camera(
     }
 }
 
-/// System that handles camera rotation based on keyboard and gamepad input.
+/// System that handles camera rotation based on keyboard input.
 ///
 /// The camera can be rotated:
 /// - Temporarily 90 degrees to the left by holding the Delete key
-/// - Using the right stick on a gamepad for smooth orbital rotation
+///
+/// Note: The gamepad right stick now controls character facing direction,
+/// not camera rotation.
 ///
 /// The rotation is performed around the player's position (target_position),
 /// which is updated by the follow_player_camera system.
@@ -66,35 +68,17 @@ pub fn rotate_camera(
         let center = game_camera.target_position;
         let delta = time.delta_secs();
 
-        // Handle gamepad right stick rotation
-        if player_input.input_source == InputSource::Gamepad
-            && player_input.camera_delta.length() > 0.01
-        {
-            // Apply horizontal rotation from right stick X axis
-            let rotation_amount = player_input.camera_delta.x * delta;
-            let rotation_delta = Quat::from_rotation_y(-rotation_amount);
-
-            // Update target rotation
-            game_camera.target_rotation = rotation_delta * game_camera.target_rotation;
-            game_camera.original_rotation = game_camera.target_rotation;
-
-            // Apply rotation immediately for responsive feel
-            let offset = transform.translation - center;
-            let rotated_offset = rotation_delta * offset;
-
-            transform.translation = center + rotated_offset;
-            transform.rotation = rotation_delta * transform.rotation;
-        } else if keyboard_input.pressed(KeyCode::Delete) {
+        // Handle keyboard camera rotation (Delete key)
+        if keyboard_input.pressed(KeyCode::Delete) {
             // Delete key: Rotate 90 degrees to the left around the world Y-axis
             let rotation_offset = Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
             game_camera.target_rotation = rotation_offset * game_camera.original_rotation;
-        } else if player_input.input_source == InputSource::KeyboardMouse {
-            // Return to original rotation when not pressing Delete (keyboard mode only)
+        } else {
+            // Return to original rotation when not pressing Delete
             game_camera.target_rotation = game_camera.original_rotation;
         }
 
         // Smoothly interpolate rotation for keyboard (Delete key)
-        // Skip smooth interpolation for gamepad since we apply directly above
         if player_input.input_source == InputSource::KeyboardMouse {
             let new_rotation = transform.rotation.slerp(
                 game_camera.target_rotation,

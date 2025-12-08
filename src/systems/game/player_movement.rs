@@ -48,14 +48,30 @@ pub fn move_player(
             player.is_grounded = false;
         }
 
-        if direction.length() > 0.0 {
-            // For analog input, preserve the magnitude for variable speed
-            let magnitude = direction.length().min(1.0);
-            let normalized_dir = direction.normalize();
+        // Handle character facing direction
+        // If right stick (look_direction) is being used, face that direction
+        // Otherwise, face the movement direction (if moving)
+        let look_dir = if player_input.look_direction.length() > 0.01 {
+            // Right stick is active - use it for facing direction
+            Vec3::new(
+                player_input.look_direction.y,
+                0.0,
+                player_input.look_direction.x,
+            )
+        } else if direction.length() > 0.0 {
+            // No right stick input - face movement direction
+            direction
+        } else {
+            Vec3::ZERO
+        };
 
-            // Calculate new target rotation based on movement direction
+        // Update rotation if we have a look direction
+        if look_dir.length() > 0.0 {
+            let normalized_look = look_dir.normalize();
+
+            // Calculate new target rotation based on look direction
             // The character model faces right by default, so we subtract π/2 (90°) to align it
-            let new_target = normalized_dir.z.atan2(-normalized_dir.x) - FRAC_PI_2;
+            let new_target = normalized_look.z.atan2(-normalized_look.x) - FRAC_PI_2;
 
             // Use a larger threshold for gamepad to prevent constant rotation resets
             // from small analog stick variations. Keyboard input is always normalized
@@ -72,6 +88,12 @@ pub fn move_player(
                 player.rotation_elapsed = 0.0;
                 player.target_rotation = new_target;
             }
+        }
+
+        if direction.length() > 0.0 {
+            // For analog input, preserve the magnitude for variable speed
+            let magnitude = direction.length().min(1.0);
+            let normalized_dir = direction.normalize();
 
             let current_pos = transform.translation;
             // Apply magnitude for analog movement (stick pushed halfway = half speed)

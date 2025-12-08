@@ -62,6 +62,9 @@ pub struct PlayerInput {
     pub movement: Vec2,
     /// Camera rotation delta from right stick or mouse
     pub camera_delta: Vec2,
+    /// Look direction from right stick (for character facing direction)
+    /// When this is non-zero, the character faces this direction instead of movement direction
+    pub look_direction: Vec2,
     /// Jump button pressed this frame (A button or Space)
     pub jump_pressed: bool,
     /// Jump button just pressed this frame
@@ -142,6 +145,7 @@ pub fn gather_gamepad_input(
     // Reset gamepad-specific inputs (keyboard handler will set its own)
     let mut gamepad_movement = Vec2::ZERO;
     let mut gamepad_camera = Vec2::ZERO;
+    let mut gamepad_look_direction = Vec2::ZERO;
     let mut gamepad_jump_pressed = false;
     let mut gamepad_jump_just_pressed = false;
     let mut gamepad_interact = false;
@@ -159,18 +163,15 @@ pub fn gather_gamepad_input(
             gamepad_movement =
                 apply_deadzone(left_stick, settings.stick_deadzone) * settings.movement_sensitivity;
 
-            // Right stick for camera
+            // Right stick for character look direction (not camera)
             let right_stick = Vec2::new(
                 gamepad.get(GamepadAxis::RightStickX).unwrap_or(0.0),
                 gamepad.get(GamepadAxis::RightStickY).unwrap_or(0.0),
             );
-            gamepad_camera =
-                apply_deadzone(right_stick, settings.stick_deadzone) * settings.camera_sensitivity;
+            gamepad_look_direction = apply_deadzone(right_stick, settings.stick_deadzone);
 
-            // Invert Y if configured
-            if settings.invert_camera_y {
-                gamepad_camera.y = -gamepad_camera.y;
-            }
+            // Camera delta is not used from right stick anymore
+            gamepad_camera = Vec2::ZERO;
 
             // Button inputs - In Bevy 0.15, GamepadButton is an enum directly
             gamepad_jump_pressed = gamepad.pressed(GamepadButton::South);
@@ -181,7 +182,7 @@ pub fn gather_gamepad_input(
 
             // Detect if gamepad is being used (any significant input)
             gamepad_active = gamepad_movement.length() > 0.01
-                || gamepad_camera.length() > 0.01
+                || gamepad_look_direction.length() > 0.01
                 || gamepad_jump_pressed
                 || gamepad_interact
                 || gamepad_pause
@@ -198,6 +199,7 @@ pub fn gather_gamepad_input(
     if player_input.input_source == InputSource::Gamepad {
         player_input.movement = gamepad_movement;
         player_input.camera_delta = gamepad_camera;
+        player_input.look_direction = gamepad_look_direction;
         player_input.jump_pressed = gamepad_jump_pressed;
         player_input.jump_just_pressed = gamepad_jump_just_pressed;
         player_input.interact_pressed = gamepad_interact;
