@@ -245,8 +245,10 @@ fn render_ui(
     render_status_bar(
         ctx,
         &ui_resources.editor_state,
+        &read_resources.cursor_state,
         &read_resources.history,
         &read_resources.keyboard_mode,
+        &read_resources.active_transform,
     );
 
     // Render dialogs
@@ -266,23 +268,70 @@ fn render_ui(
 fn render_status_bar(
     ctx: &egui::Context,
     editor_state: &EditorState,
+    cursor_state: &CursorState,
     history: &EditorHistory,
     keyboard_mode: &KeyboardEditMode,
+    active_transform: &ActiveTransform,
 ) {
     egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
         ui.horizontal(|ui| {
-            // Keyboard edit mode indicator
-            if keyboard_mode.enabled {
-                ui.colored_label(egui::Color32::GREEN, "⌨ KEYBOARD MODE");
-                ui.separator();
-            }
-
-            // Current tool
-            ui.label(format!("Tool: {}", editor_state.active_tool.name()));
+            // === Section 1: Current Tool with Icon ===
+            let (tool_icon, tool_name) = get_tool_display(&editor_state.active_tool);
+            ui.label(format!("{} {}", tool_icon, tool_name));
 
             ui.separator();
 
-            // Map stats
+            // === Section 2: Operation Status (if transform active) ===
+            if active_transform.mode != tools::TransformMode::None {
+                let mode_text = match active_transform.mode {
+                    tools::TransformMode::Move => {
+                        let offset = active_transform.current_offset;
+                        format!(
+                            "🔄 MOVING {} voxel{} │ Offset: ({}, {}, {})",
+                            active_transform.selected_voxels.len(),
+                            if active_transform.selected_voxels.len() == 1 {
+                                ""
+                            } else {
+                                "s"
+                            },
+                            offset.x,
+                            offset.y,
+                            offset.z
+                        )
+                    }
+                    tools::TransformMode::Rotate => {
+                        format!(
+                            "↻ ROTATING {} voxel{} │ Axis: {:?} │ Angle: {}°",
+                            active_transform.selected_voxels.len(),
+                            if active_transform.selected_voxels.len() == 1 {
+                                ""
+                            } else {
+                                "s"
+                            },
+                            active_transform.rotation_axis,
+                            active_transform.rotation_angle * 90
+                        )
+                    }
+                    tools::TransformMode::None => String::new(),
+                };
+                ui.colored_label(egui::Color32::YELLOW, mode_text);
+                ui.label("│ ENTER: confirm, ESC: cancel");
+                ui.separator();
+            }
+
+            // === Section 3: Cursor Position ===
+            if let Some(grid_pos) = cursor_state.grid_pos {
+                ui.label(format!(
+                    "Cursor: ({}, {}, {})",
+                    grid_pos.0, grid_pos.1, grid_pos.2
+                ));
+            } else {
+                ui.label("Cursor: --");
+            }
+
+            ui.separator();
+
+            // === Section 4: Map Statistics ===
             ui.label(format!(
                 "Voxels: {}",
                 editor_state.current_map.world.voxels.len()
@@ -294,25 +343,48 @@ fn render_status_bar(
 
             ui.separator();
 
-            // History stats
-            ui.label(format!("Undo: {}", history.undo_count()));
-            ui.label(format!("Redo: {}", history.redo_count()));
-
-            ui.separator();
-
-            // Modified indicator
-            if editor_state.is_modified {
-                ui.label("● Modified");
-            } else {
-                ui.label("Saved");
+            // === Section 5: Selection Info ===
+            let voxel_sel = editor_state.selected_voxels.len();
+            let entity_sel = editor_state.selected_entities.len();
+            if voxel_sel > 0 || entity_sel > 0 {
+                ui.label(format!("Sel: {}v {}e", voxel_sel, entity_sel));
+                ui.separator();
             }
 
-            // Push remaining content to the right
+            // === Section 6: Keyboard Mode Indicator ===
+            if keyboard_mode.enabled {
+                ui.colored_label(egui::Color32::from_rgb(100, 200, 100), "⌨ KEYBOARD");
+                ui.separator();
+            }
+
+            // === Section 7: Modified Indicator ===
+            if editor_state.is_modified {
+                ui.colored_label(egui::Color32::from_rgb(255, 200, 100), "● Modified");
+            } else {
+                ui.colored_label(egui::Color32::from_rgb(100, 200, 100), "✓ Saved");
+            }
+
+            // === Right-aligned: History Stats ===
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label(format!("Map: {}", editor_state.get_display_name()));
+                ui.label(format!(
+                    "Undo: {} │ Redo: {}",
+                    history.undo_count(),
+                    history.redo_count()
+                ));
             });
         });
     });
+}
+
+/// Get tool icon and display name
+fn get_tool_display(tool: &state::EditorTool) -> (&'static str, &'static str) {
+    match tool {
+        state::EditorTool::Select => ("🔲", "Select"),
+        state::EditorTool::VoxelPlace { .. } => ("✏️", "Voxel Place"),
+        state::EditorTool::VoxelRemove => ("🗑️", "Voxel Remove"),
+        state::EditorTool::EntityPlace { .. } => ("📍", "Entity Place"),
+        state::EditorTool::Camera => ("📷", "Camera"),
+    }
 }
 
 /// System to update lighting when the map changes (e.g., after loading a new map)
