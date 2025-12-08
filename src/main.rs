@@ -21,7 +21,9 @@ enum GameSystemSet {
     /// Update camera position and rotation
     Camera,
 }
-use systems::game::map::{spawn_map_system, LoadedMapData, MapLoadProgress, MapLoader};
+use systems::game::map::{
+    spawn_map_system, update_chunk_lods, LoadedMapData, MapLoadProgress, MapLoader,
+};
 use systems::game::systems::{
     apply_gravity, apply_physics, follow_player_camera, handle_escape_key, move_player,
     rotate_camera, rotate_character_model, toggle_collision_box, update_collision_box,
@@ -70,7 +72,10 @@ fn main() {
             (update_loading_progress, check_map_loaded).run_if(in_state(GameState::LoadingMap)),
         )
         .add_systems(OnExit(GameState::LoadingMap), cleanup_loading_screen)
-        .add_systems(OnEnter(GameState::InGame), (cleanup_2d_camera, spawn_map_system).chain())
+        .add_systems(
+            OnEnter(GameState::InGame),
+            (cleanup_2d_camera, spawn_map_system).chain(),
+        )
         // Configure system sets to run in a specific order
         .configure_sets(
             Update,
@@ -101,7 +106,12 @@ fn main() {
         // Visual phase: Update visual elements after all position changes
         .add_systems(
             Update,
-            (rotate_character_model, update_collision_box).in_set(GameSystemSet::Visual),
+            (
+                rotate_character_model,
+                update_collision_box,
+                update_chunk_lods,
+            )
+                .in_set(GameSystemSet::Visual),
         )
         // Camera phase: Update camera last (follow then rotate)
         .add_systems(

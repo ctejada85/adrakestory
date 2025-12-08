@@ -18,12 +18,30 @@ const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
 /// Chunk size in voxels (16x16x16 voxels per chunk)
 pub const CHUNK_SIZE: i32 = 16;
 
+/// Number of LOD levels (0 = full detail, 3 = lowest detail)
+pub const LOD_LEVELS: usize = 4;
+
+/// Distance thresholds for LOD switching (in world units)
+pub const LOD_DISTANCES: [f32; 4] = [20.0, 50.0, 100.0, f32::MAX];
+
 /// Marker component for chunk entities
 #[derive(Component)]
-#[allow(dead_code)]
 pub struct VoxelChunk {
     /// The chunk position for potential future use (chunk updates, unloading)
+    #[allow(dead_code)]
     pub chunk_pos: IVec3,
+    /// Center of the chunk in world coordinates for LOD distance calculation
+    pub center: Vec3,
+}
+
+/// LOD component for chunks with multiple detail levels.
+/// Each chunk has 4 mesh LODs that are swapped based on camera distance.
+#[derive(Component)]
+pub struct ChunkLOD {
+    /// Mesh handles for each LOD level (0 = highest detail, 3 = lowest)
+    pub lod_meshes: [Handle<Mesh>; LOD_LEVELS],
+    /// Current active LOD level
+    pub current_lod: usize,
 }
 
 /// Face direction for hidden face culling.
@@ -172,10 +190,10 @@ impl GreedyMesher {
             .push((u, v, color_index, color));
     }
 
-    /// Build greedy-meshed geometry into a ChunkMeshBuilder.
-    pub fn build_into(self, builder: &mut ChunkMeshBuilder) {
-        for ((face, depth), faces) in self.slices {
-            Self::mesh_slice(builder, face, depth, faces);
+    /// Build greedy-meshed geometry into a ChunkMeshBuilder (full detail, LOD 0).
+    pub fn build_into(&self, builder: &mut ChunkMeshBuilder) {
+        for ((face, depth), faces) in &self.slices {
+            Self::mesh_slice(builder, *face, *depth, faces);
         }
     }
 
@@ -184,7 +202,7 @@ impl GreedyMesher {
         builder: &mut ChunkMeshBuilder,
         face: Face,
         depth: i32,
-        faces: Vec<(i32, i32, usize, Color)>,
+        faces: &[(i32, i32, usize, Color)],
     ) {
         if faces.is_empty() {
             return;
@@ -194,7 +212,7 @@ impl GreedyMesher {
         // Key: (u, v) -> (color_index, color, used)
         let mut grid: HashMap<(i32, i32), (usize, Color, bool)> = HashMap::new();
         for (u, v, color_index, color) in faces {
-            grid.insert((u, v), (color_index, color, false));
+            grid.insert((*u, *v), (*color_index, *color, false));
         }
 
         // Find all unique (u, v) positions and sort them for consistent iteration
@@ -266,6 +284,132 @@ impl GreedyMesher {
     /// Convert slice coordinates back to world coordinates.
     #[inline]
     fn slice_to_world(face: Face, depth: i32, u: f32, v: f32) -> (f32, f32, f32) {
+        let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
+        let d = depth as f32 / SUB_VOXEL_COUNT as f32 + offset;
+        let u_world = u / SUB_VOXEL_COUNT as f32 + offset;
+        let v_world = v / SUB_VOXEL_COUNT as f32 + offset;
+
+        match face {
+            Face::PosX => (d + SUB_VOXEL_SIZE / 2.0, u_world, v_world),
+            Face::NegX => (d - SUB_VOXEL_SIZE / 2.0, u_world, v_world),
+            Face::PosY => (u_world, d + SUB_VOXEL_SIZE / 2.0, v_world),
+            Face::NegY => (u_world, d - SUB_VOXEL_SIZE / 2.0, v_world),
+            Face::PosZ => (u_world, v_world, d + SUB_VOXEL_SIZE / 2.0),
+            Face::NegZ => (u_world, v_world, d - SUB_VOXEL_SIZE / 2.0),
+        }
+    }
+
+    /// Build greedy-meshed geometry at a specific LOD level.
+    /// LOD 0 = full detail, LOD 1 = 1/2 resolution, LOD 2 = 1/4, LOD 3 = 1/8
+    pub fn build_lod(&self, builder: &mut ChunkMeshBuilder, lod_level: usize) {
+        let sample_rate = 1 << lod_level; // 1, 2, 4, 8 for LOD 0-3
+        let lod_voxel_size = SUB_VOXEL_SIZE * sample_rate as f32;
+
+        for ((face, depth), faces) in &self.slices {
+            // Only process slices at LOD intervals
+            if depth % sample_rate as i32 != 0 {
+                continue;
+            }
+
+            Self::mesh_slice_lod(builder, *face, *depth, faces, sample_rate, lod_voxel_size);
+        }
+    }
+
+    /// Mesh a single 2D slice at a specific LOD level.
+    fn mesh_slice_lod(
+        builder: &mut ChunkMeshBuilder,
+        face: Face,
+        depth: i32,
+        faces: &[(i32, i32, usize, Color)],
+        sample_rate: i32,
+        lod_voxel_size: f32,
+    ) {
+        if faces.is_empty() {
+            return;
+        }
+
+        // Downsample: group faces into LOD cells
+        // Key: (lod_u, lod_v) -> (color_index, color, used)
+        let mut grid: HashMap<(i32, i32), (usize, Color, bool)> = HashMap::new();
+
+        for (u, v, color_index, color) in faces {
+            let lod_u = u / sample_rate;
+            let lod_v = v / sample_rate;
+
+            // First face in each LOD cell determines color
+            grid.entry((lod_u, lod_v))
+                .or_insert((*color_index, *color, false));
+        }
+
+        // Find all unique positions and sort them
+        let mut positions: Vec<(i32, i32)> = grid.keys().copied().collect();
+        positions.sort();
+
+        // Greedy rectangle finding (same algorithm as full-res)
+        for (start_u, start_v) in positions {
+            if let Some((_, _, used)) = grid.get(&(start_u, start_v)) {
+                if *used {
+                    continue;
+                }
+            } else {
+                continue;
+            }
+
+            let (color_index, color, _) = *grid.get(&(start_u, start_v)).unwrap();
+
+            // Expand in U direction
+            let mut end_u = start_u;
+            while let Some((ci, _, used)) = grid.get(&(end_u + 1, start_v)) {
+                if *used || *ci != color_index {
+                    break;
+                }
+                end_u += 1;
+            }
+
+            // Expand in V direction
+            let mut end_v = start_v;
+            'v_expand: loop {
+                let next_v = end_v + 1;
+                for u in start_u..=end_u {
+                    match grid.get(&(u, next_v)) {
+                        Some((ci, _, used)) if !*used && *ci == color_index => {}
+                        _ => break 'v_expand,
+                    }
+                }
+                end_v = next_v;
+            }
+
+            // Mark as used
+            for u in start_u..=end_u {
+                for v in start_v..=end_v {
+                    if let Some(cell) = grid.get_mut(&(u, v)) {
+                        cell.2 = true;
+                    }
+                }
+            }
+
+            // Emit the merged quad at LOD scale
+            let width = (end_u - start_u + 1) as f32 * lod_voxel_size;
+            let height = (end_v - start_v + 1) as f32 * lod_voxel_size;
+
+            // Calculate center position using LOD-scaled coordinates
+            let (center_x, center_y, center_z) = Self::slice_to_world_lod(
+                face,
+                depth,
+                start_u as f32 * sample_rate as f32
+                    + (end_u - start_u) as f32 * sample_rate as f32 / 2.0,
+                start_v as f32 * sample_rate as f32
+                    + (end_v - start_v) as f32 * sample_rate as f32 / 2.0,
+            );
+
+            let center = Vec3::new(center_x, center_y, center_z);
+            builder.add_quad(center, face, width, height, color);
+        }
+    }
+
+    /// Convert slice coordinates back to world coordinates (for LOD meshes).
+    #[inline]
+    fn slice_to_world_lod(face: Face, depth: i32, u: f32, v: f32) -> (f32, f32, f32) {
         let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
         let d = depth as f32 / SUB_VOXEL_COUNT as f32 + offset;
         let u_world = u / SUB_VOXEL_COUNT as f32 + offset;
@@ -740,6 +884,35 @@ pub fn spawn_map_system(
     progress.update(LoadProgress::Complete);
 }
 
+/// System that updates chunk LOD levels based on camera distance.
+/// Runs each frame to swap mesh detail based on how far chunks are from the camera.
+pub fn update_chunk_lods(
+    camera_query: Query<&Transform, With<Camera3d>>,
+    mut chunks: Query<(&VoxelChunk, &mut ChunkLOD, &mut Mesh3d)>,
+) {
+    // Get camera position, or early return if no camera
+    let Ok(camera_transform) = camera_query.get_single() else {
+        return;
+    };
+    let camera_pos = camera_transform.translation;
+
+    for (chunk, mut lod, mut mesh) in chunks.iter_mut() {
+        let distance = camera_pos.distance(chunk.center);
+
+        // Determine new LOD level based on distance thresholds
+        let new_lod = LOD_DISTANCES
+            .iter()
+            .position(|&threshold| distance < threshold)
+            .unwrap_or(LOD_LEVELS - 1);
+
+        // Only update if LOD changed
+        if new_lod != lod.current_lod {
+            lod.current_lod = new_lod;
+            mesh.0 = lod.lod_meshes[new_lod].clone();
+        }
+    }
+}
+
 /// Calculate color for a sub-voxel based on its position.
 /// Uses the same hash-based coloring as the material palette for consistency.
 #[inline]
@@ -871,7 +1044,7 @@ fn spawn_voxels_chunked(
         sub_voxel_positions.push((world_pos, bounds));
     }
 
-    // Third pass: Build greedy meshes and spawn chunk entities
+    // Third pass: Build greedy meshes with LOD levels and spawn chunk entities
     let total_chunks = chunk_meshers.len();
     let mut total_quads = 0usize;
 
@@ -880,22 +1053,55 @@ fn spawn_voxels_chunked(
         let spawn_progress = 0.35 + (index as f32) / (total_chunks as f32) * 0.25;
         progress.update(LoadProgress::SpawningVoxels(spawn_progress));
 
-        let mut builder = ChunkMeshBuilder::default();
-        mesher.build_into(&mut builder);
+        // Build LOD 0 (full detail) first to check if chunk has geometry
+        let mut builder_lod0 = ChunkMeshBuilder::default();
+        mesher.build_into(&mut builder_lod0);
 
-        if builder.is_empty() {
+        if builder_lod0.is_empty() {
             continue;
         }
 
-        // Count quads for stats (4 vertices per quad)
-        total_quads += builder.positions.len() / 4;
+        // Count quads for stats (LOD 0 only)
+        total_quads += builder_lod0.positions.len() / 4;
 
-        let mesh = ctx.meshes.add(builder.build());
+        // Build all LOD levels
+        let mut lod_meshes: [Handle<Mesh>; LOD_LEVELS] = Default::default();
+
+        // LOD 0: Use already built full-detail mesh
+        lod_meshes[0] = ctx.meshes.add(builder_lod0.build());
+
+        // LOD 1-3: Build progressively lower detail meshes
+        for lod_level in 1..LOD_LEVELS {
+            let mut builder = ChunkMeshBuilder::default();
+            mesher.build_lod(&mut builder, lod_level);
+
+            // If LOD mesh is empty, reuse previous LOD
+            if builder.is_empty() {
+                lod_meshes[lod_level] = lod_meshes[lod_level - 1].clone();
+            } else {
+                lod_meshes[lod_level] = ctx.meshes.add(builder.build());
+            }
+        }
+
+        // Calculate chunk center in world coordinates
+        let chunk_center = Vec3::new(
+            (chunk_pos.x as f32 + 0.5) * CHUNK_SIZE as f32,
+            (chunk_pos.y as f32 + 0.5) * CHUNK_SIZE as f32,
+            (chunk_pos.z as f32 + 0.5) * CHUNK_SIZE as f32,
+        );
+
         ctx.commands.spawn((
-            Mesh3d(mesh),
+            Mesh3d(lod_meshes[0].clone()),
             MeshMaterial3d(ctx.chunk_material.clone()),
             Transform::default(),
-            VoxelChunk { chunk_pos },
+            VoxelChunk {
+                chunk_pos,
+                center: chunk_center,
+            },
+            ChunkLOD {
+                lod_meshes,
+                current_lod: 0,
+            },
         ));
     }
 
