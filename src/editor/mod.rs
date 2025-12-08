@@ -22,5 +22,7 @@ pub use cursor::{
 pub use file_io::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
 pub use history::{EditorAction, EditorHistory};
 pub use recent_files::{OpenRecentFileEvent, RecentFiles};
-pub use renderer::{render_entities_system, EditorEntityMarker, MapRenderState, RenderMapEvent};
+pub use renderer::{
+    render_entities_system, EditorChunk, EditorEntityMarker, MapRenderState, RenderMapEvent,
+};
 pub use state::{EditorState, EditorTool, KeyboardEditMode};

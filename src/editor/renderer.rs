@@ -2,19 +2,32 @@
 //!
 //! This module handles spawning and despawning voxel meshes in the 3D viewport
 //! when maps are loaded or modified.
+//!
+//! ## Optimizations (Tiers 3-5)
+//!
+//! The editor uses optimized rendering similar to the game:
+//! - **Tier 3: Chunk-Based Meshing** - Groups sub-voxels into 16³ chunks with merged meshes
+//! - **Tier 4: Hidden Face Culling** - Only renders faces not adjacent to other voxels
+//! - **Tier 5: Greedy Meshing** - Merges adjacent same-color faces into larger quads
+//!
+//! Note: LOD (Tier 6) is disabled for the editor since full detail is needed when editing.
 
 use crate::editor::state::EditorState;
 use crate::editor::tools::UpdateSelectionHighlights;
 use crate::systems::game::map::format::{EntityType, SubVoxelPattern};
-use crate::systems::game::map::spawner::VoxelMaterialPalette;
+use crate::systems::game::map::spawner::{
+    ChunkMeshBuilder, Face, GreedyMesher, OccupancyGrid, VoxelMaterialPalette, CHUNK_SIZE,
+    SUB_VOXEL_COUNT, SUB_VOXEL_SIZE,
+};
 use bevy::prelude::*;
+use std::collections::HashMap;
 
-const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
-const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
-
-/// Marker component for voxels spawned by the editor
+/// Marker component for chunk entities spawned by the editor
 #[derive(Component)]
-pub struct EditorVoxel;
+pub struct EditorChunk {
+    /// The chunk position in chunk coordinates
+    pub chunk_pos: IVec3,
+}
 
 /// Marker component for entity indicators spawned by the editor
 #[derive(Component)]
@@ -30,9 +43,9 @@ pub struct MapRenderState {
     pub last_entity_count: usize,
 }
 
-/// Resource to cache the editor's material palette
+/// Resource to cache the chunk material (uses vertex colors)
 #[derive(Resource)]
-pub struct EditorMaterialPalette(pub VoxelMaterialPalette);
+pub struct EditorChunkMaterial(pub Handle<StandardMaterial>);
 
 /// Event sent when the map should be re-rendered
 #[derive(Event)]
@@ -62,119 +75,165 @@ pub fn detect_map_changes(
     }
 }
 
-/// System to render the map when requested
+/// Calculate color for a sub-voxel based on its position.
+/// Uses the same hash-based coloring as the material palette for consistency.
+#[inline]
+fn get_sub_voxel_color(x: i32, y: i32, z: i32, sub_x: i32, sub_y: i32, sub_z: i32) -> Color {
+    let index = VoxelMaterialPalette::get_material_index(x, y, z, sub_x, sub_y, sub_z);
+    let t = index as f32 / VoxelMaterialPalette::PALETTE_SIZE as f32;
+    Color::srgb(
+        0.2 + t * 0.6,
+        0.3 + ((t * std::f32::consts::PI * 2.0).sin() * 0.5 + 0.5) * 0.4,
+        0.4 + ((t * std::f32::consts::PI * 3.0).cos() * 0.5 + 0.5) * 0.4,
+    )
+}
+
+/// Calculate world position for a sub-voxel.
+#[inline]
+fn calculate_sub_voxel_pos(x: i32, y: i32, z: i32, sub_x: i32, sub_y: i32, sub_z: i32) -> Vec3 {
+    let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
+    Vec3::new(
+        x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE),
+        y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE),
+        z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE),
+    )
+}
+
+/// System to render the map when requested using optimized chunk-based meshing.
+///
+/// This uses the same optimizations as the game renderer (except LOD):
+/// - Chunk-based meshing (Tier 3)
+/// - Hidden face culling (Tier 4)
+/// - Greedy meshing (Tier 5)
 pub fn render_map_system(
     mut commands: Commands,
     mut render_events: EventReader<RenderMapEvent>,
     editor_state: Res<EditorState>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    existing_voxels: Query<Entity, With<EditorVoxel>>,
-    palette_res: Option<Res<EditorMaterialPalette>>,
+    existing_chunks: Query<Entity, With<EditorChunk>>,
+    chunk_material_res: Option<Res<EditorChunkMaterial>>,
 ) {
     // Only render if we received an event
     if render_events.read().count() == 0 {
         return;
     }
 
-    info!(
-        "Rendering map with {} voxels",
-        editor_state.current_map.world.voxels.len()
-    );
+    let total_voxels = editor_state.current_map.world.voxels.len();
+    info!("Rendering map with {} voxels (optimized)", total_voxels);
 
-    // Despawn all existing editor voxels
-    for entity in existing_voxels.iter() {
+    // Despawn all existing editor chunks
+    for entity in existing_chunks.iter() {
         commands.entity(entity).despawn();
     }
 
-    // Create sub-voxel mesh (reused for all sub-voxels)
-    let sub_voxel_mesh = meshes.add(Cuboid::new(SUB_VOXEL_SIZE, SUB_VOXEL_SIZE, SUB_VOXEL_SIZE));
-
-    // Get or create material palette
-    let palette = if let Some(ref p) = palette_res {
-        p.0.clone()
+    // Get or create chunk material (uses vertex colors)
+    let chunk_material = if let Some(ref m) = chunk_material_res {
+        m.0.clone()
     } else {
-        let new_palette = VoxelMaterialPalette::new(materials.as_mut());
-        commands.insert_resource(EditorMaterialPalette(new_palette.clone()));
-        new_palette
+        let new_material = materials.add(StandardMaterial {
+            base_color: Color::WHITE,
+            ..default()
+        });
+        commands.insert_resource(EditorChunkMaterial(new_material.clone()));
+        new_material
     };
 
-    // Collect all sub-voxels with their material indices for sorting
-    // This enables GPU instancing by spawning same-material entities consecutively
-    let mut sub_voxels: Vec<(i32, i32, i32, i32, i32, i32, usize)> = Vec::new();
+    // Early return for empty maps
+    if total_voxels == 0 {
+        info!("Map rendering complete (empty map)");
+        return;
+    }
+
+    // ========== TIER 4: Build Occupancy Grid for Hidden Face Culling ==========
+    let mut occupancy = OccupancyGrid::new();
+
+    // Collect all sub-voxel data for subsequent passes
+    let mut all_sub_voxels: Vec<(i32, i32, i32, i32, i32, i32, Vec3, usize, Color)> = Vec::new();
 
     for voxel_data in &editor_state.current_map.world.voxels {
         let (x, y, z) = voxel_data.pos;
         let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
-
-        // Debug: Log rotation state for each voxel
-        if let Some(rot) = voxel_data.rotation_state {
-            debug!(
-                "Rendering voxel at {:?} with rotation: {:?} angle {}",
-                voxel_data.pos, rot.axis, rot.angle
-            );
-        }
-
-        // Get the geometry for this pattern with rotation applied
         let geometry = pattern.geometry_with_rotation(voxel_data.rotation_state);
 
-        // Collect all occupied sub-voxels with their material indices
         for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {
-            let mat_idx = VoxelMaterialPalette::get_material_index(x, y, z, sub_x, sub_y, sub_z);
-            sub_voxels.push((x, y, z, sub_x, sub_y, sub_z, mat_idx));
+            // Add to occupancy grid for neighbor lookups
+            occupancy.insert(x, y, z, sub_x, sub_y, sub_z);
+
+            let world_pos = calculate_sub_voxel_pos(x, y, z, sub_x, sub_y, sub_z);
+            let color_index =
+                VoxelMaterialPalette::get_material_index(x, y, z, sub_x, sub_y, sub_z);
+            let color = get_sub_voxel_color(x, y, z, sub_x, sub_y, sub_z);
+            all_sub_voxels.push((x, y, z, sub_x, sub_y, sub_z, world_pos, color_index, color));
         }
     }
 
-    // Sort by material index for optimal GPU instancing
-    sub_voxels.sort_unstable_by_key(|v| v.6);
+    // ========== TIER 3 & 5: Chunk-Based Meshing with Greedy Meshing ==========
+    // Group visible faces into per-chunk greedy meshers
+    let mut chunk_meshers: HashMap<IVec3, GreedyMesher> = HashMap::new();
 
-    // Spawn sub-voxels in sorted order
-    for (x, y, z, sub_x, sub_y, sub_z, _) in sub_voxels {
-        spawn_sub_voxel(
-            &mut commands,
-            &sub_voxel_mesh,
-            &palette,
-            x,
-            y,
-            z,
-            sub_x,
-            sub_y,
-            sub_z,
+    for (x, y, z, sub_x, sub_y, sub_z, world_pos, color_index, color) in all_sub_voxels {
+        // Determine which chunk this sub-voxel belongs to
+        let chunk_pos = IVec3::new(
+            (world_pos.x / CHUNK_SIZE as f32).floor() as i32,
+            (world_pos.y / CHUNK_SIZE as f32).floor() as i32,
+            (world_pos.z / CHUNK_SIZE as f32).floor() as i32,
         );
+
+        // Global sub-voxel coordinates for the greedy mesher
+        let global_x = x * SUB_VOXEL_COUNT + sub_x;
+        let global_y = y * SUB_VOXEL_COUNT + sub_y;
+        let global_z = z * SUB_VOXEL_COUNT + sub_z;
+
+        let mesher = chunk_meshers.entry(chunk_pos).or_default();
+
+        // TIER 4: Check each face and add visible ones to the mesher
+        let faces = [
+            Face::PosX,
+            Face::NegX,
+            Face::PosY,
+            Face::NegY,
+            Face::PosZ,
+            Face::NegZ,
+        ];
+        for face in faces {
+            if !occupancy.has_neighbor(x, y, z, sub_x, sub_y, sub_z, face) {
+                mesher.add_face(global_x, global_y, global_z, face, color_index, color);
+            }
+        }
     }
 
-    info!("Map rendering complete");
-}
+    // ========== Build Meshes and Spawn Chunks (Full Detail Only) ==========
+    let total_chunks = chunk_meshers.len();
+    let mut total_quads = 0usize;
 
-/// Spawn a single sub-voxel
-#[allow(clippy::too_many_arguments)]
-fn spawn_sub_voxel(
-    commands: &mut Commands,
-    mesh: &Handle<Mesh>,
-    palette: &VoxelMaterialPalette,
-    x: i32,
-    y: i32,
-    z: i32,
-    sub_x: i32,
-    sub_y: i32,
-    sub_z: i32,
-) {
-    // Use material palette instead of creating a new material per sub-voxel
-    let material = palette.get_material(x, y, z, sub_x, sub_y, sub_z);
+    for (chunk_pos, mesher) in chunk_meshers {
+        // Build full-detail mesh
+        let mut builder = ChunkMeshBuilder::default();
+        mesher.build_into(&mut builder);
 
-    // Calculate world position
-    let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
-    let world_x = x as f32 + offset + (sub_x as f32 * SUB_VOXEL_SIZE);
-    let world_y = y as f32 + offset + (sub_y as f32 * SUB_VOXEL_SIZE);
-    let world_z = z as f32 + offset + (sub_z as f32 * SUB_VOXEL_SIZE);
+        if builder.is_empty() {
+            continue;
+        }
 
-    // Spawn the sub-voxel
-    commands.spawn((
-        Mesh3d(mesh.clone()),
-        MeshMaterial3d(material),
-        Transform::from_xyz(world_x, world_y, world_z),
-        EditorVoxel, // Mark as editor voxel for cleanup
-    ));
+        // Count quads for stats
+        total_quads += builder.quad_count();
+
+        // Create mesh and spawn chunk entity
+        let mesh = meshes.add(builder.build());
+
+        commands.spawn((
+            Mesh3d(mesh),
+            MeshMaterial3d(chunk_material.clone()),
+            Transform::default(),
+            EditorChunk { chunk_pos },
+        ));
+    }
+
+    info!(
+        "Map rendering complete: {} chunks, {} quads (greedy meshing enabled)",
+        total_chunks, total_quads
+    );
 }
 
 /// Event sent when entities should be re-rendered

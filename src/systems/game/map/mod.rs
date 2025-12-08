@@ -29,8 +29,10 @@ pub mod spawner;
 pub mod validation;
 
 pub use loader::{LoadProgress, LoadedMapData, MapLoadProgress, MapLoader};
-// VoxelChunk, ChunkLOD, and VoxelMaterialPalette exported for external use (chunk management, LOD, material access)
+// Exported for external use (game spawning, editor rendering, chunk management, LOD, material access)
 #[allow(unused_imports)]
 pub use spawner::{
-    spawn_map_system, update_chunk_lods, ChunkLOD, VoxelChunk, VoxelMaterialPalette,
+    spawn_map_system, update_chunk_lods, ChunkLOD, ChunkMeshBuilder, Face, GreedyMesher,
+    OccupancyGrid, VoxelChunk, VoxelMaterialPalette, CHUNK_SIZE, LOD_DISTANCES, LOD_LEVELS,
+    SUB_VOXEL_COUNT, SUB_VOXEL_SIZE,
 };

@@ -12,8 +12,10 @@ use bevy::render::mesh::{Indices, PrimitiveTopology, VertexAttributeValues};
 use bevy::render::render_asset::RenderAssetUsages;
 use std::collections::{HashMap, HashSet};
 
-const SUB_VOXEL_COUNT: i32 = 8; // 8x8x8 sub-voxels per voxel
-const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
+/// Number of sub-voxels per voxel axis (8x8x8 = 512 sub-voxels per voxel)
+pub const SUB_VOXEL_COUNT: i32 = 8;
+/// Size of a single sub-voxel in world units
+pub const SUB_VOXEL_SIZE: f32 = 1.0 / SUB_VOXEL_COUNT as f32;
 
 /// Chunk size in voxels (16x16x16 voxels per chunk)
 pub const CHUNK_SIZE: i32 = 16;
@@ -733,6 +735,12 @@ impl ChunkMeshBuilder {
     /// Check if the builder has any geometry.
     pub fn is_empty(&self) -> bool {
         self.positions.is_empty()
+    }
+
+    /// Get the number of quads in the builder (for statistics).
+    /// Each quad has 4 vertices.
+    pub fn quad_count(&self) -> usize {
+        self.positions.len() / 4
     }
 }
 
