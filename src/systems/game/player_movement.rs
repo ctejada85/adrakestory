@@ -8,7 +8,7 @@
 
 use super::collision::check_sub_voxel_collision;
 use super::components::{Player, SubVoxel};
-use super::gamepad::PlayerInput;
+use super::gamepad::{InputSource, PlayerInput};
 use super::resources::SpatialGrid;
 use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
@@ -57,8 +57,16 @@ pub fn move_player(
             // The character model faces right by default, so we subtract π/2 (90°) to align it
             let new_target = normalized_dir.z.atan2(-normalized_dir.x) - FRAC_PI_2;
 
-            // Check if target rotation changed (with small threshold for floating point comparison)
-            if (new_target - player.target_rotation).abs() > 0.01 {
+            // Use a larger threshold for gamepad to prevent constant rotation resets
+            // from small analog stick variations. Keyboard input is always normalized
+            // so it can use a smaller threshold.
+            let rotation_threshold = match player_input.input_source {
+                InputSource::Gamepad => 0.15, // ~8.6 degrees - prevents jitter from analog input
+                InputSource::KeyboardMouse => 0.01, // ~0.6 degrees - responsive for digital input
+            };
+
+            // Check if target rotation changed significantly
+            if (new_target - player.target_rotation).abs() > rotation_threshold {
                 // Target changed - reset easing
                 player.start_rotation = player.current_rotation;
                 player.rotation_elapsed = 0.0;
