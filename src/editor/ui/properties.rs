@@ -374,9 +374,9 @@ fn render_transform_mode_content(
                 ui.label("Mode: Move");
                 ui.label(format!(
                     "Offset: ({}, {}, {})",
-                    active_transform.current_offset.x as i32,
-                    active_transform.current_offset.y as i32,
-                    active_transform.current_offset.z as i32
+                    active_transform.current_offset.x,
+                    active_transform.current_offset.y,
+                    active_transform.current_offset.z
                 ));
             }
             TransformMode::Rotate => {
