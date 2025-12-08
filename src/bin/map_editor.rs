@@ -238,8 +238,14 @@ fn render_ui(
         &mut transform_events,
     );
 
-    // Render viewport controls
-    ui::render_viewport_controls(ctx);
+    // Render viewport overlays (keyboard mode indicator, selection tooltip, etc.)
+    ui::render_viewport_overlays(
+        ctx,
+        &ui_resources.editor_state,
+        &read_resources.cursor_state,
+        &read_resources.keyboard_mode,
+        &read_resources.active_transform,
+    );
 
     // Render status bar
     render_status_bar(

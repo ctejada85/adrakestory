@@ -9,3 +9,4 @@ pub mod viewport;
 pub use properties::render_properties_panel;
 pub use toolbar::render_toolbar;
 pub use viewport::render_viewport_controls;
+pub use viewport::render_viewport_overlays;
