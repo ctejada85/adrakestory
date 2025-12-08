@@ -9,8 +9,11 @@ pub struct EditorCamera {
     /// Target point the camera orbits around
     pub target: Vec3,
 
-    /// Distance from target
+    /// Current distance from target
     pub distance: f32,
+
+    /// Target distance for smooth zoom interpolation
+    pub target_distance: f32,
 
     /// Rotation around target (yaw, pitch)
     pub rotation: Vec2,
@@ -21,8 +24,11 @@ pub struct EditorCamera {
     /// Camera rotation speed
     pub orbit_speed: f32,
 
-    /// Zoom speed
+    /// Zoom speed (how fast scroll wheel changes target distance)
     pub zoom_speed: f32,
+
+    /// Zoom smoothing factor (how fast camera interpolates to target distance)
+    pub zoom_smoothing: f32,
 
     /// Minimum distance from target
     pub min_distance: f32,
@@ -33,13 +39,22 @@ pub struct EditorCamera {
 
 impl Default for EditorCamera {
     fn default() -> Self {
+        // Windows has different scroll wheel behavior, so use faster zoom speed
+        #[cfg(target_os = "windows")]
+        let zoom_speed = 0.15; // Faster zoom for Windows scroll wheel
+
+        #[cfg(not(target_os = "windows"))]
+        let zoom_speed = 0.0125; // Original zoom speed for macOS/Linux
+
         Self {
             target: Vec3::new(2.0, 0.0, 2.0),
             distance: 10.0,
+            target_distance: 10.0,
             rotation: Vec2::new(0.0, 0.5), // yaw, pitch
             pan_speed: 0.00125,
             orbit_speed: 0.005,
-            zoom_speed: 0.0125,
+            zoom_speed,
+            zoom_smoothing: 15.0, // Smooth interpolation speed
             min_distance: 2.0,
             max_distance: 50.0,
         }
@@ -94,15 +109,30 @@ impl EditorCamera {
         self.target += up * delta.y * self.pan_speed * self.distance;
     }
 
-    /// Zoom the camera (change distance)
+    /// Zoom the camera (change target distance for smooth interpolation)
     pub fn zoom(&mut self, delta: f32) {
-        self.distance -= delta * self.zoom_speed * self.distance;
+        // Modify target distance - actual distance will interpolate smoothly
+        self.target_distance -= delta * self.zoom_speed * self.target_distance;
+        self.target_distance = self
+            .target_distance
+            .clamp(self.min_distance, self.max_distance);
+    }
+
+    /// Update smooth zoom interpolation (call every frame with delta time)
+    pub fn update_smooth_zoom(&mut self, dt: f32) {
+        // Exponential interpolation for smooth zoom
+        let t = 1.0 - (-self.zoom_smoothing * dt).exp();
+        self.distance = self.distance + (self.target_distance - self.distance) * t;
         self.distance = self.distance.clamp(self.min_distance, self.max_distance);
     }
 
     /// Reset camera to default position
     pub fn reset(&mut self) {
-        *self = Self::default();
+        let default = Self::default();
+        self.target = default.target;
+        self.distance = default.distance;
+        self.target_distance = default.target_distance;
+        self.rotation = default.rotation;
     }
 
     /// Set camera to look at a specific point from a specific position
@@ -110,6 +140,7 @@ impl EditorCamera {
         self.target = target;
         let offset = position - target;
         self.distance = offset.length();
+        self.target_distance = self.distance;
 
         // Calculate rotation from offset
         self.rotation.x = offset.z.atan2(offset.x);
@@ -117,9 +148,16 @@ impl EditorCamera {
     }
 }
 
-/// System to update camera transform based on EditorCamera component
-pub fn update_editor_camera(mut query: Query<(&EditorCamera, &mut Transform), With<Camera3d>>) {
-    for (editor_cam, mut transform) in query.iter_mut() {
+/// System to update camera transform and smooth zoom
+pub fn update_editor_camera(
+    mut query: Query<(&mut EditorCamera, &mut Transform), With<Camera3d>>,
+    time: Res<Time>,
+) {
+    for (mut editor_cam, mut transform) in query.iter_mut() {
+        // Update smooth zoom interpolation
+        editor_cam.update_smooth_zoom(time.delta_secs());
+
+        // Update camera position
         let position = editor_cam.calculate_position();
         transform.translation = position;
         transform.look_at(editor_cam.target, Vec3::Y);
@@ -227,13 +265,14 @@ mod tests {
     #[test]
     fn test_camera_zoom() {
         let mut camera = EditorCamera::default();
-        let initial_distance = camera.distance;
+        let initial_target_distance = camera.target_distance;
 
         camera.zoom(1.0);
-        assert!(camera.distance < initial_distance);
+        assert!(camera.target_distance < initial_target_distance);
 
         camera.zoom(-1.0);
-        assert!((camera.distance - initial_distance).abs() < 0.1);
+        // Target distance should be close to initial after zooming in then out
+        assert!((camera.target_distance - initial_target_distance).abs() < 1.0);
     }
 
     #[test]
@@ -244,12 +283,28 @@ mod tests {
         for _ in 0..100 {
             camera.zoom(1.0);
         }
-        assert!(camera.distance >= camera.min_distance);
+        assert!(camera.target_distance >= camera.min_distance);
 
         // Zoom out a lot
         for _ in 0..100 {
             camera.zoom(-1.0);
         }
-        assert!(camera.distance <= camera.max_distance);
+        assert!(camera.target_distance <= camera.max_distance);
+    }
+
+    #[test]
+    fn test_smooth_zoom_interpolation() {
+        let mut camera = EditorCamera {
+            target_distance: 5.0, // Set target closer
+            ..Default::default()
+        };
+
+        // Simulate several frames of interpolation
+        for _ in 0..60 {
+            camera.update_smooth_zoom(1.0 / 60.0);
+        }
+
+        // After 1 second, distance should be very close to target
+        assert!((camera.distance - camera.target_distance).abs() < 0.1);
     }
 }
