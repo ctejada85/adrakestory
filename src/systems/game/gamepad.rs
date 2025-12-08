@@ -209,9 +209,11 @@ pub fn gather_gamepad_input(
 /// System that gathers keyboard and mouse input into the PlayerInput resource.
 ///
 /// This system checks if keyboard/mouse is being used and switches the input
-/// source accordingly.
+/// source accordingly. Mouse movement also triggers the switch to keyboard/mouse mode.
 pub fn gather_keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    mouse_button: Res<ButtonInput<MouseButton>>,
+    mut mouse_motion: EventReader<bevy::input::mouse::MouseMotion>,
     mut player_input: ResMut<PlayerInput>,
 ) {
     // Calculate keyboard movement
@@ -253,6 +255,13 @@ pub fn gather_keyboard_input(
     let kb_pause = keyboard.just_pressed(KeyCode::Escape);
     let kb_camera_reset = keyboard.just_pressed(KeyCode::Home);
 
+    // Check for mouse movement
+    let mouse_moved = mouse_motion.read().any(|event| event.delta.length() > 0.5);
+
+    // Check for mouse button presses
+    let mouse_clicked =
+        mouse_button.any_just_pressed([MouseButton::Left, MouseButton::Right, MouseButton::Middle]);
+
     // Detect if keyboard is being used
     let keyboard_active = kb_movement.length() > 0.01
         || kb_jump_pressed
@@ -271,8 +280,8 @@ pub fn gather_keyboard_input(
             KeyCode::Space,
         ]);
 
-    // Update input source based on activity
-    if keyboard_active {
+    // Update input source based on activity (keyboard, mouse movement, or mouse click)
+    if keyboard_active || mouse_moved || mouse_clicked {
         player_input.input_source = InputSource::KeyboardMouse;
     }
 
@@ -327,4 +336,23 @@ pub fn get_menu_gamepad_input(
     }
 
     (nav_up, nav_down, select, back)
+}
+
+/// System that updates cursor visibility based on active input source.
+///
+/// Hides the cursor when using a gamepad and shows it when using keyboard/mouse.
+/// This provides a cleaner experience when playing with a controller.
+pub fn update_cursor_visibility(player_input: Res<PlayerInput>, mut windows: Query<&mut Window>) {
+    if player_input.is_changed() {
+        if let Ok(mut window) = windows.get_single_mut() {
+            match player_input.input_source {
+                InputSource::Gamepad => {
+                    window.cursor_options.visible = false;
+                }
+                InputSource::KeyboardMouse => {
+                    window.cursor_options.visible = true;
+                }
+            }
+        }
+    }
 }

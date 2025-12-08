@@ -7,7 +7,7 @@ mod systems;
 use states::GameState;
 use systems::game::gamepad::{
     gather_gamepad_input, gather_keyboard_input, handle_gamepad_connections, reset_player_input,
-    ActiveGamepad, GamepadSettings, PlayerInput,
+    update_cursor_visibility, ActiveGamepad, GamepadSettings, PlayerInput,
 };
 
 /// System sets for organizing game loop execution order.
@@ -129,6 +129,7 @@ fn main() {
                 rotate_character_model,
                 update_collision_box,
                 update_chunk_lods,
+                update_cursor_visibility,
             )
                 .in_set(GameSystemSet::Visual),
         )
