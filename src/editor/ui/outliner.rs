@@ -137,29 +137,39 @@ fn render_voxels_section(
                 let header_response = egui::CollapsingHeader::new(format!("{} {} ({})", icon, type_name, positions.len()))
                     .default_open(is_expanded)
                     .show(ui, |ui| {
-                        // Show positions (limit to first 20 to avoid performance issues)
-                        let max_show = 20;
-                        for (i, pos) in positions.iter().take(max_show).enumerate() {
-                            let is_selected = editor_state.selected_voxels.contains(pos);
-                            
-                            let label = format!("  ({}, {}, {})", pos.0, pos.1, pos.2);
-                            let response = ui.selectable_label(is_selected, label);
-                            
-                            if response.clicked() {
-                                if is_selected {
-                                    editor_state.selected_voxels.remove(pos);
-                                } else {
-                                    editor_state.selected_voxels.insert(*pos);
+                        // Show all positions in a scrollable area if there are many
+                        let needs_scroll = positions.len() > 50;
+                        let mut show_content = |ui: &mut egui::Ui| {
+                            for pos in positions.iter() {
+                                let is_selected = editor_state.selected_voxels.contains(pos);
+                                
+                                let label = format!("  ({}, {}, {})", pos.0, pos.1, pos.2);
+                                let response = ui.selectable_label(is_selected, label);
+                                
+                                if response.clicked() {
+                                    if is_selected {
+                                        editor_state.selected_voxels.remove(pos);
+                                    } else {
+                                        editor_state.selected_voxels.insert(*pos);
+                                    }
+                                    selection_events.send(UpdateSelectionHighlights);
                                 }
-                                selection_events.send(UpdateSelectionHighlights);
+                                
+                                // Show position on hover
+                                response.on_hover_text(format!("Position: {:?}\nClick to toggle selection", pos));
                             }
-                            
-                            // Show position on hover
-                            response.on_hover_text(format!("Position: {:?}\nClick to toggle selection", pos));
-                            
-                            if i >= max_show - 1 && positions.len() > max_show {
-                                ui.label(format!("  ... and {} more", positions.len() - max_show));
-                            }
+                        };
+                        
+                        if needs_scroll {
+                            // Use a bounded scroll area for large lists
+                            egui::ScrollArea::vertical()
+                                .max_height(200.0)
+                                .id_salt(format!("voxel_scroll_{:?}", voxel_type))
+                                .show(ui, |ui| {
+                                    show_content(ui);
+                                });
+                        } else {
+                            show_content(ui);
                         }
                     });
                 
