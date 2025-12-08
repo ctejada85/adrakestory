@@ -9,6 +9,7 @@
 //! - **Tier 3: Chunk-Based Meshing** - Groups sub-voxels into 16³ chunks with merged meshes
 //! - **Tier 4: Hidden Face Culling** - Only renders faces not adjacent to other voxels
 //! - **Tier 5: Greedy Meshing** - Merges adjacent same-color faces into larger quads
+//! - **Frustum Culling** - Chunks outside camera view are not rendered
 //!
 //! Note: LOD (Tier 6) is disabled for the editor since full detail is needed when editing.
 
@@ -19,7 +20,9 @@ use crate::systems::game::map::spawner::{
     ChunkMeshBuilder, Face, GreedyMesher, OccupancyGrid, VoxelMaterialPalette, CHUNK_SIZE,
     SUB_VOXEL_COUNT, SUB_VOXEL_SIZE,
 };
+use bevy::math::Vec3A;
 use bevy::prelude::*;
+use bevy::render::primitives::Aabb;
 use std::collections::HashMap;
 
 /// Marker component for chunk entities spawned by the editor
@@ -222,11 +225,28 @@ pub fn render_map_system(
         // Create mesh and spawn chunk entity
         let mesh = meshes.add(builder.build());
 
+        // Calculate chunk bounds for frustum culling
+        // Chunks are positioned at their world coordinates, so AABB center is at chunk center
+        let chunk_center = Vec3::new(
+            (chunk_pos.x as f32 + 0.5) * CHUNK_SIZE as f32,
+            (chunk_pos.y as f32 + 0.5) * CHUNK_SIZE as f32,
+            (chunk_pos.z as f32 + 0.5) * CHUNK_SIZE as f32,
+        );
+        let half_extent = Vec3::splat(CHUNK_SIZE as f32 / 2.0);
+
+        // Spawn chunk with explicit AABB for proper frustum culling
         commands.spawn((
             Mesh3d(mesh),
             MeshMaterial3d(chunk_material.clone()),
             Transform::default(),
             EditorChunk { chunk_pos },
+            // Explicit AABB enables Bevy's automatic frustum culling
+            Aabb {
+                center: Vec3A::from(chunk_center),
+                half_extents: Vec3A::from(half_extent),
+            },
+            // Ensure visibility component is present for culling to work
+            Visibility::default(),
         ));
     }
 
@@ -306,7 +326,7 @@ pub fn render_entities_system(
             ..default()
         });
 
-        // Spawn the entity marker
+        // Spawn the entity marker with AABB for frustum culling
         commands.spawn((
             Mesh3d(mesh),
             MeshMaterial3d(material),
@@ -314,6 +334,12 @@ pub fn render_entities_system(
             EditorEntityMarker {
                 entity_index: index,
             },
+            // AABB for frustum culling (sphere bounds)
+            Aabb {
+                center: Vec3A::ZERO, // Local space center
+                half_extents: Vec3A::splat(size),
+            },
+            Visibility::default(),
         ));
     }
 
