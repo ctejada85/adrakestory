@@ -37,7 +37,7 @@ pub fn render_properties_panel(
     active_transform: &ActiveTransform,
     events: &mut TransformEvents,
 ) {
-    egui::SidePanel::right("properties")
+    let response = egui::SidePanel::right("properties")
         .default_width(280.0)
         .min_width(200.0)
         .max_width(400.0)
@@ -50,6 +50,15 @@ pub fn render_properties_panel(
             // Tool-specific content
             render_tool_content(ui, editor_state, active_transform, events);
         });
+
+    // Store panel width in egui memory for viewport overlays to use
+    let panel_width = response.response.rect.width();
+    ctx.memory_mut(|mem| {
+        mem.data.insert_temp(
+            egui::Id::new("properties").with("__panel_width"),
+            panel_width,
+        );
+    });
 }
 
 /// Render the tool header with icon and name

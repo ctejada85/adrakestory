@@ -5,12 +5,19 @@ use crate::editor::state::{EditorState, EditorTool, KeyboardEditMode};
 use crate::editor::tools::{ActiveTransform, TransformMode};
 use bevy_egui::egui;
 
-/// Viewport bounds for positioning overlays
-/// These values should match the panel widths in outliner.rs and properties.rs
-const LEFT_PANEL_WIDTH: f32 = 200.0;
-const RIGHT_PANEL_WIDTH: f32 = 280.0;
-const TOP_BAR_HEIGHT: f32 = 70.0; // Menu bar + toolbar
-const STATUS_BAR_HEIGHT: f32 = 30.0;
+/// Default panel widths (used as fallback if egui memory doesn't have them yet)
+const DEFAULT_LEFT_PANEL_WIDTH: f32 = 200.0;
+const DEFAULT_RIGHT_PANEL_WIDTH: f32 = 280.0;
+
+/// Get the current width of a side panel from egui's memory
+fn get_panel_width(ctx: &egui::Context, panel_id: &str, default: f32) -> f32 {
+    let id = egui::Id::new(panel_id);
+    ctx.memory(|mem| {
+        mem.data
+            .get_temp::<f32>(id.with("__panel_width"))
+            .unwrap_or(default)
+    })
+}
 
 /// Render all viewport overlays
 /// Overlays are positioned relative to the viewport area (between side panels)
@@ -21,12 +28,20 @@ pub fn render_viewport_overlays(
     keyboard_mode: &KeyboardEditMode,
     active_transform: &ActiveTransform,
 ) {
+    // Get actual panel widths from egui's memory (panels store their width there when resized)
+    let left_panel_width = get_panel_width(ctx, "outliner", DEFAULT_LEFT_PANEL_WIDTH);
+    let right_panel_width = get_panel_width(ctx, "properties", DEFAULT_RIGHT_PANEL_WIDTH);
+
     // Calculate viewport bounds (area between side panels)
     let screen_rect = ctx.screen_rect();
-    let viewport_left = LEFT_PANEL_WIDTH;
-    let viewport_right = screen_rect.width() - RIGHT_PANEL_WIDTH;
-    let viewport_top = TOP_BAR_HEIGHT;
-    let viewport_bottom = screen_rect.height() - STATUS_BAR_HEIGHT;
+    let viewport_left = left_panel_width;
+    let viewport_right = screen_rect.width() - right_panel_width;
+
+    // Get top/bottom panel heights from egui's available rect after panels are drawn
+    // For now use the available_rect which already accounts for panels
+    let available = ctx.available_rect();
+    let viewport_top = available.top();
+    let viewport_bottom = available.bottom();
 
     let viewport_rect = egui::Rect::from_min_max(
         egui::pos2(viewport_left, viewport_top),

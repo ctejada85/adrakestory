@@ -44,7 +44,7 @@ pub fn render_outliner_panel(
     selection_events: &mut EventWriter<UpdateSelectionHighlights>,
     render_events: &mut EventWriter<RenderMapEvent>,
 ) {
-    egui::SidePanel::left("outliner")
+    let response = egui::SidePanel::left("outliner")
         .default_width(200.0)
         .min_width(150.0)
         .max_width(350.0)
@@ -90,6 +90,13 @@ pub fn render_outliner_panel(
                     render_entities_section(ui, editor_state, outliner_state, selection_events, render_events);
                 });
         });
+
+    // Store panel width in egui memory for viewport overlays to use
+    let panel_width = response.response.rect.width();
+    ctx.memory_mut(|mem| {
+        mem.data
+            .insert_temp(egui::Id::new("outliner").with("__panel_width"), panel_width);
+    });
 }
 
 /// Render the voxels section of the outliner
