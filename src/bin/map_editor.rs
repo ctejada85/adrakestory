@@ -3,7 +3,7 @@
 //! A standalone GUI application for creating and editing map files.
 
 use adrakestory::editor::tools::ActiveTransform;
-use adrakestory::editor::ui::dialogs::MapDataChangedEvent;
+use adrakestory::editor::ui::dialogs::{AppExitEvent, MapDataChangedEvent};
 use adrakestory::editor::ui::properties::TransformEvents;
 use adrakestory::editor::{camera, cursor, file_io, grid, renderer, state, tools, ui};
 use adrakestory::editor::{
@@ -50,8 +50,11 @@ fn main() {
             primary_window: Some(Window {
                 title: "Map Editor - A Drake's Story".to_string(),
                 resolution: (1600.0, 900.0).into(),
+                // Prevent window from closing immediately - we handle it manually
+                prevent_default_event_handling: false,
                 ..default()
             }),
+            close_when_requested: false, // Don't auto-close, we'll handle it
             ..default()
         }))
         .add_plugins(EguiPlugin)
@@ -85,11 +88,14 @@ fn main() {
         .add_event::<tools::UpdateTransformPreview>()
         .add_event::<tools::UpdateRotation>()
         .add_event::<tools::SetRotationAxis>()
+        .add_event::<AppExitEvent>()
         .add_systems(Startup, setup_editor)
         .add_systems(Update, update_lighting_on_map_change)
         .add_systems(Update, render_ui)
         .add_systems(Update, ui::dialogs::check_file_dialog_result)
         .add_systems(Update, ui::dialogs::handle_file_selected)
+        .add_systems(Update, ui::dialogs::handle_window_close_request)
+        .add_systems(Update, ui::dialogs::handle_app_exit)
         .add_systems(Update, file_io::handle_save_map)
         .add_systems(Update, file_io::handle_save_map_as)
         .add_systems(Update, file_io::check_save_dialog_result)
@@ -220,6 +226,7 @@ fn render_ui(
     mut map_changed_events: EventWriter<MapDataChangedEvent>,
     mut selection_events: EventWriter<tools::UpdateSelectionHighlights>,
     mut render_events: EventWriter<RenderMapEvent>,
+    mut exit_events: EventWriter<AppExitEvent>,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -277,6 +284,7 @@ fn render_ui(
         &mut ui_resources.ui_state,
         &mut save_events.save,
         &mut map_changed_events,
+        &mut exit_events,
     );
 
     // Handle file operations

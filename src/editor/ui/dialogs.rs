@@ -22,6 +22,10 @@ pub struct FileSelectedEvent {
 #[derive(Event)]
 pub struct MapDataChangedEvent;
 
+/// Event sent when the app should exit
+#[derive(Event)]
+pub struct AppExitEvent;
+
 /// Resource to track the file dialog receiver
 #[derive(Resource, Default)]
 pub struct FileDialogReceiver {
@@ -35,10 +39,11 @@ pub fn render_dialogs(
     ui_state: &mut EditorUIState,
     save_events: &mut EventWriter<SaveMapEvent>,
     map_changed_events: &mut EventWriter<MapDataChangedEvent>,
+    exit_events: &mut EventWriter<AppExitEvent>,
 ) {
     // Unsaved changes dialog
     if ui_state.unsaved_changes_dialog_open {
-        render_unsaved_changes_dialog(ctx, editor_state, ui_state, save_events);
+        render_unsaved_changes_dialog(ctx, editor_state, ui_state, save_events, exit_events);
     }
 
     // New map dialog
@@ -68,6 +73,7 @@ fn render_unsaved_changes_dialog(
     editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
     save_events: &mut EventWriter<SaveMapEvent>,
+    exit_events: &mut EventWriter<AppExitEvent>,
 ) {
     egui::Window::new("Unsaved Changes")
         .collapsible(false)
@@ -83,13 +89,13 @@ fn render_unsaved_changes_dialog(
                 if ui.button("Save").clicked() {
                     save_events.send(SaveMapEvent);
                     ui_state.unsaved_changes_dialog_open = false;
-                    handle_pending_action(editor_state, ui_state);
+                    handle_pending_action(editor_state, ui_state, exit_events);
                 }
 
                 if ui.button("Don't Save").clicked() {
                     editor_state.clear_modified();
                     ui_state.unsaved_changes_dialog_open = false;
-                    handle_pending_action(editor_state, ui_state);
+                    handle_pending_action(editor_state, ui_state, exit_events);
                 }
 
                 if ui.button("Cancel").clicked() {
@@ -101,7 +107,11 @@ fn render_unsaved_changes_dialog(
 }
 
 /// Handle the pending action after unsaved changes dialog
-fn handle_pending_action(_editor_state: &mut EditorState, ui_state: &mut EditorUIState) {
+fn handle_pending_action(
+    _editor_state: &mut EditorState,
+    ui_state: &mut EditorUIState,
+    exit_events: &mut EventWriter<AppExitEvent>,
+) {
     if let Some(action) = ui_state.pending_action.take() {
         match action {
             PendingAction::NewMap => {
@@ -112,7 +122,7 @@ fn handle_pending_action(_editor_state: &mut EditorState, ui_state: &mut EditorU
             }
             PendingAction::Quit => {
                 info!("Quitting editor");
-                // TODO: Implement quit
+                exit_events.send(AppExitEvent);
             }
         }
     }
@@ -344,4 +354,37 @@ fn load_map_from_file(path: &PathBuf) -> Result<MapData, String> {
     }
 
     Ok(map_data)
+}
+
+/// System to intercept window close requests and prompt for unsaved changes
+pub fn handle_window_close_request(
+    mut window_close_events: EventReader<bevy::window::WindowCloseRequested>,
+    editor_state: Res<EditorState>,
+    mut ui_state: ResMut<EditorUIState>,
+    mut exit_events: EventWriter<AppExitEvent>,
+) {
+    for _event in window_close_events.read() {
+        // Check if there are unsaved changes
+        if editor_state.is_modified {
+            info!("Window close requested with unsaved changes");
+
+            // Show unsaved changes dialog
+            ui_state.unsaved_changes_dialog_open = true;
+            ui_state.pending_action = Some(PendingAction::Quit);
+        } else {
+            // No unsaved changes, just quit
+            exit_events.send(AppExitEvent);
+        }
+    }
+}
+
+/// System to handle the actual app exit
+pub fn handle_app_exit(
+    mut exit_events: EventReader<AppExitEvent>,
+    mut app_exit: EventWriter<bevy::app::AppExit>,
+) {
+    for _ in exit_events.read() {
+        info!("Application exit requested");
+        app_exit.send(bevy::app::AppExit::Success);
+    }
 }
