@@ -738,12 +738,6 @@
                 rotation_state: None,
             ),
             (
-                pos: (7, 0, 5),
-                voxel_type: Grass,
-                pattern: Some(Full),
-                rotation_state: None,
-            ),
-            (
                 pos: (8, 0, 5),
                 voxel_type: Grass,
                 pattern: Some(Full),
@@ -948,18 +942,6 @@
                 rotation_state: None,
             ),
             (
-                pos: (9, 0, 9),
-                voxel_type: Grass,
-                pattern: Some(Full),
-                rotation_state: None,
-            ),
-            (
-                pos: (10, 0, 9),
-                voxel_type: Grass,
-                pattern: Some(Full),
-                rotation_state: None,
-            ),
-            (
                 pos: (11, 0, 9),
                 voxel_type: Grass,
                 pattern: Some(Full),
@@ -1093,12 +1075,6 @@
             ),
             (
                 pos: (9, 0, 10),
-                voxel_type: Grass,
-                pattern: Some(Full),
-                rotation_state: None,
-            ),
-            (
-                pos: (10, 0, 10),
                 voxel_type: Grass,
                 pattern: Some(Full),
                 rotation_state: None,
@@ -1464,12 +1440,6 @@
                 rotation_state: None,
             ),
             (
-                pos: (5, 0, 4),
-                voxel_type: Grass,
-                pattern: Some(Full),
-                rotation_state: None,
-            ),
-            (
                 pos: (5, 0, 3),
                 voxel_type: Grass,
                 pattern: Some(Full),
@@ -1501,6 +1471,48 @@
             ),
             (
                 pos: (9, 0, 1),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (5, 0, 4),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (7, 0, 5),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (4, 1, 5),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (6, 1, 5),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (10, 0, 10),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (10, 0, 9),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (9, 0, 9),
                 voxel_type: Grass,
                 pattern: Some(Full),
                 rotation_state: None,
