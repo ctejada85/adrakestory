@@ -26,7 +26,8 @@ use systems::game::map::{
 };
 use systems::game::systems::{
     apply_gravity, apply_physics, follow_player_camera, handle_escape_key, move_player,
-    rotate_camera, rotate_character_model, toggle_collision_box, update_collision_box,
+    rotate_camera, rotate_character_model, toggle_collision_box, toggle_fullscreen,
+    update_collision_box,
 };
 use systems::intro_animation::systems::{animate_intro, cleanup_intro, setup_intro};
 use systems::loading_screen::{
@@ -50,6 +51,8 @@ fn main() {
             animate_intro.run_if(in_state(GameState::IntroAnimation)),
         )
         .add_systems(OnExit(GameState::IntroAnimation), cleanup_intro)
+        // Global systems that run in any state
+        .add_systems(Update, toggle_fullscreen)
         .add_systems(OnEnter(GameState::TitleScreen), setup_title_screen)
         .add_systems(
             Update,

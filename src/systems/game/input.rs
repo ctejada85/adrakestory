@@ -7,6 +7,7 @@
 
 use super::components::{CollisionBox, Player};
 use bevy::prelude::*;
+use bevy::window::{MonitorSelection, WindowMode};
 
 /// System that handles the Escape key to pause the game.
 ///
@@ -50,6 +51,34 @@ pub fn update_collision_box(
     if let Ok(player_transform) = player_query.get_single() {
         for mut box_transform in &mut collision_box_query {
             box_transform.translation = player_transform.translation;
+        }
+    }
+}
+
+/// System that toggles fullscreen mode when Alt+Enter is pressed.
+///
+/// This system works in any game state and switches between
+/// borderless fullscreen and windowed mode.
+pub fn toggle_fullscreen(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut windows: Query<&mut Window>,
+) {
+    let alt_pressed =
+        keyboard_input.pressed(KeyCode::AltLeft) || keyboard_input.pressed(KeyCode::AltRight);
+    let enter_just_pressed = keyboard_input.just_pressed(KeyCode::Enter);
+
+    if alt_pressed && enter_just_pressed {
+        if let Ok(mut window) = windows.get_single_mut() {
+            window.mode = match window.mode {
+                WindowMode::Windowed => {
+                    info!("Switching to fullscreen mode");
+                    WindowMode::BorderlessFullscreen(MonitorSelection::Current)
+                }
+                _ => {
+                    info!("Switching to windowed mode");
+                    WindowMode::Windowed
+                }
+            };
         }
     }
 }

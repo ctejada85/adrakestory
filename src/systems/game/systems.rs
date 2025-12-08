@@ -24,4 +24,6 @@ pub use super::physics::{apply_gravity, apply_physics};
 pub use super::camera::{follow_player_camera, rotate_camera};
 
 // Re-export input handling
-pub use super::input::{handle_escape_key, toggle_collision_box, update_collision_box};
+pub use super::input::{
+    handle_escape_key, toggle_collision_box, toggle_fullscreen, update_collision_box,
+};
