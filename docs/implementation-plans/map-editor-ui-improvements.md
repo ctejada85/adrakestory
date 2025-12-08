@@ -1,5 +1,27 @@
 # Map Editor UI Improvements Plan
 
+## Implementation Status
+
+**Last Updated**: 2025-10-24
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1: Horizontal Toolbar | ✅ Complete | Tool buttons, dropdowns implemented |
+| Phase 2: Status Bar | ✅ Complete | Tool display, counts, modified indicator |
+| Phase 3: Viewport Overlays | ✅ Complete | Dynamic positioning relative to panels |
+| Phase 4: Outliner Panel | ✅ Complete | Left panel with entity/voxel lists |
+| Phase 5: Properties Panel | ✅ Complete | Tool-specific properties |
+
+### Additional Completed Items (2025-10-24)
+- ✅ **Recent Files**: File → Open Recent submenu with persistence
+- ✅ **All Tool Shortcuts**: V, B, X, E, C shortcuts for tool switching
+- ✅ **Dynamic Panel Positioning**: Overlays adjust to panel resize
+- ✅ **Click-through Prevention**: Resize bars don't trigger tool actions
+- ✅ **Entity Grid Alignment**: Entities snap to integer grid positions
+- ✅ **Entity Movement Fix**: Proper system ordering for responsiveness
+
+---
+
 ## Overview
 
 This document outlines improvements to the map editor's user interface to enhance usability, discoverability, and workflow efficiency.

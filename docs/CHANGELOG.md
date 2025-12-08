@@ -7,7 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Map Editor - Recent Files**: Added Recent Files feature to File menu
+  - Tracks last 10 opened map files
+  - Persists across editor sessions (stored in user config directory)
+  - Quick access to frequently used maps
+  - Automatically removes non-existent files from list
+
+- **Map Editor - Tool Keyboard Shortcuts**: Added missing tool selection shortcuts
+  - `V` - Select tool
+  - `B` - Voxel Place tool
+  - `X` - Voxel Remove tool
+  - `E` - Entity Place tool
+  - `C` - Camera tool
+  - `1` and `2` shortcuts retained for backward compatibility
+
 ### Fixed
+- **Map Editor - Panel Overlay Positioning**: Floating overlays (camera controls, tool options) now position relative to side panels instead of screen edges
+  - Overlays dynamically adjust when panels are resized
+  - Status bar height is properly accounted for bottom margins
+
+- **Map Editor - Resize Bar Click-Through**: Fixed issue where clicking on panel resize bars would trigger tool actions
+  - Added `is_using_pointer()` check alongside `is_pointer_over_area()`
+  - Prevents voxel/entity placement while dragging resize bars
+
+- **Map Editor - Entity Grid Alignment**: Entity placement now snaps to grid like voxels
+  - New entities placed at integer grid positions
+  - Entity rendering uses `.round()` for position snapping
+  - Legacy entities with float positions are displayed correctly
+
+- **Map Editor - Entity Movement Responsiveness**: Fixed entity movement lag when using arrow keys
+  - Added proper system ordering with `.after()` constraints
+  - Transformation operations now run after keyboard input handling
+
+- **Map Editor - Tool Shortcuts Not Working**: Fixed keyboard shortcuts not switching tools
+  - Added system ordering to ensure keyboard handling runs after UI rendering
+  - Prevents egui from consuming keyboard events meant for tool switching
+
 - **Map Editor Save Function**: Fixed critical bug where maps with negative voxel coordinates would save with incorrect dimensions, causing "Invalid voxel position" errors on load. The save function now automatically normalizes all coordinates to start at (0, 0, 0) by:
   - Calculating the bounding box of all voxels
   - Determining the offset needed to shift minimum coordinates to origin

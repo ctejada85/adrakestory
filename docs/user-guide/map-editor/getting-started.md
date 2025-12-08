@@ -45,6 +45,8 @@ When you launch the map editor, it starts with a **blank canvas** - an empty wor
 5. Click **Open**
 6. The map will load and render in the 3D viewport
 
+**Tip**: Use **File → Open Recent** to quickly access maps you've recently worked on. The editor remembers your last 10 opened files.
+
 **Note**: The editor uses a non-blocking file dialog, so the UI stays responsive while you browse for files.
 
 ### Saving Your Work

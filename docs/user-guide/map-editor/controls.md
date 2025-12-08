@@ -37,9 +37,12 @@ Complete reference for all map editor controls and shortcuts.
 |--------|----------|---------------|
 | **New Map** | `Ctrl+N` | File → New |
 | **Open Map** | `Ctrl+O` | File → Open |
+| **Open Recent** | - | File → Open Recent → [file] |
 | **Save** | `Ctrl+S` | File → Save |
 | **Save As** | `Ctrl+Shift+S` | File → Save As |
 | **Exit** | `Ctrl+Q` | File → Exit |
+
+> **Tip:** The **Open Recent** submenu shows up to 10 recently opened map files for quick access. Files are automatically added when you open or save maps, and the list persists between editor sessions.
 
 ### Edit Operations
 
@@ -69,14 +72,18 @@ Complete reference for all map editor controls and shortcuts.
 
 | Action | Shortcut | Alternative | Toolbar Button |
 |--------|----------|-------------|----------------|
-| **Voxel Place Tool** | `1` | `B` | Second button |
-| **Select Tool** | `2` | `V` | First button |
+| **Select Tool** | `V` | `2` | First button |
+| **Voxel Place Tool** | `B` | `1` | Second button |
+| **Voxel Remove Tool** | `X` | - | - |
 | **Entity Tool** | `E` | - | Third button |
 | **Camera Tool** | `C` | - | Fourth button |
 
 **Quick Tool Switching:**
-- Press `1` to quickly switch to Voxel Place tool (most common for building)
-- Press `2` to quickly switch to Select tool (for editing and moving)
+- Press `V` or `2` to switch to Select tool (for editing and moving)
+- Press `B` or `1` to switch to Voxel Place tool (most common for building)
+- Press `X` to switch to Voxel Remove tool
+- Press `E` to switch to Entity Place tool
+- Press `C` to switch to Camera tool
 - Number keys work from anywhere (except when typing in text fields)
 - Tool switching preserves your current voxel type and pattern settings
 

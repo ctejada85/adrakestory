@@ -283,13 +283,13 @@ This document outlines the step-by-step implementation plan for the A Drake's St
 #### 5.2 Keyboard Shortcuts
 - [ ] Implement Ctrl+N (New)
 - [ ] Implement Ctrl+O (Open)
-- [ ] Implement Ctrl+S (Save)
-- [ ] Implement Ctrl+Shift+S (Save As)
+- [x] Implement Ctrl+S (Save)
+- [x] Implement Ctrl+Shift+S (Save As)
 - [ ] Implement Ctrl+Z (Undo)
 - [ ] Implement Ctrl+Y (Redo)
-- [ ] Implement Delete/Backspace (Remove)
+- [x] Implement Delete/Backspace (Remove)
 - [ ] Implement G (Toggle Grid)
-- [ ] Implement tool shortcuts (V, B, E, C)
+- [x] Implement tool shortcuts (V, B, X, E, C)
 - [ ] Add keyboard shortcuts help dialog
 
 #### 5.3 Real-time Validation
@@ -309,12 +309,12 @@ This document outlines the step-by-step implementation plan for the A Drake's St
 - [ ] Improve error messages
 
 #### 5.5 Status Bar
-- [ ] Display current tool
-- [ ] Show voxel count
-- [ ] Show entity count
-- [ ] Display cursor position
+- [x] Display current tool
+- [x] Show voxel count
+- [x] Show entity count
+- [x] Display cursor position
 - [ ] Show validation status
-- [ ] Add modified indicator
+- [x] Add modified indicator
 
 ### Deliverables
 - Complete undo/redo system

@@ -4,11 +4,11 @@
 
 This document tracks the implementation status of the A Drake's Story Map Editor.
 
-**Last Updated**: 2025-10-23
-**Status**: ✅ **FULLY FUNCTIONAL** - File operations, rendering, save functionality, and trackpad controls working
+**Last Updated**: 2025-10-24
+**Status**: ✅ **FULLY FUNCTIONAL** - File operations, rendering, save functionality, recent files, and complete keyboard shortcuts
 **Build Status**: ✅ Passing
-**Runtime Status**: ✅ Complete with file I/O, save/load, 3D rendering, and Mac trackpad support
-**Documentation Status**: ✅ Reorganized and consolidated (2025-10-23)
+**Runtime Status**: ✅ Complete with file I/O, save/load, 3D rendering, recent files, and all tool shortcuts
+**Documentation Status**: ✅ Reorganized and consolidated (2025-10-24)
 
 ## ✅ Completed Components
 
@@ -300,6 +300,43 @@ map-editor/
 - ✅ **Documentation**: Complete architectural documentation in [`face-aware-placement.md`](face-aware-placement.md)
 - ✅ **Build Status**: ✅ Verified successful with no errors
 
+## ✅ Recently Completed (2025-10-24)
+
+### Recent Files Feature ⭐ NEW
+- ✅ **New Module**: Created [`src/editor/recent_files.rs`](../../../../src/editor/recent_files.rs)
+  - `RecentFiles` resource for tracking recently opened maps
+  - `OpenRecentFileEvent` event for opening from recent list
+  - Persistence to user config directory (`dirs::config_dir()/adrakestory/recent_files.ron`)
+  - Maximum 10 files stored
+- ✅ **UI Integration**: "Open Recent" submenu in File menu
+- ✅ **Auto-Update**: Files added when opening or saving maps
+- ✅ **Stale File Handling**: Non-existent files automatically removed from list
+- ✅ **Dependencies**: Added `dirs = "5"` for cross-platform config directory access
+
+### Tool Keyboard Shortcuts ⭐ COMPLETE
+- ✅ **All Tool Shortcuts**: Complete keyboard shortcuts for all tools
+  - `V` / `2` - Select tool
+  - `B` / `1` - Voxel Place tool  
+  - `X` - Voxel Remove tool
+  - `E` - Entity Place tool
+  - `C` - Camera tool
+- ✅ **System Ordering Fix**: Added `.after(render_ui)` to keyboard handling systems
+- ✅ **Implementation**: Added in `src/editor/cursor.rs` → `handle_tool_switching()`
+
+### UI/UX Improvements
+- ✅ **Dynamic Panel Overlay Positioning**: Floating overlays position relative to side panels
+  - Reads panel widths from egui memory (`ctx.memory()`)
+  - Panels store their widths via `data.insert_temp()`
+  - Status bar height tracked for proper bottom margins
+- ✅ **Resize Bar Click-Through Fix**: Added `is_using_pointer()` check
+  - Prevents tool actions when dragging panel resize bars
+  - Applied to voxel tool, entity tool, selection tool, and camera
+- ✅ **Entity Grid Alignment**: Entities now snap to integer grid positions
+  - Placement uses `placement_grid_pos` from cursor state
+  - Renderer uses `.round()` for legacy float position compatibility
+- ✅ **Entity Movement Responsiveness**: Added system ordering for transformation ops
+  - `.after(tools::handle_keyboard_input)` ensures proper event processing
+
 ## ✅ Recently Completed (2025-10-23)
 
 ### File Save System (`src/editor/file_io.rs` - 233 lines) ⭐ NEW
@@ -333,12 +370,12 @@ The following features are implemented but need wiring/integration:
    - Periodic auto-save functionality
    - Auto-save interval configuration
 
-3. **Keyboard Shortcuts** (Partially Complete)
+3. **Keyboard Shortcuts** ✅ COMPLETE
    - ✅ Ctrl+S → save file
    - ✅ Ctrl+Shift+S → save as
+   - ✅ Tool shortcuts (V, B, X, E, C, 1, 2)
    - ⏳ Ctrl+Z/Y → undo/redo actions
    - ⏳ Ctrl+N/O → new/open file
-   - ⏳ Tool shortcuts (V, B, E, C)
 
 4. **Undo/Redo Wiring**
    - History system is complete
@@ -378,12 +415,12 @@ The following features are implemented but need wiring/integration:
    - [ ] Add auto-save interval configuration
    - [ ] Add auto-save file management
 
-3. **Keyboard Shortcuts System** (Partially Complete)
+3. **Keyboard Shortcuts System** ✅ MOSTLY COMPLETE
    - [x] Wire Ctrl+S to save ✅
    - [x] Wire Ctrl+Shift+S to save as ✅
    - [ ] Wire Ctrl+Z/Y to undo/redo
    - [ ] Wire Ctrl+N/O to new/open
-   - [ ] Wire tool shortcuts (V, B, E, C)
+   - [x] Wire tool shortcuts (V, B, X, E, C) ✅
 
 4. **Undo/Redo Integration**
    - [ ] Connect toolbar buttons to history system
