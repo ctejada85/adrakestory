@@ -31,6 +31,7 @@ struct SaveEvents<'w> {
 struct UIResources<'w> {
     editor_state: ResMut<'w, EditorState>,
     ui_state: ResMut<'w, state::EditorUIState>,
+    outliner_state: ResMut<'w, ui::OutlinerState>,
     dialog_receiver: ResMut<'w, ui::dialogs::FileDialogReceiver>,
 }
 
@@ -65,6 +66,7 @@ fn main() {
         .init_resource::<InfiniteGridConfig>()
         .init_resource::<ActiveTransform>()
         .init_resource::<KeyboardEditMode>()
+        .init_resource::<ui::OutlinerState>()
         .add_event::<ui::dialogs::FileSelectedEvent>()
         .add_event::<SaveMapEvent>()
         .add_event::<SaveMapAsEvent>()
@@ -216,6 +218,8 @@ fn render_ui(
     mut transform_events: TransformEvents,
     mut save_events: SaveEvents,
     mut map_changed_events: EventWriter<MapDataChangedEvent>,
+    mut selection_events: EventWriter<tools::UpdateSelectionHighlights>,
+    mut render_events: EventWriter<RenderMapEvent>,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -229,7 +233,16 @@ fn render_ui(
         &mut save_events.save_as,
     );
 
-    // Render properties panel
+    // Render outliner panel (left side)
+    ui::render_outliner_panel(
+        ctx,
+        &mut ui_resources.editor_state,
+        &mut ui_resources.outliner_state,
+        &mut selection_events,
+        &mut render_events,
+    );
+
+    // Render properties panel (right side)
     ui::render_properties_panel(
         ctx,
         &mut ui_resources.editor_state,
