@@ -36,7 +36,7 @@ pub use selection_tool::{
     UpdateTransformPreview,
 };
 
-pub use voxel_tool::{handle_voxel_placement, handle_voxel_removal};
+pub use voxel_tool::{handle_voxel_drag_placement, handle_voxel_placement, handle_voxel_removal, VoxelDragState};
 
 // Re-export RotationAxis from geometry module for convenience
 pub use crate::systems::game::map::geometry::RotationAxis;
