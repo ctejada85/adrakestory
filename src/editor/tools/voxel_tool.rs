@@ -271,31 +271,117 @@ pub fn handle_voxel_removal(
     mouse_button: Res<ButtonInput<MouseButton>>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut contexts: EguiContexts,
+    mut drag_state: ResMut<VoxelRemoveDragState>,
 ) {
     // Check if voxel remove tool is active
     if !matches!(editor_state.active_tool, EditorTool::VoxelRemove) {
+        // Reset drag state if tool changed
+        drag_state.is_dragging = false;
+        drag_state.last_grid_pos = None;
         return;
     }
 
     // Check if pointer is over any UI area
-    let pointer_over_ui = contexts.ctx_mut().is_pointer_over_area();
-    let ui_wants_keyboard = contexts.ctx_mut().wants_keyboard_input();
+    let ctx = contexts.ctx_mut();
+    let pointer_over_ui = ctx.is_pointer_over_area() || ctx.is_using_pointer();
+    let ui_wants_keyboard = ctx.wants_keyboard_input();
 
-    // Check if left mouse button or delete key was just pressed (only if pointer not over UI)
-    let should_remove = (!pointer_over_ui && mouse_button.just_pressed(MouseButton::Left))
-        || (!ui_wants_keyboard
-            && (keyboard.just_pressed(KeyCode::Delete)
-                || keyboard.just_pressed(KeyCode::Backspace)));
-
-    if !should_remove {
+    // Handle mouse release - stop drag removal
+    if mouse_button.just_released(MouseButton::Left) {
+        drag_state.is_dragging = false;
+        drag_state.last_grid_pos = None;
         return;
     }
 
-    // Get cursor grid position
+    // Handle keyboard delete (not draggable)
+    if !ui_wants_keyboard
+        && (keyboard.just_pressed(KeyCode::Delete) || keyboard.just_pressed(KeyCode::Backspace))
+    {
+        if let Some(grid_pos) = cursor_state.grid_pos {
+            try_remove_voxel(&mut editor_state, &mut history, grid_pos);
+        }
+        return;
+    }
+
+    // Check if left mouse button was just pressed - start drag
+    if !pointer_over_ui && mouse_button.just_pressed(MouseButton::Left) {
+        drag_state.is_dragging = true;
+
+        let Some(grid_pos) = cursor_state.grid_pos else {
+            return;
+        };
+
+        drag_state.last_grid_pos = Some(grid_pos);
+        try_remove_voxel(&mut editor_state, &mut history, grid_pos);
+    }
+}
+
+/// Resource tracking drag-to-remove state for voxel remove tool
+#[derive(Resource, Default)]
+pub struct VoxelRemoveDragState {
+    /// Whether we're currently in a drag-remove operation
+    pub is_dragging: bool,
+    /// Last grid position we removed a voxel at (to avoid duplicates)
+    pub last_grid_pos: Option<(i32, i32, i32)>,
+}
+
+/// Handle continuous drag removal while mouse is held
+pub fn handle_voxel_drag_removal(
+    cursor_state: Res<CursorState>,
+    mut editor_state: ResMut<EditorState>,
+    mut history: ResMut<EditorHistory>,
+    mouse_button: Res<ButtonInput<MouseButton>>,
+    mut contexts: EguiContexts,
+    mut drag_state: ResMut<VoxelRemoveDragState>,
+) {
+    // Only process if we're in drag-remove mode
+    if !drag_state.is_dragging {
+        return;
+    }
+
+    // Check if voxel remove tool is active
+    if !matches!(editor_state.active_tool, EditorTool::VoxelRemove) {
+        drag_state.is_dragging = false;
+        drag_state.last_grid_pos = None;
+        return;
+    }
+
+    // Stop drag if mouse is released
+    if !mouse_button.pressed(MouseButton::Left) {
+        drag_state.is_dragging = false;
+        drag_state.last_grid_pos = None;
+        return;
+    }
+
+    // Check if pointer is over any UI area
+    let ctx = contexts.ctx_mut();
+    if ctx.is_pointer_over_area() || ctx.is_using_pointer() {
+        return;
+    }
+
+    // Get current cursor grid position
     let Some(grid_pos) = cursor_state.grid_pos else {
         return;
     };
 
+    // Only remove if this is a different position than last time
+    if drag_state.last_grid_pos == Some(grid_pos) {
+        return;
+    }
+
+    // Update last position
+    drag_state.last_grid_pos = Some(grid_pos);
+
+    // Try to remove voxel at this position
+    try_remove_voxel(&mut editor_state, &mut history, grid_pos);
+}
+
+/// Helper function to remove a voxel at a position
+fn try_remove_voxel(
+    editor_state: &mut ResMut<EditorState>,
+    history: &mut ResMut<EditorHistory>,
+    grid_pos: (i32, i32, i32),
+) {
     // Find and remove voxel at this position
     if let Some(index) = editor_state
         .current_map
@@ -314,7 +400,5 @@ pub fn handle_voxel_removal(
         });
 
         info!("Removed voxel at {:?}", grid_pos);
-    } else {
-        info!("No voxel at {:?} to remove", grid_pos);
     }
 }

@@ -33,7 +33,8 @@ pub use selection_tool::{
 };
 
 pub use voxel_tool::{
-    handle_voxel_drag_placement, handle_voxel_placement, handle_voxel_removal, VoxelDragState,
+    handle_voxel_drag_placement, handle_voxel_drag_removal, handle_voxel_placement,
+    handle_voxel_removal, VoxelDragState, VoxelRemoveDragState,
 };
 
 // Re-export RotationAxis from geometry module for convenience

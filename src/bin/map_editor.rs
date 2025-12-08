@@ -6,6 +6,7 @@ use adrakestory::editor::recent_files::{OpenRecentFileEvent, RecentFiles};
 use adrakestory::editor::tools::ActiveTransform;
 use adrakestory::editor::tools::DragSelectState;
 use adrakestory::editor::tools::VoxelDragState;
+use adrakestory::editor::tools::VoxelRemoveDragState;
 use adrakestory::editor::ui::dialogs::{AppExitEvent, MapDataChangedEvent};
 use adrakestory::editor::ui::properties::TransformEvents;
 use adrakestory::editor::{camera, cursor, file_io, grid, renderer, state, tools, ui};
@@ -75,6 +76,7 @@ fn main() {
         .init_resource::<KeyboardEditMode>()
         .init_resource::<DragSelectState>()
         .init_resource::<VoxelDragState>()
+        .init_resource::<VoxelRemoveDragState>()
         .init_resource::<ui::OutlinerState>()
         .insert_resource(RecentFiles::load()) // Load recent files from disk
         .add_event::<ui::dialogs::FileSelectedEvent>()
@@ -139,6 +141,10 @@ fn main() {
             tools::handle_voxel_drag_placement.after(tools::handle_voxel_placement),
         )
         .add_systems(Update, tools::handle_voxel_removal.after(render_ui))
+        .add_systems(
+            Update,
+            tools::handle_voxel_drag_removal.after(tools::handle_voxel_removal),
+        )
         .add_systems(Update, tools::handle_entity_placement.after(render_ui))
         .add_systems(Update, tools::handle_selection.after(render_ui))
         .add_systems(
