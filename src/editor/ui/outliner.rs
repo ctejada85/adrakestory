@@ -10,7 +10,7 @@ use crate::systems::game::components::VoxelType;
 use crate::systems::game::map::format::EntityType;
 use bevy::prelude::*;
 use bevy_egui::egui;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// State for the outliner panel
 #[derive(Resource, Default)]
@@ -110,8 +110,8 @@ fn render_voxels_section(
                 return;
             }
             
-            // Group voxels by type
-            let mut voxels_by_type: HashMap<VoxelType, Vec<(i32, i32, i32)>> = HashMap::new();
+            // Group voxels by type (use BTreeMap for deterministic ordering)
+            let mut voxels_by_type: BTreeMap<VoxelType, Vec<(i32, i32, i32)>> = BTreeMap::new();
             for voxel in &editor_state.current_map.world.voxels {
                 voxels_by_type
                     .entry(voxel.voxel_type)

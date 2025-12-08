@@ -38,7 +38,7 @@ pub struct SubVoxel {
     pub bounds: (Vec3, Vec3),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum VoxelType {
     Air,
     Grass,
