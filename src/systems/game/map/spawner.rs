@@ -114,6 +114,7 @@ impl OccupancyGrid {
 
     /// Check if a neighbor exists in the given direction.
     #[inline]
+    #[allow(clippy::too_many_arguments)]
     pub fn has_neighbor(
         &self,
         x: i32,
@@ -129,6 +130,12 @@ impl OccupancyGrid {
         let global_y = y * SUB_VOXEL_COUNT + sub_y + dy;
         let global_z = z * SUB_VOXEL_COUNT + sub_z + dz;
         self.occupied.contains(&(global_x, global_y, global_z))
+    }
+}
+
+impl Default for OccupancyGrid {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -423,6 +430,12 @@ impl GreedyMesher {
             Face::PosZ => (u_world, v_world, d + SUB_VOXEL_SIZE / 2.0),
             Face::NegZ => (u_world, v_world, d - SUB_VOXEL_SIZE / 2.0),
         }
+    }
+}
+
+impl Default for GreedyMesher {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
