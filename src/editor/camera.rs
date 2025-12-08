@@ -1,6 +1,7 @@
 //! Editor camera system with orbit, pan, and zoom controls.
 
 use bevy::prelude::*;
+use bevy_egui::EguiContexts;
 
 /// Component for the editor camera
 #[derive(Component)]
@@ -146,10 +147,14 @@ pub fn handle_camera_input(
     mut mouse_wheel: EventReader<bevy::input::mouse::MouseWheel>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut input_state: ResMut<CameraInputState>,
+    mut contexts: EguiContexts,
 ) {
     let Ok(mut camera) = camera_query.get_single_mut() else {
         return;
     };
+
+    // Check if UI wants pointer input - don't process camera input if mouse is over UI
+    let ui_wants_pointer = contexts.ctx_mut().wants_pointer_input();
 
     // Handle mouse button state
     let shift_pressed =
@@ -163,6 +168,15 @@ pub fn handle_camera_input(
     let middle_mouse = mouse_button.pressed(MouseButton::Middle);
     let right_mouse = mouse_button.pressed(MouseButton::Right);
     let left_mouse = mouse_button.pressed(MouseButton::Left);
+
+    // Don't start new camera operations when UI wants pointer input
+    // But allow continuing existing operations (for smooth drag experience)
+    if ui_wants_pointer && !input_state.is_orbiting && !input_state.is_panning {
+        // Still need to consume events to prevent accumulation
+        mouse_motion.clear();
+        mouse_wheel.clear();
+        return;
+    }
 
     // Panning: Middle mouse OR Right mouse + Shift OR Left mouse + Space OR Left mouse + Cmd/Ctrl
     input_state.is_panning = middle_mouse
