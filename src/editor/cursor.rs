@@ -13,16 +13,16 @@ use bevy_egui::EguiContexts;
 pub struct CursorState {
     /// Current cursor position in world space (voxel being pointed at)
     pub position: Option<Vec3>,
-    
+
     /// Current cursor grid position (voxel being pointed at)
     pub grid_pos: Option<(i32, i32, i32)>,
-    
+
     /// Face normal of the hit surface
     pub hit_face_normal: Option<Vec3>,
-    
+
     /// Position where a new voxel would be placed (adjacent to hit face)
     pub placement_pos: Option<Vec3>,
-    
+
     /// Grid position where a new voxel would be placed
     pub placement_grid_pos: Option<(i32, i32, i32)>,
 }
@@ -125,7 +125,7 @@ pub fn update_cursor_position(
             voxel_pos.2 as f32,
         ));
         cursor_state.hit_face_normal = Some(hit_info.face_normal);
-        
+
         // Calculate adjacent placement position
         let offset = hit_info.face_normal;
         let placement_grid = (
@@ -144,21 +144,18 @@ pub fn update_cursor_position(
         if let Some(ground_pos) = intersect_ground_plane(&ray) {
             // Keep cursor position as exact intersection for free movement
             cursor_state.position = Some(ground_pos);
-            
+
             // Snap grid position to nearest integer coordinates
             let grid_x = ground_pos.x.round() as i32;
             let grid_y = 0;
             let grid_z = ground_pos.z.round() as i32;
             cursor_state.grid_pos = Some((grid_x, grid_y, grid_z));
             cursor_state.hit_face_normal = Some(Vec3::Y); // Upward
-            
+
             // Placement position snaps to grid (integer coordinates)
             cursor_state.placement_grid_pos = Some((grid_x, grid_y, grid_z));
-            cursor_state.placement_pos = Some(Vec3::new(
-                grid_x as f32,
-                grid_y as f32,
-                grid_z as f32,
-            ));
+            cursor_state.placement_pos =
+                Some(Vec3::new(grid_x as f32, grid_y as f32, grid_z as f32));
         } else {
             cursor_state.position = None;
             cursor_state.grid_pos = None;
@@ -206,7 +203,11 @@ fn find_closest_voxel_intersection_with_face(
 
 /// Ray-box intersection test (AABB) with face detection
 /// Returns hit information including which face was hit
-fn ray_box_intersection_with_face(ray: &Ray3d, box_center: Vec3, box_size: Vec3) -> Option<RayHitInfo> {
+fn ray_box_intersection_with_face(
+    ray: &Ray3d,
+    box_center: Vec3,
+    box_size: Vec3,
+) -> Option<RayHitInfo> {
     let box_min = box_center - box_size * 0.5;
     let box_max = box_center + box_size * 0.5;
 
@@ -225,7 +226,7 @@ fn ray_box_intersection_with_face(ray: &Ray3d, box_center: Vec3, box_size: Vec3)
         let tx2 = (box_max.x - ray_origin.x) / ray_dir.x;
         let tx_min = tx1.min(tx2);
         let tx_max = tx1.max(tx2);
-        
+
         if tx_min > tmin {
             tmin = tx_min;
             hit_axis = 0;
@@ -242,7 +243,7 @@ fn ray_box_intersection_with_face(ray: &Ray3d, box_center: Vec3, box_size: Vec3)
         let ty2 = (box_max.y - ray_origin.y) / ray_dir.y;
         let ty_min = ty1.min(ty2);
         let ty_max = ty1.max(ty2);
-        
+
         if ty_min > tmin {
             tmin = ty_min;
             hit_axis = 1;
@@ -259,7 +260,7 @@ fn ray_box_intersection_with_face(ray: &Ray3d, box_center: Vec3, box_size: Vec3)
         let tz2 = (box_max.z - ray_origin.z) / ray_dir.z;
         let tz_min = tz1.min(tz2);
         let tz_max = tz1.max(tz2);
-        
+
         if tz_min > tmin {
             tmin = tz_min;
             hit_axis = 2;
@@ -273,7 +274,7 @@ fn ray_box_intersection_with_face(ray: &Ray3d, box_center: Vec3, box_size: Vec3)
     // Check if there's a valid intersection
     if tmax >= tmin && tmax >= 0.0 {
         let distance = if tmin >= 0.0 { tmin } else { tmax };
-        
+
         // Calculate face normal based on hit axis and face
         let face_normal = match (hit_axis, hit_min_face) {
             (0, true) => Vec3::NEG_X,
@@ -284,7 +285,7 @@ fn ray_box_intersection_with_face(ray: &Ray3d, box_center: Vec3, box_size: Vec3)
             (2, false) => Vec3::Z,
             _ => Vec3::Y, // fallback
         };
-        
+
         Some(RayHitInfo {
             distance,
             face_normal,
@@ -396,7 +397,7 @@ pub fn handle_keyboard_cursor_movement(
             new_pos.1 as f32,
             new_pos.2 as f32,
         ));
-        
+
         // For keyboard movement, assume placement on top (+Y direction)
         cursor_state.hit_face_normal = Some(Vec3::Y);
         let placement_grid = (new_pos.0, new_pos.1 + 1, new_pos.2);
@@ -459,8 +460,8 @@ pub fn handle_keyboard_selection(
     update_events.send(crate::editor::tools::UpdateSelectionHighlights);
 }
 
-/// System to handle tool switching with number keys
-/// 1 = VoxelPlace, 2 = Select
+/// System to handle tool switching with keyboard shortcuts
+/// B or 1 = VoxelPlace, V or 2 = Select, X = VoxelRemove, E = EntityPlace, C = Camera
 pub fn handle_tool_switching(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut contexts: EguiContexts,
@@ -471,8 +472,8 @@ pub fn handle_tool_switching(
         return;
     }
 
-    // Switch to VoxelPlace tool with 1 key
-    if keyboard.just_pressed(KeyCode::Digit1) {
+    // Switch to VoxelPlace tool with B or 1 key
+    if keyboard.just_pressed(KeyCode::Digit1) || keyboard.just_pressed(KeyCode::KeyB) {
         // Preserve current voxel type and pattern if already in VoxelPlace mode
         let (voxel_type, pattern) = if let EditorTool::VoxelPlace {
             voxel_type,
@@ -495,9 +496,36 @@ pub fn handle_tool_switching(
         info!("Switched to VoxelPlace tool");
     }
 
-    // Switch to Select tool with 2 key
-    if keyboard.just_pressed(KeyCode::Digit2) {
+    // Switch to Select tool with V or 2 key
+    if keyboard.just_pressed(KeyCode::Digit2) || keyboard.just_pressed(KeyCode::KeyV) {
         editor_state.active_tool = EditorTool::Select;
         info!("Switched to Select tool");
+    }
+
+    // Switch to VoxelRemove tool with X key
+    if keyboard.just_pressed(KeyCode::KeyX) {
+        editor_state.active_tool = EditorTool::VoxelRemove;
+        info!("Switched to VoxelRemove tool");
+    }
+
+    // Switch to EntityPlace tool with E key
+    if keyboard.just_pressed(KeyCode::KeyE) {
+        // Preserve current entity type if already in EntityPlace mode
+        let entity_type = if let EditorTool::EntityPlace { entity_type } = &editor_state.active_tool
+        {
+            *entity_type
+        } else {
+            // Default to PlayerSpawn
+            crate::systems::game::map::format::EntityType::PlayerSpawn
+        };
+
+        editor_state.active_tool = EditorTool::EntityPlace { entity_type };
+        info!("Switched to EntityPlace tool");
+    }
+
+    // Switch to Camera tool with C key
+    if keyboard.just_pressed(KeyCode::KeyC) {
+        editor_state.active_tool = EditorTool::Camera;
+        info!("Switched to Camera tool");
     }
 }

@@ -109,6 +109,7 @@ fn main() {
             adrakestory::editor::recent_files::update_recent_on_save,
         )
         .add_systems(Update, handle_open_recent_file)
+        // Keyboard handling systems - must run after render_ui for correct egui state
         .add_systems(
             Update,
             (
@@ -117,7 +118,8 @@ fn main() {
                 cursor::update_cursor_position,
                 handle_keyboard_cursor_movement.after(cursor::update_cursor_position),
                 handle_keyboard_selection,
-            ),
+            )
+                .after(render_ui),
         )
         .add_systems(Update, renderer::detect_map_changes)
         .add_systems(Update, renderer::render_map_system)
