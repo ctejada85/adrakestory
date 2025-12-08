@@ -1,6 +1,7 @@
 //! Dialog windows for file operations and confirmations.
 
 use crate::editor::file_io::SaveMapEvent;
+use crate::editor::recent_files::OpenRecentFileEvent;
 use crate::editor::state::{EditorState, EditorUIState, PendingAction};
 use crate::systems::game::map::format::MapData;
 use bevy::prelude::*;
@@ -40,10 +41,11 @@ pub fn render_dialogs(
     save_events: &mut EventWriter<SaveMapEvent>,
     map_changed_events: &mut EventWriter<MapDataChangedEvent>,
     exit_events: &mut EventWriter<AppExitEvent>,
+    open_recent_events: &mut EventWriter<OpenRecentFileEvent>,
 ) {
     // Unsaved changes dialog
     if ui_state.unsaved_changes_dialog_open {
-        render_unsaved_changes_dialog(ctx, editor_state, ui_state, save_events, exit_events);
+        render_unsaved_changes_dialog(ctx, editor_state, ui_state, save_events, exit_events, open_recent_events);
     }
 
     // New map dialog
@@ -74,6 +76,7 @@ fn render_unsaved_changes_dialog(
     ui_state: &mut EditorUIState,
     save_events: &mut EventWriter<SaveMapEvent>,
     exit_events: &mut EventWriter<AppExitEvent>,
+    open_recent_events: &mut EventWriter<OpenRecentFileEvent>,
 ) {
     egui::Window::new("Unsaved Changes")
         .collapsible(false)
@@ -89,13 +92,13 @@ fn render_unsaved_changes_dialog(
                 if ui.button("Save").clicked() {
                     save_events.send(SaveMapEvent);
                     ui_state.unsaved_changes_dialog_open = false;
-                    handle_pending_action(editor_state, ui_state, exit_events);
+                    handle_pending_action(editor_state, ui_state, exit_events, open_recent_events);
                 }
 
                 if ui.button("Don't Save").clicked() {
                     editor_state.clear_modified();
                     ui_state.unsaved_changes_dialog_open = false;
-                    handle_pending_action(editor_state, ui_state, exit_events);
+                    handle_pending_action(editor_state, ui_state, exit_events, open_recent_events);
                 }
 
                 if ui.button("Cancel").clicked() {
@@ -111,6 +114,7 @@ fn handle_pending_action(
     _editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
     exit_events: &mut EventWriter<AppExitEvent>,
+    open_recent_events: &mut EventWriter<OpenRecentFileEvent>,
 ) {
     if let Some(action) = ui_state.pending_action.take() {
         match action {
@@ -119,6 +123,9 @@ fn handle_pending_action(
             }
             PendingAction::OpenMap => {
                 ui_state.file_dialog_open = true;
+            }
+            PendingAction::OpenRecentFile(path) => {
+                open_recent_events.send(OpenRecentFileEvent { path });
             }
             PendingAction::Quit => {
                 info!("Quitting editor");
@@ -315,6 +322,7 @@ pub fn handle_file_selected(
     mut events: EventReader<FileSelectedEvent>,
     mut editor_state: ResMut<EditorState>,
     mut ui_state: ResMut<EditorUIState>,
+    mut recent_files: ResMut<crate::editor::recent_files::RecentFiles>,
     mut map_changed_events: EventWriter<MapDataChangedEvent>,
 ) {
     for event in events.read() {
@@ -325,6 +333,8 @@ pub fn handle_file_selected(
                 editor_state.file_path = Some(event.path.clone());
                 editor_state.clear_modified();
                 editor_state.clear_selections();
+                // Update recent files
+                recent_files.add(event.path.clone());
                 // Send event to trigger lighting update
                 map_changed_events.send(MapDataChangedEvent);
             }

@@ -2,6 +2,7 @@
 
 use crate::editor::file_io::{SaveMapAsEvent, SaveMapEvent};
 use crate::editor::history::EditorHistory;
+use crate::editor::recent_files::{OpenRecentFileEvent, RecentFiles};
 use crate::editor::state::{EditorState, EditorTool, EditorUIState};
 use crate::systems::game::components::VoxelType;
 use crate::systems::game::map::format::{EntityType, SubVoxelPattern};
@@ -14,13 +15,23 @@ pub fn render_toolbar(
     editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
     history: &EditorHistory,
+    recent_files: &mut RecentFiles,
     save_events: &mut EventWriter<SaveMapEvent>,
     save_as_events: &mut EventWriter<SaveMapAsEvent>,
+    open_recent_events: &mut EventWriter<OpenRecentFileEvent>,
 ) {
     // Menu bar panel
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
         egui::menu::bar(ui, |ui| {
-            render_file_menu(ui, editor_state, ui_state, save_events, save_as_events);
+            render_file_menu(
+                ui,
+                editor_state,
+                ui_state,
+                recent_files,
+                save_events,
+                save_as_events,
+                open_recent_events,
+            );
             render_edit_menu(ui, history);
             render_view_menu(ui, editor_state);
             render_tools_menu(ui, editor_state);
@@ -298,8 +309,10 @@ fn render_file_menu(
     ui: &mut egui::Ui,
     editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
+    recent_files: &mut RecentFiles,
     save_events: &mut EventWriter<SaveMapEvent>,
     save_as_events: &mut EventWriter<SaveMapAsEvent>,
+    open_recent_events: &mut EventWriter<OpenRecentFileEvent>,
 ) {
     ui.menu_button("File", |ui| {
         if ui.button("📄 New").clicked() {
@@ -321,6 +334,37 @@ fn render_file_menu(
             }
             ui.close_menu();
         }
+
+        // Recent Files submenu
+        ui.menu_button("🕐 Recent Files", |ui| {
+            if recent_files.is_empty() {
+                ui.label("No recent files");
+            } else {
+                for path in recent_files.files.iter() {
+                    let display_name = RecentFiles::get_display_name(path);
+                    let tooltip = path.display().to_string();
+
+                    if ui.button(&display_name).on_hover_text(&tooltip).clicked() {
+                        if editor_state.is_modified {
+                            ui_state.unsaved_changes_dialog_open = true;
+                            ui_state.pending_action = Some(
+                                crate::editor::state::PendingAction::OpenRecentFile(path.clone()),
+                            );
+                        } else {
+                            open_recent_events.send(OpenRecentFileEvent { path: path.clone() });
+                        }
+                        ui.close_menu();
+                    }
+                }
+
+                ui.separator();
+
+                if ui.button("🗑 Clear Recent Files").clicked() {
+                    recent_files.clear();
+                    ui.close_menu();
+                }
+            }
+        });
 
         ui.separator();
 

@@ -185,6 +185,7 @@ pub struct EditorUIState {
 pub enum PendingAction {
     NewMap,
     OpenMap,
+    OpenRecentFile(PathBuf),
     Quit,
 }
 

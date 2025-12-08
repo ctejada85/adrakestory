@@ -2,6 +2,7 @@
 //!
 //! A standalone GUI application for creating and editing map files.
 
+use adrakestory::editor::recent_files::{OpenRecentFileEvent, RecentFiles};
 use adrakestory::editor::tools::ActiveTransform;
 use adrakestory::editor::ui::dialogs::{AppExitEvent, MapDataChangedEvent};
 use adrakestory::editor::ui::properties::TransformEvents;
@@ -32,6 +33,7 @@ struct UIResources<'w> {
     editor_state: ResMut<'w, EditorState>,
     ui_state: ResMut<'w, state::EditorUIState>,
     outliner_state: ResMut<'w, ui::OutlinerState>,
+    recent_files: ResMut<'w, RecentFiles>,
     dialog_receiver: ResMut<'w, ui::dialogs::FileDialogReceiver>,
 }
 
@@ -70,12 +72,14 @@ fn main() {
         .init_resource::<ActiveTransform>()
         .init_resource::<KeyboardEditMode>()
         .init_resource::<ui::OutlinerState>()
+        .insert_resource(RecentFiles::load()) // Load recent files from disk
         .add_event::<ui::dialogs::FileSelectedEvent>()
         .add_event::<SaveMapEvent>()
         .add_event::<SaveMapAsEvent>()
         .add_event::<FileSavedEvent>()
         .add_event::<RenderMapEvent>()
         .add_event::<MapDataChangedEvent>()
+        .add_event::<OpenRecentFileEvent>()
         .add_event::<tools::UpdateSelectionHighlights>()
         // New unified input event
         .add_event::<tools::EditorInputEvent>()
@@ -100,6 +104,11 @@ fn main() {
         .add_systems(Update, file_io::handle_save_map_as)
         .add_systems(Update, file_io::check_save_dialog_result)
         .add_systems(Update, file_io::handle_file_saved)
+        .add_systems(
+            Update,
+            adrakestory::editor::recent_files::update_recent_on_save,
+        )
+        .add_systems(Update, handle_open_recent_file)
         .add_systems(
             Update,
             (
@@ -227,6 +236,7 @@ fn render_ui(
     mut selection_events: EventWriter<tools::UpdateSelectionHighlights>,
     mut render_events: EventWriter<RenderMapEvent>,
     mut exit_events: EventWriter<AppExitEvent>,
+    mut open_recent_events: EventWriter<OpenRecentFileEvent>,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -236,8 +246,10 @@ fn render_ui(
         &mut ui_resources.editor_state,
         &mut ui_resources.ui_state,
         &read_resources.history,
+        &mut ui_resources.recent_files,
         &mut save_events.save,
         &mut save_events.save_as,
+        &mut open_recent_events,
     );
 
     // Render status bar (before side panels and overlays so its height is known)
@@ -285,6 +297,7 @@ fn render_ui(
         &mut save_events.save,
         &mut map_changed_events,
         &mut exit_events,
+        &mut open_recent_events,
     );
 
     // Handle file operations
@@ -480,5 +493,49 @@ fn update_lighting_on_map_change(
 
         info!("Updated directional light with high-quality shadows: illuminance={}, color={:?}, direction={:?}",
               dir_light.illuminance, dir_light.color, dir_light.direction);
+    }
+}
+
+/// System to handle opening a recent file
+fn handle_open_recent_file(
+    mut events: EventReader<OpenRecentFileEvent>,
+    mut editor_state: ResMut<EditorState>,
+    mut ui_state: ResMut<state::EditorUIState>,
+    mut recent_files: ResMut<RecentFiles>,
+    mut map_changed_events: EventWriter<MapDataChangedEvent>,
+) {
+    for event in events.read() {
+        info!("Opening recent file: {:?}", event.path);
+
+        // Try to load the map
+        match std::fs::read_to_string(&event.path) {
+            Ok(contents) => {
+                match ron::from_str::<adrakestory::systems::game::map::format::MapData>(&contents) {
+                    Ok(map_data) => {
+                        info!("Successfully loaded map from: {:?}", event.path);
+                        editor_state.current_map = map_data;
+                        editor_state.file_path = Some(event.path.clone());
+                        editor_state.clear_modified();
+                        editor_state.clear_selections();
+
+                        // Update recent files (moves to front)
+                        recent_files.add(event.path.clone());
+
+                        // Send event to trigger lighting update
+                        map_changed_events.send(MapDataChangedEvent);
+                    }
+                    Err(e) => {
+                        error!("Failed to parse map file: {}", e);
+                        ui_state.error_message = format!("Failed to parse map file:\n{}", e);
+                        ui_state.error_dialog_open = true;
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Failed to read file: {}", e);
+                ui_state.error_message = format!("Failed to read file:\n{}", e);
+                ui_state.error_dialog_open = true;
+            }
+        }
     }
 }
