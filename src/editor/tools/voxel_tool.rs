@@ -60,7 +60,7 @@ pub fn handle_voxel_placement(
     // Check if left mouse button was just pressed - start drag
     if mouse_button.just_pressed(MouseButton::Left) {
         drag_state.is_dragging = true;
-        
+
         // Use placement_grid_pos instead of grid_pos for face-aware placement on initial click
         let Some(grid_pos) = cursor_state.placement_grid_pos else {
             return;
@@ -181,7 +181,7 @@ pub fn handle_voxel_drag_placement(
 
     // Calculate movement direction from the last cursor position
     let last_cursor = drag_state.last_cursor_grid_pos.unwrap_or(last_placed);
-    
+
     // Calculate the delta movement
     let dx = current_cursor_pos.0 - last_cursor.0;
     let dy = current_cursor_pos.1 - last_cursor.1;
