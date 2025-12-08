@@ -402,20 +402,28 @@ Tools are created through a factory based on the selected tool type.
    - Use change detection for UI updates
 
 2. **Infinite Grid System**
-   - Camera-relative grid generation
-   - Only renders visible grid sections (±50 units from camera)
-   - Regenerates only when camera moves > 2 units
+   - Camera-relative grid generation with frustum culling
+   - Dynamic render distance that scales with camera zoom
+   - Regenerates only when camera moves > 2 units or zoom changes
    - Aligned with voxel centers for accurate placement
 
-3. **Spatial Partitioning**
-   - Use spatial hash for voxel lookups
-   - Frustum culling for large maps
+3. **Chunk-Based Voxel Rendering** (Added 2025-12-08)
+   - Voxels grouped into 16³ chunks with merged meshes
+   - Hidden face culling removes interior faces
+   - Greedy meshing merges coplanar faces
+   - Explicit AABB components enable Bevy's automatic frustum culling
+   - Material palette reduces GPU memory usage
+   - Note: LOD disabled for editor (full detail needed when editing)
 
-4. **Batch Operations**
+4. **Spatial Partitioning**
+   - Use spatial hash for voxel lookups
+   - Frustum culling for large maps via AABB components
+
+5. **Batch Operations**
    - Group multiple edits into single history entry
    - Batch mesh updates for better performance
 
-5. **Memory Management**
+6. **Memory Management**
    - Limit history stack size
    - Use sparse data structures for voxels
    - Unload unused resources
@@ -470,24 +478,38 @@ The editor uses an infinite grid system that dynamically generates grid lines ba
 **Key Features:**
 - **Infinite Spanning**: Grid extends infinitely in all directions
 - **Camera-Relative**: Only renders visible portion (configurable render distance)
+- **Dynamic Render Distance**: Grid extent scales with camera zoom level
 - **Voxel Alignment**: Grid lines at integer coordinates (0, 1, 2, ...) align with voxel centers
-- **Dynamic Regeneration**: Updates when camera moves beyond threshold
+- **Dynamic Regeneration**: Updates when camera moves beyond threshold or zoom changes
 - **Major Grid Lines**: Every Nth line rendered with different color/opacity
+- **Frustum Culling**: Only generates grid lines visible in the camera's view frustum
 
 **Configuration:**
 ```rust
 InfiniteGridConfig {
     spacing: 1.0,              // Aligns with voxel positions
-    render_distance: 50.0,     // Units from camera
+    render_distance: 100.0,    // Base units from camera (scales with zoom)
     major_line_interval: 10,   // Every 10th line is major
     opacity: 0.3,              // Grid transparency
     regeneration_threshold: 2.0 // Camera movement threshold
 }
 ```
 
+**Dynamic Render Distance:**
+The grid render distance automatically scales based on camera zoom level:
+- When zoomed in close: Base render distance provides sufficient coverage
+- When zoomed out: Render distance expands to keep grid appearing infinite
+- Formula: `dynamic_distance = base + camera_height * 2 + camera_distance * 1.5`
+
+**Frustum Culling:**
+- Grid bounds are tested against camera frustum before mesh generation
+- Uses AABB intersection tests on grid sections
+- Automatically handles close-up views with adaptive AABB sizing
+- Falls back to distance-based bounds if frustum test fails
+
 **Performance:**
-- Regenerates only when camera moves > 2 units
-- Limits grid to visible area (typically 100x100 lines)
+- Regenerates only when camera moves > 2 units or zoom changes significantly
+- Limits grid to visible area via frustum culling
 - Uses efficient LineList topology
 - Minimal CPU overhead during static camera
 
@@ -575,6 +597,6 @@ See [Lighting Performance Optimization](archive/lighting-performance-optimizatio
 
 ---
 
-**Document Version**: 2.2.0
-**Last Updated**: 2025-10-30
-**Status**: Updated for lighting performance optimization
+**Document Version**: 2.3.0
+**Last Updated**: 2025-12-08
+**Status**: Updated for voxel rendering optimizations (Tiers 1-5) and grid frustum culling

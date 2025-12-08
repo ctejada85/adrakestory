@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Map Editor - Voxel Rendering Optimizations**: Implemented Tiers 1-5 rendering optimizations for the map editor viewport
+  - **Tier 1: Material Palette** - Shared material palette reduces GPU memory from millions of materials to 64
+  - **Tier 2: GPU Instancing** - Sub-voxels with same material are automatically batched
+  - **Tier 3: Chunk-Based Meshing** - Voxels grouped into 16³ chunks with merged meshes (99.99% entity reduction)
+  - **Tier 4: Hidden Face Culling** - Interior faces between adjacent voxels are culled (60-90% triangle reduction)
+  - **Tier 5: Greedy Meshing** - Adjacent coplanar faces merged into larger quads
+  - **Note**: Tier 6 (LOD) intentionally disabled for editor - full detail needed when editing
+
+- **Map Editor - Frustum Culling**: Elements outside the camera viewport are no longer rendered
+  - Voxel chunks have explicit AABB components for Bevy's automatic frustum culling
+  - Entity markers include AABB for frustum culling
+  - Grid generation uses frustum bounds testing to only create visible grid lines
+
+- **Map Editor - Dynamic Grid Render Distance**: Grid now scales with camera zoom level
+  - When zoomed out, grid extends further to maintain infinite appearance
+  - Render distance formula: `base + camera_height * 2 + camera_distance * 1.5`
+  - Grid regenerates when zoom changes significantly
+
+- **Map Editor - Increased Camera Zoom Range**: Maximum camera distance increased from 50 to 200 units
+  - Allows viewing larger maps from further away
+  - Grid automatically extends to match zoom level
+
 - **Map Editor - Drag-to-Place Voxels**: Hold left-click and drag with Voxel Place tool to place multiple voxels
   - Voxels placed in direction of cursor movement
   - Extends from the last placed voxel position

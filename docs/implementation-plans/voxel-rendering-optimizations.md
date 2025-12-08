@@ -4,10 +4,10 @@
 
 This document outlines performance optimizations for the voxel rendering system. The current implementation creates individual entities and materials for each sub-voxel, which causes significant performance issues at scale.
 
-**Status**: ✅ Complete (All 6 Tiers Implemented)  
+**Status**: ✅ Complete (All 6 Tiers Implemented for Game; Tiers 1-5 for Editor)  
 **Priority**: High  
 **Estimated Total Impact**: 10-100x performance improvement  
-**Last Updated**: 2025-12-07
+**Last Updated**: 2025-12-08
 
 ---
 
@@ -15,7 +15,8 @@ This document outlines performance optimizations for the voxel rendering system.
 
 ### Files Affected
 - `src/systems/game/map/spawner.rs` - Game world voxel spawning
-- `src/editor/renderer.rs` - Editor viewport rendering
+- `src/editor/renderer.rs` - Editor viewport rendering (Tiers 1-5, no LOD)
+- `src/editor/grid.rs` - Editor grid with frustum culling
 
 ### Current Implementation
 
@@ -431,7 +432,9 @@ For each axis (X, Y, Z):
 
 ## Tier 6: LOD System (Variable Impact)
 
-### Status: ✅ IMPLEMENTED (2025-12-07)
+### Status: ✅ IMPLEMENTED (2025-12-07) - Game Only
+
+**Note**: LOD is intentionally **disabled for the Map Editor** because editors require full voxel detail at all zoom levels for accurate editing.
 
 ### Problem
 
