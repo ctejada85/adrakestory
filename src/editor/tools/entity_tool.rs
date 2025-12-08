@@ -22,9 +22,9 @@ pub fn handle_entity_placement(
         _ => return,
     };
 
-    // Check if UI wants pointer input (user is interacting with UI elements)
-    let ui_wants_input = contexts.ctx_mut().wants_pointer_input();
-    if ui_wants_input {
+    // Check if pointer is over any UI area (panels, buttons, backgrounds, etc.)
+    let pointer_over_ui = contexts.ctx_mut().is_pointer_over_area();
+    if pointer_over_ui {
         return;
     }
 

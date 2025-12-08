@@ -153,8 +153,8 @@ pub fn handle_camera_input(
         return;
     };
 
-    // Check if UI wants pointer input - don't process camera input if mouse is over UI
-    let ui_wants_pointer = contexts.ctx_mut().wants_pointer_input();
+    // Check if pointer is over any UI area - don't process camera input if mouse is over UI panels
+    let pointer_over_ui = contexts.ctx_mut().is_pointer_over_area();
 
     // Handle mouse button state
     let shift_pressed =
@@ -169,9 +169,9 @@ pub fn handle_camera_input(
     let right_mouse = mouse_button.pressed(MouseButton::Right);
     let left_mouse = mouse_button.pressed(MouseButton::Left);
 
-    // Don't start new camera operations when UI wants pointer input
+    // Don't start new camera operations when pointer is over UI
     // But allow continuing existing operations (for smooth drag experience)
-    if ui_wants_pointer && !input_state.is_orbiting && !input_state.is_panning {
+    if pointer_over_ui && !input_state.is_orbiting && !input_state.is_panning {
         // Still need to consume events to prevent accumulation
         mouse_motion.clear();
         mouse_wheel.clear();

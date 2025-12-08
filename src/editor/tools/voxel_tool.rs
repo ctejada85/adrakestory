@@ -24,9 +24,9 @@ pub fn handle_voxel_placement(
         _ => return,
     };
 
-    // Check if UI wants pointer input (user is interacting with UI elements)
-    let ui_wants_input = contexts.ctx_mut().wants_pointer_input();
-    if ui_wants_input {
+    // Check if pointer is over any UI area (panels, buttons, etc.)
+    let pointer_over_ui = contexts.ctx_mut().is_pointer_over_area();
+    if pointer_over_ui {
         return;
     }
 
@@ -92,14 +92,15 @@ pub fn handle_voxel_removal(
         return;
     }
 
-    // Check if UI wants input (user is interacting with UI elements)
-    let ui_wants_pointer = contexts.ctx_mut().wants_pointer_input();
+    // Check if pointer is over any UI area
+    let pointer_over_ui = contexts.ctx_mut().is_pointer_over_area();
     let ui_wants_keyboard = contexts.ctx_mut().wants_keyboard_input();
 
-    // Check if left mouse button or delete key was just pressed (only if UI doesn't want input)
-    let should_remove = (!ui_wants_pointer && mouse_button.just_pressed(MouseButton::Left))
-        || (!ui_wants_keyboard && (keyboard.just_pressed(KeyCode::Delete)
-            || keyboard.just_pressed(KeyCode::Backspace)));
+    // Check if left mouse button or delete key was just pressed (only if pointer not over UI)
+    let should_remove = (!pointer_over_ui && mouse_button.just_pressed(MouseButton::Left))
+        || (!ui_wants_keyboard
+            && (keyboard.just_pressed(KeyCode::Delete)
+                || keyboard.just_pressed(KeyCode::Backspace)));
 
     if !should_remove {
         return;
