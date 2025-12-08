@@ -212,43 +212,56 @@ pub fn gather_gamepad_input(
 ///
 /// This system checks if keyboard/mouse is being used and switches the input
 /// source accordingly. Mouse movement also triggers the switch to keyboard/mouse mode.
+///
+/// Input mapping:
+/// - WASD keys: Movement (like left stick)
+/// - Arrow keys: Look direction / character facing (like right stick)
 pub fn gather_keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mouse_button: Res<ButtonInput<MouseButton>>,
     mut mouse_motion: EventReader<bevy::input::mouse::MouseMotion>,
     mut player_input: ResMut<PlayerInput>,
 ) {
-    // Calculate keyboard movement
+    // Calculate keyboard movement (WASD keys only)
     let mut kb_movement = Vec2::ZERO;
 
-    if keyboard.pressed(KeyCode::KeyW)
-        || keyboard.pressed(KeyCode::ArrowUp)
-        || keyboard.pressed(KeyCode::PageUp)
-    {
+    if keyboard.pressed(KeyCode::KeyW) {
         kb_movement.y += 1.0;
     }
-    if keyboard.pressed(KeyCode::KeyS)
-        || keyboard.pressed(KeyCode::ArrowDown)
-        || keyboard.pressed(KeyCode::PageDown)
-    {
+    if keyboard.pressed(KeyCode::KeyS) {
         kb_movement.y -= 1.0;
     }
-    if keyboard.pressed(KeyCode::KeyA)
-        || keyboard.pressed(KeyCode::ArrowLeft)
-        || keyboard.pressed(KeyCode::Home)
-    {
+    if keyboard.pressed(KeyCode::KeyA) {
         kb_movement.x -= 1.0;
     }
-    if keyboard.pressed(KeyCode::KeyD)
-        || keyboard.pressed(KeyCode::ArrowRight)
-        || keyboard.pressed(KeyCode::End)
-    {
+    if keyboard.pressed(KeyCode::KeyD) {
         kb_movement.x += 1.0;
     }
 
     // Normalize diagonal movement
     if kb_movement.length() > 0.0 {
         kb_movement = kb_movement.normalize();
+    }
+
+    // Calculate look direction from arrow keys (like right stick)
+    let mut kb_look_direction = Vec2::ZERO;
+
+    if keyboard.pressed(KeyCode::ArrowUp) {
+        kb_look_direction.y += 1.0;
+    }
+    if keyboard.pressed(KeyCode::ArrowDown) {
+        kb_look_direction.y -= 1.0;
+    }
+    if keyboard.pressed(KeyCode::ArrowLeft) {
+        kb_look_direction.x -= 1.0;
+    }
+    if keyboard.pressed(KeyCode::ArrowRight) {
+        kb_look_direction.x += 1.0;
+    }
+
+    // Normalize diagonal look direction
+    if kb_look_direction.length() > 0.0 {
+        kb_look_direction = kb_look_direction.normalize();
     }
 
     let kb_jump_pressed = keyboard.pressed(KeyCode::Space);
@@ -266,6 +279,7 @@ pub fn gather_keyboard_input(
 
     // Detect if keyboard is being used
     let keyboard_active = kb_movement.length() > 0.01
+        || kb_look_direction.length() > 0.01
         || kb_jump_pressed
         || kb_interact
         || kb_pause
@@ -290,6 +304,7 @@ pub fn gather_keyboard_input(
     // Apply keyboard input if using keyboard/mouse
     if player_input.input_source == InputSource::KeyboardMouse {
         player_input.movement = kb_movement;
+        player_input.look_direction = kb_look_direction;
         // Camera delta is set from mouse motion in the camera system
         // Keep existing camera_delta if it was set by mouse
         player_input.jump_pressed = kb_jump_pressed;

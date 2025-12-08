@@ -1,10 +1,14 @@
 //! Player movement system with collision detection.
 //!
 //! This module handles:
-//! - WASD/Arrow key input for movement
-//! - Gamepad left stick for movement
+//! - WASD keys / Gamepad left stick for movement
+//! - Arrow keys / Gamepad right stick for character facing direction
 //! - Space bar / A button for jumping
 //! - Collision detection during movement
+//!
+//! Character Facing Behavior:
+//! - If look direction input is active (arrow keys or right stick), character faces that direction
+//! - Otherwise, character faces the direction of movement
 
 use super::collision::check_sub_voxel_collision;
 use super::components::{Player, SubVoxel};
