@@ -192,7 +192,9 @@ pub fn handle_camera_input(
     };
 
     // Check if pointer is over any UI area - don't process camera input if mouse is over UI panels
-    let pointer_over_ui = contexts.ctx_mut().is_pointer_over_area();
+    // Also check is_using_pointer() for active interactions like dragging resize handles
+    let ctx = contexts.ctx_mut();
+    let pointer_over_ui = ctx.is_pointer_over_area() || ctx.is_using_pointer();
 
     // Handle mouse button state
     let shift_pressed =

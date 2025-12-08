@@ -23,8 +23,9 @@ pub fn handle_entity_placement(
     };
 
     // Check if pointer is over any UI area (panels, buttons, backgrounds, etc.)
-    let pointer_over_ui = contexts.ctx_mut().is_pointer_over_area();
-    if pointer_over_ui {
+    // Also check is_using_pointer() for active interactions like dragging resize handles
+    let ctx = contexts.ctx_mut();
+    if ctx.is_pointer_over_area() || ctx.is_using_pointer() {
         return;
     }
 
