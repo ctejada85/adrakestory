@@ -4,8 +4,10 @@
 //! - Smooth interpolation of character rotation with easing
 //! - Updating the visual character model (child entity) rotation
 //! - Shortest path rotation algorithm to avoid spinning the long way
+//! - Input-source-aware rotation speed (faster for gamepad)
 
 use super::components::Player;
+use super::gamepad::{InputSource, PlayerInput};
 use bevy::prelude::*;
 use std::f32::consts::PI;
 
@@ -33,12 +35,13 @@ fn ease_in_out_cubic(t: f32) -> f32 {
 /// to the progress (0.0 to 1.0) from start angle to target angle.
 ///
 /// Key features:
-/// - Fixed duration for all rotations (0.2 seconds by default)
+/// - Fixed duration for all rotations (shorter for gamepad for responsiveness)
 /// - Progress-based easing (ease-in-out cubic)
 /// - Shortest path rotation algorithm
 /// - Easing resets when target changes (handled in player_movement system)
 pub fn rotate_character_model(
     time: Res<Time>,
+    player_input: Res<PlayerInput>,
     mut player_query: Query<(&mut Player, &Children)>,
     mut transform_query: Query<&mut Transform, With<SceneRoot>>,
 ) {
@@ -58,16 +61,23 @@ pub fn rotate_character_model(
         if angle_diff.abs() > 0.001 {
             // Update elapsed time
             player.rotation_elapsed += time.delta_secs();
-            
+
+            // Use faster rotation for gamepad (0.08s) vs keyboard (0.2s)
+            // This makes controller movement feel more responsive and smooth
+            let effective_duration = match player_input.input_source {
+                InputSource::Gamepad => 0.08, // Very quick rotation for analog stick
+                InputSource::KeyboardMouse => player.rotation_duration, // Use default (0.2s)
+            };
+
             // Calculate progress (0.0 to 1.0) clamped to max 1.0
-            let progress = (player.rotation_elapsed / player.rotation_duration).min(1.0);
-            
+            let progress = (player.rotation_elapsed / effective_duration).min(1.0);
+
             // Apply easing to progress
             let eased_progress = ease_in_out_cubic(progress);
-            
+
             // Lerp from start_rotation to target_rotation using eased progress
             player.current_rotation = player.start_rotation + (angle_diff * eased_progress);
-            
+
             // Normalize current rotation to [0, 2*PI] range
             player.current_rotation = player.current_rotation.rem_euclid(2.0 * PI);
         }
