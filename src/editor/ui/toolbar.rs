@@ -10,6 +10,7 @@ use bevy::prelude::*;
 use bevy_egui::egui;
 
 /// Render the top toolbar with menu bar and quick actions
+#[allow(clippy::too_many_arguments)]
 pub fn render_toolbar(
     ctx: &egui::Context,
     editor_state: &mut EditorState,
@@ -131,12 +132,11 @@ fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState) {
         "📍",
         "Entity Place Tool (E)\nClick to place entities",
         is_entity_place,
-    ) {
-        if !is_entity_place {
-            editor_state.active_tool = EditorTool::EntityPlace {
-                entity_type: EntityType::PlayerSpawn,
-            };
-        }
+    ) && !is_entity_place
+    {
+        editor_state.active_tool = EditorTool::EntityPlace {
+            entity_type: EntityType::PlayerSpawn,
+        };
     }
 
     // Camera Tool (C)
