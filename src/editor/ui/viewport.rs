@@ -8,6 +8,7 @@ use bevy_egui::egui;
 /// Default panel widths (used as fallback if egui memory doesn't have them yet)
 const DEFAULT_LEFT_PANEL_WIDTH: f32 = 200.0;
 const DEFAULT_RIGHT_PANEL_WIDTH: f32 = 280.0;
+const DEFAULT_STATUS_BAR_HEIGHT: f32 = 26.0;
 
 /// Get the current width of a side panel from egui's memory
 fn get_panel_width(ctx: &egui::Context, panel_id: &str, default: f32) -> f32 {
@@ -15,6 +16,16 @@ fn get_panel_width(ctx: &egui::Context, panel_id: &str, default: f32) -> f32 {
     ctx.memory(|mem| {
         mem.data
             .get_temp::<f32>(id.with("__panel_width"))
+            .unwrap_or(default)
+    })
+}
+
+/// Get the current height of a top/bottom panel from egui's memory
+fn get_panel_height(ctx: &egui::Context, panel_id: &str, default: f32) -> f32 {
+    let id = egui::Id::new(panel_id);
+    ctx.memory(|mem| {
+        mem.data
+            .get_temp::<f32>(id.with("__panel_height"))
             .unwrap_or(default)
     })
 }
@@ -31,17 +42,18 @@ pub fn render_viewport_overlays(
     // Get actual panel widths from egui's memory (panels store their width there when resized)
     let left_panel_width = get_panel_width(ctx, "outliner", DEFAULT_LEFT_PANEL_WIDTH);
     let right_panel_width = get_panel_width(ctx, "properties", DEFAULT_RIGHT_PANEL_WIDTH);
+    let status_bar_height = get_panel_height(ctx, "status_bar", DEFAULT_STATUS_BAR_HEIGHT);
 
     // Calculate viewport bounds (area between side panels)
     let screen_rect = ctx.screen_rect();
     let viewport_left = left_panel_width;
     let viewport_right = screen_rect.width() - right_panel_width;
 
-    // Get top/bottom panel heights from egui's available rect after panels are drawn
-    // For now use the available_rect which already accounts for panels
+    // Get top panel height from egui's available rect (toolbar is rendered first)
     let available = ctx.available_rect();
     let viewport_top = available.top();
-    let viewport_bottom = available.bottom();
+    // Bottom accounts for status bar height
+    let viewport_bottom = screen_rect.height() - status_bar_height;
 
     let viewport_rect = egui::Rect::from_min_max(
         egui::pos2(viewport_left, viewport_top),

@@ -240,6 +240,16 @@ fn render_ui(
         &mut save_events.save_as,
     );
 
+    // Render status bar (before side panels and overlays so its height is known)
+    render_status_bar(
+        ctx,
+        &ui_resources.editor_state,
+        &read_resources.cursor_state,
+        &read_resources.history,
+        &read_resources.keyboard_mode,
+        &read_resources.active_transform,
+    );
+
     // Render outliner panel (left side)
     ui::render_outliner_panel(
         ctx,
@@ -267,16 +277,6 @@ fn render_ui(
         &read_resources.active_transform,
     );
 
-    // Render status bar
-    render_status_bar(
-        ctx,
-        &ui_resources.editor_state,
-        &read_resources.cursor_state,
-        &read_resources.history,
-        &read_resources.keyboard_mode,
-        &read_resources.active_transform,
-    );
-
     // Render dialogs
     ui::dialogs::render_dialogs(
         ctx,
@@ -300,7 +300,7 @@ fn render_status_bar(
     keyboard_mode: &KeyboardEditMode,
     active_transform: &ActiveTransform,
 ) {
-    egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
+    let response = egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
         ui.horizontal(|ui| {
             // === Section 1: Current Tool with Icon ===
             let (tool_icon, tool_name) = get_tool_display(&editor_state.active_tool);
@@ -400,6 +400,15 @@ fn render_status_bar(
                 ));
             });
         });
+    });
+
+    // Store status bar height in egui memory for viewport overlays to use
+    let panel_height = response.response.rect.height();
+    ctx.memory_mut(|mem| {
+        mem.data.insert_temp(
+            egui::Id::new("status_bar").with("__panel_height"),
+            panel_height,
+        );
     });
 }
 
