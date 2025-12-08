@@ -114,18 +114,19 @@ commands.spawn((
 
 ### Overview
 
-The character model smoothly rotates to face the direction of movement using a fixed-duration rotation system with ease-in-out cubic easing.
+The character model smoothly rotates to face the direction of movement using a fixed-duration rotation system with ease-in-out cubic easing. The rotation duration is input-aware: faster for gamepad (0.08s) for responsive analog control, and slower for keyboard (0.2s) for a snappier digital feel.
 
 ### Rotation Architecture
 
 Located in [`src/systems/game/character_rotation.rs`](../../../src/systems/game/character_rotation.rs)
 
 **Key Features:**
-- **Fixed Duration:** All rotations take exactly 0.2 seconds (snappy, arcade-like feel)
+- **Input-Aware Duration:** 0.08s for gamepad, 0.2s for keyboard (snappy, arcade-like feel)
 - **Ease-in-Out Cubic:** Smooth acceleration and deceleration
 - **Shortest Path:** Always rotates the shortest way around
 - **Direction-Based:** Automatically faces movement direction
 - **Easing Reset:** Restarts smoothly when direction changes
+- **Analog Support:** Full 360° directional control with gamepad stick
 
 ### Rotation Algorithm
 
@@ -179,22 +180,30 @@ This creates a smooth "slow-fast-slow" rotation curve.
 
 ### Rotation Timing
 
-- **Duration:** 0.2 seconds for all rotations
-- **45° turn:** 0.2 seconds
-- **90° turn:** 0.2 seconds
-- **180° turn:** 0.2 seconds
+Rotation duration is input-source aware for optimal feel:
 
-This creates consistent, predictable rotation behavior regardless of angle.
+**Keyboard (0.2 seconds):**
+- 45° turn: 0.2 seconds
+- 90° turn: 0.2 seconds
+- 180° turn: 0.2 seconds
+
+**Gamepad (0.08 seconds):**
+- All rotations: 0.08 seconds
+- Provides responsive analog stick control
+- Prevents sluggish feeling with continuous stick input
+
+This creates consistent, predictable rotation behavior optimized for each input type.
 
 ### Integration with Movement
 
 The rotation system is integrated into the player movement system:
 
-1. **Input Detection:** WASD keys determine movement direction
+1. **Input Detection:** WASD keys or gamepad left stick determine movement direction
 2. **Target Calculation:** Movement direction converted to target rotation angle
-3. **Change Detection:** System detects when target rotation changes
+3. **Change Detection:** System detects when target rotation changes (threshold varies by input: 0.01 rad for keyboard, 0.15 rad for gamepad to prevent jitter)
 4. **Easing Reset:** Rotation animation restarts from current position
-5. **Visual Update:** Character model rotates smoothly to face direction
+5. **Duration Selection:** Faster rotation for gamepad (0.08s), standard for keyboard (0.2s)
+6. **Visual Update:** Character model rotates smoothly to face direction
 
 ## Physics vs Visuals Separation
 
@@ -319,10 +328,11 @@ If the model floats or sinks into the ground:
 3. Verify coordinate system mapping (W=+X, S=-X, A=-Z, D=+Z)
 
 **Rotation too fast/slow:**
-1. Adjust `rotation_duration` in Player component (currently 0.2 seconds)
-2. Lower values = faster rotation
-3. Higher values = slower rotation
-4. Recommended range: 0.1 to 0.5 seconds
+1. For keyboard: Adjust `rotation_duration` in Player component (currently 0.2 seconds)
+2. For gamepad: Adjust `effective_duration` in `character_rotation.rs` (currently 0.08 seconds)
+3. Lower values = faster rotation
+4. Higher values = slower rotation
+5. Recommended range: 0.05 to 0.15 for gamepad, 0.1 to 0.5 for keyboard
 
 ## Related Systems
 

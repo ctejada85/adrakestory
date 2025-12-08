@@ -1,6 +1,38 @@
 # Controls Reference
 
-Complete keyboard and mouse controls for A Drake's Story.
+Complete keyboard, mouse, and Xbox controller controls for A Drake's Story.
+
+## Xbox Controller Support
+
+A Drake's Story supports Xbox controllers (and other XInput-compatible gamepads) with seamless input switching.
+
+### Controller Mapping
+
+| Action | Xbox Controller |
+|--------|----------------|
+| **Movement** | Left Stick |
+| **Camera Orbit** | Right Stick |
+| **Jump** | A Button (South) |
+| **Interact** | X Button (West) |
+| **Pause Menu** | Start Button |
+| **Menu Navigate** | D-Pad Up/Down |
+| **Menu Select** | A Button |
+| **Menu Back** | B Button (East) |
+
+### Controller Features
+- **Analog Movement**: Variable speed based on stick deflection
+- **Fast Character Rotation**: Optimized 0.08s rotation for responsive feel
+- **Automatic Input Switching**: Seamlessly switch between controller and keyboard/mouse
+- **Cursor Auto-Hide**: Mouse cursor hides when using controller, reappears on mouse movement
+- **Circular Deadzone**: 15% deadzone with smooth rescaling for precise control
+
+### Controller Tips
+1. **Analog Advantage**: Use partial stick deflection for slower, more precise movement
+2. **Camera Control**: Right stick provides smooth orbital camera control
+3. **Quick Switching**: Just use any input device to switch - no settings needed
+4. **Menu Navigation**: D-Pad is most reliable for menu navigation
+
+---
 
 ## Movement Controls
 
@@ -23,9 +55,9 @@ Complete keyboard and mouse controls for A Drake's Story.
 The character model automatically rotates to face the direction you're moving:
 - **Instant Response:** Rotation begins immediately when direction changes
 - **Smooth Animation:** Uses ease-in-out cubic easing for natural movement
-- **Fixed Duration:** All rotations (45°, 90°, 180°) take 0.2 seconds
+- **Input-Aware Duration:** Keyboard rotations take 0.2s, controller rotations are faster at 0.08s
 - **Shortest Path:** Character always rotates the shortest way around
-- **8 Directions:** Supports all cardinal and diagonal movement directions
+- **Full Analog Support:** Controller stick provides 360° directional control
 
 ## Camera Controls
 
@@ -123,16 +155,21 @@ Future updates may include:
 
 ## Accessibility
 
+### Current Features
+- **Xbox Controller Support**: Full gamepad support with XInput
+- **Automatic Input Switching**: Use any input device without changing settings
+- **Cursor Management**: Cursor auto-hides for controller, shows for mouse
+
 ### Current Limitations
-- No controller support yet
 - No customizable keybindings
 - No accessibility options (colorblind modes, etc.)
+- No button remapping
 
 ### Planned Improvements
-- Controller/gamepad support
 - Customizable key bindings
 - Accessibility options
-- Alternative control schemes
+- Controller sensitivity settings in UI
+- Button remapping
 
 ## Troubleshooting Controls
 
@@ -157,18 +194,20 @@ Future updates may include:
 
 ```
 ┌─────────────────────────────────────┐
-│         MOVEMENT                    │
+│     KEYBOARD/MOUSE                  │
 │  W/A/S/D - Move (auto-rotate)       │
 │  Mouse   - Look around              │
 │  Q/E     - Rotate camera            │
+│  ESC     - Pause/Resume             │
+│  C       - Toggle collision boxes   │
 ├─────────────────────────────────────┤
-│         SYSTEM                      │
-│  ESC - Pause/Resume                 │
-│  C   - Toggle collision boxes       │
-├─────────────────────────────────────┤
-│         MENU                        │
-│  Mouse/Enter - Select               │
-│  Arrows/Tab  - Navigate             │
+│     XBOX CONTROLLER                 │
+│  Left Stick  - Move                 │
+│  Right Stick - Camera orbit         │
+│  A Button    - Jump / Select        │
+│  B Button    - Back / Cancel        │
+│  Start       - Pause/Resume         │
+│  D-Pad       - Menu navigation      │
 └─────────────────────────────────────┘
 ```
 
