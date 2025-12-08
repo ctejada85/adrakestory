@@ -1,10 +1,12 @@
 //! Selection tool for selecting and manipulating objects.
 
+use crate::editor::camera::EditorCamera;
 use crate::editor::cursor::CursorState;
 use crate::editor::state::{EditorState, EditorTool};
 use crate::systems::game::map::format::VoxelData;
 use crate::systems::game::map::geometry::RotationAxis;
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use bevy_egui::EguiContexts;
 
 /// Marker component for selection highlight visuals
@@ -103,6 +105,8 @@ pub fn handle_selection(
     mouse_button: Res<ButtonInput<MouseButton>>,
     mut contexts: EguiContexts,
     mut update_events: EventWriter<UpdateSelectionHighlights>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<EditorCamera>>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
     // Check if select tool is active
     if !matches!(editor_state.active_tool, EditorTool::Select) {
@@ -120,44 +124,55 @@ pub fn handle_selection(
         return;
     }
 
-    // Get cursor world position for entity selection
-    let cursor_world_pos = cursor_state.position;
+    // Get mouse ray for entity selection
+    let Ok((camera, camera_transform)) = camera_query.get_single() else {
+        return;
+    };
+    let Ok(window) = window_query.get_single() else {
+        return;
+    };
+    let Some(cursor_position) = window.cursor_position() else {
+        return;
+    };
+    let Ok(ray) = camera.viewport_to_world(camera_transform, cursor_position) else {
+        return;
+    };
 
-    // First, try to select an entity (entities take priority)
-    if let Some(world_pos) = cursor_world_pos {
-        let selection_radius = 0.5;
-        let mut closest_entity_index: Option<usize> = None;
-        let mut closest_distance = f32::MAX;
+    // First, try to select an entity using ray-sphere intersection
+    let entity_selection_radius = 0.5; // Radius for entity "hitbox"
+    let mut closest_entity_index: Option<usize> = None;
+    let mut closest_distance = f32::MAX;
 
-        for (index, entity_data) in editor_state.current_map.entities.iter().enumerate() {
-            let (ex, ey, ez) = entity_data.position;
-            let entity_pos = Vec3::new(ex, ey, ez);
-            let distance = world_pos.distance(entity_pos);
+    for (index, entity_data) in editor_state.current_map.entities.iter().enumerate() {
+        let (ex, ey, ez) = entity_data.position;
+        let entity_pos = Vec3::new(ex, ey, ez);
 
-            if distance < selection_radius && distance < closest_distance {
+        // Ray-sphere intersection test
+        if let Some(distance) = ray_sphere_intersection(&ray, entity_pos, entity_selection_radius) {
+            if distance < closest_distance {
                 closest_distance = distance;
                 closest_entity_index = Some(index);
             }
         }
+    }
 
-        // If we found an entity nearby, select/deselect it
-        if let Some(entity_idx) = closest_entity_index {
-            // Clear voxel selection when selecting entities
-            editor_state.selected_voxels.clear();
+    // If we found an entity, select/deselect it
+    if let Some(entity_idx) = closest_entity_index {
+        // Clear voxel selection when selecting entities
+        editor_state.selected_voxels.clear();
 
-            if editor_state.selected_entities.contains(&entity_idx) {
-                editor_state.selected_entities.remove(&entity_idx);
-                info!("Deselected entity at index {}", entity_idx);
-            } else {
-                editor_state.selected_entities.clear(); // Single selection for now
-                editor_state.selected_entities.insert(entity_idx);
-                info!("Selected entity at index {}", entity_idx);
-            }
-
-            // Trigger highlight update
-            update_events.send(UpdateSelectionHighlights);
-            return;
+        if editor_state.selected_entities.contains(&entity_idx) {
+            editor_state.selected_entities.remove(&entity_idx);
+            info!("Deselected entity at index {}", entity_idx);
+        } else {
+            editor_state.selected_entities.clear(); // Single selection for now
+            editor_state.selected_entities.insert(entity_idx);
+            info!("Selected entity at index {}", entity_idx);
         }
+
+        // Trigger highlight update
+        update_events.send(UpdateSelectionHighlights);
+        return;
     }
 
     // If no entity was clicked, try voxel selection
@@ -180,6 +195,33 @@ pub fn handle_selection(
 
     // Trigger highlight update
     update_events.send(UpdateSelectionHighlights);
+}
+
+/// Ray-sphere intersection test
+/// Returns the distance to the intersection point if there is one
+fn ray_sphere_intersection(ray: &Ray3d, center: Vec3, radius: f32) -> Option<f32> {
+    let oc = ray.origin - center;
+    let a = ray.direction.dot(*ray.direction);
+    let b = 2.0 * oc.dot(*ray.direction);
+    let c = oc.dot(oc) - radius * radius;
+    let discriminant = b * b - 4.0 * a * c;
+
+    if discriminant < 0.0 {
+        return None;
+    }
+
+    let sqrt_discriminant = discriminant.sqrt();
+    let t1 = (-b - sqrt_discriminant) / (2.0 * a);
+    let t2 = (-b + sqrt_discriminant) / (2.0 * a);
+
+    // Return the closest positive intersection
+    if t1 > 0.0 {
+        Some(t1)
+    } else if t2 > 0.0 {
+        Some(t2)
+    } else {
+        None
+    }
 }
 
 /// Render selection highlights for selected voxels
@@ -220,12 +262,7 @@ pub fn render_selection_highlights(
 
     // Spawn highlight for each selected voxel
     for &pos in &editor_state.selected_voxels {
-        spawn_selection_highlight(
-            &mut commands,
-            &highlight_mesh,
-            &highlight_material,
-            pos,
-        );
+        spawn_selection_highlight(&mut commands, &highlight_mesh, &highlight_material, pos);
     }
 
     info!(
@@ -248,7 +285,6 @@ fn spawn_selection_highlight(
         SelectionHighlight { voxel_pos: pos },
     ));
 }
-
 
 /// Render transform preview meshes
 pub fn render_transform_preview(
@@ -280,8 +316,11 @@ pub fn render_transform_preview(
 
     // Calculate new positions and check collisions
     let offset = active_transform.current_offset;
-    let original_positions: std::collections::HashSet<_> = 
-        active_transform.selected_voxels.iter().map(|v| v.pos).collect();
+    let original_positions: std::collections::HashSet<_> = active_transform
+        .selected_voxels
+        .iter()
+        .map(|v| v.pos)
+        .collect();
 
     // Create preview mesh
     let preview_mesh = meshes.add(Cuboid::new(0.95, 0.95, 0.95));
@@ -354,8 +393,11 @@ pub fn render_rotation_preview(
     // Calculate rotated positions and check collisions
     // Create a set of original positions to use as "buffer space" - these positions
     // are considered empty during rotation since the voxels are being moved
-    let original_positions: std::collections::HashSet<_> =
-        active_transform.selected_voxels.iter().map(|v| v.pos).collect();
+    let original_positions: std::collections::HashSet<_> = active_transform
+        .selected_voxels
+        .iter()
+        .map(|v| v.pos)
+        .collect();
 
     // Create sub-voxel mesh for detailed preview
     const SUB_VOXEL_SIZE: f32 = 1.0 / 8.0;
@@ -423,7 +465,12 @@ pub fn render_rotation_preview(
 }
 
 /// Calculate rotated position around pivot (used by rotation preview and confirmation)
-pub fn rotate_position(pos: (i32, i32, i32), pivot: Vec3, axis: RotationAxis, angle: i32) -> (i32, i32, i32) {
+pub fn rotate_position(
+    pos: (i32, i32, i32),
+    pivot: Vec3,
+    axis: RotationAxis,
+    angle: i32,
+) -> (i32, i32, i32) {
     // Convert to Vec3 relative to pivot
     let rel_pos = Vec3::new(
         pos.0 as f32 - pivot.x,
@@ -437,9 +484,9 @@ pub fn rotate_position(pos: (i32, i32, i32), pivot: Vec3, axis: RotationAxis, an
             // Rotate around X axis (affects Y and Z)
             match angle {
                 0 => rel_pos,
-                1 => Vec3::new(rel_pos.x, -rel_pos.z, rel_pos.y),   // 90° CW
-                2 => Vec3::new(rel_pos.x, -rel_pos.y, -rel_pos.z),  // 180°
-                3 => Vec3::new(rel_pos.x, rel_pos.z, -rel_pos.y),   // 270° CW
+                1 => Vec3::new(rel_pos.x, -rel_pos.z, rel_pos.y), // 90° CW
+                2 => Vec3::new(rel_pos.x, -rel_pos.y, -rel_pos.z), // 180°
+                3 => Vec3::new(rel_pos.x, rel_pos.z, -rel_pos.y), // 270° CW
                 _ => rel_pos,
             }
         }
@@ -447,9 +494,9 @@ pub fn rotate_position(pos: (i32, i32, i32), pivot: Vec3, axis: RotationAxis, an
             // Rotate around Y axis (affects X and Z)
             match angle {
                 0 => rel_pos,
-                1 => Vec3::new(rel_pos.z, rel_pos.y, -rel_pos.x),   // 90° CW
-                2 => Vec3::new(-rel_pos.x, rel_pos.y, -rel_pos.z),  // 180°
-                3 => Vec3::new(-rel_pos.z, rel_pos.y, rel_pos.x),   // 270° CW
+                1 => Vec3::new(rel_pos.z, rel_pos.y, -rel_pos.x), // 90° CW
+                2 => Vec3::new(-rel_pos.x, rel_pos.y, -rel_pos.z), // 180°
+                3 => Vec3::new(-rel_pos.z, rel_pos.y, rel_pos.x), // 270° CW
                 _ => rel_pos,
             }
         }
@@ -457,9 +504,9 @@ pub fn rotate_position(pos: (i32, i32, i32), pivot: Vec3, axis: RotationAxis, an
             // Rotate around Z axis (affects X and Y)
             match angle {
                 0 => rel_pos,
-                1 => Vec3::new(-rel_pos.y, rel_pos.x, rel_pos.z),   // 90° CW
-                2 => Vec3::new(-rel_pos.x, -rel_pos.y, rel_pos.z),  // 180°
-                3 => Vec3::new(rel_pos.y, -rel_pos.x, rel_pos.z),   // 270° CW
+                1 => Vec3::new(-rel_pos.y, rel_pos.x, rel_pos.z), // 90° CW
+                2 => Vec3::new(-rel_pos.x, -rel_pos.y, rel_pos.z), // 180°
+                3 => Vec3::new(rel_pos.y, -rel_pos.x, rel_pos.z), // 270° CW
                 _ => rel_pos,
             }
         }
