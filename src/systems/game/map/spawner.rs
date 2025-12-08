@@ -314,7 +314,7 @@ impl GreedyMesher {
 
         for ((face, depth), faces) in &self.slices {
             // Only process slices at LOD intervals
-            if depth % sample_rate as i32 != 0 {
+            if depth % sample_rate != 0 {
                 continue;
             }
 
@@ -1029,9 +1029,7 @@ fn spawn_voxels_chunked(
         let global_y = y * SUB_VOXEL_COUNT + sub_y;
         let global_z = z * SUB_VOXEL_COUNT + sub_z;
 
-        let mesher = chunk_meshers
-            .entry(chunk_pos)
-            .or_insert_with(GreedyMesher::new);
+        let mesher = chunk_meshers.entry(chunk_pos).or_default();
 
         // Check each face and add visible ones to the mesher
         let faces = [
