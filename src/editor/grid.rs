@@ -106,10 +106,19 @@ fn calculate_frustum_culled_bounds(
     // Test grid corners against frustum and shrink bounds
     // We test the AABB of each potential grid section against the frustum
     let grid_y = 0.0; // Grid is at Y=0
-    let grid_height = 0.1; // Small height for AABB test
+
+    // Use a taller AABB to ensure intersection even when camera is close
+    // This helps detect the grid plane from various angles
+    let grid_height = camera_pos.y.abs().max(10.0);
 
     // Find the tightest bounds by testing grid sections
-    let section_size = spacing * 10.0; // Test in chunks of 10 grid lines
+    // Use smaller sections when camera is close for better accuracy
+    let base_section_size = spacing * 10.0;
+    let section_size = if camera_pos.y.abs() < 5.0 {
+        spacing * 2.0 // Smaller sections when close
+    } else {
+        base_section_size
+    };
 
     let mut visible_min_x = f32::MAX;
     let mut visible_max_x = f32::MIN;
@@ -121,6 +130,7 @@ fn calculate_frustum_culled_bounds(
         let mut z = bounds.min_z;
         while z < bounds.max_z {
             // Create AABB for this grid section
+            // Center the AABB vertically to span from below to above the grid plane
             let section_center = Vec3A::new(x + section_size / 2.0, grid_y, z + section_size / 2.0);
             let section_half_extents =
                 Vec3A::new(section_size / 2.0, grid_height, section_size / 2.0);
@@ -143,14 +153,12 @@ fn calculate_frustum_culled_bounds(
         x += section_size;
     }
 
-    // If nothing visible, return empty bounds
+    // If nothing visible through frustum culling, fall back to distance-based bounds
+    // This ensures the grid is always visible when the camera should see it
     if visible_min_x > visible_max_x {
-        return GridBounds {
-            min_x: camera_pos.x,
-            max_x: camera_pos.x,
-            min_z: camera_pos.z,
-            max_z: camera_pos.z,
-        };
+        // Grid is always visible if camera can see ground plane
+        // Return a minimum grid area around where the camera is looking
+        return bounds;
     }
 
     // Constrain to original distance-based bounds and snap to grid
