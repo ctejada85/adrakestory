@@ -232,13 +232,14 @@ fn setup_editor(
         ambient_brightness
     );
 
-    // Spawn infinite grid
+    // Spawn infinite grid (frustum not available at startup, will be updated on first frame)
     grid::spawn_infinite_grid(
         &mut commands,
         &mut meshes,
         &mut materials,
         &grid_config,
         camera_pos,
+        None, // Frustum will be used on subsequent updates
     );
 
     // Spawn cursor indicator

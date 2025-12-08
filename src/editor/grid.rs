@@ -2,9 +2,16 @@
 //!
 //! This module provides an infinite grid that spans in all directions,
 //! dynamically regenerating based on camera position for efficient rendering.
+//! 
+//! ## Optimizations
+//! - **Distance culling**: Only renders grid within render_distance of camera
+//! - **Frustum culling**: Only generates grid lines visible in the camera's view frustum
+//! - **Regeneration threshold**: Avoids regenerating grid on small camera movements
 
+use bevy::math::{Affine3A, Vec3A};
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
+use bevy::render::primitives::{Aabb, Frustum};
 
 /// Component marking a grid entity
 #[derive(Component)]
@@ -42,7 +49,7 @@ impl Default for InfiniteGridConfig {
     fn default() -> Self {
         Self {
             spacing: 1.0,
-            render_distance: 50.0,
+            render_distance: 100.0, // Base render distance, scales with camera distance
             major_line_interval: 10,
             opacity: 0.3,
             color: Color::srgba(0.5, 0.5, 0.5, 0.3),
@@ -80,15 +87,107 @@ fn calculate_grid_bounds(camera_pos: Vec3, render_distance: f32, spacing: f32) -
     }
 }
 
+/// Calculate grid bounds with frustum culling
+/// Only generates grid within the camera's view frustum
+fn calculate_frustum_culled_bounds(
+    camera_pos: Vec3,
+    render_distance: f32,
+    spacing: f32,
+    frustum: Option<&Frustum>,
+) -> GridBounds {
+    // Start with distance-based bounds
+    let mut bounds = calculate_grid_bounds(camera_pos, render_distance, spacing);
+    
+    // If no frustum available, return distance-based bounds
+    let Some(frustum) = frustum else {
+        return bounds;
+    };
+    
+    // Test grid corners against frustum and shrink bounds
+    // We test the AABB of each potential grid section against the frustum
+    let grid_y = 0.0; // Grid is at Y=0
+    let grid_height = 0.1; // Small height for AABB test
+    
+    // Find the tightest bounds by testing grid sections
+    let section_size = spacing * 10.0; // Test in chunks of 10 grid lines
+    
+    let mut visible_min_x = f32::MAX;
+    let mut visible_max_x = f32::MIN;
+    let mut visible_min_z = f32::MAX;
+    let mut visible_max_z = f32::MIN;
+    
+    let mut x = bounds.min_x;
+    while x < bounds.max_x {
+        let mut z = bounds.min_z;
+        while z < bounds.max_z {
+            // Create AABB for this grid section
+            let section_center = Vec3A::new(
+                x + section_size / 2.0,
+                grid_y,
+                z + section_size / 2.0,
+            );
+            let section_half_extents = Vec3A::new(
+                section_size / 2.0,
+                grid_height,
+                section_size / 2.0,
+            );
+            
+            let section_aabb = Aabb {
+                center: section_center,
+                half_extents: section_half_extents,
+            };
+            
+            // Test if this section is visible in the frustum
+            if frustum.intersects_obb(&section_aabb, &Affine3A::IDENTITY, true, true) {
+                visible_min_x = visible_min_x.min(x);
+                visible_max_x = visible_max_x.max(x + section_size);
+                visible_min_z = visible_min_z.min(z);
+                visible_max_z = visible_max_z.max(z + section_size);
+            }
+            
+            z += section_size;
+        }
+        x += section_size;
+    }
+    
+    // If nothing visible, return empty bounds
+    if visible_min_x > visible_max_x {
+        return GridBounds {
+            min_x: camera_pos.x,
+            max_x: camera_pos.x,
+            min_z: camera_pos.z,
+            max_z: camera_pos.z,
+        };
+    }
+    
+    // Constrain to original distance-based bounds and snap to grid
+    let offset = 0.5;
+    bounds.min_x = ((visible_min_x.max(bounds.min_x)) / spacing).floor() * spacing - offset;
+    bounds.max_x = ((visible_max_x.min(bounds.max_x)) / spacing).ceil() * spacing + offset;
+    bounds.min_z = ((visible_min_z.max(bounds.min_z)) / spacing).floor() * spacing - offset;
+    bounds.max_z = ((visible_max_z.min(bounds.max_z)) / spacing).ceil() * spacing + offset;
+    
+    bounds
+}
+
 /// Check if grid should be regenerated based on camera movement
 fn should_regenerate_grid(camera_pos: Vec3, last_pos: Vec3, threshold: f32) -> bool {
     let distance = camera_pos.distance(last_pos);
     distance > threshold
 }
 
-/// Create an infinite grid mesh based on camera position
-pub fn create_infinite_grid_mesh(config: &InfiniteGridConfig, camera_pos: Vec3) -> Mesh {
-    let bounds = calculate_grid_bounds(camera_pos, config.render_distance, config.spacing);
+/// Create an infinite grid mesh based on camera position with optional frustum culling
+pub fn create_infinite_grid_mesh(
+    config: &InfiniteGridConfig,
+    camera_pos: Vec3,
+    frustum: Option<&Frustum>,
+) -> Mesh {
+    let bounds = calculate_frustum_culled_bounds(
+        camera_pos,
+        config.render_distance,
+        config.spacing,
+        frustum,
+    );
     
     let mut positions = Vec::new();
     let mut colors = Vec::new();
@@ -167,8 +266,9 @@ pub fn spawn_infinite_grid(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     config: &InfiniteGridConfig,
     camera_pos: Vec3,
+    frustum: Option<&Frustum>,
 ) -> Entity {
-    let mesh = create_infinite_grid_mesh(config, camera_pos);
+    let mesh = create_infinite_grid_mesh(config, camera_pos, frustum);
     
     commands
         .spawn((
@@ -185,29 +285,49 @@ pub fn spawn_infinite_grid(
         .id()
 }
 
-/// System to update infinite grid based on camera movement
+/// System to update infinite grid based on camera movement with frustum culling
 pub fn update_infinite_grid(
     mut config: ResMut<InfiniteGridConfig>,
     mut meshes: ResMut<Assets<Mesh>>,
-    camera_query: Query<&Transform, With<crate::editor::camera::EditorCamera>>,
+    camera_query: Query<
+        (&Transform, &Frustum, &crate::editor::camera::EditorCamera),
+        With<crate::editor::camera::EditorCamera>,
+    >,
     grid_query: Query<(Entity, &Mesh3d), With<EditorGrid>>,
 ) {
-    let Ok(camera_transform) = camera_query.get_single() else {
+    let Ok((camera_transform, frustum, editor_camera)) = camera_query.get_single() else {
         return;
     };
     
     let camera_pos = camera_transform.translation;
     
-    // Check if we need to regenerate the grid
-    if !should_regenerate_grid(camera_pos, config.last_camera_pos, config.regeneration_threshold) {
+    // Scale render distance based on camera distance from target (zoom level)
+    // The further the camera is zoomed out, the larger the grid render area
+    let base_render_distance = config.render_distance;
+    let camera_height = camera_pos.y.abs();
+    let camera_distance = editor_camera.distance;
+    
+    // Use the larger of camera height or camera distance to determine grid extent
+    // Multiply by a factor to ensure grid extends beyond visible area
+    let dynamic_render_distance = (base_render_distance + camera_height * 2.0 + camera_distance * 1.5).max(base_render_distance);
+    
+    // Check if we need to regenerate the grid (also regenerate if zoom changed significantly)
+    let zoom_changed = (camera_distance - config.last_camera_pos.y.abs()).abs() > config.regeneration_threshold;
+    if !should_regenerate_grid(camera_pos, config.last_camera_pos, config.regeneration_threshold) && !zoom_changed {
         return;
     }
     
     // Update last camera position
     config.last_camera_pos = camera_pos;
     
-    // Regenerate grid mesh
-    let new_mesh = create_infinite_grid_mesh(&config, camera_pos);
+    // Create a temporary config with dynamic render distance
+    let dynamic_config = InfiniteGridConfig {
+        render_distance: dynamic_render_distance,
+        ..config.clone()
+    };
+    
+    // Regenerate grid mesh with frustum culling and dynamic render distance
+    let new_mesh = create_infinite_grid_mesh(&dynamic_config, camera_pos, Some(frustum));
     
     // Update existing grid entity
     for (_entity, mesh_handle) in grid_query.iter() {
@@ -369,7 +489,7 @@ mod tests {
     fn test_create_infinite_grid_mesh() {
         let config = InfiniteGridConfig::default();
         let camera_pos = Vec3::ZERO;
-        let mesh = create_infinite_grid_mesh(&config, camera_pos);
+        let mesh = create_infinite_grid_mesh(&config, camera_pos, None);
         
         // Verify mesh was created
         assert!(mesh.attribute(Mesh::ATTRIBUTE_POSITION).is_some());

@@ -56,7 +56,7 @@ impl Default for EditorCamera {
             zoom_speed,
             zoom_smoothing: 15.0, // Smooth interpolation speed
             min_distance: 2.0,
-            max_distance: 50.0,
+            max_distance: 200.0, // Allow zooming out much further
         }
     }
 }
