@@ -226,7 +226,7 @@
     entities: [
         (
             entity_type: PlayerSpawn,
-            position: (4.5, 0.5, 1.5),
+            position: (3.2, 3.5, 1.5),
             properties: {},
         ),
         (

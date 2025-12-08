@@ -4,6 +4,7 @@
 //! when maps are loaded or modified.
 
 use crate::editor::state::EditorState;
+use crate::editor::tools::UpdateSelectionHighlights;
 use crate::systems::game::map::format::{EntityType, SubVoxelPattern};
 use crate::systems::game::map::spawner::VoxelMaterialPalette;
 use bevy::prelude::*;
@@ -184,13 +185,16 @@ pub struct RenderEntitiesEvent;
 pub fn render_entities_system(
     mut commands: Commands,
     mut render_events: EventReader<RenderMapEvent>,
+    mut selection_events: EventReader<UpdateSelectionHighlights>,
     editor_state: Res<EditorState>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     existing_markers: Query<Entity, With<EditorEntityMarker>>,
 ) {
-    // Only render if we received an event
-    if render_events.read().count() == 0 {
+    // Only render if we received a render event or selection changed
+    let render_count = render_events.read().count();
+    let selection_count = selection_events.read().count();
+    if render_count == 0 && selection_count == 0 {
         return;
     }
 
