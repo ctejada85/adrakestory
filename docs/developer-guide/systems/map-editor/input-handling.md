@@ -179,24 +179,33 @@ pub fn handle_mixed_input(
 
 ### Mouse Input Systems (Individual Pattern)
 
-3. **Voxel Placement** ([`handle_voxel_placement()`](../../../../src/editor/tools/voxel_tool.rs:9))
+3. **Voxel Placement** ([`handle_voxel_placement()`](../../../../src/editor/tools/voxel_tool.rs:24))
    - Checks `wants_pointer_input()` before placing voxels on left-click
+   - Tracks screen position for drag detection
 
-4. **Voxel Removal** ([`handle_voxel_removal()`](../../../../src/editor/tools/voxel_tool.rs:77))
+4. **Voxel Drag Placement** ([`handle_voxel_drag_placement()`](../../../../src/editor/tools/voxel_tool.rs:130))
+   - Requires minimum mouse movement (5 pixels) before activating drag mode
+   - Prevents false triggers when grid position changes due to geometry changes
+
+5. **Voxel Removal** ([`handle_voxel_removal()`](../../../../src/editor/tools/voxel_tool.rs:296))
    - Checks `wants_pointer_input()` for mouse clicks
    - Keyboard deletion now handled by unified system
 
-5. **Entity Placement** ([`handle_entity_placement()`](../../../../src/editor/tools/entity_tool.rs:10))
+6. **Voxel Drag Removal** ([`handle_voxel_drag_removal()`](../../../../src/editor/tools/voxel_tool.rs:369))
+   - Requires minimum mouse movement (5 pixels) before activating drag mode
+   - Prevents accidental removal of voxels behind removed ones
+
+7. **Entity Placement** ([`handle_entity_placement()`](../../../../src/editor/tools/entity_tool.rs:10))
    - Checks `wants_pointer_input()` before placing entities on left-click
 
-6. **Selection** ([`handle_selection()`](../../../../src/editor/tools/selection_tool.rs:101))
+8. **Selection** ([`handle_selection()`](../../../../src/editor/tools/selection_tool.rs:101))
    - Checks `wants_pointer_input()` before selecting voxels on left-click
 
 ### Rendering Systems (No Input Checks Needed)
 
-7. **Selection Highlights** ([`render_selection_highlights()`](../../../../src/editor/tools/selection_tool.rs:142))
-8. **Transform Preview** ([`render_transform_preview()`](../../../../src/editor/tools/selection_tool.rs:209))
-9. **Rotation Preview** ([`render_rotation_preview()`](../../../../src/editor/tools/selection_tool.rs:714))
+9. **Selection Highlights** ([`render_selection_highlights()`](../../../../src/editor/tools/selection_tool.rs:142))
+10. **Transform Preview** ([`render_transform_preview()`](../../../../src/editor/tools/selection_tool.rs:209))
+11. **Rotation Preview** ([`render_rotation_preview()`](../../../../src/editor/tools/selection_tool.rs:714))
 
 ## Best Practices
 
@@ -333,6 +342,42 @@ When clicking on UI controls, the canvas was also processing these mouse events,
 
 The solution was to add `wants_pointer_input()` checks to all mouse input handlers. This pattern is still used for mouse input systems.
 
+### Drag Movement Threshold Fix (December 2025)
+
+When clicking to place or remove a voxel, the drag handlers would sometimes trigger unintentionally. This happened because:
+
+1. User clicks to remove a voxel
+2. The voxel is removed by `handle_voxel_removal()`
+3. The cursor raycast now hits a different voxel (the one behind the removed voxel)
+4. `handle_voxel_drag_removal()` sees the grid position changed and removes that voxel too
+
+The same issue occurred with placement when placing adjacent to existing voxels.
+
+**Solution**: Track the screen-space mouse position when a drag starts, and require minimum movement (5 pixels) before activating drag mode:
+
+```rust
+const DRAG_MOVEMENT_THRESHOLD: f32 = 5.0;
+
+// In drag state
+pub struct VoxelDragState {
+    pub is_dragging: bool,
+    pub last_grid_pos: Option<(i32, i32, i32)>,
+    pub drag_start_screen_pos: Option<Vec2>,  // NEW
+}
+
+// In drag handler
+if let (Some(start_pos), Ok(window)) = (drag_state.drag_start_screen_pos, window_query.get_single()) {
+    if let Some(current_pos) = window.cursor_position() {
+        let distance = (current_pos - start_pos).length();
+        if distance < DRAG_MOVEMENT_THRESHOLD {
+            return;  // Mouse hasn't moved enough - don't process drag
+        }
+    }
+}
+```
+
+This ensures that single clicks reliably perform single actions, while drag operations still work when the user intentionally moves the mouse.
+
 ## Performance Considerations
 
 ### Optimization Strategies
@@ -382,6 +427,6 @@ We check UI focus in each system rather than globally because:
 
 ---
 
-**Document Version**: 3.0.0
-**Last Updated**: 2025-10-22
-**Status**: Updated for unified input architecture
+**Document Version**: 3.1.0
+**Last Updated**: 2025-12-10
+**Status**: Updated with drag movement threshold fix

@@ -79,6 +79,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added system ordering to ensure keyboard handling runs after UI rendering
   - Prevents egui from consuming keyboard events meant for tool switching
 
+- **Map Editor - Double Voxel Placement/Removal**: Fixed bug where clicking to place or remove a voxel would sometimes place/remove multiple voxels
+  - Issue occurred because after placing/removing a voxel, the cursor raycast would hit a different voxel (adjacent or behind)
+  - The drag handler incorrectly interpreted this geometry change as intentional mouse movement
+  - Fix: Added screen-space mouse movement threshold (5 pixels) before drag operations activate
+  - Single clicks now reliably place/remove exactly one voxel
+  - Drag-to-place/remove functionality still works when intentionally dragging
+
 - **Map Editor Save Function**: Fixed critical bug where maps with negative voxel coordinates would save with incorrect dimensions, causing "Invalid voxel position" errors on load. The save function now automatically normalizes all coordinates to start at (0, 0, 0) by:
   - Calculating the bounding box of all voxels
   - Determining the offset needed to shift minimum coordinates to origin
