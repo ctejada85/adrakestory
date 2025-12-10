@@ -24,7 +24,7 @@ pub const CHUNK_SIZE: i32 = 16;
 pub const LOD_LEVELS: usize = 4;
 
 /// Distance thresholds for LOD switching (in world units)
-pub const LOD_DISTANCES: [f32; 4] = [20.0, 50.0, 100.0, f32::MAX];
+pub const LOD_DISTANCES: [f32; 4] = [50.0, 100.0, 200.0, f32::MAX];
 
 /// Marker component for chunk entities
 #[derive(Component)]
