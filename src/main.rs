@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, window::WindowMode};
 
 pub mod editor;
 mod states;
@@ -45,7 +45,13 @@ use systems::title_screen::systems::{
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                mode: WindowMode::BorderlessFullscreen(MonitorSelection::Current),
+                ..default()
+            }),
+            ..default()
+        }))
         .init_state::<GameState>()
         .init_resource::<MapLoadProgress>()
         // Initialize gamepad resources
