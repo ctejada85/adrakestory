@@ -5,6 +5,7 @@ use crate::editor::history::{EditorAction, EditorHistory};
 use crate::editor::state::{EditorState, EditorTool};
 use crate::systems::game::map::format::VoxelData;
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use bevy_egui::EguiContexts;
 
 /// Resource tracking drag-to-place state for voxel tool
@@ -16,6 +17,8 @@ pub struct VoxelDragState {
     pub last_placed_pos: Option<(i32, i32, i32)>,
     /// Last cursor grid position (to detect movement)
     pub last_cursor_grid_pos: Option<(i32, i32, i32)>,
+    /// Screen position where the drag started (to detect actual mouse movement)
+    pub drag_start_screen_pos: Option<Vec2>,
 }
 
 /// Handle voxel placement when the tool is active
@@ -26,6 +29,7 @@ pub fn handle_voxel_placement(
     mouse_button: Res<ButtonInput<MouseButton>>,
     mut contexts: EguiContexts,
     mut drag_state: ResMut<VoxelDragState>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
     // Check if voxel place tool is active
     let (voxel_type, pattern) = match &editor_state.active_tool {
@@ -38,6 +42,7 @@ pub fn handle_voxel_placement(
             drag_state.is_dragging = false;
             drag_state.last_placed_pos = None;
             drag_state.last_cursor_grid_pos = None;
+            drag_state.drag_start_screen_pos = None;
             return;
         }
     };
@@ -54,6 +59,7 @@ pub fn handle_voxel_placement(
         drag_state.is_dragging = false;
         drag_state.last_placed_pos = None;
         drag_state.last_cursor_grid_pos = None;
+        drag_state.drag_start_screen_pos = None;
         return;
     }
 
@@ -69,6 +75,11 @@ pub fn handle_voxel_placement(
         // Track both the placed position and the cursor grid position
         drag_state.last_placed_pos = Some(grid_pos);
         drag_state.last_cursor_grid_pos = cursor_state.grid_pos;
+        
+        // Record the screen position where the drag started
+        if let Ok(window) = window_query.get_single() {
+            drag_state.drag_start_screen_pos = window.cursor_position();
+        }
 
         // Check if voxel already exists at this position
         let voxel_exists = editor_state
@@ -109,6 +120,11 @@ pub fn handle_voxel_placement(
     }
 }
 
+/// Minimum mouse movement in pixels required to trigger drag placement/removal
+/// This prevents accidental double actions when the cursor grid position changes
+/// due to underlying geometry changes (e.g., after placing/removing a voxel)
+const DRAG_MOVEMENT_THRESHOLD: f32 = 5.0;
+
 /// Handle continuous drag placement while mouse is held
 /// During drag, voxels are placed adjacent to the last placed voxel in the direction of cursor movement
 pub fn handle_voxel_drag_placement(
@@ -118,6 +134,7 @@ pub fn handle_voxel_drag_placement(
     mouse_button: Res<ButtonInput<MouseButton>>,
     mut contexts: EguiContexts,
     mut drag_state: ResMut<VoxelDragState>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
     // Only process if we're in drag-place mode
     if !drag_state.is_dragging {
@@ -134,6 +151,7 @@ pub fn handle_voxel_drag_placement(
             drag_state.is_dragging = false;
             drag_state.last_placed_pos = None;
             drag_state.last_cursor_grid_pos = None;
+            drag_state.drag_start_screen_pos = None;
             return;
         }
     };
@@ -143,6 +161,7 @@ pub fn handle_voxel_drag_placement(
         drag_state.is_dragging = false;
         drag_state.last_placed_pos = None;
         drag_state.last_cursor_grid_pos = None;
+        drag_state.drag_start_screen_pos = None;
         return;
     }
 
@@ -150,6 +169,17 @@ pub fn handle_voxel_drag_placement(
     let ctx = contexts.ctx_mut();
     if ctx.is_pointer_over_area() || ctx.is_using_pointer() {
         return;
+    }
+
+    // Check if mouse has actually moved enough from the drag start position
+    // This prevents false drag triggers when grid_pos changes due to geometry changes
+    if let (Some(start_pos), Ok(window)) = (drag_state.drag_start_screen_pos, window_query.get_single()) {
+        if let Some(current_pos) = window.cursor_position() {
+            let distance = (current_pos - start_pos).length();
+            if distance < DRAG_MOVEMENT_THRESHOLD {
+                return;
+            }
+        }
     }
 
     // Get current cursor grid position (the voxel being pointed at, not placement pos)
@@ -272,12 +302,14 @@ pub fn handle_voxel_removal(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut contexts: EguiContexts,
     mut drag_state: ResMut<VoxelRemoveDragState>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
     // Check if voxel remove tool is active
     if !matches!(editor_state.active_tool, EditorTool::VoxelRemove) {
         // Reset drag state if tool changed
         drag_state.is_dragging = false;
         drag_state.last_grid_pos = None;
+        drag_state.drag_start_screen_pos = None;
         return;
     }
 
@@ -290,6 +322,7 @@ pub fn handle_voxel_removal(
     if mouse_button.just_released(MouseButton::Left) {
         drag_state.is_dragging = false;
         drag_state.last_grid_pos = None;
+        drag_state.drag_start_screen_pos = None;
         return;
     }
 
@@ -312,6 +345,12 @@ pub fn handle_voxel_removal(
         };
 
         drag_state.last_grid_pos = Some(grid_pos);
+        
+        // Record the screen position where the drag started
+        if let Ok(window) = window_query.get_single() {
+            drag_state.drag_start_screen_pos = window.cursor_position();
+        }
+        
         try_remove_voxel(&mut editor_state, &mut history, grid_pos);
     }
 }
@@ -323,6 +362,8 @@ pub struct VoxelRemoveDragState {
     pub is_dragging: bool,
     /// Last grid position we removed a voxel at (to avoid duplicates)
     pub last_grid_pos: Option<(i32, i32, i32)>,
+    /// Screen position where the drag started (to detect actual mouse movement)
+    pub drag_start_screen_pos: Option<Vec2>,
 }
 
 /// Handle continuous drag removal while mouse is held
@@ -333,6 +374,7 @@ pub fn handle_voxel_drag_removal(
     mouse_button: Res<ButtonInput<MouseButton>>,
     mut contexts: EguiContexts,
     mut drag_state: ResMut<VoxelRemoveDragState>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
     // Only process if we're in drag-remove mode
     if !drag_state.is_dragging {
@@ -343,6 +385,7 @@ pub fn handle_voxel_drag_removal(
     if !matches!(editor_state.active_tool, EditorTool::VoxelRemove) {
         drag_state.is_dragging = false;
         drag_state.last_grid_pos = None;
+        drag_state.drag_start_screen_pos = None;
         return;
     }
 
@@ -350,6 +393,7 @@ pub fn handle_voxel_drag_removal(
     if !mouse_button.pressed(MouseButton::Left) {
         drag_state.is_dragging = false;
         drag_state.last_grid_pos = None;
+        drag_state.drag_start_screen_pos = None;
         return;
     }
 
@@ -357,6 +401,18 @@ pub fn handle_voxel_drag_removal(
     let ctx = contexts.ctx_mut();
     if ctx.is_pointer_over_area() || ctx.is_using_pointer() {
         return;
+    }
+
+    // Check if mouse has actually moved enough from the drag start position
+    // This prevents false drag triggers when grid_pos changes due to geometry changes
+    // (e.g., after removing a voxel, the cursor now points at the voxel behind it)
+    if let (Some(start_pos), Ok(window)) = (drag_state.drag_start_screen_pos, window_query.get_single()) {
+        if let Some(current_pos) = window.cursor_position() {
+            let distance = (current_pos - start_pos).length();
+            if distance < DRAG_MOVEMENT_THRESHOLD {
+                return;
+            }
+        }
     }
 
     // Get current cursor grid position
