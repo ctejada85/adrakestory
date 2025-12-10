@@ -135,6 +135,8 @@ pub enum SubVoxelPattern {
     FenceX,
     /// Fence pattern along Z axis
     FenceZ,
+    /// Fence corner pattern (L-shaped, connects X and Z fences)
+    FenceCorner,
 }
 
 impl SubVoxelPattern {
@@ -174,6 +176,7 @@ impl SubVoxelPattern {
                 // Fence rotated 90° around Y
                 SubVoxelGeometry::fence_x().rotate(crate::editor::tools::RotationAxis::Y, 1)
             }
+            Self::FenceCorner => SubVoxelGeometry::fence_corner(),
         }
     }
 

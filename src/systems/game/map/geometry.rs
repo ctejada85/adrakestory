@@ -254,6 +254,28 @@ impl SubVoxelGeometry {
         }
         geom
     }
+
+    /// Create a fence corner pattern (L-shaped).
+    ///
+    /// Corner post at (0,y,0) with rails extending along +X and +Z edges.
+    pub fn fence_corner() -> Self {
+        let mut geom = Self::new();
+        // Corner post at (0,0) - full height
+        for y in 0..8 {
+            geom.set_occupied(0, y, 0);
+        }
+        // Rail along X axis (z=0 edge)
+        for x in 1..8 {
+            geom.set_occupied(x, 2, 0); // bottom rail
+            geom.set_occupied(x, 5, 0); // top rail
+        }
+        // Rail along Z axis (x=0 edge)
+        for z in 1..8 {
+            geom.set_occupied(0, 2, z); // bottom rail
+            geom.set_occupied(0, 5, z); // top rail
+        }
+        geom
+    }
 }
 
 impl Default for SubVoxelGeometry {
@@ -349,6 +371,25 @@ mod tests {
         // Check gaps
         assert!(!geom.is_occupied(3, 0, 0)); // below bottom rail
         assert!(!geom.is_occupied(3, 4, 0)); // between rails
+    }
+
+    #[test]
+    fn test_fence_corner() {
+        let geom = SubVoxelGeometry::fence_corner();
+        // Corner post: 1×8×1 = 8
+        // X-axis rails: 7×1×1 × 2 = 14
+        // Z-axis rails: 1×1×7 × 2 = 14
+        // Total: 8 + 14 + 14 = 36
+        assert_eq!(geom.count_occupied(), 36);
+        // Check corner post
+        assert!(geom.is_occupied(0, 0, 0));
+        assert!(geom.is_occupied(0, 7, 0));
+        // Check X-axis rails
+        assert!(geom.is_occupied(4, 2, 0)); // bottom rail
+        assert!(geom.is_occupied(4, 5, 0)); // top rail
+        // Check Z-axis rails
+        assert!(geom.is_occupied(0, 2, 4)); // bottom rail
+        assert!(geom.is_occupied(0, 5, 4)); // top rail
     }
 
     #[test]
