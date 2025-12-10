@@ -276,6 +276,87 @@ impl SubVoxelGeometry {
         }
         geom
     }
+
+    /// Create a fence post (single vertical stick in center).
+    ///
+    /// This is the base fence shape when no neighbors are connected.
+    pub fn fence_post() -> Self {
+        let mut geom = Self::new();
+        // Vertical post in center (x=3-4, z=3-4)
+        for y in 0..8 {
+            for x in 3..5 {
+                for z in 3..5 {
+                    geom.set_occupied(x, y, z);
+                }
+            }
+        }
+        geom
+    }
+
+    /// Create a fence with connections to neighboring fences.
+    ///
+    /// Generates geometry based on which directions have adjacent fences.
+    /// The center post is always present, with rails extending to connected neighbors.
+    ///
+    /// # Arguments
+    /// * `neg_x` - Connect to fence in -X direction
+    /// * `pos_x` - Connect to fence in +X direction
+    /// * `neg_z` - Connect to fence in -Z direction
+    /// * `pos_z` - Connect to fence in +Z direction
+    pub fn fence_with_connections(neg_x: bool, pos_x: bool, neg_z: bool, pos_z: bool) -> Self {
+        let mut geom = Self::new();
+
+        // Center post (always present) - 2x8x2 in center
+        for y in 0..8 {
+            for x in 3..5 {
+                for z in 3..5 {
+                    geom.set_occupied(x, y, z);
+                }
+            }
+        }
+
+        // Rails to -X direction
+        if neg_x {
+            for x in 0..3 {
+                for z in 3..5 {
+                    geom.set_occupied(x, 2, z); // bottom rail
+                    geom.set_occupied(x, 5, z); // top rail
+                }
+            }
+        }
+
+        // Rails to +X direction
+        if pos_x {
+            for x in 5..8 {
+                for z in 3..5 {
+                    geom.set_occupied(x, 2, z); // bottom rail
+                    geom.set_occupied(x, 5, z); // top rail
+                }
+            }
+        }
+
+        // Rails to -Z direction
+        if neg_z {
+            for z in 0..3 {
+                for x in 3..5 {
+                    geom.set_occupied(x, 2, z); // bottom rail
+                    geom.set_occupied(x, 5, z); // top rail
+                }
+            }
+        }
+
+        // Rails to +Z direction
+        if pos_z {
+            for z in 5..8 {
+                for x in 3..5 {
+                    geom.set_occupied(x, 2, z); // bottom rail
+                    geom.set_occupied(x, 5, z); // top rail
+                }
+            }
+        }
+
+        geom
+    }
 }
 
 impl Default for SubVoxelGeometry {
@@ -390,6 +471,45 @@ mod tests {
         // Check Z-axis rails
         assert!(geom.is_occupied(0, 2, 4)); // bottom rail
         assert!(geom.is_occupied(0, 5, 4)); // top rail
+    }
+
+    #[test]
+    fn test_fence_post() {
+        let geom = SubVoxelGeometry::fence_post();
+        // Center post: 2×8×2 = 32
+        assert_eq!(geom.count_occupied(), 32);
+        // Check center post
+        assert!(geom.is_occupied(3, 0, 3));
+        assert!(geom.is_occupied(4, 7, 4));
+        // Check edges are empty
+        assert!(!geom.is_occupied(0, 0, 0));
+        assert!(!geom.is_occupied(7, 0, 7));
+    }
+
+    #[test]
+    fn test_fence_with_connections() {
+        // No connections - just post
+        let geom = SubVoxelGeometry::fence_with_connections(false, false, false, false);
+        assert_eq!(geom.count_occupied(), 32); // Just the center post
+
+        // All connections
+        let geom = SubVoxelGeometry::fence_with_connections(true, true, true, true);
+        // Center post: 2×8×2 = 32
+        // Each rail direction: 3×2×2 × 2 (top+bottom) = 24 per direction
+        // But rails overlap with post, so: 32 + 4 directions × (3×2×2) = 32 + 48 = 80
+        // Actually: neg_x rails (3×2×2)=12, pos_x rails (3×2×2)=12, neg_z (3×2×2)=12, pos_z (3×2×2)=12
+        // Two rail heights each, so 12×2 = 24 per direction, but we need to count actual sub-voxels
+        // Let's just verify connectivity
+        assert!(geom.is_occupied(0, 2, 3)); // neg_x rail
+        assert!(geom.is_occupied(7, 2, 3)); // pos_x rail
+        assert!(geom.is_occupied(3, 2, 0)); // neg_z rail
+        assert!(geom.is_occupied(3, 2, 7)); // pos_z rail
+
+        // Single connection (pos_x only)
+        let geom = SubVoxelGeometry::fence_with_connections(false, true, false, false);
+        assert!(geom.is_occupied(3, 0, 3)); // center post
+        assert!(geom.is_occupied(7, 2, 3)); // pos_x rail
+        assert!(!geom.is_occupied(0, 2, 3)); // no neg_x rail
     }
 
     #[test]

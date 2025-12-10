@@ -981,6 +981,15 @@ fn spawn_voxels_chunked(
     // Collect all sub-voxel data for subsequent passes
     let mut all_sub_voxels: Vec<(i32, i32, i32, i32, i32, i32, Vec3, usize, Color)> = Vec::new();
 
+    // Build a set of fence positions for neighbor lookups
+    let fence_positions: std::collections::HashSet<(i32, i32, i32)> = map
+        .world
+        .voxels
+        .iter()
+        .filter(|v| v.pattern.map_or(false, |p| p.is_fence()))
+        .map(|v| v.pos)
+        .collect();
+
     for (index, voxel_data) in map.world.voxels.iter().enumerate() {
         // Update progress (occupancy collection phase: 0-15%)
         if index % 100 == 0 {
@@ -996,8 +1005,18 @@ fn spawn_voxels_chunked(
         // Determine which pattern to use
         let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
 
-        // Get the geometry for this pattern with rotation applied
-        let geometry = pattern.geometry_with_rotation(voxel_data.rotation_state);
+        // For fence patterns, check neighbors and generate context-aware geometry
+        let geometry = if pattern.is_fence() {
+            let neighbors = (
+                fence_positions.contains(&(x - 1, y, z)), // neg_x
+                fence_positions.contains(&(x + 1, y, z)), // pos_x
+                fence_positions.contains(&(x, y, z - 1)), // neg_z
+                fence_positions.contains(&(x, y, z + 1)), // pos_z
+            );
+            pattern.fence_geometry_with_neighbors(neighbors)
+        } else {
+            pattern.geometry_with_rotation(voxel_data.rotation_state)
+        };
 
         // Add each sub-voxel to occupancy grid and collect data
         for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {

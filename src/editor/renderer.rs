@@ -154,10 +154,32 @@ pub fn render_map_system(
     // Collect all sub-voxel data for subsequent passes
     let mut all_sub_voxels: Vec<(i32, i32, i32, i32, i32, i32, Vec3, usize, Color)> = Vec::new();
 
+    // Build a set of fence positions for neighbor lookups
+    let fence_positions: std::collections::HashSet<(i32, i32, i32)> = editor_state
+        .current_map
+        .world
+        .voxels
+        .iter()
+        .filter(|v| v.pattern.map_or(false, |p| p.is_fence()))
+        .map(|v| v.pos)
+        .collect();
+
     for voxel_data in &editor_state.current_map.world.voxels {
         let (x, y, z) = voxel_data.pos;
         let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
-        let geometry = pattern.geometry_with_rotation(voxel_data.rotation_state);
+
+        // For fence patterns, check neighbors and generate context-aware geometry
+        let geometry = if pattern.is_fence() {
+            let neighbors = (
+                fence_positions.contains(&(x - 1, y, z)), // neg_x
+                fence_positions.contains(&(x + 1, y, z)), // pos_x
+                fence_positions.contains(&(x, y, z - 1)), // neg_z
+                fence_positions.contains(&(x, y, z + 1)), // pos_z
+            );
+            pattern.fence_geometry_with_neighbors(neighbors)
+        } else {
+            pattern.geometry_with_rotation(voxel_data.rotation_state)
+        };
 
         for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {
             // Add to occupancy grid for neighbor lookups

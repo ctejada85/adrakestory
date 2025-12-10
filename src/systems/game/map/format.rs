@@ -132,11 +132,10 @@ pub enum SubVoxelPattern {
     Pillar,
 
     /// Fence pattern along X axis (posts at ends with horizontal rails)
-    FenceX,
-    /// Fence pattern along Z axis
-    FenceZ,
-    /// Fence corner pattern (L-shaped, connects X and Z fences)
-    FenceCorner,
+    #[serde(alias = "FenceX")]
+    #[serde(alias = "FenceZ")]
+    #[serde(alias = "FenceCorner")]
+    Fence,
 }
 
 impl SubVoxelPattern {
@@ -171,13 +170,24 @@ impl SubVoxelPattern {
                 SubVoxelGeometry::staircase_x().rotate(crate::editor::tools::RotationAxis::Y, 3)
             }
             Self::Pillar => SubVoxelGeometry::pillar(),
-            Self::FenceX => SubVoxelGeometry::fence_x(),
-            Self::FenceZ => {
-                // Fence rotated 90° around Y
-                SubVoxelGeometry::fence_x().rotate(crate::editor::tools::RotationAxis::Y, 1)
-            }
-            Self::FenceCorner => SubVoxelGeometry::fence_corner(),
+            Self::Fence => SubVoxelGeometry::fence_post(), // Default to just a post
         }
+    }
+
+    /// Check if this pattern is a fence that needs neighbor-aware geometry.
+    pub fn is_fence(&self) -> bool {
+        matches!(self, Self::Fence)
+    }
+
+    /// Get geometry for fence patterns based on neighboring fences.
+    ///
+    /// # Arguments
+    /// * `neighbors` - Tuple of (has_neg_x, has_pos_x, has_neg_z, has_pos_z) indicating adjacent fences
+    pub fn fence_geometry_with_neighbors(&self, neighbors: (bool, bool, bool, bool)) -> SubVoxelGeometry {
+        if !self.is_fence() {
+            return self.geometry();
+        }
+        SubVoxelGeometry::fence_with_connections(neighbors.0, neighbors.1, neighbors.2, neighbors.3)
     }
 
     /// Get the geometry representation of this pattern with rotation applied.
