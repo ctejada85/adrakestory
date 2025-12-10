@@ -150,6 +150,8 @@ fn render_voxel_place_content(
                 ui.selectable_value(pattern, SubVoxelPattern::StaircaseZ, "⟋ Staircase (+Z)");
                 ui.selectable_value(pattern, SubVoxelPattern::StaircaseNegZ, "⟍ Staircase (-Z)");
                 ui.selectable_value(pattern, SubVoxelPattern::Pillar, "│ Pillar");
+                ui.selectable_value(pattern, SubVoxelPattern::FenceX, "┼ Fence (X-axis)");
+                ui.selectable_value(pattern, SubVoxelPattern::FenceZ, "┼ Fence (Z-axis)");
             });
 
         ui.add_space(4.0);
@@ -247,6 +249,45 @@ fn render_pattern_preview(ui: &mut egui::Ui, pattern: &SubVoxelPattern) {
                 let c = if y % 2 == 0 { color } else { dark };
                 let cell_rect = egui::Rect::from_min_size(
                     rect.min + egui::vec2(1.5 * cell, (3 - y) as f32 * cell),
+                    egui::vec2(cell - 1.0, cell - 1.0),
+                );
+                painter.rect_filled(cell_rect, 1.0, c);
+            }
+        }
+        SubVoxelPattern::FenceX | SubVoxelPattern::FenceZ => {
+            // Fence pattern: two vertical posts with horizontal rails
+            // Left post
+            for y in 0..4 {
+                let c = if y % 2 == 0 { color } else { dark };
+                let cell_rect = egui::Rect::from_min_size(
+                    rect.min + egui::vec2(0.0, (3 - y) as f32 * cell),
+                    egui::vec2(cell - 1.0, cell - 1.0),
+                );
+                painter.rect_filled(cell_rect, 1.0, c);
+            }
+            // Right post
+            for y in 0..4 {
+                let c = if y % 2 == 0 { color } else { dark };
+                let cell_rect = egui::Rect::from_min_size(
+                    rect.min + egui::vec2(3.0 * cell, (3 - y) as f32 * cell),
+                    egui::vec2(cell - 1.0, cell - 1.0),
+                );
+                painter.rect_filled(cell_rect, 1.0, c);
+            }
+            // Top rail
+            for x in 1..3 {
+                let c = if x % 2 == 0 { color } else { dark };
+                let cell_rect = egui::Rect::from_min_size(
+                    rect.min + egui::vec2(x as f32 * cell, 0.5 * cell),
+                    egui::vec2(cell - 1.0, cell - 1.0),
+                );
+                painter.rect_filled(cell_rect, 1.0, c);
+            }
+            // Bottom rail
+            for x in 1..3 {
+                let c = if x % 2 == 0 { color } else { dark };
+                let cell_rect = egui::Rect::from_min_size(
+                    rect.min + egui::vec2(x as f32 * cell, 2.5 * cell),
                     egui::vec2(cell - 1.0, cell - 1.0),
                 );
                 painter.rect_filled(cell_rect, 1.0, c);
@@ -667,6 +708,8 @@ fn get_pattern_name(pattern: &SubVoxelPattern) -> &'static str {
         SubVoxelPattern::StaircaseZ => "⟋ Stairs (+Z)",
         SubVoxelPattern::StaircaseNegZ => "⟍ Stairs (-Z)",
         SubVoxelPattern::Pillar => "│ Pillar",
+        SubVoxelPattern::FenceX => "┼ Fence (X)",
+        SubVoxelPattern::FenceZ => "┼ Fence (Z)",
     }
 }
 

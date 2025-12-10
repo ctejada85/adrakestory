@@ -642,25 +642,7 @@
                 rotation_state: None,
             ),
             (
-                pos: (10, 0, 7),
-                voxel_type: Grass,
-                pattern: Some(Full),
-                rotation_state: None,
-            ),
-            (
-                pos: (9, 0, 7),
-                voxel_type: Grass,
-                pattern: Some(Full),
-                rotation_state: None,
-            ),
-            (
                 pos: (8, 0, 7),
-                voxel_type: Grass,
-                pattern: Some(Full),
-                rotation_state: None,
-            ),
-            (
-                pos: (7, 0, 7),
                 voxel_type: Grass,
                 pattern: Some(Full),
                 rotation_state: None,
@@ -679,12 +661,6 @@
             ),
             (
                 pos: (9, 0, 6),
-                voxel_type: Grass,
-                pattern: Some(Full),
-                rotation_state: None,
-            ),
-            (
-                pos: (10, 0, 6),
                 voxel_type: Grass,
                 pattern: Some(Full),
                 rotation_state: None,
@@ -1512,10 +1488,55 @@
                 rotation_state: None,
             ),
             (
+                pos: (9, 1, 8),
+                voxel_type: Grass,
+                pattern: Some(FenceX),
+                rotation_state: Some((
+                    axis: Y,
+                    angle: 1,
+                )),
+            ),
+            (
+                pos: (8, 1, 8),
+                voxel_type: Grass,
+                pattern: Some(FenceX),
+                rotation_state: None,
+            ),
+            (
+                pos: (7, 1, 8),
+                voxel_type: Grass,
+                pattern: Some(FenceX),
+                rotation_state: None,
+            ),
+            (
                 pos: (9, 0, 9),
                 voxel_type: Grass,
                 pattern: Some(Full),
                 rotation_state: None,
+            ),
+            (
+                pos: (9, 1, 9),
+                voxel_type: Grass,
+                pattern: Some(FenceZ),
+                rotation_state: None,
+            ),
+            (
+                pos: (8, 1, 9),
+                voxel_type: Grass,
+                pattern: Some(FenceX),
+                rotation_state: Some((
+                    axis: Y,
+                    angle: 2,
+                )),
+            ),
+            (
+                pos: (7, 1, 9),
+                voxel_type: Grass,
+                pattern: Some(FenceX),
+                rotation_state: Some((
+                    axis: Y,
+                    angle: 2,
+                )),
             ),
         ],
     ),

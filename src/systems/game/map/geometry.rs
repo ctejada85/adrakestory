@@ -229,6 +229,31 @@ impl SubVoxelGeometry {
         }
         geom
     }
+
+    /// Create a fence pattern along the X axis.
+    ///
+    /// Fence has thin vertical posts at both ends and horizontal rails connecting them.
+    /// Positioned at z=0 edge of the voxel so it can be placed at perimeters.
+    pub fn fence_x() -> Self {
+        let mut geom = Self::new();
+        // Vertical posts at x=0 (left post) - thin 1x8x1 column at z=0 edge
+        for y in 0..8 {
+            geom.set_occupied(0, y, 0);
+        }
+        // Vertical posts at x=7 (right post) - thin 1x8x1 column at z=0 edge
+        for y in 0..8 {
+            geom.set_occupied(7, y, 0);
+        }
+        // Bottom horizontal rail (y=2) at z=0 edge
+        for x in 1..7 {
+            geom.set_occupied(x, 2, 0);
+        }
+        // Top horizontal rail (y=5) at z=0 edge
+        for x in 1..7 {
+            geom.set_occupied(x, 5, 0);
+        }
+        geom
+    }
 }
 
 impl Default for SubVoxelGeometry {
@@ -301,6 +326,29 @@ mod tests {
         assert!(geom.is_occupied(3, 3, 3));
         assert!(geom.is_occupied(4, 4, 4));
         assert!(!geom.is_occupied(2, 3, 3));
+    }
+
+    #[test]
+    fn test_fence_x() {
+        let geom = SubVoxelGeometry::fence_x();
+        // Left post: 1×8×1 = 8
+        // Right post: 1×8×1 = 8
+        // Bottom rail: 6×1×1 = 6
+        // Top rail: 6×1×1 = 6
+        // Total: 8 + 8 + 6 + 6 = 28
+        assert_eq!(geom.count_occupied(), 28);
+        // Check left post at z=0 edge
+        assert!(geom.is_occupied(0, 0, 0));
+        assert!(geom.is_occupied(0, 7, 0));
+        // Check right post at z=0 edge
+        assert!(geom.is_occupied(7, 0, 0));
+        assert!(geom.is_occupied(7, 7, 0));
+        // Check rails at z=0 edge
+        assert!(geom.is_occupied(3, 2, 0)); // bottom rail
+        assert!(geom.is_occupied(3, 5, 0)); // top rail
+        // Check gaps
+        assert!(!geom.is_occupied(3, 0, 0)); // below bottom rail
+        assert!(!geom.is_occupied(3, 4, 0)); // between rails
     }
 
     #[test]

@@ -130,6 +130,11 @@ pub enum SubVoxelPattern {
 
     /// Small 2x2x2 centered column (symmetric, no orientation)
     Pillar,
+
+    /// Fence pattern along X axis (posts at ends with horizontal rails)
+    FenceX,
+    /// Fence pattern along Z axis
+    FenceZ,
 }
 
 impl SubVoxelPattern {
@@ -164,6 +169,11 @@ impl SubVoxelPattern {
                 SubVoxelGeometry::staircase_x().rotate(crate::editor::tools::RotationAxis::Y, 3)
             }
             Self::Pillar => SubVoxelGeometry::pillar(),
+            Self::FenceX => SubVoxelGeometry::fence_x(),
+            Self::FenceZ => {
+                // Fence rotated 90° around Y
+                SubVoxelGeometry::fence_x().rotate(crate::editor::tools::RotationAxis::Y, 1)
+            }
         }
     }
 

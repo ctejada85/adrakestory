@@ -183,6 +183,8 @@ fn render_tool_options(ui: &mut egui::Ui, editor_state: &mut EditorState) {
                     ui.selectable_value(pattern, SubVoxelPattern::Pillar, "│ Pillar");
                     ui.selectable_value(pattern, SubVoxelPattern::PlatformXY, "▐ Wall Z");
                     ui.selectable_value(pattern, SubVoxelPattern::PlatformYZ, "▌ Wall X");
+                    ui.selectable_value(pattern, SubVoxelPattern::FenceX, "┼ Fence X");
+                    ui.selectable_value(pattern, SubVoxelPattern::FenceZ, "┼ Fence Z");
                 });
         }
 
@@ -289,6 +291,8 @@ fn pattern_short_name(pattern: &SubVoxelPattern) -> &'static str {
         SubVoxelPattern::StaircaseZ => "Stairs +Z",
         SubVoxelPattern::StaircaseNegZ => "Stairs -Z",
         SubVoxelPattern::Pillar => "Pillar",
+        SubVoxelPattern::FenceX => "Fence X",
+        SubVoxelPattern::FenceZ => "Fence Z",
     }
 }
 
