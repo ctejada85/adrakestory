@@ -270,6 +270,12 @@ classDiagram
         +snap_to_grid: bool
     }
     
+    class ToolMemory {
+        +voxel_type: VoxelType
+        +voxel_pattern: SubVoxelPattern
+        +entity_type: EntityType
+    }
+    
     class CursorState {
         +position: Option~Vec3~
         +grid_pos: Option~Tuple~
@@ -305,8 +311,24 @@ classDiagram
     
     EditorState --> MapData
     EditorState --> EditorHistory
+    EditorState ..> ToolMemory : uses
     EditorHistory --> EditorAction
 ```
+
+### ToolMemory Resource
+
+The `ToolMemory` resource stores the last-used parameters for tools that have configurable options. When switching between tools, the current tool's parameters are saved to `ToolMemory`, and when switching back to a tool, its parameters are restored from `ToolMemory`.
+
+**Stored Parameters:**
+- `voxel_type` - Last used voxel type (Grass, Dirt, Stone) for VoxelPlace tool
+- `voxel_pattern` - Last used pattern (Full, Platform, Staircase, etc.) for VoxelPlace tool
+- `entity_type` - Last used entity type (PlayerSpawn, NPC, Enemy, etc.) for EntityPlace tool
+
+**Behavior:**
+- Parameters are automatically saved when switching away from a tool
+- Parameters are automatically restored when switching back to a tool
+- Dropdown changes in the toolbar immediately update ToolMemory
+- Memory persists during the editing session (not saved to disk)
 
 ## UI Panel Layout
 

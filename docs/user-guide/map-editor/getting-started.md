@@ -172,6 +172,7 @@ When you launch the map editor, it starts with a **blank canvas** - an empty wor
 4. **Experiment**: Try different voxel types and patterns
 5. **Test in Game**: Load your map in the game to see how it plays
 6. **Don't Worry About Dimensions**: Place voxels freely - the editor will adjust map size automatically when saving
+7. **Tool Memory**: When you switch tools, your settings (like voxel type or entity type) are remembered - switch back anytime and your previous selection will be restored
 
 ## Common Tasks
 

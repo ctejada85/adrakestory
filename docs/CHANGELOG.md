@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `C` - Camera tool
   - `1` and `2` shortcuts retained for backward compatibility
 
+- **Map Editor - Tool Parameter Memory**: Tools now remember their last-used parameters when switching between them
+  - Voxel Place tool remembers selected voxel type and pattern
+  - Entity Place tool remembers selected entity type
+  - Parameters persist during the editing session
+  - Switching back to a tool restores its previous settings
+
 ### Fixed
 - **Map Editor - Panel Overlay Positioning**: Floating overlays (camera controls, tool options) now position relative to side panels instead of screen edges
   - Overlays dynamically adjust when panels are resized

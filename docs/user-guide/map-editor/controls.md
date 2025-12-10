@@ -88,7 +88,7 @@ Complete reference for all map editor controls and shortcuts.
 - Press `E` to switch to Entity Place tool
 - Press `C` to switch to Camera tool
 - Number keys work from anywhere (except when typing in text fields)
-- Tool switching preserves your current voxel type and pattern settings
+- **Tool parameters are remembered** - when you switch back to a tool, it restores your previous settings (e.g., voxel type, pattern, entity type)
 
 ### Help
 
