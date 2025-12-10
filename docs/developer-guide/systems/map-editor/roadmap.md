@@ -8,12 +8,12 @@ This document outlines the step-by-step implementation plan for the A Drake's St
 
 - **Phase 1**: ✅ COMPLETE (Foundation)
 - **Phase 2**: ✅ COMPLETE (Basic Editing)
-- **Phase 3**: 🚧 IN PROGRESS (Advanced Features)
+- **Phase 3**: ✅ COMPLETE (Advanced Features)
 - **Phase 4**: ✅ COMPLETE (File Operations)
-- **Phase 5**: 🚧 IN PROGRESS (Polish & UX)
+- **Phase 5**: ✅ COMPLETE (Polish & UX)
 - **Phase 6**: ⏳ PENDING (Testing & Documentation)
 
-**Status**: Core editing features complete, advanced features in progress
+**Status**: All core features complete. Map editor is fully functional with undo/redo, selection transforms, keyboard navigation, and outliner panel.
 
 ## Phase 1: Foundation (Core Infrastructure)
 
@@ -26,49 +26,49 @@ This document outlines the step-by-step implementation plan for the A Drake's St
 ### Tasks
 
 #### 1.1 Project Setup
-- [ ] Add `bevy_egui` dependency to Cargo.toml
-- [ ] Add `rfd` (native file dialogs) dependency
-- [ ] Create `src/editor/` module structure
-- [ ] Create `src/bin/map_editor.rs` entry point
+- [x] Add `bevy_egui` dependency to Cargo.toml
+- [x] Add `rfd` (native file dialogs) dependency
+- [x] Create `src/editor/` module structure
+- [x] Create `src/bin/map_editor.rs` entry point
 
 #### 1.2 Basic Window & UI
-- [ ] Initialize Bevy app with egui plugin
-- [ ] Create main window with basic layout
-- [ ] Implement top menu bar (File, Edit, View, Tools, Help)
-- [ ] Implement status bar at bottom
-- [ ] Set up 3-panel layout (toolbar, viewport, properties)
+- [x] Initialize Bevy app with egui plugin
+- [x] Create main window with basic layout
+- [x] Implement top menu bar (File, Edit, View, Tools, Help)
+- [x] Implement status bar at bottom
+- [x] Set up 3-panel layout (toolbar, viewport, properties)
 
 #### 1.3 Editor State
-- [ ] Define `EditorState` resource
-- [ ] Define `EditorTool` enum
-- [ ] Implement state initialization
-- [ ] Add state serialization for settings
+- [x] Define `EditorState` resource
+- [x] Define `EditorTool` enum
+- [x] Implement state initialization
+- [x] Add state serialization for settings
 
 #### 1.4 Camera System
-- [ ] Create `EditorCamera` component
-- [ ] Implement orbit camera controls (mouse drag)
-- [ ] Implement pan controls (middle mouse)
-- [ ] Implement zoom controls (mouse wheel)
-- [ ] Add camera reset functionality
+- [x] Create `EditorCamera` component
+- [x] Implement orbit camera controls (mouse drag)
+- [x] Implement pan controls (middle mouse)
+- [x] Implement zoom controls (mouse wheel)
+- [x] Add camera reset functionality
 
 #### 1.5 Grid Visualization
-- [ ] Create grid mesh generator
-- [ ] Implement grid rendering system
-- [ ] Add grid toggle functionality
-- [ ] Add grid opacity control
-- [ ] Implement grid snapping logic
+- [x] Create grid mesh generator
+- [x] Implement grid rendering system
+- [x] Add grid toggle functionality
+- [x] Add grid opacity control
+- [x] Implement grid snapping logic
 
-### Deliverables
-- Working editor window with 3D viewport
-- Functional camera controls
-- Visible grid system
-- Basic UI layout
+### Deliverables ✅ COMPLETE
+- ✅ Working editor window with 3D viewport
+- ✅ Functional camera controls
+- ✅ Visible grid system
+- ✅ Basic UI layout
 
-### Success Criteria
-- Editor launches without errors
-- Camera can orbit, pan, and zoom
-- Grid is visible and can be toggled
-- UI panels are properly laid out
+### Success Criteria ✅ ACHIEVED
+- ✅ Editor launches without errors
+- ✅ Camera can orbit, pan, and zoom
+- ✅ Grid is visible and can be toggled
+- ✅ UI panels are properly laid out
 
 ---
 
@@ -143,59 +143,59 @@ This document outlines the step-by-step implementation plan for the A Drake's St
 
 ### Tasks
 
-#### 3.1 Entity Placement
-- [ ] Create entity placement tool
-- [ ] Add entity type selection UI
-- [ ] Implement entity positioning
-- [ ] Add visual indicators for entities
-- [ ] Implement entity removal
+#### 3.1 Entity Placement ✅ COMPLETE
+- [x] Create entity placement tool
+- [x] Add entity type selection UI
+- [x] Implement entity positioning
+- [x] Add visual indicators for entities
+- [x] Implement entity removal
 
-#### 3.2 Entity Properties
-- [ ] Create entity properties panel
-- [ ] Add position editing (X, Y, Z inputs)
-- [ ] Implement custom properties editor
-- [ ] Add entity validation (e.g., require PlayerSpawn)
+#### 3.2 Entity Properties ✅ COMPLETE
+- [x] Create entity properties panel
+- [x] Add position editing (X, Y, Z inputs)
+- [x] Implement custom properties editor
+- [x] Add entity validation (e.g., require PlayerSpawn)
 
-#### 3.3 Metadata Editor
-- [ ] Create metadata panel UI
-- [ ] Add text inputs for name, author, description
-- [ ] Add version and date fields
-- [ ] Implement metadata validation
+#### 3.3 Metadata Editor ✅ COMPLETE
+- [x] Create metadata panel UI
+- [x] Add text inputs for name, author, description
+- [x] Add version and date fields
+- [x] Implement metadata validation
 
-#### 3.4 Lighting Configuration
-- [ ] Create lighting panel UI
-- [ ] Add ambient intensity slider
-- [ ] Add directional light controls
-- [ ] Implement real-time lighting preview
-- [ ] Add color picker for light color
+#### 3.4 Lighting Configuration ✅ COMPLETE
+- [x] Create lighting panel UI
+- [x] Add ambient intensity slider
+- [x] Add directional light controls
+- [x] Implement real-time lighting preview
+- [x] Add color picker for light color
 
-#### 3.5 Camera Configuration
-- [ ] Create camera config panel
-- [ ] Add position and look_at inputs
-- [ ] Add rotation offset control
-- [ ] Implement camera preset buttons
-- [ ] Add "Use Current View" button
+#### 3.5 Camera Configuration ✅ COMPLETE
+- [x] Create camera config panel
+- [x] Add position and look_at inputs
+- [x] Add rotation offset control
+- [x] Implement camera preset buttons
+- [x] Add "Use Current View" button
 
-#### 3.6 World Dimensions
-- [ ] Create dimension editor UI
-- [ ] Add width, height, depth inputs
-- [ ] Implement dimension validation
-- [ ] Add resize confirmation dialog
-- [ ] Handle voxel data when resizing
+#### 3.6 World Dimensions ✅ COMPLETE
+- [x] Create dimension editor UI
+- [x] Add width, height, depth inputs
+- [x] Implement dimension validation
+- [x] Add resize confirmation dialog
+- [x] Handle voxel data when resizing
 
-### Deliverables
-- Entity placement and editing
-- Complete metadata editor
-- Lighting configuration UI
-- Camera configuration UI
-- World dimension editor
+### Deliverables ✅ COMPLETE
+- ✅ Entity placement and editing
+- ✅ Complete metadata editor
+- ✅ Lighting configuration UI
+- ✅ Camera configuration UI
+- ✅ World dimension editor
 
-### Success Criteria
-- Can place and configure entities
-- Can edit all metadata fields
-- Can configure lighting and see changes
-- Can configure camera settings
-- Can resize world dimensions safely
+### Success Criteria ✅ ACHIEVED
+- ✅ Can place and configure entities
+- ✅ Can edit all metadata fields
+- ✅ Can configure lighting and see changes
+- ✅ Can configure camera settings
+- ✅ Can resize world dimensions safely
 
 ---
 
@@ -209,19 +209,19 @@ This document outlines the step-by-step implementation plan for the A Drake's St
 
 ### Tasks
 
-#### 4.1 New Map
-- [ ] Implement "New" menu action
-- [ ] Create default map template
-- [ ] Add unsaved changes warning
-- [ ] Clear editor state properly
+#### 4.1 New Map ✅ COMPLETE
+- [x] Implement "New" menu action
+- [x] Create default map template
+- [x] Add unsaved changes warning
+- [x] Clear editor state properly
 
-#### 4.2 Open Map
-- [ ] Implement "Open" menu action
-- [ ] Integrate native file dialog (rfd)
-- [ ] Add .ron file filter
-- [ ] Load and parse map file
-- [ ] Handle parse errors gracefully
-- [ ] Update editor state with loaded map
+#### 4.2 Open Map ✅ COMPLETE
+- [x] Implement "Open" menu action
+- [x] Integrate native file dialog (rfd)
+- [x] Add .ron file filter
+- [x] Load and parse map file
+- [x] Handle parse errors gracefully
+- [x] Update editor state with loaded map
 
 #### 4.3 Save Operations ✅ COMPLETE
 - [x] Implement "Save" menu action
@@ -239,24 +239,24 @@ This document outlines the step-by-step implementation plan for the A Drake's St
 - [x] Update window title with filename
 - [x] Add asterisk (*) for modified files
 
-#### 4.5 Recent Files
-- [ ] Implement recent files list
-- [ ] Add "Open Recent" submenu
-- [ ] Persist recent files to config
-- [ ] Limit recent files list size
+#### 4.5 Recent Files ✅ COMPLETE
+- [x] Implement recent files list
+- [x] Add "Open Recent" submenu
+- [x] Persist recent files to config
+- [x] Limit recent files list size
 
 ### Deliverables ✅ COMPLETE
 - ✅ Complete file operations (New, Open, Save, Save As)
 - ✅ Native file dialogs (non-blocking)
 - ✅ Unsaved changes protection
-- ⏳ Recent files menu (planned)
+- ✅ Recent files menu
 
 ### Success Criteria ✅ ACHIEVED
 - ✅ Can create new maps
 - ✅ Can open existing .ron files
 - ✅ Can save maps successfully with auto-expand
 - ✅ Warns before losing unsaved changes
-- ⏳ Recent files work correctly (planned)
+- ✅ Recent files work correctly
 
 ---
 
@@ -271,64 +271,93 @@ This document outlines the step-by-step implementation plan for the A Drake's St
 
 ### Tasks
 
-#### 5.1 Undo/Redo System
-- [ ] Implement `EditorHistory` resource
-- [ ] Define `EditorAction` enum
-- [ ] Implement action recording
-- [ ] Implement undo functionality
-- [ ] Implement redo functionality
-- [ ] Add undo/redo buttons
-- [ ] Display action history
+#### 5.1 Undo/Redo System ✅ COMPLETE
+- [x] Implement `EditorHistory` resource
+- [x] Define `EditorAction` enum
+- [x] Implement action recording
+- [x] Implement undo functionality
+- [x] Implement redo functionality
+- [x] Add undo/redo buttons
+- [x] Display action history
 
-#### 5.2 Keyboard Shortcuts
-- [ ] Implement Ctrl+N (New)
-- [ ] Implement Ctrl+O (Open)
+#### 5.2 Keyboard Shortcuts ✅ COMPLETE
+- [x] Implement Ctrl+N (New)
+- [x] Implement Ctrl+O (Open)
 - [x] Implement Ctrl+S (Save)
 - [x] Implement Ctrl+Shift+S (Save As)
-- [ ] Implement Ctrl+Z (Undo)
-- [ ] Implement Ctrl+Y (Redo)
+- [x] Implement Ctrl+Z (Undo)
+- [x] Implement Ctrl+Y (Redo)
 - [x] Implement Delete/Backspace (Remove)
-- [ ] Implement G (Toggle Grid)
+- [x] Implement G (Toggle Grid)
 - [x] Implement tool shortcuts (V, B, X, E, C)
-- [ ] Add keyboard shortcuts help dialog
+- [x] Add keyboard shortcuts help dialog
 
-#### 5.3 Real-time Validation
-- [ ] Implement validation system
-- [ ] Add validation on every change
-- [ ] Display validation errors in UI
-- [ ] Add error highlighting
-- [ ] Implement warning messages
-- [ ] Add "Fix" suggestions for common issues
+#### 5.3 Real-time Validation ✅ COMPLETE
+- [x] Implement validation system
+- [x] Add validation on every change
+- [x] Display validation errors in UI
+- [x] Add error highlighting
+- [x] Implement warning messages
+- [x] Add "Fix" suggestions for common issues
 
-#### 5.4 Visual Feedback
-- [ ] Add hover effects on UI elements
-- [ ] Implement cursor preview
-- [ ] Add selection highlighting
-- [ ] Implement tool indicators
-- [ ] Add loading spinners
-- [ ] Improve error messages
+#### 5.4 Visual Feedback ✅ COMPLETE
+- [x] Add hover effects on UI elements
+- [x] Implement cursor preview
+- [x] Add selection highlighting
+- [x] Implement tool indicators
+- [x] Add loading spinners
+- [x] Improve error messages
 
-#### 5.5 Status Bar
+#### 5.5 Status Bar ✅ COMPLETE
 - [x] Display current tool
 - [x] Show voxel count
 - [x] Show entity count
 - [x] Display cursor position
-- [ ] Show validation status
+- [x] Show validation status
 - [x] Add modified indicator
 
-### Deliverables
-- Complete undo/redo system
-- Full keyboard shortcut support
-- Real-time validation with feedback
-- Polished visual feedback
-- Informative status bar
+#### 5.6 Selection & Transform Tools ✅ COMPLETE (2025-12)
+- [x] Implement drag-to-select for voxels
+- [x] Implement multi-selection with Shift
+- [x] Add Move operation (G key) with arrow key controls
+- [x] Add Rotate operation (R key) with axis selection (X/Y/Z)
+- [x] Implement collision detection during transforms
+- [x] Add transform preview visualization
+- [x] Support entity selection and movement
 
-### Success Criteria
-- Undo/redo works for all operations
-- All keyboard shortcuts function
-- Validation errors are clear and helpful
-- UI provides good visual feedback
-- Status bar shows relevant information
+#### 5.7 Keyboard Edit Mode ✅ COMPLETE (2025-12)
+- [x] Implement keyboard-only cursor navigation (I to enable)
+- [x] Arrow keys move cursor on X/Z plane
+- [x] Space/C keys move cursor on Y axis
+- [x] Enter key toggles selection in keyboard mode
+- [x] Escape exits keyboard mode
+
+#### 5.8 Outliner Panel ✅ COMPLETE (2025-12)
+- [x] Create outliner panel (left side)
+- [x] Display voxels grouped by type
+- [x] Display entities with icons
+- [x] Click-to-select from outliner
+- [x] Search/filter functionality
+- [x] Context menu for entity operations
+
+### Deliverables ✅ COMPLETE
+- ✅ Complete undo/redo system
+- ✅ Full keyboard shortcut support
+- ✅ Real-time validation with feedback
+- ✅ Polished visual feedback
+- ✅ Informative status bar
+- ✅ Selection and transform tools
+- ✅ Keyboard edit mode
+- ✅ Outliner panel
+
+### Success Criteria ✅ ACHIEVED
+- ✅ Undo/redo works for all operations
+- ✅ All keyboard shortcuts function
+- ✅ Validation errors are clear and helpful
+- ✅ UI provides good visual feedback
+- ✅ Status bar shows relevant information
+- ✅ Can move and rotate selected voxels
+- ✅ Can navigate and edit entirely with keyboard
 
 ---
 
@@ -463,24 +492,24 @@ tracing-subscriber = "0.3"
 ## Success Metrics
 
 ### Functional Metrics
-- [ ] Can create new maps from scratch
-- [ ] Can open and edit existing maps
-- [ ] Can save maps in valid .ron format
-- [ ] All voxel types and patterns work
-- [ ] Entity placement works correctly
-- [ ] Undo/redo works reliably
+- [x] Can create new maps from scratch
+- [x] Can open and edit existing maps
+- [x] Can save maps in valid .ron format
+- [x] All voxel types and patterns work
+- [x] Entity placement works correctly
+- [x] Undo/redo works reliably
 
 ### Performance Metrics
-- [ ] Editor starts in < 2 seconds
-- [ ] UI remains responsive with 1000+ voxels
-- [ ] File operations complete in < 1 second
-- [ ] Undo/redo is instant
+- [x] Editor starts in < 2 seconds
+- [x] UI remains responsive with 1000+ voxels
+- [x] File operations complete in < 1 second
+- [x] Undo/redo is instant
 
 ### Quality Metrics
-- [ ] No crashes during normal use
-- [ ] Clear error messages for all failures
-- [ ] Intuitive UI that doesn't require documentation
-- [ ] Keyboard shortcuts match industry standards
+- [x] No crashes during normal use
+- [x] Clear error messages for all failures
+- [x] Intuitive UI that doesn't require documentation
+- [x] Keyboard shortcuts match industry standards
 
 ---
 
@@ -506,6 +535,6 @@ After completing all phases:
 
 ---
 
-**Document Version**: 1.2.0
-**Last Updated**: 2025-10-30
-**Status**: Phase 2 & 4 Complete - Basic Editing with Face-Aware Placement & File Operations Implemented
+**Document Version**: 2.0.0
+**Last Updated**: 2025-12-10
+**Status**: Phases 1-5 Complete - Full-featured map editor with undo/redo, transforms, keyboard mode, and outliner
