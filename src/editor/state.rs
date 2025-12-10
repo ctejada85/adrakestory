@@ -6,6 +6,28 @@ use bevy::prelude::*;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+/// Stores the last-used parameters for each tool type.
+/// This allows tools to remember their settings when switching between them.
+#[derive(Resource)]
+pub struct ToolMemory {
+    /// Last-used voxel type for VoxelPlace tool
+    pub voxel_type: VoxelType,
+    /// Last-used pattern for VoxelPlace tool
+    pub voxel_pattern: SubVoxelPattern,
+    /// Last-used entity type for EntityPlace tool
+    pub entity_type: EntityType,
+}
+
+impl Default for ToolMemory {
+    fn default() -> Self {
+        Self {
+            voxel_type: VoxelType::Grass,
+            voxel_pattern: SubVoxelPattern::Full,
+            entity_type: EntityType::PlayerSpawn,
+        }
+    }
+}
+
 /// Main editor state resource.
 #[derive(Resource)]
 pub struct EditorState {

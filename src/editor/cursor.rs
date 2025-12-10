@@ -466,66 +466,74 @@ pub fn handle_tool_switching(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut contexts: EguiContexts,
     mut editor_state: ResMut<EditorState>,
+    mut tool_memory: ResMut<crate::editor::state::ToolMemory>,
 ) {
     // Check if UI wants keyboard input (user is typing in text fields, etc.)
     if contexts.ctx_mut().wants_keyboard_input() {
         return;
     }
 
+    // Helper to save current tool parameters before switching
+    let save_current_params = |editor_state: &EditorState, tool_memory: &mut crate::editor::state::ToolMemory| {
+        match &editor_state.active_tool {
+            EditorTool::VoxelPlace { voxel_type, pattern } => {
+                tool_memory.voxel_type = *voxel_type;
+                tool_memory.voxel_pattern = *pattern;
+            }
+            EditorTool::EntityPlace { entity_type } => {
+                tool_memory.entity_type = entity_type.clone();
+            }
+            _ => {}
+        }
+    };
+
     // Switch to VoxelPlace tool with B or 1 key
     if keyboard.just_pressed(KeyCode::Digit1) || keyboard.just_pressed(KeyCode::KeyB) {
-        // Preserve current voxel type and pattern if already in VoxelPlace mode
-        let (voxel_type, pattern) = if let EditorTool::VoxelPlace {
-            voxel_type,
-            pattern,
-        } = &editor_state.active_tool
-        {
-            (*voxel_type, *pattern)
-        } else {
-            // Default to Grass and Full pattern
-            (
-                crate::systems::game::components::VoxelType::Grass,
-                crate::systems::game::map::format::SubVoxelPattern::Full,
-            )
-        };
-
-        editor_state.active_tool = EditorTool::VoxelPlace {
-            voxel_type,
-            pattern,
-        };
-        info!("Switched to VoxelPlace tool");
+        if !matches!(editor_state.active_tool, EditorTool::VoxelPlace { .. }) {
+            save_current_params(&editor_state, &mut tool_memory);
+            editor_state.active_tool = EditorTool::VoxelPlace {
+                voxel_type: tool_memory.voxel_type,
+                pattern: tool_memory.voxel_pattern,
+            };
+            info!("Switched to VoxelPlace tool");
+        }
     }
 
     // Switch to Select tool with V or 2 key
     if keyboard.just_pressed(KeyCode::Digit2) || keyboard.just_pressed(KeyCode::KeyV) {
-        editor_state.active_tool = EditorTool::Select;
-        info!("Switched to Select tool");
+        if !matches!(editor_state.active_tool, EditorTool::Select) {
+            save_current_params(&editor_state, &mut tool_memory);
+            editor_state.active_tool = EditorTool::Select;
+            info!("Switched to Select tool");
+        }
     }
 
     // Switch to VoxelRemove tool with X key
     if keyboard.just_pressed(KeyCode::KeyX) {
-        editor_state.active_tool = EditorTool::VoxelRemove;
-        info!("Switched to VoxelRemove tool");
+        if !matches!(editor_state.active_tool, EditorTool::VoxelRemove) {
+            save_current_params(&editor_state, &mut tool_memory);
+            editor_state.active_tool = EditorTool::VoxelRemove;
+            info!("Switched to VoxelRemove tool");
+        }
     }
 
     // Switch to EntityPlace tool with E key
     if keyboard.just_pressed(KeyCode::KeyE) {
-        // Preserve current entity type if already in EntityPlace mode
-        let entity_type = if let EditorTool::EntityPlace { entity_type } = &editor_state.active_tool
-        {
-            *entity_type
-        } else {
-            // Default to PlayerSpawn
-            crate::systems::game::map::format::EntityType::PlayerSpawn
-        };
-
-        editor_state.active_tool = EditorTool::EntityPlace { entity_type };
-        info!("Switched to EntityPlace tool");
+        if !matches!(editor_state.active_tool, EditorTool::EntityPlace { .. }) {
+            save_current_params(&editor_state, &mut tool_memory);
+            editor_state.active_tool = EditorTool::EntityPlace {
+                entity_type: tool_memory.entity_type.clone(),
+            };
+            info!("Switched to EntityPlace tool");
+        }
     }
 
     // Switch to Camera tool with C key
     if keyboard.just_pressed(KeyCode::KeyC) {
-        editor_state.active_tool = EditorTool::Camera;
-        info!("Switched to Camera tool");
+        if !matches!(editor_state.active_tool, EditorTool::Camera) {
+            save_current_params(&editor_state, &mut tool_memory);
+            editor_state.active_tool = EditorTool::Camera;
+            info!("Switched to Camera tool");
+        }
     }
 }

@@ -25,4 +25,4 @@ pub use recent_files::{OpenRecentFileEvent, RecentFiles};
 pub use renderer::{
     render_entities_system, EditorChunk, EditorEntityMarker, MapRenderState, RenderMapEvent,
 };
-pub use state::{EditorState, EditorTool, KeyboardEditMode};
+pub use state::{EditorState, EditorTool, KeyboardEditMode, ToolMemory};

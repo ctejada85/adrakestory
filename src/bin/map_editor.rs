@@ -35,6 +35,7 @@ struct SaveEvents<'w> {
 struct UIResources<'w> {
     editor_state: ResMut<'w, EditorState>,
     ui_state: ResMut<'w, state::EditorUIState>,
+    tool_memory: ResMut<'w, state::ToolMemory>,
     outliner_state: ResMut<'w, ui::OutlinerState>,
     recent_files: ResMut<'w, RecentFiles>,
     dialog_receiver: ResMut<'w, ui::dialogs::FileDialogReceiver>,
@@ -67,6 +68,7 @@ fn main() {
         .init_resource::<CursorState>()
         .init_resource::<EditorHistory>()
         .init_resource::<state::EditorUIState>()
+        .init_resource::<state::ToolMemory>()
         .init_resource::<camera::CameraInputState>()
         .init_resource::<ui::dialogs::FileDialogReceiver>()
         .init_resource::<SaveFileDialogReceiver>()
@@ -271,6 +273,7 @@ fn render_ui(
         ctx,
         &mut ui_resources.editor_state,
         &mut ui_resources.ui_state,
+        &mut ui_resources.tool_memory,
         &read_resources.history,
         &mut ui_resources.recent_files,
         &mut save_events.save,

@@ -3,7 +3,7 @@
 use crate::editor::file_io::{SaveMapAsEvent, SaveMapEvent};
 use crate::editor::history::EditorHistory;
 use crate::editor::recent_files::{OpenRecentFileEvent, RecentFiles};
-use crate::editor::state::{EditorState, EditorTool, EditorUIState};
+use crate::editor::state::{EditorState, EditorTool, EditorUIState, ToolMemory};
 use crate::systems::game::components::VoxelType;
 use crate::systems::game::map::format::{EntityType, SubVoxelPattern};
 use bevy::prelude::*;
@@ -15,6 +15,7 @@ pub fn render_toolbar(
     ctx: &egui::Context,
     editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
+    tool_memory: &mut ToolMemory,
     history: &EditorHistory,
     recent_files: &mut RecentFiles,
     save_events: &mut EventWriter<SaveMapEvent>,
@@ -35,7 +36,7 @@ pub fn render_toolbar(
             );
             render_edit_menu(ui, history);
             render_view_menu(ui, editor_state);
-            render_tools_menu(ui, editor_state);
+            render_tools_menu(ui, editor_state, tool_memory);
             render_help_menu(ui, ui_state);
 
             // Spacer to push map name to the right
@@ -53,12 +54,12 @@ pub fn render_toolbar(
             ui.spacing_mut().item_spacing.x = 4.0;
 
             // === Tool Buttons ===
-            render_tool_buttons(ui, editor_state);
+            render_tool_buttons(ui, editor_state, tool_memory);
 
             ui.separator();
 
             // === Context-Sensitive Options ===
-            render_tool_options(ui, editor_state);
+            render_tool_options(ui, editor_state, tool_memory);
 
             ui.separator();
 
@@ -69,7 +70,7 @@ pub fn render_toolbar(
 }
 
 /// Render the tool selection buttons
-fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState) {
+fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_memory: &mut ToolMemory) {
     // Get current tool state for highlighting
     let is_select = matches!(editor_state.active_tool, EditorTool::Select);
     let is_voxel_place = matches!(editor_state.active_tool, EditorTool::VoxelPlace { .. });
@@ -90,13 +91,29 @@ fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState) {
         response.on_hover_text(tooltip).clicked()
     };
 
+    // Save current tool parameters before switching
+    // This is called when any tool button is clicked
+    let save_current_params = |editor_state: &EditorState, tool_memory: &mut ToolMemory| {
+        match &editor_state.active_tool {
+            EditorTool::VoxelPlace { voxel_type, pattern } => {
+                tool_memory.voxel_type = *voxel_type;
+                tool_memory.voxel_pattern = *pattern;
+            }
+            EditorTool::EntityPlace { entity_type } => {
+                tool_memory.entity_type = entity_type.clone();
+            }
+            _ => {}
+        }
+    };
+
     // Select Tool (V / 2)
     if tool_button(
         ui,
         "🔲",
         "Select Tool (V)\nClick to select voxels/entities",
         is_select,
-    ) {
+    ) && !is_select {
+        save_current_params(editor_state, tool_memory);
         editor_state.active_tool = EditorTool::Select;
     }
 
@@ -106,14 +123,13 @@ fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState) {
         "✏️",
         "Voxel Place Tool (B)\nClick to place voxels",
         is_voxel_place,
-    ) {
-        // Preserve existing voxel_type and pattern if already in place mode
-        if !is_voxel_place {
-            editor_state.active_tool = EditorTool::VoxelPlace {
-                voxel_type: VoxelType::Grass,
-                pattern: SubVoxelPattern::Full,
-            };
-        }
+    ) && !is_voxel_place {
+        save_current_params(editor_state, tool_memory);
+        // Restore remembered voxel_type and pattern
+        editor_state.active_tool = EditorTool::VoxelPlace {
+            voxel_type: tool_memory.voxel_type,
+            pattern: tool_memory.voxel_pattern,
+        };
     }
 
     // Voxel Remove Tool (X)
@@ -122,7 +138,8 @@ fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState) {
         "🗑️",
         "Voxel Remove Tool (X)\nClick to remove voxels",
         is_voxel_remove,
-    ) {
+    ) && !is_voxel_remove {
+        save_current_params(editor_state, tool_memory);
         editor_state.active_tool = EditorTool::VoxelRemove;
     }
 
@@ -134,8 +151,10 @@ fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState) {
         is_entity_place,
     ) && !is_entity_place
     {
+        save_current_params(editor_state, tool_memory);
+        // Restore remembered entity type
         editor_state.active_tool = EditorTool::EntityPlace {
-            entity_type: EntityType::PlayerSpawn,
+            entity_type: tool_memory.entity_type.clone(),
         };
     }
 
@@ -145,13 +164,14 @@ fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState) {
         "📷",
         "Camera Tool (C)\nDrag to control camera",
         is_camera,
-    ) {
+    ) && !is_camera {
+        save_current_params(editor_state, tool_memory);
         editor_state.active_tool = EditorTool::Camera;
     }
 }
 
 /// Render context-sensitive tool options (type, pattern dropdowns)
-fn render_tool_options(ui: &mut egui::Ui, editor_state: &mut EditorState) {
+fn render_tool_options(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_memory: &mut ToolMemory) {
     match &mut editor_state.active_tool {
         EditorTool::VoxelPlace {
             voxel_type,
@@ -159,47 +179,66 @@ fn render_tool_options(ui: &mut egui::Ui, editor_state: &mut EditorState) {
         } => {
             // Voxel Type dropdown
             ui.label("Type:");
-            egui::ComboBox::from_id_salt("toolbar_voxel_type")
+            let type_changed = egui::ComboBox::from_id_salt("toolbar_voxel_type")
                 .selected_text(format!("{:?}", voxel_type))
                 .width(80.0)
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(voxel_type, VoxelType::Grass, "🟩 Grass");
-                    ui.selectable_value(voxel_type, VoxelType::Dirt, "🟫 Dirt");
-                    ui.selectable_value(voxel_type, VoxelType::Stone, "⬜ Stone");
-                });
+                    let mut changed = false;
+                    changed |= ui.selectable_value(voxel_type, VoxelType::Grass, "🟩 Grass").changed();
+                    changed |= ui.selectable_value(voxel_type, VoxelType::Dirt, "🟫 Dirt").changed();
+                    changed |= ui.selectable_value(voxel_type, VoxelType::Stone, "⬜ Stone").changed();
+                    changed
+                }).inner.unwrap_or(false);
 
             // Pattern dropdown
             ui.label("Pattern:");
-            egui::ComboBox::from_id_salt("toolbar_pattern")
+            let pattern_changed = egui::ComboBox::from_id_salt("toolbar_pattern")
                 .selected_text(pattern_short_name(pattern))
                 .width(100.0)
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(pattern, SubVoxelPattern::Full, "■ Full");
-                    ui.selectable_value(pattern, SubVoxelPattern::PlatformXZ, "▬ Platform");
-                    ui.selectable_value(pattern, SubVoxelPattern::StaircaseX, "⌐ Stairs +X");
-                    ui.selectable_value(pattern, SubVoxelPattern::StaircaseNegX, "⌐ Stairs -X");
-                    ui.selectable_value(pattern, SubVoxelPattern::StaircaseZ, "⌐ Stairs +Z");
-                    ui.selectable_value(pattern, SubVoxelPattern::StaircaseNegZ, "⌐ Stairs -Z");
-                    ui.selectable_value(pattern, SubVoxelPattern::Pillar, "│ Pillar");
-                    ui.selectable_value(pattern, SubVoxelPattern::PlatformXY, "▐ Wall Z");
-                    ui.selectable_value(pattern, SubVoxelPattern::PlatformYZ, "▌ Wall X");
-                    ui.selectable_value(pattern, SubVoxelPattern::Fence, "┼ Fence");
-                });
+                    let mut changed = false;
+                    changed |= ui.selectable_value(pattern, SubVoxelPattern::Full, "■ Full").changed();
+                    changed |= ui.selectable_value(pattern, SubVoxelPattern::PlatformXZ, "▬ Platform").changed();
+                    changed |= ui.selectable_value(pattern, SubVoxelPattern::StaircaseX, "⌐ Stairs +X").changed();
+                    changed |= ui.selectable_value(pattern, SubVoxelPattern::StaircaseNegX, "⌐ Stairs -X").changed();
+                    changed |= ui.selectable_value(pattern, SubVoxelPattern::StaircaseZ, "⌐ Stairs +Z").changed();
+                    changed |= ui.selectable_value(pattern, SubVoxelPattern::StaircaseNegZ, "⌐ Stairs -Z").changed();
+                    changed |= ui.selectable_value(pattern, SubVoxelPattern::Pillar, "│ Pillar").changed();
+                    changed |= ui.selectable_value(pattern, SubVoxelPattern::PlatformXY, "▐ Wall Z").changed();
+                    changed |= ui.selectable_value(pattern, SubVoxelPattern::PlatformYZ, "▌ Wall X").changed();
+                    changed |= ui.selectable_value(pattern, SubVoxelPattern::Fence, "┼ Fence").changed();
+                    changed
+                }).inner.unwrap_or(false);
+
+            // Update tool memory when parameters change
+            if type_changed {
+                tool_memory.voxel_type = *voxel_type;
+            }
+            if pattern_changed {
+                tool_memory.voxel_pattern = *pattern;
+            }
         }
 
         EditorTool::EntityPlace { entity_type } => {
             // Entity Type dropdown
             ui.label("Entity:");
-            egui::ComboBox::from_id_salt("toolbar_entity_type")
+            let entity_changed = egui::ComboBox::from_id_salt("toolbar_entity_type")
                 .selected_text(entity_type_display(entity_type))
                 .width(120.0)
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(entity_type, EntityType::PlayerSpawn, "🟢 Player Spawn");
-                    ui.selectable_value(entity_type, EntityType::Npc, "🔵 NPC");
-                    ui.selectable_value(entity_type, EntityType::Enemy, "🔴 Enemy");
-                    ui.selectable_value(entity_type, EntityType::Item, "🟡 Item");
-                    ui.selectable_value(entity_type, EntityType::Trigger, "🟣 Trigger");
-                });
+                    let mut changed = false;
+                    changed |= ui.selectable_value(entity_type, EntityType::PlayerSpawn, "🟢 Player Spawn").changed();
+                    changed |= ui.selectable_value(entity_type, EntityType::Npc, "🔵 NPC").changed();
+                    changed |= ui.selectable_value(entity_type, EntityType::Enemy, "🔴 Enemy").changed();
+                    changed |= ui.selectable_value(entity_type, EntityType::Item, "🟡 Item").changed();
+                    changed |= ui.selectable_value(entity_type, EntityType::Trigger, "🟣 Trigger").changed();
+                    changed
+                }).inner.unwrap_or(false);
+
+            // Update tool memory when entity type changes
+            if entity_changed {
+                tool_memory.entity_type = entity_type.clone();
+            }
         }
 
         EditorTool::Select => {
@@ -450,11 +489,28 @@ fn render_view_menu(ui: &mut egui::Ui, editor_state: &mut EditorState) {
     });
 }
 
-fn render_tools_menu(ui: &mut egui::Ui, editor_state: &mut EditorState) {
+fn render_tools_menu(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_memory: &mut ToolMemory) {
     ui.menu_button("Tools", |ui| {
+        // Helper to save current tool parameters before switching
+        let save_current_params = |editor_state: &EditorState, tool_memory: &mut ToolMemory| {
+            match &editor_state.active_tool {
+                EditorTool::VoxelPlace { voxel_type, pattern } => {
+                    tool_memory.voxel_type = *voxel_type;
+                    tool_memory.voxel_pattern = *pattern;
+                }
+                EditorTool::EntityPlace { entity_type } => {
+                    tool_memory.entity_type = entity_type.clone();
+                }
+                _ => {}
+            }
+        };
+
         let is_select = matches!(editor_state.active_tool, EditorTool::Select);
         if ui.selectable_label(is_select, "🔲 Select (V)").clicked() {
-            editor_state.active_tool = EditorTool::Select;
+            if !is_select {
+                save_current_params(editor_state, tool_memory);
+                editor_state.active_tool = EditorTool::Select;
+            }
             ui.close_menu();
         }
 
@@ -463,10 +519,13 @@ fn render_tools_menu(ui: &mut egui::Ui, editor_state: &mut EditorState) {
             .selectable_label(is_voxel_place, "✏️ Voxel Place (B)")
             .clicked()
         {
-            editor_state.active_tool = EditorTool::VoxelPlace {
-                voxel_type: VoxelType::Grass,
-                pattern: SubVoxelPattern::Full,
-            };
+            if !is_voxel_place {
+                save_current_params(editor_state, tool_memory);
+                editor_state.active_tool = EditorTool::VoxelPlace {
+                    voxel_type: tool_memory.voxel_type,
+                    pattern: tool_memory.voxel_pattern,
+                };
+            }
             ui.close_menu();
         }
 
@@ -475,7 +534,10 @@ fn render_tools_menu(ui: &mut egui::Ui, editor_state: &mut EditorState) {
             .selectable_label(is_voxel_remove, "🗑️ Voxel Remove (X)")
             .clicked()
         {
-            editor_state.active_tool = EditorTool::VoxelRemove;
+            if !is_voxel_remove {
+                save_current_params(editor_state, tool_memory);
+                editor_state.active_tool = EditorTool::VoxelRemove;
+            }
             ui.close_menu();
         }
 
@@ -484,15 +546,21 @@ fn render_tools_menu(ui: &mut egui::Ui, editor_state: &mut EditorState) {
             .selectable_label(is_entity_place, "📍 Entity Place (E)")
             .clicked()
         {
-            editor_state.active_tool = EditorTool::EntityPlace {
-                entity_type: EntityType::PlayerSpawn,
-            };
+            if !is_entity_place {
+                save_current_params(editor_state, tool_memory);
+                editor_state.active_tool = EditorTool::EntityPlace {
+                    entity_type: tool_memory.entity_type.clone(),
+                };
+            }
             ui.close_menu();
         }
 
         let is_camera = matches!(editor_state.active_tool, EditorTool::Camera);
         if ui.selectable_label(is_camera, "📷 Camera (C)").clicked() {
-            editor_state.active_tool = EditorTool::Camera;
+            if !is_camera {
+                save_current_params(editor_state, tool_memory);
+                editor_state.active_tool = EditorTool::Camera;
+            }
             ui.close_menu();
         }
     });
