@@ -9,6 +9,13 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_egui::EguiContexts;
 
+/// Bundle of queries needed for viewport raycasting
+#[derive(bevy::ecs::system::SystemParam)]
+pub struct ViewportRaycast<'w, 's> {
+    pub camera: Query<'w, 's, (&'static Camera, &'static GlobalTransform), With<EditorCamera>>,
+    pub window: Query<'w, 's, &'static Window, With<PrimaryWindow>>,
+}
+
 /// Marker component for selection highlight visuals
 #[derive(Component)]
 pub struct SelectionHighlight {
@@ -121,8 +128,7 @@ pub fn handle_selection(
     mut contexts: EguiContexts,
     mut update_events: EventWriter<UpdateSelectionHighlights>,
     mut drag_state: ResMut<DragSelectState>,
-    camera_query: Query<(&Camera, &GlobalTransform), With<EditorCamera>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    viewport: ViewportRaycast,
 ) {
     // Check if select tool is active
     if !matches!(editor_state.active_tool, EditorTool::Select) {
@@ -164,10 +170,10 @@ pub fn handle_selection(
     }
 
     // Get mouse ray for entity selection
-    let Ok((camera, camera_transform)) = camera_query.get_single() else {
+    let Ok((camera, camera_transform)) = viewport.camera.get_single() else {
         return;
     };
-    let Ok(window) = window_query.get_single() else {
+    let Ok(window) = viewport.window.get_single() else {
         return;
     };
     let Some(cursor_position) = window.cursor_position() else {

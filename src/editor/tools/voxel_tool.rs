@@ -8,6 +8,13 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_egui::EguiContexts;
 
+/// Bundle of input resources for voxel tools
+#[derive(bevy::ecs::system::SystemParam)]
+pub struct VoxelToolInput<'w> {
+    pub mouse_button: Res<'w, ButtonInput<MouseButton>>,
+    pub keyboard: Res<'w, ButtonInput<KeyCode>>,
+}
+
 /// Resource tracking drag-to-place state for voxel tool
 #[derive(Resource, Default)]
 pub struct VoxelDragState {
@@ -305,8 +312,7 @@ pub fn handle_voxel_removal(
     cursor_state: Res<CursorState>,
     mut editor_state: ResMut<EditorState>,
     mut history: ResMut<EditorHistory>,
-    mouse_button: Res<ButtonInput<MouseButton>>,
-    keyboard: Res<ButtonInput<KeyCode>>,
+    input: VoxelToolInput,
     mut contexts: EguiContexts,
     mut drag_state: ResMut<VoxelRemoveDragState>,
     window_query: Query<&Window, With<PrimaryWindow>>,
@@ -326,7 +332,7 @@ pub fn handle_voxel_removal(
     let ui_wants_keyboard = ctx.wants_keyboard_input();
 
     // Handle mouse release - stop drag removal
-    if mouse_button.just_released(MouseButton::Left) {
+    if input.mouse_button.just_released(MouseButton::Left) {
         drag_state.is_dragging = false;
         drag_state.last_grid_pos = None;
         drag_state.drag_start_screen_pos = None;
@@ -335,7 +341,7 @@ pub fn handle_voxel_removal(
 
     // Handle keyboard delete (not draggable)
     if !ui_wants_keyboard
-        && (keyboard.just_pressed(KeyCode::Delete) || keyboard.just_pressed(KeyCode::Backspace))
+        && (input.keyboard.just_pressed(KeyCode::Delete) || input.keyboard.just_pressed(KeyCode::Backspace))
     {
         if let Some(grid_pos) = cursor_state.grid_pos {
             try_remove_voxel(&mut editor_state, &mut history, grid_pos);
@@ -344,7 +350,7 @@ pub fn handle_voxel_removal(
     }
 
     // Check if left mouse button was just pressed - start drag
-    if !pointer_over_ui && mouse_button.just_pressed(MouseButton::Left) {
+    if !pointer_over_ui && input.mouse_button.just_pressed(MouseButton::Left) {
         drag_state.is_dragging = true;
 
         let Some(grid_pos) = cursor_state.grid_pos else {

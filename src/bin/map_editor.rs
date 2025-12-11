@@ -30,6 +30,16 @@ struct SaveEvents<'w> {
     save_as: EventWriter<'w, SaveMapAsEvent>,
 }
 
+/// Bundle of event writers for UI operations
+#[derive(bevy::ecs::system::SystemParam)]
+struct UIEventWriters<'w> {
+    map_changed: EventWriter<'w, MapDataChangedEvent>,
+    selection: EventWriter<'w, tools::UpdateSelectionHighlights>,
+    render: EventWriter<'w, RenderMapEvent>,
+    exit: EventWriter<'w, AppExitEvent>,
+    open_recent: EventWriter<'w, OpenRecentFileEvent>,
+}
+
 /// Bundle of UI-related resources
 #[derive(bevy::ecs::system::SystemParam)]
 struct UIResources<'w> {
@@ -260,11 +270,7 @@ fn render_ui(
     read_resources: EditorReadResources,
     mut transform_events: TransformEvents,
     mut save_events: SaveEvents,
-    mut map_changed_events: EventWriter<MapDataChangedEvent>,
-    mut selection_events: EventWriter<tools::UpdateSelectionHighlights>,
-    mut render_events: EventWriter<RenderMapEvent>,
-    mut exit_events: EventWriter<AppExitEvent>,
-    mut open_recent_events: EventWriter<OpenRecentFileEvent>,
+    mut ui_events: UIEventWriters,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -278,7 +284,7 @@ fn render_ui(
         &mut ui_resources.recent_files,
         &mut save_events.save,
         &mut save_events.save_as,
-        &mut open_recent_events,
+        &mut ui_events.open_recent,
     );
 
     // Render status bar (before side panels and overlays so its height is known)
@@ -296,8 +302,8 @@ fn render_ui(
         ctx,
         &mut ui_resources.editor_state,
         &mut ui_resources.outliner_state,
-        &mut selection_events,
-        &mut render_events,
+        &mut ui_events.selection,
+        &mut ui_events.render,
     );
 
     // Render properties panel (right side)
@@ -324,9 +330,9 @@ fn render_ui(
         &mut ui_resources.editor_state,
         &mut ui_resources.ui_state,
         &mut save_events.save,
-        &mut map_changed_events,
-        &mut exit_events,
-        &mut open_recent_events,
+        &mut ui_events.map_changed,
+        &mut ui_events.exit,
+        &mut ui_events.open_recent,
     );
 
     // Handle file operations
