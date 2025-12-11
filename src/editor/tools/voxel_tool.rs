@@ -118,6 +118,13 @@ pub fn handle_voxel_placement(
 
         info!("Placed {:?} voxel at {:?}", voxel_type, grid_pos);
     }
+
+    // Handle middle mouse button - quick remove voxel (like using remove tool)
+    if mouse_button.just_pressed(MouseButton::Middle) {
+        if let Some(grid_pos) = cursor_state.grid_pos {
+            try_remove_voxel(&mut editor_state, &mut history, grid_pos);
+        }
+    }
 }
 
 /// Minimum mouse movement in pixels required to trigger drag placement/removal
