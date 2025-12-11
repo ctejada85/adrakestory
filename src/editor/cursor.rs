@@ -481,7 +481,7 @@ pub fn handle_tool_switching(
                 tool_memory.voxel_pattern = *pattern;
             }
             EditorTool::EntityPlace { entity_type } => {
-                tool_memory.entity_type = entity_type.clone();
+                tool_memory.entity_type = *entity_type;
             }
             _ => {}
         }
@@ -523,7 +523,7 @@ pub fn handle_tool_switching(
     {
         save_current_params(&editor_state, &mut tool_memory);
         editor_state.active_tool = EditorTool::EntityPlace {
-            entity_type: tool_memory.entity_type.clone(),
+            entity_type: tool_memory.entity_type,
         };
         info!("Switched to EntityPlace tool");
     }

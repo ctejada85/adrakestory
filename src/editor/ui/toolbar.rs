@@ -100,7 +100,7 @@ fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_m
                 tool_memory.voxel_pattern = *pattern;
             }
             EditorTool::EntityPlace { entity_type } => {
-                tool_memory.entity_type = entity_type.clone();
+                tool_memory.entity_type = *entity_type;
             }
             _ => {}
         }
@@ -154,7 +154,7 @@ fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_m
         save_current_params(editor_state, tool_memory);
         // Restore remembered entity type
         editor_state.active_tool = EditorTool::EntityPlace {
-            entity_type: tool_memory.entity_type.clone(),
+            entity_type: tool_memory.entity_type,
         };
     }
 
@@ -237,7 +237,7 @@ fn render_tool_options(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_m
 
             // Update tool memory when entity type changes
             if entity_changed {
-                tool_memory.entity_type = entity_type.clone();
+                tool_memory.entity_type = *entity_type;
             }
         }
 
@@ -499,7 +499,7 @@ fn render_tools_menu(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_mem
                     tool_memory.voxel_pattern = *pattern;
                 }
                 EditorTool::EntityPlace { entity_type } => {
-                    tool_memory.entity_type = entity_type.clone();
+                    tool_memory.entity_type = *entity_type;
                 }
                 _ => {}
             }
@@ -549,7 +549,7 @@ fn render_tools_menu(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_mem
             if !is_entity_place {
                 save_current_params(editor_state, tool_memory);
                 editor_state.active_tool = EditorTool::EntityPlace {
-                    entity_type: tool_memory.entity_type.clone(),
+                    entity_type: tool_memory.entity_type,
                 };
             }
             ui.close_menu();
