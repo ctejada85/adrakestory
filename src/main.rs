@@ -1,4 +1,5 @@
 use bevy::{prelude::*, window::WindowMode};
+use std::path::PathBuf;
 
 pub mod editor;
 mod states;
@@ -9,6 +10,55 @@ use systems::game::gamepad::{
     gather_gamepad_input, gather_keyboard_input, handle_gamepad_connections, reset_player_input,
     update_cursor_visibility, ActiveGamepad, GamepadSettings, PlayerInput,
 };
+
+/// Command-line arguments for the game
+#[derive(Debug, Default)]
+struct GameArgs {
+    /// Path to map file to load directly (skips intro and title screen)
+    map_path: Option<PathBuf>,
+}
+
+/// Resource to hold command-line specified map path for direct loading
+#[derive(Resource, Default)]
+pub struct CommandLineMapPath {
+    pub path: Option<PathBuf>,
+}
+
+/// Parse command-line arguments
+fn parse_args() -> GameArgs {
+    let args: Vec<String> = std::env::args().collect();
+    let mut game_args = GameArgs::default();
+
+    let mut i = 1;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--map" | "-m" => {
+                if i + 1 < args.len() {
+                    game_args.map_path = Some(PathBuf::from(&args[i + 1]));
+                    i += 1;
+                } else {
+                    eprintln!("Warning: --map requires a path argument");
+                }
+            }
+            "--help" | "-h" => {
+                println!("A Drake's Story");
+                println!();
+                println!("Usage: adrakestory [OPTIONS]");
+                println!();
+                println!("Options:");
+                println!("  -m, --map <PATH>  Load a specific map file directly (skips title screen)");
+                println!("  -h, --help        Show this help message");
+                std::process::exit(0);
+            }
+            _ => {
+                // Ignore unknown arguments
+            }
+        }
+        i += 1;
+    }
+
+    game_args
+}
 
 /// System sets for organizing game loop execution order.
 /// These sets ensure proper sequencing of game logic phases.
@@ -44,6 +94,18 @@ use systems::title_screen::systems::{
 };
 
 fn main() {
+    // Parse command-line arguments
+    let args = parse_args();
+    let has_map_arg = args.map_path.is_some();
+
+    // Determine initial state based on CLI arguments
+    // If a map is specified, skip intro and title screen
+    let initial_state = if has_map_arg {
+        GameState::LoadingMap
+    } else {
+        GameState::IntroAnimation
+    };
+
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
@@ -52,7 +114,8 @@ fn main() {
             }),
             ..default()
         }))
-        .init_state::<GameState>()
+        .insert_state(initial_state)
+        .insert_resource(CommandLineMapPath { path: args.map_path })
         .init_resource::<MapLoadProgress>()
         // Initialize gamepad resources
         .init_resource::<ActiveGamepad>()
@@ -177,18 +240,31 @@ fn cleanup_2d_camera(mut commands: Commands, camera_query: Query<Entity, With<Ca
 }
 
 /// System to load the map when entering LoadingMap state.
-fn load_map_on_enter(mut commands: Commands, mut progress: ResMut<MapLoadProgress>) {
+fn load_map_on_enter(
+    mut commands: Commands,
+    mut progress: ResMut<MapLoadProgress>,
+    cli_map_path: Res<CommandLineMapPath>,
+) {
     info!("Loading map...");
     progress.clear();
 
-    // Try to load the default map file
-    let map = match MapLoader::load_from_file("assets/maps/default.ron", &mut progress) {
+    // Determine which map file to load
+    // Priority: CLI argument > default map
+    let map_path = if let Some(path) = &cli_map_path.path {
+        info!("Loading map from command-line argument: {:?}", path);
+        path.to_string_lossy().to_string()
+    } else {
+        "assets/maps/default.ron".to_string()
+    };
+
+    // Try to load the specified map file
+    let map = match MapLoader::load_from_file(&map_path, &mut progress) {
         Ok(map) => {
             info!("Successfully loaded map: {}", map.metadata.name);
             map
         }
         Err(e) => {
-            warn!("Failed to load map file: {}. Using default map.", e);
+            warn!("Failed to load map file '{}': {}. Using default map.", map_path, e);
             progress.update(systems::game::map::LoadProgress::Error(e.to_string()));
             MapLoader::load_default()
         }
