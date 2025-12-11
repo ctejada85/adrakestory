@@ -274,7 +274,7 @@ fn normalize_map_coordinates(map: &mut MapData) -> bool {
 /// 3. Adjusts dimensions to match the actual voxel span
 /// 4. Serializes to RON format with pretty printing
 /// 5. Writes to the specified file path
-fn save_map_to_file(map: &MapData, path: &PathBuf) -> Result<(), String> {
+pub fn save_map_to_file(map: &MapData, path: &PathBuf) -> Result<(), String> {
     // Clone the map so we can modify coordinates without affecting the editor state
     let mut map_to_save = map.clone();
 

@@ -2,6 +2,10 @@
 //!
 //! A standalone GUI application for creating and editing map files.
 
+use adrakestory::editor::play::{
+    handle_play_map, handle_stop_game, poll_game_process, PlayMapEvent, PlayTestState,
+    StopGameEvent,
+};
 use adrakestory::editor::recent_files::{OpenRecentFileEvent, RecentFiles};
 use adrakestory::editor::tools::ActiveTransform;
 use adrakestory::editor::tools::DragSelectState;
@@ -90,6 +94,7 @@ fn main() {
         .init_resource::<VoxelDragState>()
         .init_resource::<VoxelRemoveDragState>()
         .init_resource::<ui::OutlinerState>()
+        .init_resource::<PlayTestState>()
         .insert_resource(RecentFiles::load()) // Load recent files from disk
         .add_event::<ui::dialogs::FileSelectedEvent>()
         .add_event::<SaveMapEvent>()
@@ -98,6 +103,8 @@ fn main() {
         .add_event::<RenderMapEvent>()
         .add_event::<MapDataChangedEvent>()
         .add_event::<OpenRecentFileEvent>()
+        .add_event::<PlayMapEvent>()
+        .add_event::<StopGameEvent>()
         .add_event::<tools::UpdateSelectionHighlights>()
         // New unified input event
         .add_event::<tools::EditorInputEvent>()
@@ -122,6 +129,10 @@ fn main() {
         .add_systems(Update, file_io::handle_save_map_as)
         .add_systems(Update, file_io::check_save_dialog_result)
         .add_systems(Update, file_io::handle_file_saved)
+        // Play/test systems
+        .add_systems(Update, handle_play_map)
+        .add_systems(Update, handle_stop_game)
+        .add_systems(Update, poll_game_process)
         .add_systems(
             Update,
             adrakestory::editor::recent_files::update_recent_on_save,

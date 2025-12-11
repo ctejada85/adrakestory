@@ -9,6 +9,7 @@ pub mod cursor;
 pub mod file_io;
 pub mod grid;
 pub mod history;
+pub mod play;
 pub mod recent_files;
 pub mod renderer;
 pub mod state;
@@ -21,6 +22,7 @@ pub use cursor::{
 };
 pub use file_io::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
 pub use history::{EditorAction, EditorHistory};
+pub use play::{PlayMapEvent, PlayTestState, StopGameEvent};
 pub use recent_files::{OpenRecentFileEvent, RecentFiles};
 pub use renderer::{
     render_entities_system, EditorChunk, EditorEntityMarker, MapRenderState, RenderMapEvent,
