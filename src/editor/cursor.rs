@@ -488,52 +488,52 @@ pub fn handle_tool_switching(
     };
 
     // Switch to VoxelPlace tool with B or 1 key
-    if keyboard.just_pressed(KeyCode::Digit1) || keyboard.just_pressed(KeyCode::KeyB) {
-        if !matches!(editor_state.active_tool, EditorTool::VoxelPlace { .. }) {
-            save_current_params(&editor_state, &mut tool_memory);
-            editor_state.active_tool = EditorTool::VoxelPlace {
-                voxel_type: tool_memory.voxel_type,
-                pattern: tool_memory.voxel_pattern,
-            };
-            info!("Switched to VoxelPlace tool");
-        }
+    if (keyboard.just_pressed(KeyCode::Digit1) || keyboard.just_pressed(KeyCode::KeyB))
+        && !matches!(editor_state.active_tool, EditorTool::VoxelPlace { .. })
+    {
+        save_current_params(&editor_state, &mut tool_memory);
+        editor_state.active_tool = EditorTool::VoxelPlace {
+            voxel_type: tool_memory.voxel_type,
+            pattern: tool_memory.voxel_pattern,
+        };
+        info!("Switched to VoxelPlace tool");
     }
 
     // Switch to Select tool with V or 2 key
-    if keyboard.just_pressed(KeyCode::Digit2) || keyboard.just_pressed(KeyCode::KeyV) {
-        if !matches!(editor_state.active_tool, EditorTool::Select) {
-            save_current_params(&editor_state, &mut tool_memory);
-            editor_state.active_tool = EditorTool::Select;
-            info!("Switched to Select tool");
-        }
+    if (keyboard.just_pressed(KeyCode::Digit2) || keyboard.just_pressed(KeyCode::KeyV))
+        && !matches!(editor_state.active_tool, EditorTool::Select)
+    {
+        save_current_params(&editor_state, &mut tool_memory);
+        editor_state.active_tool = EditorTool::Select;
+        info!("Switched to Select tool");
     }
 
     // Switch to VoxelRemove tool with X key
-    if keyboard.just_pressed(KeyCode::KeyX) {
-        if !matches!(editor_state.active_tool, EditorTool::VoxelRemove) {
-            save_current_params(&editor_state, &mut tool_memory);
-            editor_state.active_tool = EditorTool::VoxelRemove;
-            info!("Switched to VoxelRemove tool");
-        }
+    if keyboard.just_pressed(KeyCode::KeyX)
+        && !matches!(editor_state.active_tool, EditorTool::VoxelRemove)
+    {
+        save_current_params(&editor_state, &mut tool_memory);
+        editor_state.active_tool = EditorTool::VoxelRemove;
+        info!("Switched to VoxelRemove tool");
     }
 
     // Switch to EntityPlace tool with E key
-    if keyboard.just_pressed(KeyCode::KeyE) {
-        if !matches!(editor_state.active_tool, EditorTool::EntityPlace { .. }) {
-            save_current_params(&editor_state, &mut tool_memory);
-            editor_state.active_tool = EditorTool::EntityPlace {
-                entity_type: tool_memory.entity_type.clone(),
-            };
-            info!("Switched to EntityPlace tool");
-        }
+    if keyboard.just_pressed(KeyCode::KeyE)
+        && !matches!(editor_state.active_tool, EditorTool::EntityPlace { .. })
+    {
+        save_current_params(&editor_state, &mut tool_memory);
+        editor_state.active_tool = EditorTool::EntityPlace {
+            entity_type: tool_memory.entity_type.clone(),
+        };
+        info!("Switched to EntityPlace tool");
     }
 
     // Switch to Camera tool with C key
-    if keyboard.just_pressed(KeyCode::KeyC) {
-        if !matches!(editor_state.active_tool, EditorTool::Camera) {
-            save_current_params(&editor_state, &mut tool_memory);
-            editor_state.active_tool = EditorTool::Camera;
-            info!("Switched to Camera tool");
-        }
+    if keyboard.just_pressed(KeyCode::KeyC)
+        && !matches!(editor_state.active_tool, EditorTool::Camera)
+    {
+        save_current_params(&editor_state, &mut tool_memory);
+        editor_state.active_tool = EditorTool::Camera;
+        info!("Switched to Camera tool");
     }
 }
