@@ -17,8 +17,8 @@ pub mod tools;
 pub mod ui;
 
 pub use cursor::{
-    handle_keyboard_cursor_movement, handle_keyboard_selection, handle_tool_switching,
-    toggle_keyboard_edit_mode, CursorState,
+    handle_keyboard_cursor_movement, handle_keyboard_selection, handle_play_shortcuts,
+    handle_tool_switching, toggle_keyboard_edit_mode, CursorState,
 };
 pub use file_io::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
 pub use history::{EditorAction, EditorHistory};

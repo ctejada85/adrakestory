@@ -1,6 +1,7 @@
 //! Cursor ray casting system for detecting voxel positions from mouse input.
 
 use crate::editor::camera::EditorCamera;
+use crate::editor::play::{PlayMapEvent, PlayTestState, StopGameEvent};
 use crate::editor::state::{EditorState, EditorTool, KeyboardEditMode};
 use crate::editor::tools::{ActiveTransform, TransformMode};
 use bevy::prelude::*;
@@ -474,18 +475,22 @@ pub fn handle_tool_switching(
     }
 
     // Helper to save current tool parameters before switching
-    let save_current_params = |editor_state: &EditorState, tool_memory: &mut crate::editor::state::ToolMemory| {
-        match &editor_state.active_tool {
-            EditorTool::VoxelPlace { voxel_type, pattern } => {
-                tool_memory.voxel_type = *voxel_type;
-                tool_memory.voxel_pattern = *pattern;
+    let save_current_params =
+        |editor_state: &EditorState, tool_memory: &mut crate::editor::state::ToolMemory| {
+            match &editor_state.active_tool {
+                EditorTool::VoxelPlace {
+                    voxel_type,
+                    pattern,
+                } => {
+                    tool_memory.voxel_type = *voxel_type;
+                    tool_memory.voxel_pattern = *pattern;
+                }
+                EditorTool::EntityPlace { entity_type } => {
+                    tool_memory.entity_type = *entity_type;
+                }
+                _ => {}
             }
-            EditorTool::EntityPlace { entity_type } => {
-                tool_memory.entity_type = *entity_type;
-            }
-            _ => {}
-        }
-    };
+        };
 
     // Switch to VoxelPlace tool with B or 1 key
     if (keyboard.just_pressed(KeyCode::Digit1) || keyboard.just_pressed(KeyCode::KeyB))
@@ -535,5 +540,39 @@ pub fn handle_tool_switching(
         save_current_params(&editor_state, &mut tool_memory);
         editor_state.active_tool = EditorTool::Camera;
         info!("Switched to Camera tool");
+    }
+}
+
+/// System to handle play/stop shortcuts (F5 to play, Shift+F5 to stop)
+pub fn handle_play_shortcuts(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    play_state: Res<PlayTestState>,
+    mut play_events: EventWriter<PlayMapEvent>,
+    mut stop_events: EventWriter<StopGameEvent>,
+    mut contexts: EguiContexts,
+) {
+    // Don't handle shortcuts if UI wants keyboard input
+    if contexts.ctx_mut().wants_keyboard_input() {
+        return;
+    }
+
+    // F5 key handling
+    if keyboard.just_pressed(KeyCode::F5) {
+        let shift_held =
+            keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight);
+
+        if shift_held {
+            // Shift+F5 to Stop
+            if play_state.is_running {
+                stop_events.send(StopGameEvent);
+                info!("Stop game triggered via Shift+F5");
+            }
+        } else {
+            // F5 to Play
+            if !play_state.is_running {
+                play_events.send(PlayMapEvent);
+                info!("Play game triggered via F5");
+            }
+        }
     }
 }

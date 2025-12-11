@@ -15,8 +15,8 @@ use adrakestory::editor::ui::dialogs::{AppExitEvent, MapDataChangedEvent};
 use adrakestory::editor::ui::properties::TransformEvents;
 use adrakestory::editor::{camera, cursor, file_io, grid, renderer, state, tools, ui};
 use adrakestory::editor::{
-    handle_keyboard_cursor_movement, handle_keyboard_selection, handle_tool_switching,
-    toggle_keyboard_edit_mode,
+    handle_keyboard_cursor_movement, handle_keyboard_selection, handle_play_shortcuts,
+    handle_tool_switching, toggle_keyboard_edit_mode,
 };
 use adrakestory::editor::{
     CursorState, EditorHistory, EditorState, KeyboardEditMode, MapRenderState, RenderMapEvent,
@@ -147,6 +147,7 @@ fn main() {
             (
                 toggle_keyboard_edit_mode,
                 handle_tool_switching,
+                handle_play_shortcuts,
                 cursor::update_cursor_position,
                 handle_keyboard_cursor_movement.after(cursor::update_cursor_position),
                 handle_keyboard_selection,
