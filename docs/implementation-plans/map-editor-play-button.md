@@ -682,7 +682,7 @@ No new dependencies required. Uses `std::process::Command` for spawning.
 3. ✅ Phase 3: UI buttons (user interface)
 4. ✅ Phase 4: Play system (core logic) - implemented in Phase 2
 5. ✅ Phase 5: Keyboard shortcuts (polish)
-6. ⏳ Phase 6: Edge cases and polish (optional)
+6. ✅ Phase 6: Edge cases and polish (stop game on editor exit)
 
 **Estimated Total Time**: 4-6 hours
 

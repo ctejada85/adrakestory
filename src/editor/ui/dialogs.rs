@@ -1,6 +1,7 @@
 //! Dialog windows for file operations and confirmations.
 
 use crate::editor::file_io::SaveMapEvent;
+use crate::editor::play::PlayTestState;
 use crate::editor::recent_files::OpenRecentFileEvent;
 use crate::editor::state::{EditorState, EditorUIState, PendingAction};
 use crate::systems::game::map::format::MapData;
@@ -45,7 +46,14 @@ pub fn render_dialogs(
 ) {
     // Unsaved changes dialog
     if ui_state.unsaved_changes_dialog_open {
-        render_unsaved_changes_dialog(ctx, editor_state, ui_state, save_events, exit_events, open_recent_events);
+        render_unsaved_changes_dialog(
+            ctx,
+            editor_state,
+            ui_state,
+            save_events,
+            exit_events,
+            open_recent_events,
+        );
     }
 
     // New map dialog
@@ -392,8 +400,15 @@ pub fn handle_window_close_request(
 pub fn handle_app_exit(
     mut exit_events: EventReader<AppExitEvent>,
     mut app_exit: EventWriter<bevy::app::AppExit>,
+    mut play_state: ResMut<PlayTestState>,
 ) {
     for _ in exit_events.read() {
+        // Stop any running game before exiting
+        if play_state.is_running {
+            info!("Stopping running game before exit");
+            play_state.stop_game();
+        }
+
         info!("Application exit requested");
         app_exit.send(bevy::app::AppExit::Success);
     }
