@@ -42,6 +42,8 @@ struct UIEventWriters<'w> {
     render: EventWriter<'w, RenderMapEvent>,
     exit: EventWriter<'w, AppExitEvent>,
     open_recent: EventWriter<'w, OpenRecentFileEvent>,
+    play: EventWriter<'w, PlayMapEvent>,
+    stop: EventWriter<'w, StopGameEvent>,
 }
 
 /// Bundle of UI-related resources
@@ -53,6 +55,7 @@ struct UIResources<'w> {
     outliner_state: ResMut<'w, ui::OutlinerState>,
     recent_files: ResMut<'w, RecentFiles>,
     dialog_receiver: ResMut<'w, ui::dialogs::FileDialogReceiver>,
+    play_state: ResMut<'w, PlayTestState>,
 }
 
 /// Bundle of read-only editor state resources
@@ -293,9 +296,12 @@ fn render_ui(
         &mut ui_resources.tool_memory,
         &read_resources.history,
         &mut ui_resources.recent_files,
+        &mut ui_resources.play_state,
         &mut save_events.save,
         &mut save_events.save_as,
         &mut ui_events.open_recent,
+        &mut ui_events.play,
+        &mut ui_events.stop,
     );
 
     // Render status bar (before side panels and overlays so its height is known)

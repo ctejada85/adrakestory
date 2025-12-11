@@ -2,6 +2,7 @@
 
 use crate::editor::file_io::{SaveMapAsEvent, SaveMapEvent};
 use crate::editor::history::EditorHistory;
+use crate::editor::play::{PlayMapEvent, PlayTestState, StopGameEvent};
 use crate::editor::recent_files::{OpenRecentFileEvent, RecentFiles};
 use crate::editor::state::{EditorState, EditorTool, EditorUIState, ToolMemory};
 use crate::systems::game::components::VoxelType;
@@ -18,9 +19,12 @@ pub fn render_toolbar(
     tool_memory: &mut ToolMemory,
     history: &EditorHistory,
     recent_files: &mut RecentFiles,
+    play_state: &mut PlayTestState,
     save_events: &mut EventWriter<SaveMapEvent>,
     save_as_events: &mut EventWriter<SaveMapAsEvent>,
     open_recent_events: &mut EventWriter<OpenRecentFileEvent>,
+    play_events: &mut EventWriter<PlayMapEvent>,
+    stop_events: &mut EventWriter<StopGameEvent>,
 ) {
     // Menu bar panel
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
@@ -36,6 +40,7 @@ pub fn render_toolbar(
             );
             render_edit_menu(ui, history);
             render_view_menu(ui, editor_state);
+            render_run_menu(ui, play_state, play_events, stop_events);
             render_tools_menu(ui, editor_state, tool_memory);
             render_help_menu(ui, ui_state);
 
@@ -63,6 +68,11 @@ pub fn render_toolbar(
 
             ui.separator();
 
+            // === Play/Test Controls ===
+            render_play_controls(ui, play_state, play_events, stop_events);
+
+            ui.separator();
+
             // === View Toggles ===
             render_view_toggles(ui, editor_state);
         });
@@ -70,7 +80,11 @@ pub fn render_toolbar(
 }
 
 /// Render the tool selection buttons
-fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_memory: &mut ToolMemory) {
+fn render_tool_buttons(
+    ui: &mut egui::Ui,
+    editor_state: &mut EditorState,
+    tool_memory: &mut ToolMemory,
+) {
     // Get current tool state for highlighting
     let is_select = matches!(editor_state.active_tool, EditorTool::Select);
     let is_voxel_place = matches!(editor_state.active_tool, EditorTool::VoxelPlace { .. });
@@ -95,7 +109,10 @@ fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_m
     // This is called when any tool button is clicked
     let save_current_params = |editor_state: &EditorState, tool_memory: &mut ToolMemory| {
         match &editor_state.active_tool {
-            EditorTool::VoxelPlace { voxel_type, pattern } => {
+            EditorTool::VoxelPlace {
+                voxel_type,
+                pattern,
+            } => {
                 tool_memory.voxel_type = *voxel_type;
                 tool_memory.voxel_pattern = *pattern;
             }
@@ -112,7 +129,8 @@ fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_m
         "🔲",
         "Select Tool (V)\nClick to select voxels/entities",
         is_select,
-    ) && !is_select {
+    ) && !is_select
+    {
         save_current_params(editor_state, tool_memory);
         editor_state.active_tool = EditorTool::Select;
     }
@@ -123,7 +141,8 @@ fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_m
         "✏️",
         "Voxel Place Tool (B)\nClick to place voxels",
         is_voxel_place,
-    ) && !is_voxel_place {
+    ) && !is_voxel_place
+    {
         save_current_params(editor_state, tool_memory);
         // Restore remembered voxel_type and pattern
         editor_state.active_tool = EditorTool::VoxelPlace {
@@ -138,7 +157,8 @@ fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_m
         "🗑️",
         "Voxel Remove Tool (X)\nClick to remove voxels",
         is_voxel_remove,
-    ) && !is_voxel_remove {
+    ) && !is_voxel_remove
+    {
         save_current_params(editor_state, tool_memory);
         editor_state.active_tool = EditorTool::VoxelRemove;
     }
@@ -164,14 +184,19 @@ fn render_tool_buttons(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_m
         "📷",
         "Camera Tool (C)\nDrag to control camera",
         is_camera,
-    ) && !is_camera {
+    ) && !is_camera
+    {
         save_current_params(editor_state, tool_memory);
         editor_state.active_tool = EditorTool::Camera;
     }
 }
 
 /// Render context-sensitive tool options (type, pattern dropdowns)
-fn render_tool_options(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_memory: &mut ToolMemory) {
+fn render_tool_options(
+    ui: &mut egui::Ui,
+    editor_state: &mut EditorState,
+    tool_memory: &mut ToolMemory,
+) {
     match &mut editor_state.active_tool {
         EditorTool::VoxelPlace {
             voxel_type,
@@ -184,11 +209,19 @@ fn render_tool_options(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_m
                 .width(80.0)
                 .show_ui(ui, |ui| {
                     let mut changed = false;
-                    changed |= ui.selectable_value(voxel_type, VoxelType::Grass, "🟩 Grass").changed();
-                    changed |= ui.selectable_value(voxel_type, VoxelType::Dirt, "🟫 Dirt").changed();
-                    changed |= ui.selectable_value(voxel_type, VoxelType::Stone, "⬜ Stone").changed();
+                    changed |= ui
+                        .selectable_value(voxel_type, VoxelType::Grass, "🟩 Grass")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(voxel_type, VoxelType::Dirt, "🟫 Dirt")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(voxel_type, VoxelType::Stone, "⬜ Stone")
+                        .changed();
                     changed
-                }).inner.unwrap_or(false);
+                })
+                .inner
+                .unwrap_or(false);
 
             // Pattern dropdown
             ui.label("Pattern:");
@@ -197,18 +230,40 @@ fn render_tool_options(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_m
                 .width(100.0)
                 .show_ui(ui, |ui| {
                     let mut changed = false;
-                    changed |= ui.selectable_value(pattern, SubVoxelPattern::Full, "■ Full").changed();
-                    changed |= ui.selectable_value(pattern, SubVoxelPattern::PlatformXZ, "▬ Platform").changed();
-                    changed |= ui.selectable_value(pattern, SubVoxelPattern::StaircaseX, "⌐ Stairs +X").changed();
-                    changed |= ui.selectable_value(pattern, SubVoxelPattern::StaircaseNegX, "⌐ Stairs -X").changed();
-                    changed |= ui.selectable_value(pattern, SubVoxelPattern::StaircaseZ, "⌐ Stairs +Z").changed();
-                    changed |= ui.selectable_value(pattern, SubVoxelPattern::StaircaseNegZ, "⌐ Stairs -Z").changed();
-                    changed |= ui.selectable_value(pattern, SubVoxelPattern::Pillar, "│ Pillar").changed();
-                    changed |= ui.selectable_value(pattern, SubVoxelPattern::PlatformXY, "▐ Wall Z").changed();
-                    changed |= ui.selectable_value(pattern, SubVoxelPattern::PlatformYZ, "▌ Wall X").changed();
-                    changed |= ui.selectable_value(pattern, SubVoxelPattern::Fence, "┼ Fence").changed();
+                    changed |= ui
+                        .selectable_value(pattern, SubVoxelPattern::Full, "■ Full")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(pattern, SubVoxelPattern::PlatformXZ, "▬ Platform")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(pattern, SubVoxelPattern::StaircaseX, "⌐ Stairs +X")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(pattern, SubVoxelPattern::StaircaseNegX, "⌐ Stairs -X")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(pattern, SubVoxelPattern::StaircaseZ, "⌐ Stairs +Z")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(pattern, SubVoxelPattern::StaircaseNegZ, "⌐ Stairs -Z")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(pattern, SubVoxelPattern::Pillar, "│ Pillar")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(pattern, SubVoxelPattern::PlatformXY, "▐ Wall Z")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(pattern, SubVoxelPattern::PlatformYZ, "▌ Wall X")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(pattern, SubVoxelPattern::Fence, "┼ Fence")
+                        .changed();
                     changed
-                }).inner.unwrap_or(false);
+                })
+                .inner
+                .unwrap_or(false);
 
             // Update tool memory when parameters change
             if type_changed {
@@ -227,13 +282,25 @@ fn render_tool_options(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_m
                 .width(120.0)
                 .show_ui(ui, |ui| {
                     let mut changed = false;
-                    changed |= ui.selectable_value(entity_type, EntityType::PlayerSpawn, "🟢 Player Spawn").changed();
-                    changed |= ui.selectable_value(entity_type, EntityType::Npc, "🔵 NPC").changed();
-                    changed |= ui.selectable_value(entity_type, EntityType::Enemy, "🔴 Enemy").changed();
-                    changed |= ui.selectable_value(entity_type, EntityType::Item, "🟡 Item").changed();
-                    changed |= ui.selectable_value(entity_type, EntityType::Trigger, "🟣 Trigger").changed();
+                    changed |= ui
+                        .selectable_value(entity_type, EntityType::PlayerSpawn, "🟢 Player Spawn")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(entity_type, EntityType::Npc, "🔵 NPC")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(entity_type, EntityType::Enemy, "🔴 Enemy")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(entity_type, EntityType::Item, "🟡 Item")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(entity_type, EntityType::Trigger, "🟣 Trigger")
+                        .changed();
                     changed
-                }).inner.unwrap_or(false);
+                })
+                .inner
+                .unwrap_or(false);
 
             // Update tool memory when entity type changes
             if entity_changed {
@@ -315,6 +382,73 @@ fn render_view_toggles(ui: &mut egui::Ui, editor_state: &mut EditorState) {
         editor_state.snap_to_grid = !editor_state.snap_to_grid;
         info!("Snap toggled: {}", editor_state.snap_to_grid);
     }
+}
+
+/// Render play/stop buttons for map testing
+fn render_play_controls(
+    ui: &mut egui::Ui,
+    play_state: &mut PlayTestState,
+    play_events: &mut EventWriter<PlayMapEvent>,
+    stop_events: &mut EventWriter<StopGameEvent>,
+) {
+    if play_state.is_running {
+        // Show Stop button when game is running
+        let stop_button = egui::Button::new("⏹ Stop")
+            .fill(egui::Color32::from_rgb(180, 60, 60))
+            .min_size(egui::vec2(65.0, 24.0));
+
+        if ui
+            .add(stop_button)
+            .on_hover_text("Stop the running game (Shift+F5)")
+            .clicked()
+        {
+            stop_events.send(StopGameEvent);
+        }
+
+        // Running indicator
+        ui.label(
+            egui::RichText::new("● Running")
+                .color(egui::Color32::from_rgb(100, 200, 100))
+                .small(),
+        );
+    } else {
+        // Show Play button when game is not running
+        let play_button = egui::Button::new("▶ Play")
+            .fill(egui::Color32::from_rgb(60, 140, 60))
+            .min_size(egui::vec2(65.0, 24.0));
+
+        if ui
+            .add(play_button)
+            .on_hover_text("Test map in game (F5)")
+            .clicked()
+        {
+            play_events.send(PlayMapEvent);
+        }
+    }
+}
+
+/// Render the Run menu
+fn render_run_menu(
+    ui: &mut egui::Ui,
+    play_state: &PlayTestState,
+    play_events: &mut EventWriter<PlayMapEvent>,
+    stop_events: &mut EventWriter<StopGameEvent>,
+) {
+    ui.menu_button("Run", |ui| {
+        if play_state.is_running {
+            if ui.button("⏹ Stop Game          Shift+F5").clicked() {
+                stop_events.send(StopGameEvent);
+                ui.close_menu();
+            }
+            ui.add_enabled(false, egui::Button::new("▶ Play Map                  F5"));
+        } else {
+            if ui.button("▶ Play Map                  F5").clicked() {
+                play_events.send(PlayMapEvent);
+                ui.close_menu();
+            }
+            ui.add_enabled(false, egui::Button::new("⏹ Stop Game          Shift+F5"));
+        }
+    });
 }
 
 /// Get a short display name for a pattern
@@ -489,12 +623,21 @@ fn render_view_menu(ui: &mut egui::Ui, editor_state: &mut EditorState) {
     });
 }
 
-fn render_tools_menu(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_memory: &mut ToolMemory) {
+fn render_tools_menu(
+    ui: &mut egui::Ui,
+    editor_state: &mut EditorState,
+    tool_memory: &mut ToolMemory,
+) {
     ui.menu_button("Tools", |ui| {
         // Helper to save current tool parameters before switching
-        let save_current_params = |editor_state: &EditorState, tool_memory: &mut ToolMemory| {
-            match &editor_state.active_tool {
-                EditorTool::VoxelPlace { voxel_type, pattern } => {
+        let save_current_params =
+            |editor_state: &EditorState, tool_memory: &mut ToolMemory| match &editor_state
+                .active_tool
+            {
+                EditorTool::VoxelPlace {
+                    voxel_type,
+                    pattern,
+                } => {
                     tool_memory.voxel_type = *voxel_type;
                     tool_memory.voxel_pattern = *pattern;
                 }
@@ -502,8 +645,7 @@ fn render_tools_menu(ui: &mut egui::Ui, editor_state: &mut EditorState, tool_mem
                     tool_memory.entity_type = *entity_type;
                 }
                 _ => {}
-            }
-        };
+            };
 
         let is_select = matches!(editor_state.active_tool, EditorTool::Select);
         if ui.selectable_label(is_select, "🔲 Select (V)").clicked() {
