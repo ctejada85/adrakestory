@@ -125,14 +125,6 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // Calculate occlusion alpha using world position
     let occlusion_alpha = calculate_occlusion_alpha(in.world_position.xyz);
     
-    // Apply basic lighting (simplified - ambient + directional)
-    let light_dir = normalize(vec3<f32>(0.4, 0.8, 0.3));
-    let ndotl = max(dot(normalize(in.world_normal), light_dir), 0.0);
-    let ambient = 0.35;
-    let diffuse = ndotl * 0.65;
-    
-    let lit_color = color.rgb * (ambient + diffuse);
-    
     // Apply occlusion transparency
     let final_alpha = color.a * occlusion_alpha;
     
@@ -147,6 +139,6 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         discard;
     }
     
-    // Output as fully opaque (dithering handles transparency)
-    return vec4<f32>(lit_color, 1.0);
+    // Output the vertex color directly (no custom lighting - use scene lights)
+    return vec4<f32>(color.rgb, 1.0);
 }
