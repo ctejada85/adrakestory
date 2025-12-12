@@ -2,7 +2,9 @@
 
 use super::super::character::CharacterModel;
 use super::super::components::{CollisionBox, GameCamera, Npc, Player, SubVoxel, Voxel};
-use super::super::occlusion::{create_occlusion_material, OcclusionMaterial, OcclusionMaterialHandle};
+use super::super::occlusion::{
+    create_occlusion_material, OcclusionMaterial, OcclusionMaterialHandle,
+};
 use super::super::resources::{GameInitialized, SpatialGrid};
 use super::format::{EntityType, MapData, SubVoxelPattern};
 use super::loader::{LoadProgress, LoadedMapData, MapLoadProgress};
@@ -859,7 +861,7 @@ pub fn spawn_map_system(
     // Create a single occlusion material for all chunks (vertex colors provide variation)
     // This material supports per-pixel transparency for voxels above the player
     let chunk_material = create_occlusion_material(occlusion_materials.as_mut());
-    
+
     // Store the material handle for uniform updates by the occlusion system
     commands.insert_resource(OcclusionMaterialHandle(chunk_material.clone()));
 

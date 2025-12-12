@@ -6,11 +6,11 @@ mod states;
 mod systems;
 
 use states::GameState;
-use systems::game::occlusion::OcclusionPlugin;
 use systems::game::gamepad::{
     gather_gamepad_input, gather_keyboard_input, handle_gamepad_connections, reset_player_input,
     update_cursor_visibility, ActiveGamepad, GamepadSettings, PlayerInput,
 };
+use systems::game::occlusion::OcclusionPlugin;
 
 /// Command-line arguments for the game
 #[derive(Debug, Default)]
