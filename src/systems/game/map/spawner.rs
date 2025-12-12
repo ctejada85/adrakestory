@@ -1265,12 +1265,9 @@ fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
         position
     );
 
-    // Create collision box (invisible by default, for debugging)
-    let collision_box_mesh = ctx.meshes.add(Cuboid::new(
-        player_radius * 2.0,
-        player_radius * 2.0,
-        player_radius * 2.0,
-    ));
+    // Create collision box as a cylinder (invisible by default, for debugging)
+    // The cylinder mesh uses radius and half_height to match the actual collision shape
+    let collision_box_mesh = ctx.meshes.add(Cylinder::new(player_radius, player_half_height * 2.0));
     let collision_box_material = ctx.materials.add(StandardMaterial {
         base_color: Color::srgba(0.0, 1.0, 0.0, 0.3),
         alpha_mode: AlphaMode::Blend,
