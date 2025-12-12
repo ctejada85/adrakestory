@@ -46,7 +46,9 @@ fn parse_args() -> GameArgs {
                 println!("Usage: adrakestory [OPTIONS]");
                 println!();
                 println!("Options:");
-                println!("  -m, --map <PATH>  Load a specific map file directly (skips title screen)");
+                println!(
+                    "  -m, --map <PATH>  Load a specific map file directly (skips title screen)"
+                );
                 println!("  -h, --help        Show this help message");
                 std::process::exit(0);
             }
@@ -75,6 +77,10 @@ enum GameSystemSet {
     /// Update camera position and rotation
     Camera,
 }
+use systems::game::hot_reload::{
+    handle_map_reload, poll_hot_reload, restore_player_position, setup_hot_reload_on_enter,
+    HotReloadState, MapPathForHotReload, MapReloadEvent, MapReloadedEvent,
+};
 use systems::game::map::{
     spawn_map_system, update_chunk_lods, LoadedMapData, MapLoadProgress, MapLoader,
 };
@@ -106,6 +112,9 @@ fn main() {
         GameState::IntroAnimation
     };
 
+    // Store map path for hot reload (clone before moving into resource)
+    let hot_reload_path = args.map_path.clone();
+
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
@@ -115,8 +124,14 @@ fn main() {
             ..default()
         }))
         .insert_state(initial_state)
-        .insert_resource(CommandLineMapPath { path: args.map_path })
+        .insert_resource(CommandLineMapPath {
+            path: args.map_path,
+        })
+        .insert_resource(MapPathForHotReload(hot_reload_path))
         .init_resource::<MapLoadProgress>()
+        .init_resource::<HotReloadState>()
+        .add_event::<MapReloadEvent>()
+        .add_event::<MapReloadedEvent>()
         // Initialize gamepad resources
         .init_resource::<ActiveGamepad>()
         .init_resource::<GamepadSettings>()
@@ -154,7 +169,24 @@ fn main() {
         .add_systems(OnExit(GameState::LoadingMap), cleanup_loading_screen)
         .add_systems(
             OnEnter(GameState::InGame),
-            (cleanup_2d_camera, spawn_map_system).chain(),
+            (
+                cleanup_2d_camera,
+                spawn_map_system,
+                setup_hot_reload_on_enter,
+            )
+                .chain(),
+        )
+        // Hot reload systems - poll for changes and handle reloads during gameplay
+        .add_systems(
+            Update,
+            (
+                poll_hot_reload,
+                handle_map_reload.after(poll_hot_reload),
+                // spawn_map_system runs when GameInitialized is false (set by handle_map_reload)
+                spawn_map_system.after(handle_map_reload),
+                restore_player_position.after(spawn_map_system),
+            )
+                .run_if(in_state(GameState::InGame)),
         )
         // Configure system sets to run in a specific order
         .configure_sets(
@@ -264,7 +296,10 @@ fn load_map_on_enter(
             map
         }
         Err(e) => {
-            warn!("Failed to load map file '{}': {}. Using default map.", map_path, e);
+            warn!(
+                "Failed to load map file '{}': {}. Using default map.",
+                map_path, e
+            );
             progress.update(systems::game::map::LoadProgress::Error(e.to_string()));
             MapLoader::load_default()
         }

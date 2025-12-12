@@ -10,6 +10,12 @@ use std::sync::mpsc::{channel, Receiver};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use super::components::{GameCamera, Npc, Player, SubVoxel};
+use super::map::loader::MapLoadProgress;
+use super::map::spawner::VoxelChunk;
+use super::map::{LoadedMapData, MapLoader};
+use super::resources::{GameInitialized, SpatialGrid};
+
 /// Resource to track hot reload state
 #[derive(Resource)]
 pub struct HotReloadState {
@@ -166,6 +172,11 @@ pub struct MapReloadedEvent {
     pub message: String,
 }
 
+/// Resource to store player position during reload
+/// This allows restoring the player to their previous position after map respawn
+#[derive(Resource)]
+pub struct PendingPlayerPosition(pub Option<Vec3>);
+
 /// System to poll for file changes and trigger reload events
 pub fn poll_hot_reload(
     mut hot_reload: ResMut<HotReloadState>,
@@ -173,6 +184,138 @@ pub fn poll_hot_reload(
 ) {
     if let Some(path) = hot_reload.poll_changes() {
         reload_events.send(MapReloadEvent { path });
+    }
+}
+
+/// System to handle map reload events
+/// Despawns existing map entities, loads new map data, and triggers respawn
+pub fn handle_map_reload(
+    mut commands: Commands,
+    mut reload_events: EventReader<MapReloadEvent>,
+    mut reloaded_events: EventWriter<MapReloadedEvent>,
+    mut progress: ResMut<MapLoadProgress>,
+    // Query for player position to preserve
+    player_query: Query<&Transform, With<Player>>,
+    // Entities to despawn during reload
+    chunks_query: Query<Entity, With<VoxelChunk>>,
+    player_entities: Query<Entity, With<Player>>,
+    npc_entities: Query<Entity, With<Npc>>,
+    subvoxel_query: Query<Entity, With<SubVoxel>>,
+    directional_lights: Query<Entity, With<DirectionalLight>>,
+    cameras_query: Query<Entity, With<GameCamera>>,
+) {
+    for event in reload_events.read() {
+        info!("Hot reload: reloading map from {:?}", event.path);
+
+        // Store player position before despawning
+        let player_pos = player_query.get_single().ok().map(|t| t.translation);
+        info!("Hot reload: saving player position {:?}", player_pos);
+
+        // Try to load the new map
+        progress.clear();
+        let map_result =
+            MapLoader::load_from_file(event.path.to_string_lossy().as_ref(), &mut progress);
+
+        match map_result {
+            Ok(map) => {
+                info!("Hot reload: successfully parsed map, despawning old entities...");
+
+                // Count entities for logging
+                let chunk_count = chunks_query.iter().count();
+                let subvoxel_count = subvoxel_query.iter().count();
+
+                // Despawn all existing map entities
+                for entity in chunks_query.iter() {
+                    commands.entity(entity).despawn_recursive();
+                }
+                for entity in player_entities.iter() {
+                    commands.entity(entity).despawn_recursive();
+                }
+                for entity in npc_entities.iter() {
+                    commands.entity(entity).despawn_recursive();
+                }
+                for entity in subvoxel_query.iter() {
+                    commands.entity(entity).despawn_recursive();
+                }
+                for entity in directional_lights.iter() {
+                    commands.entity(entity).despawn_recursive();
+                }
+                for entity in cameras_query.iter() {
+                    commands.entity(entity).despawn_recursive();
+                }
+
+                info!(
+                    "Hot reload: despawned {} chunks, {} sub-voxels",
+                    chunk_count, subvoxel_count
+                );
+
+                // Clear the spatial grid
+                commands.remove_resource::<SpatialGrid>();
+
+                // Reset GameInitialized so spawn_map_system will run again
+                commands.insert_resource(GameInitialized(false));
+
+                // Insert new map data (spawn_map_system will handle spawning)
+                commands.insert_resource(LoadedMapData { map });
+
+                // Store player position for restoration after spawn
+                commands.insert_resource(PendingPlayerPosition(player_pos));
+
+                reloaded_events.send(MapReloadedEvent {
+                    success: true,
+                    message: "Map reloaded successfully".to_string(),
+                });
+
+                info!("Hot reload: reload complete, map will respawn");
+            }
+            Err(e) => {
+                warn!("Hot reload failed: {}", e);
+                reloaded_events.send(MapReloadedEvent {
+                    success: false,
+                    message: format!("Reload failed: {}", e),
+                });
+            }
+        }
+    }
+}
+
+/// System to setup hot reload watcher when entering InGame state
+/// Takes the map path from CommandLineMapPath resource
+pub fn setup_hot_reload_on_enter(
+    mut hot_reload: ResMut<HotReloadState>,
+    cli_map_path: Option<Res<MapPathForHotReload>>,
+) {
+    // Only setup if a map path was specified
+    if let Some(map_path) = cli_map_path {
+        if let Some(path) = &map_path.0 {
+            if let Err(e) = hot_reload.watch_file(path.clone()) {
+                warn!("Failed to setup hot reload: {}", e);
+            }
+        }
+    }
+}
+
+/// Resource to pass the map path from main.rs to hot reload system
+/// This avoids referencing CommandLineMapPath which is in the binary crate
+#[derive(Resource, Default)]
+pub struct MapPathForHotReload(pub Option<PathBuf>);
+
+/// System to restore player position after reload
+/// Runs after spawn_map_system when PendingPlayerPosition exists
+pub fn restore_player_position(
+    mut commands: Commands,
+    pending_pos: Option<Res<PendingPlayerPosition>>,
+    mut player_query: Query<&mut Transform, With<Player>>,
+) {
+    if let Some(pending) = pending_pos {
+        if let Some(saved_pos) = pending.0 {
+            if let Ok(mut transform) = player_query.get_single_mut() {
+                info!("Hot reload: restoring player position to {:?}", saved_pos);
+                transform.translation = saved_pos;
+            }
+        }
+        // Clean up the pending position resource
+        commands.remove_resource::<PendingPlayerPosition>();
     }
 }
 
