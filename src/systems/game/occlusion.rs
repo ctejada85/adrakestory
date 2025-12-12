@@ -20,8 +20,15 @@
 //! - `falloff_softness`: Smoothness of the vertical transition
 
 use bevy::{
+    pbr::{MaterialPipeline, MaterialPipelineKey},
     prelude::*,
-    render::render_resource::{AsBindGroup, ShaderRef, ShaderType},
+    render::{
+        mesh::MeshVertexBufferLayoutRef,
+        render_resource::{
+            AsBindGroup, RenderPipelineDescriptor, ShaderRef, ShaderType,
+            SpecializedMeshPipelineError,
+        },
+    },
 };
 
 use super::components::{GameCamera, Player};
@@ -107,6 +114,23 @@ impl Material for OcclusionMaterial {
         // Always use Opaque since we handle transparency via dithered discard
         // This avoids alpha blending sorting issues and flickering
         AlphaMode::Opaque
+    }
+
+    fn specialize(
+        _pipeline: &MaterialPipeline<Self>,
+        descriptor: &mut RenderPipelineDescriptor,
+        layout: &MeshVertexBufferLayoutRef,
+        _key: MaterialPipelineKey<Self>,
+    ) -> Result<(), SpecializedMeshPipelineError> {
+        // Enable VERTEX_COLORS shader def if the mesh has vertex colors
+        if layout.0.contains(Mesh::ATTRIBUTE_COLOR) {
+            if let Some(fragment) = descriptor.fragment.as_mut() {
+                fragment
+                    .shader_defs
+                    .push("VERTEX_COLORS".to_string().into());
+            }
+        }
+        Ok(())
     }
 }
 
