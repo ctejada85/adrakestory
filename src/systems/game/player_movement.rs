@@ -103,8 +103,8 @@ pub fn move_player(
             // Apply magnitude for analog movement (stick pushed halfway = half speed)
             let move_delta = normalized_dir * magnitude * player.speed * delta;
 
-            // Calculate current floor Y position (bottom of player sphere)
-            let mut current_floor_y = current_pos.y - player.radius;
+            // Calculate current floor Y position (bottom of player cylinder)
+            let mut current_floor_y = current_pos.y - player.half_height;
 
             let new_x = current_pos.x + move_delta.x;
             let new_z = current_pos.z + move_delta.z;
@@ -120,6 +120,7 @@ pub fn move_player(
                     current_pos.y,
                     new_z,
                     player.radius,
+                    player.half_height,
                     current_floor_y,
                 );
 
@@ -130,7 +131,7 @@ pub fn move_player(
                     transform.translation.x = new_x;
                     transform.translation.z = new_z;
                     transform.translation.y =
-                        current_floor_y + diagonal_collision.step_up_height + player.radius;
+                        current_floor_y + diagonal_collision.step_up_height + player.half_height;
                     player.velocity.y = 0.0;
                 } else {
                     apply_axis_movement(
@@ -182,6 +183,7 @@ fn apply_axis_movement(
             current_pos.y,
             current_pos.z,
             player.radius,
+            player.half_height,
             *current_floor_y,
         );
 
@@ -191,9 +193,10 @@ fn apply_axis_movement(
         } else if x_collision.can_step_up && player.is_grounded {
             // Step-up collision - move horizontally and adjust height
             transform.translation.x = new_x;
-            transform.translation.y = *current_floor_y + x_collision.step_up_height + player.radius;
+            transform.translation.y =
+                *current_floor_y + x_collision.step_up_height + player.half_height;
             // Update current_floor_y for subsequent collision checks (critical for stairs)
-            *current_floor_y = transform.translation.y - player.radius;
+            *current_floor_y = transform.translation.y - player.half_height;
             // Reset vertical velocity to prevent falling after step-up
             player.velocity.y = 0.0;
         }
@@ -209,6 +212,7 @@ fn apply_axis_movement(
             transform.translation.y,
             new_z,
             player.radius,
+            player.half_height,
             *current_floor_y,
         );
 
@@ -218,7 +222,8 @@ fn apply_axis_movement(
         } else if z_collision.can_step_up && player.is_grounded {
             // Step-up collision - move horizontally and adjust height
             transform.translation.z = new_z;
-            transform.translation.y = *current_floor_y + z_collision.step_up_height + player.radius;
+            transform.translation.y =
+                *current_floor_y + z_collision.step_up_height + player.half_height;
             // Reset vertical velocity to prevent falling after step-up
             player.velocity.y = 0.0;
         }

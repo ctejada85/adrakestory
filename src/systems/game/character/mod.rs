@@ -3,7 +3,7 @@
 //! This module handles:
 //! - Loading and managing character 3D models (GLB/GLTF)
 //! - Character model components and resources
-//! - Visual representation separate from physics collision
+//! - Visual representation separate from physics collision cylinder
 
 use bevy::prelude::*;
 
@@ -12,7 +12,7 @@ use bevy::prelude::*;
 ///
 /// The character model is loaded as a GLB/GLTF scene and spawned as a child
 /// entity of the player. This separates the visual representation from the
-/// physics collision sphere, allowing for flexible model swapping and animations.
+/// physics collision cylinder, allowing for flexible model swapping and animations.
 #[derive(Component)]
 pub struct CharacterModel {
     /// Handle to the loaded GLB/GLTF scene

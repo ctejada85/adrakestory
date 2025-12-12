@@ -67,16 +67,21 @@ pub fn get_sub_voxel_bounds(sub_voxel: &SubVoxel) -> (Vec3, Vec3) {
     sub_voxel.bounds
 }
 
-/// Check if a player sphere collides with any sub-voxels at the given position.
+/// Check if a player cylinder collides with any sub-voxels at the given position.
 ///
 /// This function uses the spatial grid for efficient collision detection,
 /// only checking sub-voxels that are near the player's position.
 ///
+/// The player uses a cylinder collider with:
+/// - `radius` for horizontal collision (XZ plane)
+/// - `half_height` for vertical extent from center (Y axis)
+///
 /// # Arguments
 /// * `spatial_grid` - The spatial partitioning grid for efficient queries
 /// * `sub_voxel_query` - Query to access sub-voxel components
-/// * `x`, `y`, `z` - The position to check for collision
-/// * `radius` - The radius of the player's collision sphere
+/// * `x`, `y`, `z` - The position to check for collision (cylinder center)
+/// * `radius` - The horizontal radius of the player's collision cylinder
+/// * `half_height` - The vertical half-height of the collision cylinder
 /// * `current_floor_y` - The Y position of the floor the player is currently standing on
 ///
 /// # Returns
@@ -88,14 +93,15 @@ pub fn check_sub_voxel_collision(
     y: f32,
     z: f32,
     radius: f32,
+    half_height: f32,
     current_floor_y: f32,
 ) -> CollisionResult {
     // Use slightly smaller collision radius for tighter fit
     let collision_radius = radius;
 
-    // Calculate player's AABB for grid lookup
-    let player_min = Vec3::new(x - collision_radius, y - radius, z - collision_radius);
-    let player_max = Vec3::new(x + collision_radius, y + radius, z + collision_radius);
+    // Calculate player's AABB for grid lookup (cylinder bounds)
+    let player_min = Vec3::new(x - collision_radius, y - half_height, z - collision_radius);
+    let player_max = Vec3::new(x + collision_radius, y + half_height, z + collision_radius);
 
     let relevant_sub_voxel_entities = spatial_grid.get_entities_in_aabb(player_min, player_max);
 
@@ -109,13 +115,13 @@ pub fn check_sub_voxel_collision(
 
             // Skip sub-voxels that are floor/ground (below player's feet)
             // We use a small threshold to avoid blocking movement on flat ground
-            let player_bottom = y - radius;
+            let player_bottom = y - half_height;
             if max.y <= player_bottom + 0.01 {
                 continue;
             }
 
             // Skip if sub-voxel is too far above the player's top
-            if min.y > y + radius {
+            if min.y > y + half_height {
                 continue;
             }
 

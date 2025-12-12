@@ -50,27 +50,29 @@ pub fn apply_physics(
 
         // Apply velocity
         let new_y = transform.translation.y + player.velocity.y * delta;
-        let player_bottom = new_y - player.radius;
-        let current_bottom = transform.translation.y - player.radius;
+        let player_bottom = new_y - player.half_height;
+        let current_bottom = transform.translation.y - player.half_height;
 
         // Extract player position (loop-invariant values)
         let player_x = transform.translation.x;
         let player_z = transform.translation.z;
         let player_radius = player.radius;
+        let player_half_height = player.half_height;
 
         let mut hit_ground = false;
         let mut highest_collision_y = f32::MIN;
 
         // Use spatial grid to get only nearby sub-voxels
         // This reduces checks from O(n) to O(k) where k << n
+        // Use cylinder bounds: radius for XZ, half_height for Y
         let player_min = Vec3::new(
             player_x - player_radius,
-            new_y - player_radius,
+            new_y - player_half_height,
             player_z - player_radius,
         );
         let player_max = Vec3::new(
             player_x + player_radius,
-            new_y + player_radius,
+            new_y + player_half_height,
             player_z + player_radius,
         );
 
@@ -85,7 +87,7 @@ pub fn apply_physics(
             let (min, max) = get_sub_voxel_bounds(sub_voxel);
 
             // Early exit: Skip sub-voxels above the player
-            if max.y > new_y + player_radius {
+            if max.y > new_y + player_half_height {
                 continue;
             }
 
@@ -94,12 +96,22 @@ pub fn apply_physics(
                 continue;
             }
 
-            // Early exit: Check horizontal overlap (AABB test)
-            if player_x + player_radius <= min.x
-                || player_x - player_radius >= max.x
-                || player_z + player_radius <= min.z
-                || player_z - player_radius >= max.z
-            {
+            // For cylinder ground detection, we need to check if the player's circular
+            // footprint actually overlaps with the top surface of the sub-voxel.
+            // Using AABB alone would allow landing on corners where the cylinder doesn't
+            // actually touch the surface.
+
+            // Find the closest point on the sub-voxel's XZ rectangle to the player center
+            let closest_x = player_x.clamp(min.x, max.x);
+            let closest_z = player_z.clamp(min.z, max.z);
+
+            // Check if the closest point is within the cylinder's radius
+            let dx = player_x - closest_x;
+            let dz = player_z - closest_z;
+            let distance_squared = dx * dx + dz * dz;
+
+            // Skip if the cylinder doesn't actually overlap horizontally
+            if distance_squared >= player_radius * player_radius {
                 continue;
             }
 
@@ -115,7 +127,7 @@ pub fn apply_physics(
         }
 
         if hit_ground {
-            transform.translation.y = highest_collision_y + player.radius;
+            transform.translation.y = highest_collision_y + player.half_height;
             player.velocity.y = 0.0;
             player.is_grounded = true;
         } else {

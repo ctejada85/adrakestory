@@ -6,7 +6,10 @@ pub struct Player {
     pub speed: f32,
     pub velocity: Vec3,
     pub is_grounded: bool,
+    /// Horizontal collision radius (cylinder radius)
     pub radius: f32,
+    /// Half height of the collision cylinder (from center to top/bottom)
+    pub half_height: f32,
     /// Target rotation angle in radians (Y-axis rotation)
     pub target_rotation: f32,
     /// Current rotation angle in radians (Y-axis rotation)

@@ -1214,10 +1214,11 @@ fn spawn_entities(ctx: &mut EntitySpawnContext, map: &MapData, progress: &mut Ma
 /// 2. A GLB character model as a child entity for visuals
 /// 3. An invisible collision box for debugging
 ///
-/// The physics collision uses a sphere collider (radius: 0.3) which is kept
-/// separate from the visual model for flexibility and performance.
+/// The physics collision uses a cylinder collider (radius: 0.3, half_height: 0.4)
+/// which is kept separate from the visual model for flexibility and performance.
 fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
     let player_radius = 0.3;
+    let player_half_height = 0.4; // Total height = 0.8 units
 
     // Load the character model (GLB file) with explicit scene specification
     // Using GltfAssetLabel::Scene(0) to load the first (default) scene from the GLB file
@@ -1239,6 +1240,7 @@ fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
                 velocity: Vec3::ZERO,
                 is_grounded: true,
                 radius: player_radius,
+                half_height: player_half_height,
                 target_rotation: 0.0,
                 current_rotation: 0.0,
                 start_rotation: 0.0,
