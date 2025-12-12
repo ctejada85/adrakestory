@@ -172,10 +172,15 @@ pub struct MapReloadedEvent {
     pub message: String,
 }
 
-/// Resource to store player position during reload
-/// This allows restoring the player to their previous position after map respawn
+/// Resource to store player state during reload
+/// This allows restoring the player to their previous position and rotation after map respawn
 #[derive(Resource)]
-pub struct PendingPlayerPosition(pub Option<Vec3>);
+pub struct PendingPlayerState {
+    /// Player's position before reload
+    pub position: Option<Vec3>,
+    /// Player's rotation values before reload (target_rotation, current_rotation)
+    pub rotation: Option<(f32, f32)>,
+}
 
 /// System to poll for file changes and trigger reload events
 pub fn poll_hot_reload(
@@ -252,8 +257,8 @@ pub fn handle_map_reload(
     mut reload_events: EventReader<MapReloadEvent>,
     mut reloaded_events: EventWriter<MapReloadedEvent>,
     mut progress: ResMut<MapLoadProgress>,
-    // Query for player position to preserve
-    player_query: Query<&Transform, With<Player>>,
+    // Query for player state to preserve (position and rotation)
+    player_query: Query<(&Transform, &Player)>,
     // Entities to despawn during reload
     chunks_query: Query<Entity, With<VoxelChunk>>,
     player_entities: Query<Entity, With<Player>>,
@@ -265,9 +270,12 @@ pub fn handle_map_reload(
     for event in reload_events.read() {
         info!("Hot reload: reloading map from {:?}", event.path);
 
-        // Store player position before despawning
-        let player_pos = player_query.get_single().ok().map(|t| t.translation);
-        info!("Hot reload: saving player position {:?}", player_pos);
+        // Store player position and rotation before despawning
+        let player_state = player_query
+            .get_single()
+            .ok()
+            .map(|(t, p)| (t.translation, p.target_rotation, p.current_rotation));
+        info!("Hot reload: saving player state {:?}", player_state);
 
         // Try to load the new map
         progress.clear();
@@ -316,8 +324,14 @@ pub fn handle_map_reload(
                 // Insert new map data (spawn_map_system will handle spawning)
                 commands.insert_resource(LoadedMapData { map });
 
-                // Store player position for restoration after spawn
-                commands.insert_resource(PendingPlayerPosition(player_pos));
+                // Store player state for restoration after spawn
+                let (position, rotation) =
+                    if let Some((pos, target_rot, current_rot)) = player_state {
+                        (Some(pos), Some((target_rot, current_rot)))
+                    } else {
+                        (None, None)
+                    };
+                commands.insert_resource(PendingPlayerState { position, rotation });
 
                 reloaded_events.send(MapReloadedEvent {
                     success: true,
@@ -367,22 +381,31 @@ pub struct ReloadNotification {
     pub duration: f32,
 }
 
-/// System to restore player position after reload
-/// Runs after spawn_map_system when PendingPlayerPosition exists
+/// System to restore player position and rotation after reload
+/// Runs after spawn_map_system when PendingPlayerState exists
 pub fn restore_player_position(
     mut commands: Commands,
-    pending_pos: Option<Res<PendingPlayerPosition>>,
-    mut player_query: Query<&mut Transform, With<Player>>,
+    pending_state: Option<Res<PendingPlayerState>>,
+    mut player_query: Query<(&mut Transform, &mut Player)>,
 ) {
-    if let Some(pending) = pending_pos {
-        if let Some(saved_pos) = pending.0 {
-            if let Ok(mut transform) = player_query.get_single_mut() {
+    if let Some(pending) = pending_state {
+        if let Ok((mut transform, mut player)) = player_query.get_single_mut() {
+            // Restore position
+            if let Some(saved_pos) = pending.position {
                 info!("Hot reload: restoring player position to {:?}", saved_pos);
                 transform.translation = saved_pos;
             }
+            // Restore rotation
+            if let Some((target_rot, current_rot)) = pending.rotation {
+                info!("Hot reload: restoring player rotation to {:?}", current_rot);
+                player.target_rotation = target_rot;
+                player.current_rotation = current_rot;
+                player.start_rotation = current_rot;
+                player.rotation_elapsed = player.rotation_duration; // Mark rotation as complete
+            }
         }
-        // Clean up the pending position resource
-        commands.remove_resource::<PendingPlayerPosition>();
+        // Clean up the pending state resource
+        commands.remove_resource::<PendingPlayerState>();
     }
 }
 
