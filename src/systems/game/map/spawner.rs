@@ -4,6 +4,7 @@ use super::super::character::CharacterModel;
 use super::super::components::{CollisionBox, GameCamera, Npc, Player, SubVoxel, Voxel};
 use super::super::occlusion::{
     create_occlusion_material, OcclusionConfig, OcclusionMaterial, OcclusionMaterialHandle,
+    TransparencyTechnique,
 };
 use super::super::resources::{GameInitialized, SpatialGrid};
 use super::format::{EntityType, MapData, SubVoxelPattern};
@@ -870,7 +871,8 @@ pub fn spawn_map_system(
     // When occlusion is disabled, use StandardMaterial for proper PBR lighting
     let chunk_material = if occlusion_config.enabled {
         // Occlusion material with custom shader for transparency
-        let occlusion_mat = create_occlusion_material(occlusion_materials.as_mut());
+        let occlusion_mat =
+            create_occlusion_material(occlusion_materials.as_mut(), occlusion_config.technique);
         commands.insert_resource(OcclusionMaterialHandle(occlusion_mat.clone()));
         ChunkMaterial::Occlusion(occlusion_mat)
     } else {

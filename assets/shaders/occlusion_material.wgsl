@@ -33,6 +33,11 @@ struct OcclusionUniforms {
     occlusion_radius: f32,
     height_threshold: f32,
     falloff_softness: f32,
+    // Transparency technique: 0 = Dithered, 1 = AlphaBlend
+    technique: u32,
+    _padding3: u32,
+    _padding4: u32,
+    _padding5: u32,
 }
 
 @group(2) @binding(100)
@@ -135,14 +140,23 @@ fn fragment(
     // Apply occlusion transparency to base color alpha
     let final_alpha = pbr_input.material.base_color.a * occlusion_alpha;
     
-    // Discard fully transparent fragments
+    // Discard fully transparent fragments (for both techniques)
     if final_alpha < 0.01 {
         discard;
     }
     
-    // Use dithered transparency to avoid alpha sorting issues
-    if !dither_check(in.position.xy, final_alpha) {
-        discard;
+    // Apply transparency based on selected technique
+    if occlusion.technique == 0u {
+        // Dithered transparency (screen-door effect)
+        // Uses discard to create pattern, works with opaque pipeline
+        if !dither_check(in.position.xy, final_alpha) {
+            discard;
+        }
+        // Keep base color alpha at 1.0 for opaque rendering
+    } else {
+        // Alpha blend transparency (smooth like Photoshop layers)
+        // Modify the base color alpha for true blending
+        pbr_input.material.base_color.a = final_alpha;
     }
     
     // Standard alpha discard from material settings
@@ -157,6 +171,11 @@ fn fragment(
     out.color = apply_pbr_lighting(pbr_input);
     // Post-processing (fog, tonemapping, etc.)
     out.color = main_pass_post_lighting_processing(pbr_input, out.color);
+    
+    // For alpha blend mode (AlphaToCoverage), set alpha for MSAA hardware to handle
+    if occlusion.technique == 1u {
+        out.color.a = final_alpha;
+    }
 #endif
 
     return out;

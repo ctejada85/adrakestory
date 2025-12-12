@@ -21,6 +21,7 @@
 //! - `occlusion_radius`: Horizontal radius of the occlusion zone
 //! - `height_threshold`: Only affect voxels this far above the player
 //! - `falloff_softness`: Smoothness of the vertical transition
+//! - `technique`: Dithered (screen-door) or AlphaBlend (smooth like Photoshop)
 
 use bevy::{
     pbr::{ExtendedMaterial, MaterialExtension},
@@ -29,6 +30,20 @@ use bevy::{
 };
 
 use super::components::{GameCamera, Player};
+
+/// Transparency technique for occlusion effect
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TransparencyTechnique {
+    /// Dithered transparency using screen-door effect (Bayer matrix pattern)
+    /// Pros: No alpha sorting issues, works with opaque pipeline
+    /// Cons: Visible dot pattern, especially at low alpha values
+    #[default]
+    Dithered,
+    /// True alpha blending (smooth transparency like Photoshop layers)
+    /// Pros: Smooth, clean transparency
+    /// Cons: May have sorting issues with overlapping transparent objects
+    AlphaBlend,
+}
 
 /// Type alias for our extended occlusion material
 pub type OcclusionMaterial = ExtendedMaterial<StandardMaterial, OcclusionExtension>;
@@ -84,6 +99,12 @@ pub struct OcclusionUniforms {
     pub height_threshold: f32,
     /// Softness of the vertical falloff transition
     pub falloff_softness: f32,
+    /// Transparency technique: 0 = Dithered, 1 = AlphaBlend
+    pub technique: u32,
+    /// Padding for 16-byte alignment
+    pub _padding3: u32,
+    pub _padding4: u32,
+    pub _padding5: u32,
 }
 
 impl Default for OcclusionUniforms {
@@ -97,6 +118,10 @@ impl Default for OcclusionUniforms {
             occlusion_radius: 3.0,
             height_threshold: 0.5,
             falloff_softness: 2.0,
+            technique: 0, // Dithered by default
+            _padding3: 0,
+            _padding4: 0,
+            _padding5: 0,
         }
     }
 }
@@ -124,9 +149,8 @@ pub struct OcclusionConfig {
     pub falloff_softness: f32,
     /// Whether occlusion is enabled
     pub enabled: bool,
-    /// Whether to use dithered transparency (screen-door effect)
-    /// Set to true to avoid alpha sorting issues, at the cost of visual quality
-    pub use_dithering: bool,
+    /// Transparency technique to use
+    pub technique: TransparencyTechnique,
     /// Whether to show debug visualization (can toggle with F3)
     pub show_debug: bool,
 }
@@ -138,8 +162,8 @@ impl Default for OcclusionConfig {
             occlusion_radius: 3.0,
             height_threshold: 0.5,
             falloff_softness: 2.0,
-            enabled: true, // Disabled by default - set to true to enable occlusion transparency
-            use_dithering: false,
+            enabled: true,
+            technique: TransparencyTechnique::AlphaBlend, // Smooth transparency by default
             show_debug: false,
         }
     }
@@ -187,6 +211,11 @@ pub fn update_occlusion_uniforms(
 
     // Update the material's uniform buffer (accessing the extension part)
     if let Some(material) = materials.get_mut(&material_handle.0) {
+        let technique_value = match config.technique {
+            TransparencyTechnique::Dithered => 0,
+            TransparencyTechnique::AlphaBlend => 1,
+        };
+
         material.extension.occlusion_uniforms = OcclusionUniforms {
             player_position: player_pos,
             _padding1: 0.0,
@@ -196,6 +225,10 @@ pub fn update_occlusion_uniforms(
             occlusion_radius: config.occlusion_radius,
             height_threshold: config.height_threshold,
             falloff_softness: config.falloff_softness,
+            technique: technique_value,
+            _padding3: 0,
+            _padding4: 0,
+            _padding5: 0,
         };
 
         // Debug: Log uniforms every 120 frames (about 2 seconds at 60fps)
@@ -305,14 +338,14 @@ impl Plugin for OcclusionPlugin {
     }
 }
 
-/// Helper function to create an occlusion material with default settings.
+/// Helper function to create an occlusion material with specified technique.
 ///
 /// This creates an ExtendedMaterial combining StandardMaterial (for PBR/shadows)
 /// with OcclusionExtension (for transparency).
 ///
 /// Use this when spawning voxel chunks:
 /// ```rust,ignore
-/// let material_handle = create_occlusion_material(&mut materials);
+/// let material_handle = create_occlusion_material(&mut materials, TransparencyTechnique::AlphaBlend);
 /// commands.insert_resource(OcclusionMaterialHandle(material_handle.clone()));
 ///
 /// // Use material_handle for all chunks
@@ -324,13 +357,20 @@ impl Plugin for OcclusionPlugin {
 /// ```
 pub fn create_occlusion_material(
     materials: &mut Assets<OcclusionMaterial>,
+    technique: TransparencyTechnique,
 ) -> Handle<OcclusionMaterial> {
+    let alpha_mode = match technique {
+        TransparencyTechnique::Dithered => AlphaMode::Opaque, // Dithered uses discard, not blending
+        TransparencyTechnique::AlphaBlend => AlphaMode::AlphaToCoverage, // Uses MSAA for smooth transparency without sorting issues
+    };
+
     materials.add(ExtendedMaterial {
         base: StandardMaterial {
             base_color: Color::WHITE,
             perceptual_roughness: 0.9,
             metallic: 0.0,
             reflectance: 0.1,
+            alpha_mode,
             ..default()
         },
         extension: OcclusionExtension::default(),
