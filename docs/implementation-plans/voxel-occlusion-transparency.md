@@ -861,10 +861,10 @@ Render only voxels at or below the player's Y level:
 - [x] Implement `update_occlusion_uniforms` system
 - [x] Create `OcclusionPlugin` for easy integration
 - [x] Register occlusion module in `mod.rs`
-- [ ] Modify chunk spawning to use `OcclusionMaterial`
-- [ ] Store `OcclusionMaterialHandle` as resource
-- [ ] Add `OcclusionPlugin` to app
-- [ ] Add `OcclusionConfig` resource for runtime tweaking
+- [x] Modify chunk spawning to use `OcclusionMaterial`
+- [x] Store `OcclusionMaterialHandle` as resource
+- [x] Add `OcclusionPlugin` to app
+- [x] Add `OcclusionConfig` resource for runtime tweaking
 - [ ] Implement dithered transparency option (Phase 4)
 - [ ] Add debug visualization (F3 toggle)
 - [ ] Test with various map layouts

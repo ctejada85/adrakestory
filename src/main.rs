@@ -6,6 +6,7 @@ mod states;
 mod systems;
 
 use states::GameState;
+use systems::game::occlusion::OcclusionPlugin;
 use systems::game::gamepad::{
     gather_gamepad_input, gather_keyboard_input, handle_gamepad_connections, reset_player_input,
     update_cursor_visibility, ActiveGamepad, GamepadSettings, PlayerInput,
@@ -125,6 +126,8 @@ fn main() {
             }),
             ..default()
         }))
+        // Occlusion transparency system for voxels above the player
+        .add_plugins(OcclusionPlugin)
         .insert_state(initial_state)
         .insert_resource(CommandLineMapPath {
             path: args.map_path,

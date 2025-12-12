@@ -2,6 +2,7 @@
 
 use super::super::character::CharacterModel;
 use super::super::components::{CollisionBox, GameCamera, Npc, Player, SubVoxel, Voxel};
+use super::super::occlusion::{create_occlusion_material, OcclusionMaterial, OcclusionMaterialHandle};
 use super::super::resources::{GameInitialized, SpatialGrid};
 use super::format::{EntityType, MapData, SubVoxelPattern};
 use super::loader::{LoadProgress, LoadedMapData, MapLoadProgress};
@@ -820,7 +821,7 @@ struct ChunkSpawnContext<'w, 's, 'a> {
     commands: Commands<'w, 's>,
     spatial_grid: &'a mut SpatialGrid,
     meshes: &'a mut Assets<Mesh>,
-    chunk_material: Handle<StandardMaterial>,
+    chunk_material: Handle<OcclusionMaterial>,
 }
 
 /// System that spawns a loaded map into the game world.
@@ -836,6 +837,7 @@ pub fn spawn_map_system(
     mut progress: ResMut<MapLoadProgress>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut occlusion_materials: ResMut<Assets<OcclusionMaterial>>,
     asset_server: Res<AssetServer>,
     game_initialized: Option<Res<GameInitialized>>,
 ) {
@@ -854,12 +856,12 @@ pub fn spawn_map_system(
 
     let map = &map_data.map;
 
-    // Create a single material for all chunks (vertex colors provide variation)
-    let chunk_material = materials.add(StandardMaterial {
-        base_color: Color::WHITE,
-        // Use vertex colors for per-voxel coloring
-        ..default()
-    });
+    // Create a single occlusion material for all chunks (vertex colors provide variation)
+    // This material supports per-pixel transparency for voxels above the player
+    let chunk_material = create_occlusion_material(occlusion_materials.as_mut());
+    
+    // Store the material handle for uniform updates by the occlusion system
+    commands.insert_resource(OcclusionMaterialHandle(chunk_material.clone()));
 
     // Stage 4: Spawn voxels using chunk-based meshing (60-90%)
     progress.update(LoadProgress::SpawningVoxels(0.0));
