@@ -3,6 +3,10 @@
 //! This shader calculates per-pixel transparency based on the fragment's
 //! position relative to the player and camera, making voxels above the
 //! player transparent so the player remains visible.
+//!
+//! Supports two transparency modes:
+//! - Alpha blending (smooth but has sorting issues)
+//! - Dithered transparency (no sorting, retro look)
 
 #import bevy_pbr::{
     mesh_functions,
@@ -38,6 +42,15 @@ var<uniform> base_color: vec4<f32>;
 
 @group(2) @binding(100)
 var<uniform> occlusion: OcclusionUniforms;
+
+// Bayer matrix for 4x4 ordered dithering
+// This creates a screen-door transparency effect without alpha blending
+const BAYER_MATRIX: array<f32, 16> = array<f32, 16>(
+     0.0/16.0,  8.0/16.0,  2.0/16.0, 10.0/16.0,
+    12.0/16.0,  4.0/16.0, 14.0/16.0,  6.0/16.0,
+     3.0/16.0, 11.0/16.0,  1.0/16.0,  9.0/16.0,
+    15.0/16.0,  7.0/16.0, 13.0/16.0,  5.0/16.0
+);
 
 // Vertex output structure
 struct VertexOutput {
