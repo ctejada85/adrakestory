@@ -63,6 +63,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Parameters persist during the editing session
   - Switching back to a tool restores its previous settings
 
+- **Map Editor - Global Keyboard Shortcuts**: Implemented standard keyboard shortcuts for common operations
+  - `Ctrl+S` - Save current map
+  - `Ctrl+Shift+S` - Save As (new file location)
+  - `Ctrl+O` - Open map file
+  - `Ctrl+N` - New map
+  - `Ctrl+Z` - Undo last action
+  - `Ctrl+Y` or `Ctrl+Shift+Z` - Redo last undone action
+  - Shortcuts work globally (not just in menus)
+  - Menu items now display their keyboard shortcuts
+
+- **Map Editor - Functional Undo/Redo System**: Undo and Redo operations are now fully functional
+  - Supports voxel placement and removal
+  - Supports entity placement, removal, and modification
+  - Supports metadata changes
+  - Supports batch operations (multiple actions as one undo step)
+  - Works via keyboard shortcuts (`Ctrl+Z`/`Ctrl+Y`) and menu buttons
+
 ### Fixed
 - **Map Editor - Panel Overlay Positioning**: Floating overlays (camera controls, tool options) now position relative to side panels instead of screen edges
   - Overlays dynamically adjust when panels are resized

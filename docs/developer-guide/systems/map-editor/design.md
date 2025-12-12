@@ -16,21 +16,28 @@ adrakestory/
 │   └── editor/
 │       ├── mod.rs                  # Editor module exports
 │       ├── state.rs                # Editor state management
+│       ├── cursor.rs               # Cursor ray casting and keyboard navigation
+│       ├── file_io.rs              # Save/load file operations
+│       ├── shortcuts.rs            # Global keyboard shortcuts (Ctrl+S, Ctrl+Z, etc.)
+│       ├── play.rs                 # Play/test map functionality
+│       ├── recent_files.rs         # Recent files tracking
 │       ├── ui/
 │       │   ├── mod.rs
 │       │   ├── toolbar.rs          # Top toolbar UI
 │       │   ├── properties.rs       # Right properties panel
 │       │   ├── viewport.rs         # 3D viewport controls
+│       │   ├── outliner.rs         # Left outliner panel
 │       │   └── dialogs.rs          # File dialogs, confirmations
 │       ├── tools/
 │       │   ├── mod.rs
+│       │   ├── input.rs            # Unified keyboard input handling
 │       │   ├── voxel_tool.rs       # Voxel placement/removal
 │       │   ├── entity_tool.rs      # Entity placement
 │       │   └── selection_tool.rs   # Selection and manipulation
 │       ├── camera.rs               # Editor camera controls
 │       ├── grid.rs                 # Grid visualization
-│       ├── history.rs              # Undo/redo system
-│       └── validation.rs           # Real-time validation
+│       ├── history.rs              # Undo/redo history tracking
+│       └── renderer.rs             # Map rendering with optimizations
 ```
 
 ### Technology Stack
@@ -188,13 +195,30 @@ pub enum EditorAction {
 - **Recent Files**: Quick access to recently edited maps
 
 ### 7. Undo/Redo
-- **Action History**: Track all editing operations
-- **Undo**: Ctrl+Z to undo last action
-- **Redo**: Ctrl+Y or Ctrl+Shift+Z to redo
-- **History Limit**: Configurable max history size
-- **Clear History**: Option to clear history
+- **Action History**: Track all editing operations via `EditorHistory` resource
+- **Undo**: `Ctrl+Z` to undo last action (also available in Edit menu)
+- **Redo**: `Ctrl+Y` or `Ctrl+Shift+Z` to redo (also available in Edit menu)
+- **Supported Actions**:
+  - Voxel placement and removal
+  - Entity placement, removal, and modification
+  - Metadata changes
+  - Batch operations (multiple actions as one undo step)
+- **History Limit**: Configurable max history size (default: 100)
+- **Implementation**: `shortcuts.rs` handles keyboard shortcuts, applies inverse actions via `apply_action()` and `apply_action_inverse()`
 
-### 8. Validation
+### 8. Global Keyboard Shortcuts
+- **File Operations**:
+  - `Ctrl+N` - New map
+  - `Ctrl+O` - Open map
+  - `Ctrl+S` - Save map
+  - `Ctrl+Shift+S` - Save As
+- **Edit Operations**:
+  - `Ctrl+Z` - Undo
+  - `Ctrl+Y` / `Ctrl+Shift+Z` - Redo
+- **Implementation**: `shortcuts.rs` module with `handle_global_shortcuts` system
+- **UI Integration**: Menu items display shortcut hints
+
+### 9. Validation
 - **Real-time**: Validate as user edits
 - **Visual Feedback**: Highlight errors in red
 - **Error Panel**: List all validation errors
