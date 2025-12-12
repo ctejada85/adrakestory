@@ -43,7 +43,8 @@ pub struct Player {
     pub speed: f32,
     pub velocity: Vec3,
     pub is_grounded: bool,
-    pub radius: f32,  // Collision sphere radius
+    pub radius: f32,       // Horizontal collision radius (cylinder)
+    pub half_height: f32,  // Vertical half-height (cylinder)
     pub target_rotation: f32,      // Target angle in radians
     pub current_rotation: f32,     // Current angle in radians
     pub start_rotation: f32,       // Angle when rotation started
@@ -53,6 +54,7 @@ pub struct Player {
 ```
 
 Handles physics, movement, and rotation data, independent of visual representation.
+The collision shape is a **cylinder** with horizontal `radius` and vertical `half_height`.
 
 ## Model Loading
 
@@ -76,7 +78,8 @@ let player_entity = commands.spawn((
         speed: 3.0,
         velocity: Vec3::ZERO,
         is_grounded: true,
-        radius: 0.3,
+        radius: 0.2,       // Horizontal cylinder radius
+        half_height: 0.4,  // Vertical half-height (total height = 0.8)
         target_rotation: 0.0,
         current_rotation: 0.0,
         start_rotation: 0.0,

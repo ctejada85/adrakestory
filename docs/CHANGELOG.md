@@ -80,6 +80,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports batch operations (multiple actions as one undo step)
   - Works via keyboard shortcuts (`Ctrl+Z`/`Ctrl+Y`) and menu buttons
 
+### Changed
+- **Player Collision Shape**: Changed from sphere to cylinder collider
+  - `radius` (0.2) controls horizontal collision (XZ plane)
+  - `half_height` (0.4) controls vertical extent (total height 0.8)
+  - More accurate collision for humanoid characters
+  - Debug collision box (toggle with 'C' key) now displays cylinder shape
+  - Fixed corner-landing exploit where players could land on voxel corners
+
 ### Fixed
 - **Map Editor - Panel Overlay Positioning**: Floating overlays (camera controls, tool options) now position relative to side panels instead of screen edges
   - Overlays dynamically adjust when panels are resized

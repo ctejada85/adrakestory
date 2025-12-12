@@ -203,11 +203,12 @@ pub struct Player {
     pub speed: f32,          // Movement speed
     pub velocity: Vec3,      // Current velocity
     pub is_grounded: bool,   // On ground?
-    pub radius: f32,         // Collision radius (0.3)
+    pub radius: f32,         // Horizontal collision radius (0.2)
+    pub half_height: f32,    // Vertical half-height (0.4)
 }
 ```
 
-**Purpose**: Represents the player character with physics state. The visual representation is handled separately by the [`CharacterModel`](#charactermodel-component) component.
+**Purpose**: Represents the player character with physics state. Uses a **cylinder collider** with horizontal `radius` and vertical `half_height` for collision detection. The visual representation is handled separately by the [`CharacterModel`](#charactermodel-component) component.
 
 ### CharacterModel Component
 
@@ -262,7 +263,7 @@ pub struct GameCamera {
 pub struct CollisionBox;
 ```
 
-**Purpose**: Debug visualization for collision boundaries.
+**Purpose**: Debug visualization for collision boundaries. Displays a cylinder mesh matching the player's collision shape when toggled with the 'C' key.
 
 ## Resources
 
