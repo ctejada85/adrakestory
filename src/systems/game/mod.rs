@@ -11,5 +11,6 @@ mod character_rotation;
 mod collision;
 mod input;
 pub mod map;
+pub mod occlusion;
 mod physics;
 mod player_movement;

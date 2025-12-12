@@ -855,14 +855,14 @@ Render only voxels at or below the player's Y level:
 
 ## Checklist
 
-- [ ] Create shader file `assets/shaders/occlusion_material.wgsl`
-- [ ] Create `OcclusionMaterial` custom material type
-- [ ] Create `OcclusionUniforms` struct for shader data
-- [ ] Implement `update_occlusion_uniforms` system
-- [ ] Create `OcclusionPlugin` for easy integration
+- [x] Create shader file `assets/shaders/occlusion_material.wgsl`
+- [x] Create `OcclusionMaterial` custom material type
+- [x] Create `OcclusionUniforms` struct for shader data
+- [x] Implement `update_occlusion_uniforms` system
+- [x] Create `OcclusionPlugin` for easy integration
+- [x] Register occlusion module in `mod.rs`
 - [ ] Modify chunk spawning to use `OcclusionMaterial`
 - [ ] Store `OcclusionMaterialHandle` as resource
-- [ ] Register occlusion module in `mod.rs`
 - [ ] Add `OcclusionPlugin` to app
 - [ ] Add `OcclusionConfig` resource for runtime tweaking
 - [ ] Implement dithered transparency option (Phase 4)
