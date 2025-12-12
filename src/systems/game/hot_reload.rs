@@ -172,14 +172,18 @@ pub struct MapReloadedEvent {
     pub message: String,
 }
 
-/// Resource to store player state during reload
-/// This allows restoring the player to their previous position and rotation after map respawn
+/// Resource to store player and camera state during reload
+/// This allows restoring the player and camera to their previous state after map respawn
 #[derive(Resource)]
 pub struct PendingPlayerState {
     /// Player's position before reload
     pub position: Option<Vec3>,
     /// Player's rotation values before reload (target_rotation, current_rotation)
     pub rotation: Option<(f32, f32)>,
+    /// Camera's transform before reload
+    pub camera_transform: Option<Transform>,
+    /// Camera's target_position before reload
+    pub camera_target_position: Option<Vec3>,
 }
 
 /// System to poll for file changes and trigger reload events
@@ -259,6 +263,8 @@ pub fn handle_map_reload(
     mut progress: ResMut<MapLoadProgress>,
     // Query for player state to preserve (position and rotation)
     player_query: Query<(&Transform, &Player)>,
+    // Query for camera state to preserve
+    camera_state_query: Query<(&Transform, &GameCamera)>,
     // Entities to despawn during reload
     chunks_query: Query<Entity, With<VoxelChunk>>,
     player_entities: Query<Entity, With<Player>>,
@@ -276,6 +282,16 @@ pub fn handle_map_reload(
             .ok()
             .map(|(t, p)| (t.translation, p.target_rotation, p.current_rotation));
         info!("Hot reload: saving player state {:?}", player_state);
+
+        // Store camera state before despawning
+        let camera_state = camera_state_query
+            .get_single()
+            .ok()
+            .map(|(t, c)| (*t, c.target_position));
+        info!(
+            "Hot reload: saving camera state {:?}",
+            camera_state.as_ref().map(|(t, _)| t.translation)
+        );
 
         // Try to load the new map
         progress.clear();
@@ -331,7 +347,18 @@ pub fn handle_map_reload(
                     } else {
                         (None, None)
                     };
-                commands.insert_resource(PendingPlayerState { position, rotation });
+                let (camera_transform, camera_target_position) =
+                    if let Some((transform, target_pos)) = camera_state {
+                        (Some(transform), Some(target_pos))
+                    } else {
+                        (None, None)
+                    };
+                commands.insert_resource(PendingPlayerState {
+                    position,
+                    rotation,
+                    camera_transform,
+                    camera_target_position,
+                });
 
                 reloaded_events.send(MapReloadedEvent {
                     success: true,
@@ -387,6 +414,7 @@ pub fn restore_player_position(
     mut commands: Commands,
     pending_state: Option<Res<PendingPlayerState>>,
     mut player_query: Query<(&mut Transform, &mut Player)>,
+    mut camera_query: Query<(&mut Transform, &mut GameCamera), Without<Player>>,
 ) {
     if let Some(pending) = pending_state {
         if let Ok((mut transform, mut player)) = player_query.get_single_mut() {
@@ -404,6 +432,25 @@ pub fn restore_player_position(
                 player.rotation_elapsed = player.rotation_duration; // Mark rotation as complete
             }
         }
+
+        // Restore camera state
+        if let Ok((mut cam_transform, mut game_camera)) = camera_query.get_single_mut() {
+            if let Some(saved_transform) = pending.camera_transform {
+                info!(
+                    "Hot reload: restoring camera position to {:?}",
+                    saved_transform.translation
+                );
+                *cam_transform = saved_transform;
+            }
+            if let Some(saved_target_pos) = pending.camera_target_position {
+                info!(
+                    "Hot reload: restoring camera target_position to {:?}",
+                    saved_target_pos
+                );
+                game_camera.target_position = saved_target_pos;
+            }
+        }
+
         // Clean up the pending state resource
         commands.remove_resource::<PendingPlayerState>();
     }
