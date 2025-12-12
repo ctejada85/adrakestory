@@ -131,8 +131,13 @@ fn calculate_occlusion_alpha(world_pos: vec3<f32>) -> f32 {
         return 1.0;
     }
     
-    // Smooth falloff based on distance from ray center
-    let distance_factor = horizontal_distance / occlusion.occlusion_radius;
+    // Smooth falloff based on distance from ray center (soft edges)
+    let edge_softness = 0.5;
+    let soft_distance = smoothstep(
+        occlusion.occlusion_radius - edge_softness,
+        occlusion.occlusion_radius,
+        horizontal_distance
+    );
     
     // Smooth falloff based on height above threshold
     let height_factor = smoothstep(
@@ -142,8 +147,18 @@ fn calculate_occlusion_alpha(world_pos: vec3<f32>) -> f32 {
     );
     
     // Combine factors: closer to ray and higher above player = more transparent
-    let base_alpha = mix(occlusion.min_alpha, 1.0, distance_factor);
+    let base_alpha = mix(occlusion.min_alpha, 1.0, soft_distance);
     return mix(1.0, base_alpha, height_factor);
+}
+
+// Check if fragment should be discarded based on dithering pattern
+// Returns true if the fragment should be visible
+fn dither_check(screen_pos: vec2<f32>, alpha: f32) -> bool {
+    let x = u32(screen_pos.x) % 4u;
+    let y = u32(screen_pos.y) % 4u;
+    let index = y * 4u + x;
+    let threshold = BAYER_MATRIX[index];
+    return alpha > threshold;
 }
 
 @fragment
@@ -174,5 +189,15 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         discard;
     }
     
+    // Use dithered transparency for semi-transparent fragments
+    // This avoids alpha blending sorting issues
+#ifdef DITHER_TRANSPARENCY
+    if !dither_check(in.clip_position.xy, final_alpha) {
+        discard;
+    }
+    return vec4<f32>(lit_color, 1.0);
+#else
+    // Standard alpha blending
     return vec4<f32>(lit_color, final_alpha);
+#endif
 }
