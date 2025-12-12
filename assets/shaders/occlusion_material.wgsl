@@ -1,21 +1,29 @@
 //! Occlusion transparency shader for voxel chunks.
 //!
-//! This shader calculates per-pixel transparency based on the fragment's
-//! position relative to the player and camera, making voxels above the
-//! player transparent so the player remains visible.
+//! This shader extends StandardMaterial to add per-pixel occlusion transparency
+//! based on the fragment's position relative to the player and camera.
+//! Voxels above the player become transparent so the player remains visible.
 //!
-//! Uses Bevy's PBR lighting for proper shading.
+//! Uses pbr_input_from_standard_material for proper PBR lighting with shadows.
 
 #import bevy_pbr::{
-    forward_io::VertexOutput,
-    mesh_view_bindings::view,
-    pbr_types::{PbrInput, pbr_input_new, STANDARD_MATERIAL_FLAGS_DOUBLE_SIDED_BIT},
-    pbr_functions::{apply_pbr_lighting, main_pass_post_lighting_processing, calculate_view, prepare_world_normal},
-    lighting,
-    shadows,
+    pbr_fragment::pbr_input_from_standard_material,
+    pbr_functions::alpha_discard,
 }
 
-// Custom uniforms for occlusion
+#ifdef PREPASS_PIPELINE
+#import bevy_pbr::{
+    prepass_io::{VertexOutput, FragmentOutput},
+    pbr_deferred_functions::deferred_output,
+}
+#else
+#import bevy_pbr::{
+    forward_io::{VertexOutput, FragmentOutput},
+    pbr_functions::{apply_pbr_lighting, main_pass_post_lighting_processing},
+}
+#endif
+
+// Custom uniforms for occlusion (binding 100 to avoid conflict with StandardMaterial)
 struct OcclusionUniforms {
     player_position: vec3<f32>,
     _padding1: f32,
@@ -26,9 +34,6 @@ struct OcclusionUniforms {
     height_threshold: f32,
     falloff_softness: f32,
 }
-
-@group(2) @binding(0)
-var<uniform> base_color: vec4<f32>;
 
 @group(2) @binding(100)
 var<uniform> occlusion: OcclusionUniforms;
@@ -120,20 +125,15 @@ fn dither_check(screen_pos: vec2<f32>, alpha: f32) -> bool {
 fn fragment(
     in: VertexOutput,
     @builtin(front_facing) is_front: bool,
-) -> @location(0) vec4<f32> {
-    // Get base color from vertex colors (set by Bevy when mesh has ATTRIBUTE_COLOR)
-#ifdef VERTEX_COLORS
-    var color = in.color;
-#else
-    // Fallback to uniform base_color if no vertex colors
-    var color = base_color;
-#endif
+) -> FragmentOutput {
+    // Generate PbrInput from StandardMaterial bindings (includes all shadow data)
+    var pbr_input = pbr_input_from_standard_material(in, is_front);
     
     // Calculate occlusion alpha using world position
     let occlusion_alpha = calculate_occlusion_alpha(in.world_position.xyz);
     
-    // Apply occlusion transparency
-    let final_alpha = color.a * occlusion_alpha;
+    // Apply occlusion transparency to base color alpha
+    let final_alpha = pbr_input.material.base_color.a * occlusion_alpha;
     
     // Discard fully transparent fragments
     if final_alpha < 0.01 {
@@ -141,45 +141,23 @@ fn fragment(
     }
     
     // Use dithered transparency to avoid alpha sorting issues
-    // This creates a screen-door effect but eliminates flickering
     if !dither_check(in.position.xy, final_alpha) {
         discard;
     }
     
-    // Setup PBR input for proper lighting with shadows
-    var pbr_input = pbr_input_new();
-    
-    // Set material properties for a matte/diffuse look (like voxels)
-    pbr_input.material.base_color = color;
-    pbr_input.material.perceptual_roughness = 0.9;
-    pbr_input.material.metallic = 0.0;
-    pbr_input.material.reflectance = 0.1;
-    pbr_input.material.flags = 0u; // No special flags needed
-    
-    // Set geometry - world_position needs proper W for shadow calculations
-    pbr_input.frag_coord = in.position;
-    pbr_input.world_position = in.world_position;
-    
-    // Prepare world normal (handles double-sided if needed)
-    var world_normal = normalize(in.world_normal);
-    if !is_front {
-        world_normal = -world_normal;
-    }
-    pbr_input.world_normal = world_normal;
-    pbr_input.N = world_normal;
-    
-    // View calculations
-    pbr_input.is_orthographic = view.clip_from_view[3].w == 1.0;
-    pbr_input.V = calculate_view(in.world_position, pbr_input.is_orthographic);
-    
-    // NdotV for lighting calculations
-    pbr_input.material.flags = select(0u, STANDARD_MATERIAL_FLAGS_DOUBLE_SIDED_BIT, !is_front);
-    
-    // Apply Bevy's PBR lighting (includes shadows, ambient, etc.)
-    var out_color = apply_pbr_lighting(pbr_input);
-    
-    // Post-processing (tonemapping, etc.)
-    out_color = main_pass_post_lighting_processing(pbr_input, out_color);
-    
-    return out_color;
+    // Standard alpha discard from material settings
+    pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);
+
+#ifdef PREPASS_PIPELINE
+    // In deferred mode, output deferred data
+    let out = deferred_output(in, pbr_input);
+#else
+    var out: FragmentOutput;
+    // Apply PBR lighting (includes shadows, ambient, etc.)
+    out.color = apply_pbr_lighting(pbr_input);
+    // Post-processing (fog, tonemapping, etc.)
+    out.color = main_pass_post_lighting_processing(pbr_input, out.color);
+#endif
+
+    return out;
 }

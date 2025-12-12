@@ -1,13 +1,16 @@
-//! Voxel occlusion transparency system using custom shaders.
+//! Voxel occlusion transparency system using extended materials.
 //!
-//! This module provides a custom material that makes voxels transparent
+//! This module provides an extension to StandardMaterial that makes voxels transparent
 //! when they block the camera's view of the player character. The transparency
 //! is calculated per-pixel in the fragment shader for smooth, high-quality results.
+//!
+//! Uses Bevy's ExtendedMaterial to inherit all StandardMaterial features (PBR, shadows, etc.)
+//! while adding custom occlusion transparency.
 //!
 //! ## Usage
 //!
 //! 1. Add `OcclusionPlugin` to your app
-//! 2. Use `OcclusionMaterial` instead of `StandardMaterial` for voxel chunks
+//! 2. Use `OcclusionMaterial` (ExtendedMaterial<StandardMaterial, OcclusionExtension>) for voxel chunks
 //! 3. Store the material handle in `OcclusionMaterialHandle` resource
 //! 4. The system automatically updates uniforms each frame
 //!
@@ -20,37 +23,43 @@
 //! - `falloff_softness`: Smoothness of the vertical transition
 
 use bevy::{
-    pbr::{MaterialPipeline, MaterialPipelineKey},
+    pbr::{ExtendedMaterial, MaterialExtension},
     prelude::*,
-    render::{
-        mesh::MeshVertexBufferLayoutRef,
-        render_resource::{
-            AsBindGroup, RenderPipelineDescriptor, ShaderRef, ShaderType,
-            SpecializedMeshPipelineError,
-        },
-    },
+    render::render_resource::{AsBindGroup, ShaderRef, ShaderType},
 };
 
 use super::components::{GameCamera, Player};
 
-/// Custom material for voxel occlusion transparency.
-///
-/// This material calculates per-pixel transparency based on the fragment's
-/// position relative to the player and camera. All chunks can share a single
-/// instance of this material, maintaining GPU instancing efficiency.
-#[derive(Asset, TypePath, AsBindGroup, Clone, Debug)]
-pub struct OcclusionMaterial {
-    /// Base color multiplier (typically white, actual colors come from vertex colors)
-    #[uniform(0)]
-    pub base_color: LinearRgba,
+/// Type alias for our extended occlusion material
+pub type OcclusionMaterial = ExtendedMaterial<StandardMaterial, OcclusionExtension>;
 
+/// Extension to StandardMaterial that adds occlusion transparency.
+///
+/// This extension provides the occlusion uniforms and overrides the fragment shader
+/// to add dithered transparency based on player/camera positions.
+#[derive(Asset, AsBindGroup, TypePath, Clone, Debug)]
+pub struct OcclusionExtension {
     /// Occlusion parameters passed to the shader
     #[uniform(100)]
     pub occlusion_uniforms: OcclusionUniforms,
+}
 
-    /// Whether to use dithered transparency instead of alpha blending
-    /// Dithered transparency avoids sorting issues but has a "screen door" look
-    pub use_dithering: bool,
+impl Default for OcclusionExtension {
+    fn default() -> Self {
+        Self {
+            occlusion_uniforms: OcclusionUniforms::default(),
+        }
+    }
+}
+
+impl MaterialExtension for OcclusionExtension {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/occlusion_material.wgsl".into()
+    }
+
+    fn deferred_fragment_shader() -> ShaderRef {
+        "shaders/occlusion_material.wgsl".into()
+    }
 }
 
 /// Uniform buffer for occlusion parameters.
@@ -89,48 +98,6 @@ impl Default for OcclusionUniforms {
             height_threshold: 0.5,
             falloff_softness: 2.0,
         }
-    }
-}
-
-impl Default for OcclusionMaterial {
-    fn default() -> Self {
-        Self {
-            base_color: LinearRgba::WHITE,
-            occlusion_uniforms: OcclusionUniforms::default(),
-            use_dithering: false,
-        }
-    }
-}
-
-impl Material for OcclusionMaterial {
-    fn fragment_shader() -> ShaderRef {
-        "shaders/occlusion_material.wgsl".into()
-    }
-
-    // Use Bevy's default vertex shader which properly handles VERTEX_COLORS
-    // and other mesh attributes automatically
-
-    fn alpha_mode(&self) -> AlphaMode {
-        // Always use Opaque since we handle transparency via dithered discard
-        // This avoids alpha blending sorting issues and flickering
-        AlphaMode::Opaque
-    }
-
-    fn specialize(
-        _pipeline: &MaterialPipeline<Self>,
-        descriptor: &mut RenderPipelineDescriptor,
-        layout: &MeshVertexBufferLayoutRef,
-        _key: MaterialPipelineKey<Self>,
-    ) -> Result<(), SpecializedMeshPipelineError> {
-        // Enable VERTEX_COLORS shader def if the mesh has vertex colors
-        if layout.0.contains(Mesh::ATTRIBUTE_COLOR) {
-            if let Some(fragment) = descriptor.fragment.as_mut() {
-                fragment
-                    .shader_defs
-                    .push("VERTEX_COLORS".to_string().into());
-            }
-        }
-        Ok(())
     }
 }
 
@@ -218,9 +185,9 @@ pub fn update_occlusion_uniforms(
         .map(|t| t.translation)
         .unwrap_or(Vec3::ZERO);
 
-    // Update the material's uniform buffer
+    // Update the material's uniform buffer (accessing the extension part)
     if let Some(material) = materials.get_mut(&material_handle.0) {
-        material.occlusion_uniforms = OcclusionUniforms {
+        material.extension.occlusion_uniforms = OcclusionUniforms {
             player_position: player_pos,
             _padding1: 0.0,
             camera_position: camera_pos,
@@ -340,6 +307,9 @@ impl Plugin for OcclusionPlugin {
 
 /// Helper function to create an occlusion material with default settings.
 ///
+/// This creates an ExtendedMaterial combining StandardMaterial (for PBR/shadows)
+/// with OcclusionExtension (for transparency).
+///
 /// Use this when spawning voxel chunks:
 /// ```rust,ignore
 /// let material_handle = create_occlusion_material(&mut materials);
@@ -355,5 +325,14 @@ impl Plugin for OcclusionPlugin {
 pub fn create_occlusion_material(
     materials: &mut Assets<OcclusionMaterial>,
 ) -> Handle<OcclusionMaterial> {
-    materials.add(OcclusionMaterial::default())
+    materials.add(ExtendedMaterial {
+        base: StandardMaterial {
+            base_color: Color::WHITE,
+            perceptual_roughness: 0.9,
+            metallic: 0.0,
+            reflectance: 0.1,
+            ..default()
+        },
+        extension: OcclusionExtension::default(),
+    })
 }
