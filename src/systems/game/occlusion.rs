@@ -134,7 +134,7 @@ pub struct OcclusionConfig {
 impl Default for OcclusionConfig {
     fn default() -> Self {
         Self {
-            min_alpha: 0.15,
+            min_alpha: 0.03, // Very transparent - barely noticeable
             occlusion_radius: 3.0,
             height_threshold: 0.5,
             falloff_softness: 2.0,
