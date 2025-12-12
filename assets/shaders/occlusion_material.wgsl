@@ -4,11 +4,13 @@
 //! position relative to the player and camera, making voxels above the
 //! player transparent so the player remains visible.
 //!
-//! Uses Bevy's forward_io for proper vertex attribute handling.
+//! Uses Bevy's PBR lighting for proper shading.
 
 #import bevy_pbr::{
     forward_io::VertexOutput,
     mesh_view_bindings::view,
+    pbr_types::{PbrInput, pbr_input_new},
+    pbr_functions::{apply_pbr_lighting, main_pass_post_lighting_processing, calculate_view},
 }
 
 // Custom uniforms for occlusion
@@ -113,7 +115,10 @@ fn dither_check(screen_pos: vec2<f32>, alpha: f32) -> bool {
 }
 
 @fragment
-fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fragment(
+    in: VertexOutput,
+    @builtin(front_facing) is_front: bool,
+) -> @location(0) vec4<f32> {
     // Get base color from vertex colors (set by Bevy when mesh has ATTRIBUTE_COLOR)
 #ifdef VERTEX_COLORS
     var color = in.color;
@@ -139,6 +144,31 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         discard;
     }
     
-    // Output the vertex color directly (no custom lighting - use scene lights)
-    return vec4<f32>(color.rgb, 1.0);
+    // Setup PBR input for proper lighting
+    var pbr_input = pbr_input_new();
+    
+    // Set material properties for a matte/diffuse look (like voxels)
+    pbr_input.material.base_color = color;
+    pbr_input.material.perceptual_roughness = 0.9;
+    pbr_input.material.metallic = 0.0;
+    pbr_input.material.reflectance = 0.1;
+    
+    // Set geometry
+    pbr_input.frag_coord = in.position;
+    pbr_input.world_position = in.world_position;
+    pbr_input.world_normal = normalize(in.world_normal);
+    pbr_input.N = pbr_input.world_normal;
+    pbr_input.is_orthographic = view.clip_from_view[3].w == 1.0;
+    pbr_input.V = calculate_view(in.world_position, pbr_input.is_orthographic);
+    
+    // Set front-facing flag
+    pbr_input.flags = select(0u, 1u, is_front);
+    
+    // Apply Bevy's PBR lighting (includes shadows, ambient, etc.)
+    var out_color = apply_pbr_lighting(pbr_input);
+    
+    // Post-processing (tonemapping, etc.)
+    out_color = main_pass_post_lighting_processing(pbr_input, out_color);
+    
+    return out_color;
 }
