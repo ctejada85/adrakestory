@@ -64,6 +64,118 @@ This shared material approach conflicts with per-chunk transparency. We need to 
 
 ---
 
+## Approach Comparison: Per-Chunk Materials vs Shader-Based Occlusion
+
+### Per-Chunk Materials
+
+Each chunk gets its own `StandardMaterial` instance, allowing individual alpha control through Bevy's built-in material system.
+
+| Aspect | Details |
+|--------|---------|
+| **Implementation** | Clone base material per chunk, update `base_color.alpha` at runtime |
+| **Complexity** | Low - Uses existing Bevy APIs |
+| **Memory** | ~64-128 bytes per material × chunk count |
+| **CPU Cost** | O(n) material updates per frame for changing chunks |
+| **GPU Cost** | Breaks GPU instancing - each chunk is a separate draw call |
+
+#### Pros
+- ✅ **Simple implementation** - No custom shaders, uses Bevy's `StandardMaterial`
+- ✅ **Easy to debug** - Can inspect material alpha in Bevy's inspector
+- ✅ **Flexible** - Can apply different effects per chunk (tint, emission, etc.)
+- ✅ **Predictable behavior** - Well-documented Bevy material system
+- ✅ **Quick iteration** - Fast to implement and modify
+
+#### Cons
+- ❌ **Breaks GPU batching** - Each chunk becomes a separate draw call
+- ❌ **Memory overhead** - Duplicates material data for each chunk
+- ❌ **Chunk-granularity only** - Cannot fade individual voxels within a chunk
+- ❌ **CPU overhead** - Must update material assets each frame for transitions
+- ❌ **Sorting issues** - Transparent materials require depth sorting
+
+---
+
+### Shader-Based Occlusion
+
+A custom shader receives player/camera positions as uniforms and calculates per-pixel transparency in the fragment shader.
+
+| Aspect | Details |
+|--------|---------|
+| **Implementation** | Custom WGSL shader extending Bevy's PBR pipeline |
+| **Complexity** | High - Requires shader programming and pipeline knowledge |
+| **Memory** | Minimal - Single material with uniform buffer |
+| **CPU Cost** | O(1) - Just update uniform buffer once per frame |
+| **GPU Cost** | Small per-fragment cost, but maintains instancing |
+
+#### Pros
+- ✅ **Single material** - All chunks share one material, enables GPU instancing
+- ✅ **Per-pixel precision** - Smooth gradients, not limited to chunk boundaries
+- ✅ **Minimal CPU overhead** - Only update uniforms, no material mutations
+- ✅ **Better scaling** - Performance independent of chunk count
+- ✅ **Advanced effects** - Can implement soft edges, distance falloff, dithering
+- ✅ **No sorting issues** - Can use alpha-to-coverage or dithering to avoid transparency sorting
+
+#### Cons
+- ❌ **Complex implementation** - Requires WGSL shader knowledge
+- ❌ **Bevy PBR integration** - Must extend/replace standard material shader
+- ❌ **Harder to debug** - Shader debugging is more difficult
+- ❌ **Maintenance burden** - Custom shaders may break with Bevy updates
+- ❌ **Initial development time** - Higher upfront cost
+
+---
+
+### Head-to-Head Comparison
+
+| Factor | Per-Chunk Materials | Shader-Based | Winner |
+|--------|---------------------|--------------|--------|
+| **Implementation Time** | 1-2 days | 3-5 days | Per-Chunk |
+| **Long-term Maintenance** | Low | Medium | Per-Chunk |
+| **Performance (small maps)** | Good | Good | Tie |
+| **Performance (large maps)** | Degrades | Constant | **Shader** |
+| **Visual Quality** | Chunk-level | Pixel-level | **Shader** |
+| **Memory Efficiency** | Poor | Excellent | **Shader** |
+| **Draw Call Efficiency** | Poor (breaks batching) | Excellent | **Shader** |
+| **Bevy Compatibility** | Native | Custom | Per-Chunk |
+| **Future Extensibility** | Limited | High | **Shader** |
+
+---
+
+### Recommendation
+
+| Scenario | Recommended Approach |
+|----------|---------------------|
+| **Prototype / MVP** | Per-Chunk Materials |
+| **Small maps (<500 chunks)** | Per-Chunk Materials |
+| **Large maps (1000+ chunks)** | Shader-Based |
+| **Performance-critical** | Shader-Based |
+| **Limited shader experience** | Per-Chunk Materials |
+| **Long-term production game** | **Shader-Based** |
+
+### Long-Term Best Choice: **Shader-Based Occlusion**
+
+For a production game with plans to scale, **shader-based occlusion is the better long-term choice** because:
+
+1. **Scalability** - Performance remains constant regardless of chunk count
+2. **Visual Quality** - Per-pixel transparency looks significantly better than chunk-level fading
+3. **GPU Efficiency** - Maintains instancing, critical for voxel games with many chunks
+4. **Future Features** - Easy to add soft edges, dithering, x-ray effects, etc.
+
+However, **start with per-chunk materials** as an MVP to validate the gameplay feel, then migrate to shader-based once the feature is proven valuable.
+
+### Hybrid Approach (Recommended Path)
+
+1. **Phase 1**: Implement per-chunk materials (1-2 days)
+   - Validate gameplay and visual design
+   - Establish the occlusion detection logic
+   
+2. **Phase 2**: Migrate to shader-based (3-4 days)
+   - Port occlusion logic to WGSL shader
+   - Keep detection system, just change how transparency is applied
+   - Add per-pixel effects (soft edges, dithering)
+
+This approach gives quick results while building toward the optimal solution.
+
+---
+
 ## Proposed Solution: Per-Chunk Material Instances
 
 ### Rationale
