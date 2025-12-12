@@ -79,7 +79,8 @@ enum GameSystemSet {
 }
 use systems::game::hot_reload::{
     handle_map_reload, poll_hot_reload, restore_player_position, setup_hot_reload_on_enter,
-    HotReloadState, MapPathForHotReload, MapReloadEvent, MapReloadedEvent,
+    show_reload_notification, update_reload_notifications, HotReloadState, MapPathForHotReload,
+    MapReloadEvent, MapReloadedEvent,
 };
 use systems::game::map::{
     spawn_map_system, update_chunk_lods, LoadedMapData, MapLoadProgress, MapLoader,
@@ -185,6 +186,9 @@ fn main() {
                 // spawn_map_system runs when GameInitialized is false (set by handle_map_reload)
                 spawn_map_system.after(handle_map_reload),
                 restore_player_position.after(spawn_map_system),
+                // Visual feedback for hot reload
+                show_reload_notification.after(handle_map_reload),
+                update_reload_notifications,
             )
                 .run_if(in_state(GameState::InGame)),
         )
