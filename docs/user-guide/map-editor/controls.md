@@ -97,6 +97,37 @@ Complete reference for all map editor controls and shortcuts.
 | **Keyboard Shortcuts** | `F1` | Help → Keyboard Shortcuts |
 | **About** | - | Help → About |
 
+### Play/Test Controls
+
+| Action | Shortcut | Menu Location |
+|--------|----------|---------------|
+| **Play Map** | `F5` | Run → Play Map |
+| **Stop Game** | `Shift+F5` | Run → Stop Game |
+
+**Testing Your Map:**
+- Press `F5` to launch the game with your current map loaded
+- The map is auto-saved to a temporary file before launching
+- A "▶ Play" button in the toolbar provides the same functionality
+- When game is running, toolbar shows "● Running" and "🔄 Hot Reload Active" indicators
+- Press `Shift+F5` or click "⏹ Stop" to close the running game
+
+### Hot Reload (In-Game)
+
+When testing your map with the Play button, these shortcuts work **inside the running game**:
+
+| Action | Shortcut | Description |
+|--------|----------|-------------|
+| **Manual Reload** | `F5` | Force reload the map from disk |
+| **Manual Reload** | `Ctrl+R` | Alternative reload shortcut |
+| **Toggle Hot Reload** | `Ctrl+H` | Enable/disable automatic reload |
+
+**Hot Reload Features:**
+- When you save your map in the editor (`Ctrl+S`), the game automatically reloads it
+- Player position and rotation are preserved during reload
+- Camera position is preserved (no jarring camera movement)
+- A green "Map reloaded successfully" notification appears in-game
+- Use `Ctrl+H` to temporarily disable auto-reload if needed
+
 ## Tool-Specific Controls
 
 ### Keyboard Cursor Navigation

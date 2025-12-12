@@ -93,6 +93,23 @@ The character model automatically rotates to face the direction you're moving:
 |-----|--------|
 | **C** | Toggle collision box visualization |
 
+### Hot Reload Controls (Play Testing Mode)
+
+When launched via the map editor's Play button (`F5`), additional controls are available:
+
+| Key | Action |
+|-----|--------|
+| **F5** | Manually reload map from disk |
+| **Ctrl+R** | Manually reload map (alternative) |
+| **Ctrl+H** | Toggle automatic hot reload on/off |
+
+**Hot Reload Features:**
+- Map changes saved in the editor are automatically detected and reloaded
+- Player position and rotation are preserved during reload
+- Camera position is preserved (no jarring movement)
+- Green notification confirms successful reload
+- Red notification indicates reload failure (e.g., invalid map file)
+
 **Debug Features:**
 - Green wireframe boxes show collision boundaries
 - Helps understand physics and collision detection
@@ -208,6 +225,11 @@ Future updates may include:
 │  B Button    - Back / Cancel        │
 │  Start       - Pause/Resume         │
 │  D-Pad       - Menu navigation      │
+├─────────────────────────────────────┤
+│     HOT RELOAD (Play Testing)       │
+│  F5       - Manual reload map       │
+│  Ctrl+R   - Manual reload (alt)     │
+│  Ctrl+H   - Toggle auto-reload      │
 └─────────────────────────────────────┘
 ```
 

@@ -170,9 +170,37 @@ When you launch the map editor, it starts with a **blank canvas** - an empty wor
 2. **Use the Grid**: Keep grid visible while learning
 3. **Save Often**: Use `Ctrl+S` frequently - the editor auto-expands dimensions if needed
 4. **Experiment**: Try different voxel types and patterns
-5. **Test in Game**: Load your map in the game to see how it plays
+5. **Test in Game**: Press `F5` to instantly test your map with hot reload support
 6. **Don't Worry About Dimensions**: Place voxels freely - the editor will adjust map size automatically when saving
 7. **Tool Memory**: When you switch tools, your settings (like voxel type or entity type) are remembered - switch back anytime and your previous selection will be restored
+
+## Testing Your Map
+
+The map editor includes a powerful **Play & Test** feature with hot reload support:
+
+### Quick Testing
+
+1. Press `F5` or click the **▶ Play** button in the toolbar
+2. The game launches with your current map loaded
+3. Walk around and test your creation!
+4. Press `Shift+F5` or click **⏹ Stop** to close the game
+
+### Hot Reload Workflow
+
+While the game is running, you can edit and see changes in real-time:
+
+1. Make changes to your map in the editor
+2. Save with `Ctrl+S`
+3. The game automatically detects the change and reloads the map
+4. Your player position, rotation, and camera are preserved!
+
+**Hot Reload Indicators:**
+- **🔄 Hot Reload Active** - Shows in toolbar when game is running
+- **"Map reloaded successfully"** - Green notification appears in-game after reload
+
+**In-Game Controls:**
+- `F5` or `Ctrl+R` - Manually trigger a reload
+- `Ctrl+H` - Toggle hot reload on/off
 
 ## Common Tasks
 
