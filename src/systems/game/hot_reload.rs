@@ -3,6 +3,7 @@
 //! This module provides file system watching to automatically detect
 //! when map files are modified and trigger a reload in the running game.
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::PathBuf;
@@ -254,6 +255,26 @@ pub fn cleanup_hot_reload(mut hot_reload: ResMut<HotReloadState>) {
     hot_reload.stop_watching();
 }
 
+/// Bundle of queries for state to preserve during reload
+#[derive(SystemParam)]
+pub struct ReloadStateQueries<'w, 's> {
+    /// Query for player state to preserve (position and rotation)
+    player: Query<'w, 's, (&'static Transform, &'static Player)>,
+    /// Query for camera state to preserve
+    camera: Query<'w, 's, (&'static Transform, &'static GameCamera)>,
+}
+
+/// Bundle of queries for entities to despawn during reload
+#[derive(SystemParam)]
+pub struct ReloadDespawnQueries<'w, 's> {
+    chunks: Query<'w, 's, Entity, With<VoxelChunk>>,
+    players: Query<'w, 's, Entity, With<Player>>,
+    npcs: Query<'w, 's, Entity, With<Npc>>,
+    subvoxels: Query<'w, 's, Entity, With<SubVoxel>>,
+    directional_lights: Query<'w, 's, Entity, With<DirectionalLight>>,
+    cameras: Query<'w, 's, Entity, With<GameCamera>>,
+}
+
 /// System to handle map reload events
 /// Despawns existing map entities, loads new map data, and triggers respawn
 pub fn handle_map_reload(
@@ -261,30 +282,23 @@ pub fn handle_map_reload(
     mut reload_events: EventReader<MapReloadEvent>,
     mut reloaded_events: EventWriter<MapReloadedEvent>,
     mut progress: ResMut<MapLoadProgress>,
-    // Query for player state to preserve (position and rotation)
-    player_query: Query<(&Transform, &Player)>,
-    // Query for camera state to preserve
-    camera_state_query: Query<(&Transform, &GameCamera)>,
-    // Entities to despawn during reload
-    chunks_query: Query<Entity, With<VoxelChunk>>,
-    player_entities: Query<Entity, With<Player>>,
-    npc_entities: Query<Entity, With<Npc>>,
-    subvoxel_query: Query<Entity, With<SubVoxel>>,
-    directional_lights: Query<Entity, With<DirectionalLight>>,
-    cameras_query: Query<Entity, With<GameCamera>>,
+    state_queries: ReloadStateQueries,
+    despawn_queries: ReloadDespawnQueries,
 ) {
     for event in reload_events.read() {
         info!("Hot reload: reloading map from {:?}", event.path);
 
         // Store player position and rotation before despawning
-        let player_state = player_query
+        let player_state = state_queries
+            .player
             .get_single()
             .ok()
             .map(|(t, p)| (t.translation, p.target_rotation, p.current_rotation));
         info!("Hot reload: saving player state {:?}", player_state);
 
         // Store camera state before despawning
-        let camera_state = camera_state_query
+        let camera_state = state_queries
+            .camera
             .get_single()
             .ok()
             .map(|(t, c)| (*t, c.target_position));
@@ -303,26 +317,26 @@ pub fn handle_map_reload(
                 info!("Hot reload: successfully parsed map, despawning old entities...");
 
                 // Count entities for logging
-                let chunk_count = chunks_query.iter().count();
-                let subvoxel_count = subvoxel_query.iter().count();
+                let chunk_count = despawn_queries.chunks.iter().count();
+                let subvoxel_count = despawn_queries.subvoxels.iter().count();
 
                 // Despawn all existing map entities
-                for entity in chunks_query.iter() {
+                for entity in despawn_queries.chunks.iter() {
                     commands.entity(entity).despawn_recursive();
                 }
-                for entity in player_entities.iter() {
+                for entity in despawn_queries.players.iter() {
                     commands.entity(entity).despawn_recursive();
                 }
-                for entity in npc_entities.iter() {
+                for entity in despawn_queries.npcs.iter() {
                     commands.entity(entity).despawn_recursive();
                 }
-                for entity in subvoxel_query.iter() {
+                for entity in despawn_queries.subvoxels.iter() {
                     commands.entity(entity).despawn_recursive();
                 }
-                for entity in directional_lights.iter() {
+                for entity in despawn_queries.directional_lights.iter() {
                     commands.entity(entity).despawn_recursive();
                 }
-                for entity in cameras_query.iter() {
+                for entity in despawn_queries.cameras.iter() {
                     commands.entity(entity).despawn_recursive();
                 }
 

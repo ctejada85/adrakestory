@@ -8,7 +8,7 @@
     ),
     world: (
         width: 38,
-        height: 4,
+        height: 8,
         depth: 18,
         voxels: [
             (
@@ -1639,6 +1639,54 @@
             ),
             (
                 pos: (6, 1, 11),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (0, 1, 11),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (0, 2, 11),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (0, 3, 11),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (0, 4, 11),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (0, 5, 11),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (0, 6, 11),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (0, 7, 11),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (0, 7, 10),
                 voxel_type: Grass,
                 pattern: Some(Full),
                 rotation_state: None,
