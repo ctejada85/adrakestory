@@ -411,6 +411,15 @@ fn render_play_controls(
                 .color(egui::Color32::from_rgb(100, 200, 100))
                 .small(),
         );
+
+        // Hot reload indicator
+        ui.separator();
+        ui.label(
+            egui::RichText::new("🔄 Hot Reload Active")
+                .color(egui::Color32::from_rgb(100, 180, 100))
+                .small(),
+        )
+        .on_hover_text("Map changes will automatically reload in the running game");
     } else {
         // Show Play button when game is not running
         let play_button = egui::Button::new("▶ Play")
@@ -447,6 +456,35 @@ fn render_run_menu(
                 ui.close_menu();
             }
             ui.add_enabled(false, egui::Button::new("⏹ Stop Game          Shift+F5"));
+        }
+
+        ui.separator();
+
+        // Hot reload info section
+        ui.label(
+            egui::RichText::new("Hot Reload")
+                .small()
+                .color(egui::Color32::GRAY),
+        );
+
+        if play_state.is_running {
+            ui.horizontal(|ui| {
+                ui.label("🔄");
+                ui.label(
+                    egui::RichText::new("Active - saves will auto-reload")
+                        .small()
+                        .color(egui::Color32::from_rgb(100, 180, 100)),
+                );
+            });
+        } else {
+            ui.horizontal(|ui| {
+                ui.label("⏸");
+                ui.label(
+                    egui::RichText::new("Inactive - start game to enable")
+                        .small()
+                        .color(egui::Color32::GRAY),
+                );
+            });
         }
     });
 }
