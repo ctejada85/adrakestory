@@ -8,6 +8,7 @@ use crate::editor::history::{EditorAction, EditorHistory};
 use crate::editor::renderer::RenderMapEvent;
 use crate::editor::state::{EditorState, EditorUIState, PendingAction};
 use crate::editor::ui::dialogs::MapDataChangedEvent;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy_egui::EguiContexts;
 
@@ -18,6 +19,15 @@ pub struct UndoEvent;
 /// Event to request a redo operation
 #[derive(Event)]
 pub struct RedoEvent;
+
+/// Bundle of event writers for shortcut-triggered actions
+#[derive(SystemParam)]
+pub struct ShortcutEvents<'w> {
+    pub save: EventWriter<'w, SaveMapEvent>,
+    pub save_as: EventWriter<'w, SaveMapAsEvent>,
+    pub undo: EventWriter<'w, UndoEvent>,
+    pub redo: EventWriter<'w, RedoEvent>,
+}
 
 /// System to handle global keyboard shortcuts for the editor
 ///
@@ -33,10 +43,7 @@ pub fn handle_global_shortcuts(
     mut contexts: EguiContexts,
     editor_state: Res<EditorState>,
     mut ui_state: ResMut<EditorUIState>,
-    mut save_events: EventWriter<SaveMapEvent>,
-    mut save_as_events: EventWriter<SaveMapAsEvent>,
-    mut undo_events: EventWriter<UndoEvent>,
-    mut redo_events: EventWriter<RedoEvent>,
+    mut events: ShortcutEvents,
 ) {
     // Don't handle shortcuts if egui wants keyboard input (text fields, etc.)
     if contexts.ctx_mut().wants_keyboard_input() {
@@ -56,11 +63,11 @@ pub fn handle_global_shortcuts(
     if keyboard.just_pressed(KeyCode::KeyS) {
         if shift_pressed {
             // Ctrl+Shift+S: Save As
-            save_as_events.send(SaveMapAsEvent);
+            events.save_as.send(SaveMapAsEvent);
             info!("Save As triggered via Ctrl+Shift+S");
         } else {
             // Ctrl+S: Save
-            save_events.send(SaveMapEvent);
+            events.save.send(SaveMapEvent);
             info!("Save triggered via Ctrl+S");
         }
     }
@@ -91,18 +98,18 @@ pub fn handle_global_shortcuts(
     if keyboard.just_pressed(KeyCode::KeyZ) {
         if shift_pressed {
             // Ctrl+Shift+Z: Redo
-            redo_events.send(RedoEvent);
+            events.redo.send(RedoEvent);
             info!("Redo triggered via Ctrl+Shift+Z");
         } else {
             // Ctrl+Z: Undo
-            undo_events.send(UndoEvent);
+            events.undo.send(UndoEvent);
             info!("Undo triggered via Ctrl+Z");
         }
     }
 
     // Ctrl+Y: Redo (alternative)
     if keyboard.just_pressed(KeyCode::KeyY) && !shift_pressed {
-        redo_events.send(RedoEvent);
+        events.redo.send(RedoEvent);
         info!("Redo triggered via Ctrl+Y");
     }
 }
