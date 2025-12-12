@@ -147,7 +147,7 @@ impl Default for OcclusionConfig {
             occlusion_radius: 3.0,
             height_threshold: 0.5,
             falloff_softness: 2.0,
-            enabled: true,
+            enabled: false, // Disabled by default - set to true to enable occlusion transparency
             use_dithering: false,
             show_debug: false,
         }

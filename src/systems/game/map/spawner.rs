@@ -3,7 +3,7 @@
 use super::super::character::CharacterModel;
 use super::super::components::{CollisionBox, GameCamera, Npc, Player, SubVoxel, Voxel};
 use super::super::occlusion::{
-    create_occlusion_material, OcclusionMaterial, OcclusionMaterialHandle,
+    create_occlusion_material, OcclusionConfig, OcclusionMaterial, OcclusionMaterialHandle,
 };
 use super::super::resources::{GameInitialized, SpatialGrid};
 use super::format::{EntityType, MapData, SubVoxelPattern};
@@ -818,12 +818,19 @@ struct EntitySpawnContext<'w, 's, 'a> {
     asset_server: &'a AssetServer,
 }
 
+/// Enum to hold either material type for chunk rendering
+#[derive(Clone)]
+enum ChunkMaterial {
+    Occlusion(Handle<OcclusionMaterial>),
+    Standard(Handle<StandardMaterial>),
+}
+
 /// Context for chunk-based voxel spawning.
 struct ChunkSpawnContext<'w, 's, 'a> {
     commands: Commands<'w, 's>,
     spatial_grid: &'a mut SpatialGrid,
     meshes: &'a mut Assets<Mesh>,
-    chunk_material: Handle<OcclusionMaterial>,
+    chunk_material: ChunkMaterial,
 }
 
 /// System that spawns a loaded map into the game world.
@@ -842,6 +849,7 @@ pub fn spawn_map_system(
     mut occlusion_materials: ResMut<Assets<OcclusionMaterial>>,
     asset_server: Res<AssetServer>,
     game_initialized: Option<Res<GameInitialized>>,
+    occlusion_config: Res<OcclusionConfig>,
 ) {
     // If game is already initialized, don't spawn again
     if let Some(initialized) = game_initialized {
@@ -858,12 +866,24 @@ pub fn spawn_map_system(
 
     let map = &map_data.map;
 
-    // Create a single occlusion material for all chunks (vertex colors provide variation)
-    // This material supports per-pixel transparency for voxels above the player
-    let chunk_material = create_occlusion_material(occlusion_materials.as_mut());
-
-    // Store the material handle for uniform updates by the occlusion system
-    commands.insert_resource(OcclusionMaterialHandle(chunk_material.clone()));
+    // Create material based on occlusion config
+    // When occlusion is disabled, use StandardMaterial for proper PBR lighting
+    let chunk_material = if occlusion_config.enabled {
+        // Occlusion material with custom shader for transparency
+        let occlusion_mat = create_occlusion_material(occlusion_materials.as_mut());
+        commands.insert_resource(OcclusionMaterialHandle(occlusion_mat.clone()));
+        ChunkMaterial::Occlusion(occlusion_mat)
+    } else {
+        // Standard PBR material with vertex colors
+        let standard_mat = materials.add(StandardMaterial {
+            base_color: Color::WHITE,
+            perceptual_roughness: 0.9,
+            metallic: 0.0,
+            reflectance: 0.1,
+            ..default()
+        });
+        ChunkMaterial::Standard(standard_mat)
+    };
 
     // Stage 4: Spawn voxels using chunk-based meshing (60-90%)
     progress.update(LoadProgress::SpawningVoxels(0.0));
@@ -1132,19 +1152,39 @@ fn spawn_voxels_chunked(
             (chunk_pos.z as f32 + 0.5) * CHUNK_SIZE as f32,
         );
 
-        ctx.commands.spawn((
-            Mesh3d(lod_meshes[0].clone()),
-            MeshMaterial3d(ctx.chunk_material.clone()),
-            Transform::default(),
-            VoxelChunk {
-                chunk_pos,
-                center: chunk_center,
-            },
-            ChunkLOD {
-                lod_meshes,
-                current_lod: 0,
-            },
-        ));
+        // Spawn chunk with appropriate material type
+        match &ctx.chunk_material {
+            ChunkMaterial::Occlusion(mat) => {
+                ctx.commands.spawn((
+                    Mesh3d(lod_meshes[0].clone()),
+                    MeshMaterial3d(mat.clone()),
+                    Transform::default(),
+                    VoxelChunk {
+                        chunk_pos,
+                        center: chunk_center,
+                    },
+                    ChunkLOD {
+                        lod_meshes: lod_meshes.clone(),
+                        current_lod: 0,
+                    },
+                ));
+            }
+            ChunkMaterial::Standard(mat) => {
+                ctx.commands.spawn((
+                    Mesh3d(lod_meshes[0].clone()),
+                    MeshMaterial3d(mat.clone()),
+                    Transform::default(),
+                    VoxelChunk {
+                        chunk_pos,
+                        center: chunk_center,
+                    },
+                    ChunkLOD {
+                        lod_meshes,
+                        current_lod: 0,
+                    },
+                ));
+            }
+        }
     }
 
     // Spawn invisible collision entities for the spatial grid
