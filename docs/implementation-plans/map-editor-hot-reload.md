@@ -9,7 +9,7 @@
 | Phase 3 | Editor Integration | ✅ Complete |
 | Phase 4 | Visual Feedback | ✅ Complete |
 | Phase 5 | Manual Reload Hotkey | ✅ Complete |
-| Phase 6 | Settings & Polish | 🔲 Not Started |
+| Phase 6 | Settings & Polish | ✅ Complete |
 
 ## Overview
 

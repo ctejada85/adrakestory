@@ -78,9 +78,10 @@ enum GameSystemSet {
     Camera,
 }
 use systems::game::hot_reload::{
-    handle_map_reload, handle_reload_hotkey, poll_hot_reload, restore_player_position,
-    setup_hot_reload_on_enter, show_reload_notification, update_reload_notifications,
-    HotReloadState, MapPathForHotReload, MapReloadEvent, MapReloadedEvent,
+    cleanup_hot_reload, handle_hot_reload_toggle, handle_map_reload, handle_reload_hotkey,
+    poll_hot_reload, restore_player_position, setup_hot_reload_on_enter, show_reload_notification,
+    update_reload_notifications, HotReloadState, MapPathForHotReload, MapReloadEvent,
+    MapReloadedEvent,
 };
 use systems::game::map::{
     spawn_map_system, update_chunk_lods, LoadedMapData, MapLoadProgress, MapLoader,
@@ -182,7 +183,8 @@ fn main() {
             Update,
             (
                 poll_hot_reload,
-                handle_reload_hotkey, // F5 to manually reload map
+                handle_reload_hotkey,     // F5 or Ctrl+R to manually reload map
+                handle_hot_reload_toggle, // Ctrl+H to toggle hot reload on/off
                 handle_map_reload.after(poll_hot_reload),
                 // spawn_map_system runs when GameInitialized is false (set by handle_map_reload)
                 spawn_map_system.after(handle_map_reload),
@@ -259,6 +261,8 @@ fn main() {
                 .run_if(in_state(GameState::Paused)),
         )
         .add_systems(OnExit(GameState::Paused), pause_menu::cleanup_pause_menu)
+        // Cleanup hot reload when leaving InGame (going to Paused doesn't count as leaving)
+        .add_systems(OnExit(GameState::InGame), cleanup_hot_reload)
         .run();
 }
 

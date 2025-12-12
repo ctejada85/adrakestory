@@ -187,22 +187,62 @@ pub fn poll_hot_reload(
     }
 }
 
-/// System to handle manual reload hotkey (F5 in game)
+/// System to handle manual reload hotkey (F5 or Ctrl+R in game)
 /// Allows the player to manually trigger a map reload while testing
 pub fn handle_reload_hotkey(
     keyboard: Res<ButtonInput<KeyCode>>,
     hot_reload: Res<HotReloadState>,
     mut reload_events: EventWriter<MapReloadEvent>,
 ) {
-    // F5 triggers manual reload (same as editor Play shortcut, but in-game)
-    if keyboard.just_pressed(KeyCode::F5) {
+    // F5 or Ctrl+R triggers manual reload
+    let f5_pressed = keyboard.just_pressed(KeyCode::F5);
+    let ctrl_r_pressed = (keyboard.pressed(KeyCode::ControlLeft)
+        || keyboard.pressed(KeyCode::ControlRight))
+        && keyboard.just_pressed(KeyCode::KeyR);
+
+    if f5_pressed || ctrl_r_pressed {
         if let Some(path) = hot_reload.watched_path() {
-            info!("Manual reload triggered via F5");
+            let key = if f5_pressed { "F5" } else { "Ctrl+R" };
+            info!("Manual reload triggered via {}", key);
             reload_events.send(MapReloadEvent { path: path.clone() });
         } else {
-            info!("F5 pressed but no map is being watched for hot reload");
+            info!("Reload hotkey pressed but no map is being watched for hot reload");
         }
     }
+}
+
+/// System to toggle hot reload on/off with Ctrl+H
+/// Provides a way to temporarily disable automatic reloading
+pub fn handle_hot_reload_toggle(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut hot_reload: ResMut<HotReloadState>,
+    mut reloaded_events: EventWriter<MapReloadedEvent>,
+) {
+    let ctrl_h_pressed = (keyboard.pressed(KeyCode::ControlLeft)
+        || keyboard.pressed(KeyCode::ControlRight))
+        && keyboard.just_pressed(KeyCode::KeyH);
+
+    if ctrl_h_pressed {
+        hot_reload.enabled = !hot_reload.enabled;
+        let status = if hot_reload.enabled {
+            "enabled"
+        } else {
+            "disabled"
+        };
+        info!("Hot reload {}", status);
+
+        // Show notification
+        reloaded_events.send(MapReloadedEvent {
+            success: true,
+            message: format!("Hot reload {}", status),
+        });
+    }
+}
+
+/// System to cleanup hot reload when exiting InGame state
+pub fn cleanup_hot_reload(mut hot_reload: ResMut<HotReloadState>) {
+    info!("Cleaning up hot reload file watcher");
+    hot_reload.stop_watching();
 }
 
 /// System to handle map reload events
