@@ -19,6 +19,7 @@ ron = "0.8"
 thiserror = "1.0"
 rfd = "0.15"
 dirs = "5.0"
+notify = "6.1"
 
 [profile.dev]
 opt-level = 1

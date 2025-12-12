@@ -1,5 +1,6 @@
 pub mod components;
 pub mod gamepad;
+pub mod hot_reload;
 pub mod resources;
 pub mod systems;
 
