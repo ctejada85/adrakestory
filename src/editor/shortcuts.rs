@@ -234,7 +234,7 @@ mod tests {
 
     fn create_test_editor_state() -> EditorState {
         EditorState {
-            current_map: MapData::default(),
+            current_map: MapData::empty_map(),
             ..Default::default()
         }
     }
