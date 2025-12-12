@@ -100,16 +100,13 @@ impl Material for OcclusionMaterial {
         "shaders/occlusion_material.wgsl".into()
     }
 
-    fn vertex_shader() -> ShaderRef {
-        "shaders/occlusion_material.wgsl".into()
-    }
+    // Use Bevy's default vertex shader which properly handles VERTEX_COLORS
+    // and other mesh attributes automatically
 
     fn alpha_mode(&self) -> AlphaMode {
-        if self.use_dithering {
-            AlphaMode::Opaque // Dithering uses discard, not alpha blending
-        } else {
-            AlphaMode::Blend
-        }
+        // Always use Opaque since we handle transparency via dithered discard
+        // This avoids alpha blending sorting issues and flickering
+        AlphaMode::Opaque
     }
 }
 
@@ -167,6 +164,7 @@ pub fn update_occlusion_uniforms(
     player_query: Query<&Transform, With<Player>>,
     material_handle: Option<Res<OcclusionMaterialHandle>>,
     mut materials: ResMut<Assets<OcclusionMaterial>>,
+    mut frame_counter: Local<u32>,
 ) {
     // Skip if disabled
     if !config.enabled {
@@ -175,6 +173,12 @@ pub fn update_occlusion_uniforms(
 
     // Skip if material handle not yet available
     let Some(material_handle) = material_handle else {
+        // Debug: Log when material handle is missing
+        *frame_counter += 1;
+        // Only log every 300 frames (5 seconds at 60fps) since this is expected during loading
+        if *frame_counter % 300 == 0 {
+            info!("[Occlusion] Material handle not available yet (waiting for map to load)");
+        }
         return;
     };
 
@@ -202,6 +206,22 @@ pub fn update_occlusion_uniforms(
             height_threshold: config.height_threshold,
             falloff_softness: config.falloff_softness,
         };
+
+        // Debug: Log uniforms every 120 frames (about 2 seconds at 60fps)
+        *frame_counter += 1;
+        if *frame_counter % 120 == 0 {
+            info!(
+                "[Occlusion] Uniforms updated - Player: ({:.1}, {:.1}, {:.1}), Camera: ({:.1}, {:.1}, {:.1}), Radius: {:.1}, HeightThresh: {:.1}",
+                player_pos.x, player_pos.y, player_pos.z,
+                camera_pos.x, camera_pos.y, camera_pos.z,
+                config.occlusion_radius, config.height_threshold
+            );
+        }
+    } else {
+        *frame_counter += 1;
+        if *frame_counter % 60 == 0 {
+            warn!("[Occlusion] Material asset not found in Assets<OcclusionMaterial>");
+        }
     }
 }
 

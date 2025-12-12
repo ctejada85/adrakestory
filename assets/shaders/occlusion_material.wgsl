@@ -4,25 +4,11 @@
 //! position relative to the player and camera, making voxels above the
 //! player transparent so the player remains visible.
 //!
-//! Supports two transparency modes:
-//! - Alpha blending (smooth but has sorting issues)
-//! - Dithered transparency (no sorting, retro look)
+//! Uses Bevy's forward_io for proper vertex attribute handling.
 
 #import bevy_pbr::{
-    mesh_functions,
-    view_transformations::position_world_to_clip,
+    forward_io::VertexOutput,
     mesh_view_bindings::view,
-}
-
-// Vertex input structure
-struct Vertex {
-    @builtin(instance_index) instance_index: u32,
-    @location(0) position: vec3<f32>,
-    @location(1) normal: vec3<f32>,
-    @location(2) uv: vec2<f32>,
-#ifdef VERTEX_COLORS
-    @location(3) color: vec4<f32>,
-#endif
 }
 
 // Custom uniforms for occlusion
@@ -51,41 +37,6 @@ const BAYER_MATRIX: array<f32, 16> = array<f32, 16>(
      3.0/16.0, 11.0/16.0,  1.0/16.0,  9.0/16.0,
     15.0/16.0,  7.0/16.0, 13.0/16.0,  5.0/16.0
 );
-
-// Vertex output structure
-struct VertexOutput {
-    @builtin(position) clip_position: vec4<f32>,
-    @location(0) world_position: vec3<f32>,
-    @location(1) world_normal: vec3<f32>,
-    @location(2) uv: vec2<f32>,
-#ifdef VERTEX_COLORS
-    @location(3) color: vec4<f32>,
-#endif
-}
-
-@vertex
-fn vertex(vertex: Vertex) -> VertexOutput {
-    var out: VertexOutput;
-    
-    let world_position = mesh_functions::mesh_position_local_to_world(
-        mesh_functions::get_world_from_local(vertex.instance_index),
-        vec4<f32>(vertex.position, 1.0)
-    );
-    
-    out.clip_position = position_world_to_clip(world_position.xyz);
-    out.world_position = world_position.xyz;
-    out.world_normal = mesh_functions::mesh_normal_local_to_world(
-        vertex.normal,
-        vertex.instance_index
-    );
-    out.uv = vertex.uv;
-    
-#ifdef VERTEX_COLORS
-    out.color = vertex.color;
-#endif
-    
-    return out;
-}
 
 // Calculate distance from point to ray in XZ plane (ignoring Y)
 fn point_to_ray_distance_xz(point: vec3<f32>, ray_origin: vec3<f32>, ray_dir: vec3<f32>) -> f32 {
@@ -163,15 +114,16 @@ fn dither_check(screen_pos: vec2<f32>, alpha: f32) -> bool {
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    // Get base color from vertex colors or uniform
+    // Get base color from vertex colors (set by Bevy when mesh has ATTRIBUTE_COLOR)
 #ifdef VERTEX_COLORS
     var color = in.color;
 #else
+    // Fallback to uniform base_color if no vertex colors
     var color = base_color;
 #endif
     
-    // Calculate occlusion alpha
-    let occlusion_alpha = calculate_occlusion_alpha(in.world_position);
+    // Calculate occlusion alpha using world position
+    let occlusion_alpha = calculate_occlusion_alpha(in.world_position.xyz);
     
     // Apply basic lighting (simplified - ambient + directional)
     let light_dir = normalize(vec3<f32>(0.4, 0.8, 0.3));
@@ -184,20 +136,17 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // Apply occlusion transparency
     let final_alpha = color.a * occlusion_alpha;
     
-    // Discard fully transparent fragments for performance
+    // Discard fully transparent fragments
     if final_alpha < 0.01 {
         discard;
     }
     
-    // Use dithered transparency for semi-transparent fragments
-    // This avoids alpha blending sorting issues
-#ifdef DITHER_TRANSPARENCY
-    if !dither_check(in.clip_position.xy, final_alpha) {
+    // Use dithered transparency to avoid alpha sorting issues
+    // This creates a screen-door effect but eliminates flickering
+    if !dither_check(in.position.xy, final_alpha) {
         discard;
     }
+    
+    // Output as fully opaque (dithering handles transparency)
     return vec4<f32>(lit_color, 1.0);
-#else
-    // Standard alpha blending
-    return vec4<f32>(lit_color, final_alpha);
-#endif
 }

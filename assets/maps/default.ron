@@ -2387,12 +2387,6 @@
                 pattern: Some(Full),
                 rotation_state: None,
             ),
-            (
-                pos: (5, 1, 5),
-                voxel_type: Grass,
-                pattern: Some(Full),
-                rotation_state: None,
-            ),
         ],
     ),
     entities: [
