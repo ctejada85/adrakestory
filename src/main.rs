@@ -78,9 +78,9 @@ enum GameSystemSet {
     Camera,
 }
 use systems::game::hot_reload::{
-    handle_map_reload, poll_hot_reload, restore_player_position, setup_hot_reload_on_enter,
-    show_reload_notification, update_reload_notifications, HotReloadState, MapPathForHotReload,
-    MapReloadEvent, MapReloadedEvent,
+    handle_map_reload, handle_reload_hotkey, poll_hot_reload, restore_player_position,
+    setup_hot_reload_on_enter, show_reload_notification, update_reload_notifications,
+    HotReloadState, MapPathForHotReload, MapReloadEvent, MapReloadedEvent,
 };
 use systems::game::map::{
     spawn_map_system, update_chunk_lods, LoadedMapData, MapLoadProgress, MapLoader,
@@ -182,6 +182,7 @@ fn main() {
             Update,
             (
                 poll_hot_reload,
+                handle_reload_hotkey, // F5 to manually reload map
                 handle_map_reload.after(poll_hot_reload),
                 // spawn_map_system runs when GameInitialized is false (set by handle_map_reload)
                 spawn_map_system.after(handle_map_reload),

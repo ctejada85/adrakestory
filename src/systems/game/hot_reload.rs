@@ -187,6 +187,24 @@ pub fn poll_hot_reload(
     }
 }
 
+/// System to handle manual reload hotkey (F5 in game)
+/// Allows the player to manually trigger a map reload while testing
+pub fn handle_reload_hotkey(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    hot_reload: Res<HotReloadState>,
+    mut reload_events: EventWriter<MapReloadEvent>,
+) {
+    // F5 triggers manual reload (same as editor Play shortcut, but in-game)
+    if keyboard.just_pressed(KeyCode::F5) {
+        if let Some(path) = hot_reload.watched_path() {
+            info!("Manual reload triggered via F5");
+            reload_events.send(MapReloadEvent { path: path.clone() });
+        } else {
+            info!("F5 pressed but no map is being watched for hot reload");
+        }
+    }
+}
+
 /// System to handle map reload events
 /// Despawns existing map entities, loads new map data, and triggers respawn
 pub fn handle_map_reload(
