@@ -40,6 +40,10 @@ pub struct OcclusionMaterial {
     /// Occlusion parameters passed to the shader
     #[uniform(100)]
     pub occlusion_uniforms: OcclusionUniforms,
+
+    /// Whether to use dithered transparency instead of alpha blending
+    /// Dithered transparency avoids sorting issues but has a "screen door" look
+    pub use_dithering: bool,
 }
 
 /// Uniform buffer for occlusion parameters.
@@ -86,6 +90,7 @@ impl Default for OcclusionMaterial {
         Self {
             base_color: LinearRgba::WHITE,
             occlusion_uniforms: OcclusionUniforms::default(),
+            use_dithering: false,
         }
     }
 }
@@ -100,7 +105,11 @@ impl Material for OcclusionMaterial {
     }
 
     fn alpha_mode(&self) -> AlphaMode {
-        AlphaMode::Blend
+        if self.use_dithering {
+            AlphaMode::Opaque // Dithering uses discard, not alpha blending
+        } else {
+            AlphaMode::Blend
+        }
     }
 }
 
@@ -127,6 +136,11 @@ pub struct OcclusionConfig {
     pub falloff_softness: f32,
     /// Whether occlusion is enabled
     pub enabled: bool,
+    /// Whether to use dithered transparency (screen-door effect)
+    /// Set to true to avoid alpha sorting issues, at the cost of visual quality
+    pub use_dithering: bool,
+    /// Whether to show debug visualization (can toggle with F3)
+    pub show_debug: bool,
 }
 
 impl Default for OcclusionConfig {
@@ -137,6 +151,8 @@ impl Default for OcclusionConfig {
             height_threshold: 0.5,
             falloff_softness: 2.0,
             enabled: true,
+            use_dithering: false,
+            show_debug: false,
         }
     }
 }
@@ -195,9 +211,8 @@ pub fn update_occlusion_uniforms(
 /// - Yellow line: Camera to player ray
 /// - Red circle: Occlusion radius above player
 /// - Green line: Height threshold
-#[allow(dead_code)]
 pub fn debug_draw_occlusion_zone(
-    config: Res<OcclusionConfig>,
+    mut config: ResMut<OcclusionConfig>,
     mut gizmos: Gizmos,
     camera_query: Query<&Transform, With<GameCamera>>,
     player_query: Query<&Transform, With<Player>>,
@@ -207,6 +222,7 @@ pub fn debug_draw_occlusion_zone(
     // Toggle debug view with F3
     if keyboard.just_pressed(KeyCode::F3) {
         *show_debug = !*show_debug;
+        config.show_debug = *show_debug;
     }
 
     if !*show_debug || !config.enabled {
@@ -271,10 +287,10 @@ impl Plugin for OcclusionPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(MaterialPlugin::<OcclusionMaterial>::default())
             .insert_resource(OcclusionConfig::default())
-            .add_systems(Update, update_occlusion_uniforms);
-
-        // Optionally add debug visualization (uncomment to enable)
-        // app.add_systems(Update, debug_draw_occlusion_zone);
+            .add_systems(
+                Update,
+                (update_occlusion_uniforms, debug_draw_occlusion_zone),
+            );
     }
 }
 

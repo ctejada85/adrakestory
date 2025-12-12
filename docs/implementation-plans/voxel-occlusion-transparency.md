@@ -865,8 +865,9 @@ Render only voxels at or below the player's Y level:
 - [x] Store `OcclusionMaterialHandle` as resource
 - [x] Add `OcclusionPlugin` to app
 - [x] Add `OcclusionConfig` resource for runtime tweaking
-- [ ] Implement dithered transparency option (Phase 4)
-- [ ] Add debug visualization (F3 toggle)
+- [x] Implement dithered transparency option (Phase 4)
+- [x] Implement soft edge falloff (Phase 4)
+- [x] Add debug visualization (F3 toggle)
 - [ ] Test with various map layouts
 - [ ] Performance profiling (should be O(1) per frame)
 - [ ] Documentation update
