@@ -12,6 +12,7 @@ pub mod history;
 pub mod play;
 pub mod recent_files;
 pub mod renderer;
+pub mod shortcuts;
 pub mod state;
 pub mod tools;
 pub mod ui;
@@ -27,4 +28,5 @@ pub use recent_files::{OpenRecentFileEvent, RecentFiles};
 pub use renderer::{
     render_entities_system, EditorChunk, EditorEntityMarker, MapRenderState, RenderMapEvent,
 };
+pub use shortcuts::{handle_global_shortcuts, handle_redo, handle_undo, RedoEvent, UndoEvent};
 pub use state::{EditorState, EditorTool, KeyboardEditMode, ToolMemory};

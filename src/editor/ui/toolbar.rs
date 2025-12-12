@@ -4,6 +4,7 @@ use crate::editor::file_io::{SaveMapAsEvent, SaveMapEvent};
 use crate::editor::history::EditorHistory;
 use crate::editor::play::{PlayMapEvent, PlayTestState, StopGameEvent};
 use crate::editor::recent_files::{OpenRecentFileEvent, RecentFiles};
+use crate::editor::shortcuts::{RedoEvent, UndoEvent};
 use crate::editor::state::{EditorState, EditorTool, EditorUIState, ToolMemory};
 use crate::systems::game::components::VoxelType;
 use crate::systems::game::map::format::{EntityType, SubVoxelPattern};
@@ -25,6 +26,8 @@ pub fn render_toolbar(
     open_recent_events: &mut EventWriter<OpenRecentFileEvent>,
     play_events: &mut EventWriter<PlayMapEvent>,
     stop_events: &mut EventWriter<StopGameEvent>,
+    undo_events: &mut EventWriter<UndoEvent>,
+    redo_events: &mut EventWriter<RedoEvent>,
 ) {
     // Menu bar panel
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
@@ -38,7 +41,7 @@ pub fn render_toolbar(
                 save_as_events,
                 open_recent_events,
             );
-            render_edit_menu(ui, history);
+            render_edit_menu(ui, history, undo_events, redo_events);
             render_view_menu(ui, editor_state);
             render_run_menu(ui, play_state, play_events, stop_events);
             render_tools_menu(ui, editor_state, tool_memory);
@@ -528,7 +531,7 @@ fn render_file_menu(
     open_recent_events: &mut EventWriter<OpenRecentFileEvent>,
 ) {
     ui.menu_button("File", |ui| {
-        if ui.button("📄 New").clicked() {
+        if ui.button("📄 New (Ctrl+N)").clicked() {
             if editor_state.is_modified {
                 ui_state.unsaved_changes_dialog_open = true;
                 ui_state.pending_action = Some(crate::editor::state::PendingAction::NewMap);
@@ -538,7 +541,7 @@ fn render_file_menu(
             ui.close_menu();
         }
 
-        if ui.button("📁 Open...").clicked() {
+        if ui.button("📁 Open... (Ctrl+O)").clicked() {
             if editor_state.is_modified {
                 ui_state.unsaved_changes_dialog_open = true;
                 ui_state.pending_action = Some(crate::editor::state::PendingAction::OpenMap);
@@ -581,12 +584,12 @@ fn render_file_menu(
 
         ui.separator();
 
-        if ui.button("💾 Save").clicked() {
+        if ui.button("💾 Save (Ctrl+S)").clicked() {
             save_events.send(SaveMapEvent);
             ui.close_menu();
         }
 
-        if ui.button("💾 Save As...").clicked() {
+        if ui.button("💾 Save As... (Ctrl+Shift+S)").clicked() {
             save_as_events.send(SaveMapAsEvent);
             ui.close_menu();
         }
@@ -605,19 +608,25 @@ fn render_file_menu(
     });
 }
 
-fn render_edit_menu(ui: &mut egui::Ui, history: &EditorHistory) {
+fn render_edit_menu(
+    ui: &mut egui::Ui,
+    history: &EditorHistory,
+    undo_events: &mut EventWriter<UndoEvent>,
+    redo_events: &mut EventWriter<RedoEvent>,
+) {
     ui.menu_button("Edit", |ui| {
         let can_undo = history.can_undo();
         let can_redo = history.can_redo();
 
         ui.add_enabled_ui(can_undo, |ui| {
             let undo_text = if let Some(desc) = history.undo_description() {
-                format!("↶ Undo {}", desc)
+                format!("↶ Undo {} (Ctrl+Z)", desc)
             } else {
-                "↶ Undo".to_string()
+                "↶ Undo (Ctrl+Z)".to_string()
             };
 
             if ui.button(undo_text).clicked() {
+                undo_events.send(UndoEvent);
                 info!("Undo clicked");
                 ui.close_menu();
             }
@@ -625,12 +634,13 @@ fn render_edit_menu(ui: &mut egui::Ui, history: &EditorHistory) {
 
         ui.add_enabled_ui(can_redo, |ui| {
             let redo_text = if let Some(desc) = history.redo_description() {
-                format!("↷ Redo {}", desc)
+                format!("↷ Redo {} (Ctrl+Y)", desc)
             } else {
-                "↷ Redo".to_string()
+                "↷ Redo (Ctrl+Y)".to_string()
             };
 
             if ui.button(redo_text).clicked() {
+                redo_events.send(RedoEvent);
                 info!("Redo clicked");
                 ui.close_menu();
             }

@@ -1619,6 +1619,30 @@
                 pattern: Some(PlatformXZ),
                 rotation_state: None,
             ),
+            (
+                pos: (1, 1, 8),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (3, 1, 11),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (5, 1, 9),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
+            (
+                pos: (6, 1, 11),
+                voxel_type: Grass,
+                pattern: Some(Full),
+                rotation_state: None,
+            ),
         ],
     ),
     entities: [

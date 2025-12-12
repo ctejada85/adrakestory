@@ -7,6 +7,7 @@ use adrakestory::editor::play::{
     StopGameEvent,
 };
 use adrakestory::editor::recent_files::{OpenRecentFileEvent, RecentFiles};
+use adrakestory::editor::shortcuts::{handle_global_shortcuts, handle_redo, handle_undo};
 use adrakestory::editor::tools::ActiveTransform;
 use adrakestory::editor::tools::DragSelectState;
 use adrakestory::editor::tools::VoxelDragState;
@@ -19,7 +20,8 @@ use adrakestory::editor::{
     handle_tool_switching, toggle_keyboard_edit_mode,
 };
 use adrakestory::editor::{
-    CursorState, EditorHistory, EditorState, KeyboardEditMode, MapRenderState, RenderMapEvent,
+    CursorState, EditorHistory, EditorState, KeyboardEditMode, MapRenderState, RedoEvent,
+    RenderMapEvent, UndoEvent,
 };
 use adrakestory::editor::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
 use bevy::pbr::CascadeShadowConfigBuilder;
@@ -44,6 +46,8 @@ struct UIEventWriters<'w> {
     open_recent: EventWriter<'w, OpenRecentFileEvent>,
     play: EventWriter<'w, PlayMapEvent>,
     stop: EventWriter<'w, StopGameEvent>,
+    undo: EventWriter<'w, UndoEvent>,
+    redo: EventWriter<'w, RedoEvent>,
 }
 
 /// Bundle of UI-related resources
@@ -108,6 +112,8 @@ fn main() {
         .add_event::<OpenRecentFileEvent>()
         .add_event::<PlayMapEvent>()
         .add_event::<StopGameEvent>()
+        .add_event::<UndoEvent>()
+        .add_event::<RedoEvent>()
         .add_event::<tools::UpdateSelectionHighlights>()
         // New unified input event
         .add_event::<tools::EditorInputEvent>()
@@ -141,6 +147,10 @@ fn main() {
             adrakestory::editor::recent_files::update_recent_on_save,
         )
         .add_systems(Update, handle_open_recent_file)
+        // Global keyboard shortcuts (Ctrl+S, Ctrl+Z, etc.) - must run after render_ui
+        .add_systems(Update, handle_global_shortcuts.after(render_ui))
+        .add_systems(Update, handle_undo.after(handle_global_shortcuts))
+        .add_systems(Update, handle_redo.after(handle_global_shortcuts))
         // Keyboard handling systems - must run after render_ui for correct egui state
         .add_systems(
             Update,
@@ -303,6 +313,8 @@ fn render_ui(
         &mut ui_events.open_recent,
         &mut ui_events.play,
         &mut ui_events.stop,
+        &mut ui_events.undo,
+        &mut ui_events.redo,
     );
 
     // Render status bar (before side panels and overlays so its height is known)
