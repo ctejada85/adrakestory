@@ -547,9 +547,10 @@ mod tests {
 
     #[test]
     fn test_debounce_timing() {
-        let mut state = HotReloadState::default();
-        // Set last_reload to now
-        state.last_reload = Instant::now();
+        let mut state = HotReloadState {
+            last_reload: Instant::now(),
+            ..Default::default()
+        };
 
         // Immediate poll should not trigger (debounce)
         assert!(state.poll_changes().is_none());
