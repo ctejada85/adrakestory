@@ -183,7 +183,7 @@ pub fn update_occlusion_uniforms(
         // Debug: Log when material handle is missing
         *frame_counter += 1;
         // Only log every 300 frames (5 seconds at 60fps) since this is expected during loading
-        if *frame_counter % 300 == 0 {
+        if (*frame_counter).is_multiple_of(300) {
             info!("[Occlusion] Material handle not available yet (waiting for map to load)");
         }
         return;
@@ -225,7 +225,7 @@ pub fn update_occlusion_uniforms(
 
         // Debug: Log uniforms every 120 frames (about 2 seconds at 60fps)
         *frame_counter += 1;
-        if *frame_counter % 120 == 0 {
+        if (*frame_counter).is_multiple_of(120) {
             info!(
                 "[Occlusion] Uniforms updated - Player: ({:.1}, {:.1}, {:.1}), Camera: ({:.1}, {:.1}, {:.1}), Radius: {:.1}, HeightThresh: {:.1}",
                 player_pos.x, player_pos.y, player_pos.z,
@@ -235,7 +235,7 @@ pub fn update_occlusion_uniforms(
         }
     } else {
         *frame_counter += 1;
-        if *frame_counter % 60 == 0 {
+        if (*frame_counter).is_multiple_of(60) {
             warn!("[Occlusion] Material asset not found in Assets<OcclusionMaterial>");
         }
     }
