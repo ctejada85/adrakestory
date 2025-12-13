@@ -52,19 +52,11 @@ pub type OcclusionMaterial = ExtendedMaterial<StandardMaterial, OcclusionExtensi
 ///
 /// This extension provides the occlusion uniforms and overrides the fragment shader
 /// to add dithered transparency based on player/camera positions.
-#[derive(Asset, AsBindGroup, TypePath, Clone, Debug)]
+#[derive(Asset, AsBindGroup, TypePath, Clone, Debug, Default)]
 pub struct OcclusionExtension {
     /// Occlusion parameters passed to the shader
     #[uniform(100)]
     pub occlusion_uniforms: OcclusionUniforms,
-}
-
-impl Default for OcclusionExtension {
-    fn default() -> Self {
-        Self {
-            occlusion_uniforms: OcclusionUniforms::default(),
-        }
-    }
 }
 
 impl MaterialExtension for OcclusionExtension {
