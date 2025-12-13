@@ -10,7 +10,7 @@
 //! - If look direction input is active (arrow keys or right stick), character faces that direction
 //! - Otherwise, character faces the direction of movement
 
-use super::collision::check_sub_voxel_collision;
+use super::collision::{check_sub_voxel_collision, CollisionParams};
 use super::components::{Player, SubVoxel};
 use super::gamepad::{InputSource, PlayerInput};
 use super::resources::SpatialGrid;
@@ -116,12 +116,14 @@ pub fn move_player(
                 let diagonal_collision = check_sub_voxel_collision(
                     &spatial_grid,
                     &sub_voxel_query,
-                    new_x,
-                    current_pos.y,
-                    new_z,
-                    player.radius,
-                    player.half_height,
-                    current_floor_y,
+                    CollisionParams {
+                        x: new_x,
+                        y: current_pos.y,
+                        z: new_z,
+                        radius: player.radius,
+                        half_height: player.half_height,
+                        current_floor_y,
+                    },
                 );
 
                 if !diagonal_collision.has_collision {
@@ -179,12 +181,14 @@ fn apply_axis_movement(
         let x_collision = check_sub_voxel_collision(
             spatial_grid,
             sub_voxel_query,
-            new_x,
-            current_pos.y,
-            current_pos.z,
-            player.radius,
-            player.half_height,
-            *current_floor_y,
+            CollisionParams {
+                x: new_x,
+                y: current_pos.y,
+                z: current_pos.z,
+                radius: player.radius,
+                half_height: player.half_height,
+                current_floor_y: *current_floor_y,
+            },
         );
 
         if !x_collision.has_collision {
@@ -208,12 +212,14 @@ fn apply_axis_movement(
         let z_collision = check_sub_voxel_collision(
             spatial_grid,
             sub_voxel_query,
-            transform.translation.x,
-            transform.translation.y,
-            new_z,
-            player.radius,
-            player.half_height,
-            *current_floor_y,
+            CollisionParams {
+                x: transform.translation.x,
+                y: transform.translation.y,
+                z: new_z,
+                radius: player.radius,
+                half_height: player.half_height,
+                current_floor_y: *current_floor_y,
+            },
         );
 
         if !z_collision.has_collision {

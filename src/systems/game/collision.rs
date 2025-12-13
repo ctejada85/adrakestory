@@ -52,6 +52,23 @@ impl CollisionResult {
     }
 }
 
+/// Parameters for collision checking, grouping position and cylinder dimensions.
+#[derive(Debug, Clone, Copy)]
+pub struct CollisionParams {
+    /// X position of the cylinder center
+    pub x: f32,
+    /// Y position of the cylinder center
+    pub y: f32,
+    /// Z position of the cylinder center
+    pub z: f32,
+    /// Horizontal radius of the collision cylinder
+    pub radius: f32,
+    /// Vertical half-height of the collision cylinder
+    pub half_height: f32,
+    /// Y position of the floor the player is currently standing on
+    pub current_floor_y: f32,
+}
+
 /// Get the axis-aligned bounding box (AABB) of a sub-voxel.
 ///
 /// This function now returns the cached bounds from the SubVoxel component,
@@ -79,29 +96,29 @@ pub fn get_sub_voxel_bounds(sub_voxel: &SubVoxel) -> (Vec3, Vec3) {
 /// # Arguments
 /// * `spatial_grid` - The spatial partitioning grid for efficient queries
 /// * `sub_voxel_query` - Query to access sub-voxel components
-/// * `x`, `y`, `z` - The position to check for collision (cylinder center)
-/// * `radius` - The horizontal radius of the player's collision cylinder
-/// * `half_height` - The vertical half-height of the collision cylinder
-/// * `current_floor_y` - The Y position of the floor the player is currently standing on
+/// * `params` - Collision parameters (position, dimensions, floor height)
 ///
 /// # Returns
 /// A `CollisionResult` indicating collision status and step-up information
 pub fn check_sub_voxel_collision(
     spatial_grid: &SpatialGrid,
     sub_voxel_query: &Query<&SubVoxel, Without<Player>>,
-    x: f32,
-    y: f32,
-    z: f32,
-    radius: f32,
-    half_height: f32,
-    current_floor_y: f32,
+    params: CollisionParams,
 ) -> CollisionResult {
     // Use slightly smaller collision radius for tighter fit
-    let collision_radius = radius;
+    let collision_radius = params.radius;
 
     // Calculate player's AABB for grid lookup (cylinder bounds)
-    let player_min = Vec3::new(x - collision_radius, y - half_height, z - collision_radius);
-    let player_max = Vec3::new(x + collision_radius, y + half_height, z + collision_radius);
+    let player_min = Vec3::new(
+        params.x - collision_radius,
+        params.y - params.half_height,
+        params.z - collision_radius,
+    );
+    let player_max = Vec3::new(
+        params.x + collision_radius,
+        params.y + params.half_height,
+        params.z + collision_radius,
+    );
 
     let relevant_sub_voxel_entities = spatial_grid.get_entities_in_aabb(player_min, player_max);
 
@@ -115,37 +132,37 @@ pub fn check_sub_voxel_collision(
 
             // Skip sub-voxels that are floor/ground (below player's feet)
             // We use a small threshold to avoid blocking movement on flat ground
-            let player_bottom = y - half_height;
+            let player_bottom = params.y - params.half_height;
             if max.y <= player_bottom + 0.01 {
                 continue;
             }
 
             // Skip if sub-voxel is too far above the player's top
-            if min.y > y + half_height {
+            if min.y > params.y + params.half_height {
                 continue;
             }
 
             // Quick AABB check for horizontal bounds
-            if x + collision_radius < min.x
-                || x - collision_radius > max.x
-                || z + collision_radius < min.z
-                || z - collision_radius > max.z
+            if params.x + collision_radius < min.x
+                || params.x - collision_radius > max.x
+                || params.z + collision_radius < min.z
+                || params.z - collision_radius > max.z
             {
                 continue;
             }
 
             // Find closest point on sub-voxel AABB to player center (horizontal only)
-            let closest_x = x.clamp(min.x, max.x);
-            let closest_z = z.clamp(min.z, max.z);
+            let closest_x = params.x.clamp(min.x, max.x);
+            let closest_z = params.z.clamp(min.z, max.z);
 
             // Check horizontal distance only
-            let dx = x - closest_x;
-            let dz = z - closest_z;
+            let dx = params.x - closest_x;
+            let dz = params.z - closest_z;
             let distance_squared = dx * dx + dz * dz;
 
             if distance_squared < collision_radius * collision_radius {
                 // Collision detected - check if it's a step-up candidate
-                let obstacle_height = max.y - current_floor_y;
+                let obstacle_height = max.y - params.current_floor_y;
 
                 // Check if obstacle is within valid step-up range
                 // Allow stepping up to one sub-voxel height (with tolerance for floating-point errors)
