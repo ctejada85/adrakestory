@@ -9,12 +9,22 @@ use super::super::occlusion::{
 use super::super::resources::{GameInitialized, SpatialGrid};
 use super::format::{EntityType, MapData, SubVoxelPattern};
 use super::loader::{LoadProgress, LoadedMapData, MapLoadProgress};
+use bevy::ecs::system::SystemParam;
 use bevy::gltf::GltfAssetLabel;
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology, VertexAttributeValues};
 use bevy::render::render_asset::RenderAssetUsages;
 use std::collections::{HashMap, HashSet};
+
+/// Bundled asset resources for map spawning.
+#[derive(SystemParam)]
+pub struct SpawnAssets<'w> {
+    pub meshes: ResMut<'w, Assets<Mesh>>,
+    pub materials: ResMut<'w, Assets<StandardMaterial>>,
+    pub occlusion_materials: ResMut<'w, Assets<OcclusionMaterial>>,
+    pub asset_server: Res<'w, AssetServer>,
+}
 
 /// Number of sub-voxels per voxel axis (8x8x8 = 512 sub-voxels per voxel)
 pub const SUB_VOXEL_COUNT: i32 = 8;
@@ -845,10 +855,7 @@ pub fn spawn_map_system(
     mut commands: Commands,
     map_data: Res<LoadedMapData>,
     mut progress: ResMut<MapLoadProgress>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut occlusion_materials: ResMut<Assets<OcclusionMaterial>>,
-    asset_server: Res<AssetServer>,
+    mut assets: SpawnAssets,
     game_initialized: Option<Res<GameInitialized>>,
     occlusion_config: Res<OcclusionConfig>,
 ) {
@@ -872,12 +879,12 @@ pub fn spawn_map_system(
     let chunk_material = if occlusion_config.enabled {
         // Occlusion material with custom shader for transparency
         let occlusion_mat =
-            create_occlusion_material(occlusion_materials.as_mut(), occlusion_config.technique);
+            create_occlusion_material(assets.occlusion_materials.as_mut(), occlusion_config.technique);
         commands.insert_resource(OcclusionMaterialHandle(occlusion_mat.clone()));
         ChunkMaterial::Occlusion(occlusion_mat)
     } else {
         // Standard PBR material with vertex colors
-        let standard_mat = materials.add(StandardMaterial {
+        let standard_mat = assets.materials.add(StandardMaterial {
             base_color: Color::WHITE,
             perceptual_roughness: 0.9,
             metallic: 0.0,
@@ -893,7 +900,7 @@ pub fn spawn_map_system(
         let mut chunk_ctx = ChunkSpawnContext {
             commands,
             spatial_grid: &mut spatial_grid,
-            meshes: meshes.as_mut(),
+            meshes: assets.meshes.as_mut(),
             chunk_material,
         };
         spawn_voxels_chunked(&mut chunk_ctx, map, &mut progress);
@@ -906,9 +913,9 @@ pub fn spawn_map_system(
     commands = {
         let mut entity_ctx = EntitySpawnContext {
             commands,
-            meshes: meshes.as_mut(),
-            materials: materials.as_mut(),
-            asset_server: &asset_server,
+            meshes: assets.meshes.as_mut(),
+            materials: assets.materials.as_mut(),
+            asset_server: &assets.asset_server,
         };
         spawn_entities(&mut entity_ctx, map, &mut progress);
         entity_ctx.commands
