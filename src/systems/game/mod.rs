@@ -1,4 +1,5 @@
 pub mod components;
+pub mod fps_counter;
 pub mod gamepad;
 pub mod hot_reload;
 pub mod resources;
