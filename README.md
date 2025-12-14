@@ -54,7 +54,7 @@ cargo run --release
 | Move | **WASD** |
 | Camera | **Mouse** or **Q/E** |
 | Pause | **ESC** |
-| Debug | **C** (collision boxes) |
+| Debug | **C** (collision boxes), **F3** (FPS counter) |
 
 Full controls: [Controls Reference](docs/getting-started/controls.md)
 

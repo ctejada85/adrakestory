@@ -92,6 +92,7 @@ The character model automatically rotates to face the direction you're moving:
 | Key | Action |
 |-----|--------|
 | **C** | Toggle collision box visualization |
+| **F3** | Toggle FPS counter |
 
 ### Hot Reload Controls (Play Testing Mode)
 
@@ -115,6 +116,7 @@ When launched via the map editor's Play button (`F5`), additional controls are a
 - Helps understand physics and collision detection
 - Can be toggled on/off at any time
 - Useful for map creation and testing
+- FPS counter displays current frame rate in top-left corner
 
 ## Menu Navigation
 
@@ -157,7 +159,8 @@ When launched via the map editor's Play button (`F5`), additional controls are a
 1. **Learning Tool**: Enable collision boxes (C) when learning the game
 2. **Map Testing**: Essential for testing custom maps
 3. **Physics Understanding**: See exactly where collision boundaries are
-4. **Performance**: Disable in normal play for slightly better performance
+4. **Performance Monitoring**: Use FPS counter (F3) to check frame rate
+5. **Performance**: Disable debug overlays in normal play for slightly better performance
 
 ## Planned Controls
 
@@ -217,6 +220,7 @@ Future updates may include:
 │  Q/E     - Rotate camera            │
 │  ESC     - Pause/Resume             │
 │  C       - Toggle collision boxes   │
+│  F3      - Toggle FPS counter       │
 ├─────────────────────────────────────┤
 │     XBOX CONTROLLER                 │
 │  Left Stick  - Move                 │

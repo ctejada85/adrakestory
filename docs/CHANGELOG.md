@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **In-Game FPS Counter**: Added toggleable FPS counter for performance monitoring
+  - Press `F3` to toggle the FPS counter on/off
+  - Displays in top-left corner with green text
+  - Uses Bevy's built-in `FrameTimeDiagnosticsPlugin` for accurate measurements
+  - Only updates when visible to minimize performance impact
+
 - **Map Editor - Voxel Rendering Optimizations**: Implemented Tiers 1-5 rendering optimizations for the map editor viewport
   - **Tier 1: Material Palette** - Shared material palette reduces GPU memory from millions of materials to 64
   - **Tier 2: GPU Instancing** - Sub-voxels with same material are automatically batched
