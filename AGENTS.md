@@ -58,6 +58,18 @@ cargo fmt                            # Format code (runs on save)
 - Use `info!()`, `warn!()`, `error!()` for logging (Bevy's tracing)
 - Tests are inline with `#[cfg(test)]` modules at bottom of files
 
+## File Size Guidelines
+
+- **Keep files small and focused**: Each file should have a single, clear responsibility
+- **Target ~200-400 lines per file**: Split larger files into focused modules
+- **Extract when complexity grows**: If a system or component grows beyond ~300 lines, consider splitting into submodules
+- **Prefer many small files over few large files**: Easier to navigate, review, and maintain
+- **Module organization**: Group related functionality in directories with `mod.rs` re-exporting public items
+- **Example splits**:
+  - `systems.rs` (500+ lines) → `camera.rs`, `physics.rs`, `collision.rs`, `input.rs`
+  - `components.rs` (300+ lines) → `player.rs`, `voxel.rs`, `camera.rs`
+- **Signs a file needs splitting**: Multiple unrelated `impl` blocks, many `#[cfg(test)]` sections, scrolling to find functions
+
 ---
 
 ## Critical Coding Rules
