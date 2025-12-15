@@ -17,7 +17,7 @@ Files sorted by line count, with those exceeding ~400 lines flagged for splittin
 | File | Lines | Priority | Status |
 |------|-------|----------|--------|
 | `src/systems/game/map/spawner/` | 1384 → 4 files | 🔴 High | ✅ Done |
-| `src/editor/ui/properties.rs` | 778 | 🔴 High | Pending |
+| `src/editor/ui/properties/` | 778 → 5 files | 🔴 High | ✅ Done |
 | `src/editor/tools/input.rs` | 768 | 🔴 High | Pending |
 | `src/editor/ui/toolbar.rs` | 701 | 🔴 High | Pending |
 | `src/editor/tools/selection_tool.rs` | 559 | 🟡 Medium | Pending |
@@ -74,7 +74,9 @@ src/systems/game/map/
 
 ---
 
-## Refactoring 2: properties.rs (778 lines → ~3 files)
+## Refactoring 2: properties.rs (778 lines → ~5 files) ✅ COMPLETED
+
+### Status: ✅ IMPLEMENTED (2025-12-15)
 
 ### Problem
 
