@@ -9,7 +9,7 @@ path = "src/main.rs"
 
 [[bin]]
 name = "map_editor"
-path = "src/bin/map_editor.rs"
+path = "src/bin/map_editor/main.rs"
 
 [dependencies]
 bevy = { version = "0.15", features = ["bevy_gltf"] }
