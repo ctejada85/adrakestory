@@ -23,7 +23,7 @@ Files sorted by line count, with those exceeding ~400 lines flagged for splittin
 | `src/editor/tools/selection_tool/` | 559 → 4 files | 🟡 Medium | ✅ Done |
 | `src/bin/map_editor/` | 553 → 6 files | 🟡 Medium | ✅ Done |
 | `src/systems/game/map/geometry/` | 546 → 5 files | 🟡 Medium | ✅ Done |
-| `src/editor/cursor.rs` | 505 | 🟡 Medium | Pending |
+| `src/editor/cursor/` | 505 → 5 files | 🟡 Medium | ✅ Done |
 | `src/systems/game/hot_reload.rs` | 494 | 🟡 Medium | Pending |
 | `src/systems/game/map/format.rs` | 471 | 🟡 Medium | Pending |
 | `src/editor/grid.rs` | 447 | 🟡 Medium | Pending |
@@ -222,7 +222,9 @@ src/systems/game/map/
 
 ---
 
-## Refactoring 8: cursor.rs (505 lines → ~2 files)
+## Refactoring 8: cursor.rs (505 lines → ~5 files) ✅ COMPLETED
+
+### Status: ✅ IMPLEMENTED (2025-12-15)
 
 ### Problem
 
