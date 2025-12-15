@@ -300,6 +300,9 @@ fn render_tool_options(
                     changed |= ui
                         .selectable_value(entity_type, EntityType::Trigger, "🟣 Trigger")
                         .changed();
+                    changed |= ui
+                        .selectable_value(entity_type, EntityType::LightSource, "💡 Light Source")
+                        .changed();
                     changed
                 })
                 .inner
@@ -516,6 +519,7 @@ fn entity_type_display(entity_type: &EntityType) -> &'static str {
         EntityType::Enemy => "🔴 Enemy",
         EntityType::Item => "🟡 Item",
         EntityType::Trigger => "🟣 Trigger",
+        EntityType::LightSource => "💡 Light Source",
     }
 }
 

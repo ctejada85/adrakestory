@@ -1,7 +1,7 @@
 //! Map spawning system that instantiates loaded map data into the game world.
 
 use super::super::character::CharacterModel;
-use super::super::components::{CollisionBox, GameCamera, Npc, Player, SubVoxel, Voxel};
+use super::super::components::{CollisionBox, GameCamera, LightSource, Npc, Player, SubVoxel, Voxel};
 use super::super::occlusion::{
     create_occlusion_material, OcclusionConfig, OcclusionMaterial, OcclusionMaterialHandle,
     TransparencyTechnique,
@@ -1256,6 +1256,9 @@ fn spawn_entities(ctx: &mut EntitySpawnContext, map: &MapData, progress: &mut Ma
                     x, y, z
                 );
             }
+            EntityType::LightSource => {
+                spawn_light_source(ctx, Vec3::new(x, y, z), &entity_data.properties);
+            }
         }
     }
 }
@@ -1395,6 +1398,75 @@ fn spawn_npc(
     info!(
         "Spawned NPC '{}' at position: {:?} with radius {}",
         npc_name, position, npc_radius
+    );
+}
+
+/// Spawn a light source entity with a point light.
+///
+/// Light sources emit light uniformly in all directions (spherical).
+/// Properties can customize color, intensity, range, and shadow casting.
+fn spawn_light_source(
+    ctx: &mut EntitySpawnContext,
+    position: Vec3,
+    properties: &std::collections::HashMap<String, String>,
+) {
+    // Parse light properties with defaults
+    let intensity = properties
+        .get("intensity")
+        .and_then(|i| i.parse::<f32>().ok())
+        .unwrap_or(1000.0)
+        .clamp(0.0, 100000.0);
+
+    let range = properties
+        .get("range")
+        .and_then(|r| r.parse::<f32>().ok())
+        .unwrap_or(10.0)
+        .clamp(0.1, 100.0);
+
+    let shadows_enabled = properties
+        .get("shadows")
+        .map(|s| s == "true" || s == "1")
+        .unwrap_or(false);
+
+    // Parse color (format: "r,g,b" with values 0.0-1.0)
+    let color = properties
+        .get("color")
+        .and_then(|c| {
+            let parts: Vec<f32> = c
+                .split(',')
+                .filter_map(|p| p.trim().parse().ok())
+                .collect();
+            if parts.len() == 3 {
+                Some(Color::srgb(parts[0], parts[1], parts[2]))
+            } else {
+                None
+            }
+        })
+        .unwrap_or(Color::WHITE);
+
+    // Spawn light source entity
+    ctx.commands.spawn((
+        Transform::from_translation(position),
+        Visibility::default(),
+        LightSource {
+            color,
+            intensity,
+            range,
+            shadows_enabled,
+        },
+        PointLight {
+            color,
+            intensity,
+            range,
+            radius: 0.0, // Point light (no physical size)
+            shadows_enabled,
+            ..default()
+        },
+    ));
+
+    info!(
+        "Spawned light source at {:?} (intensity: {}, range: {}, shadows: {})",
+        position, intensity, range, shadows_enabled
     );
 }
 

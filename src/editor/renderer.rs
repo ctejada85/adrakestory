@@ -323,6 +323,7 @@ pub fn render_entities_system(
             EntityType::Enemy => (Color::srgba(1.0, 0.0, 0.0, 0.8), 0.35),
             EntityType::Item => (Color::srgba(1.0, 1.0, 0.0, 0.8), 0.25),
             EntityType::Trigger => (Color::srgba(1.0, 0.0, 1.0, 0.5), 0.5),
+            EntityType::LightSource => (Color::srgba(1.0, 1.0, 0.8, 0.9), 0.3),
         };
 
         // Check if this entity is selected

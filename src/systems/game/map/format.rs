@@ -238,6 +238,8 @@ pub enum EntityType {
     Item,
     /// Trigger volume
     Trigger,
+    /// Point light source (omnidirectional)
+    LightSource,
 }
 
 /// Lighting configuration for the map.

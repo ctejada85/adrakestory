@@ -80,3 +80,28 @@ impl Default for Npc {
         }
     }
 }
+
+/// Component for light source entities.
+/// Light sources emit light in all directions (point light / omnidirectional).
+#[derive(Component)]
+pub struct LightSource {
+    /// Light color (RGB, 0.0-1.0)
+    pub color: Color,
+    /// Light intensity in lumens (typical range: 100-10000)
+    pub intensity: f32,
+    /// Maximum range/radius of the light in world units
+    pub range: f32,
+    /// Whether this light casts shadows
+    pub shadows_enabled: bool,
+}
+
+impl Default for LightSource {
+    fn default() -> Self {
+        Self {
+            color: Color::WHITE,
+            intensity: 1000.0,
+            range: 10.0,
+            shadows_enabled: false, // Disabled by default for performance
+        }
+    }
+}

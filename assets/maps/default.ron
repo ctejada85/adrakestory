@@ -2420,6 +2420,13 @@
                 "name": "Village Elder",
             },
         ),
+        (
+            entity_type: LightSource,
+            position: (18.0, 1.0, 10.0),
+            properties: {
+                "range": "45.1",
+            },
+        ),
     ],
     lighting: (
         ambient_intensity: 0.3,

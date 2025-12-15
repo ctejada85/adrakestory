@@ -334,5 +334,6 @@ fn get_entity_type_icon(entity_type: &EntityType) -> &'static str {
         EntityType::Enemy => "🔴",
         EntityType::Item => "🟡",
         EntityType::Trigger => "🟣",
+        EntityType::LightSource => "💡",
     }
 }

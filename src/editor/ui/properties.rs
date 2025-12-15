@@ -324,6 +324,7 @@ fn render_entity_place_content(ui: &mut egui::Ui, entity_type: &mut EntityType) 
                     ui.selectable_value(entity_type, EntityType::Enemy, "🔴 Enemy");
                     ui.selectable_value(entity_type, EntityType::Item, "🟡 Item");
                     ui.selectable_value(entity_type, EntityType::Trigger, "🟣 Trigger");
+                    ui.selectable_value(entity_type, EntityType::LightSource, "💡 Light Source");
                 });
         });
     });
@@ -338,6 +339,7 @@ fn render_entity_place_content(ui: &mut egui::Ui, entity_type: &mut EntityType) 
             EntityType::Enemy => "Hostile entity that the player can fight.",
             EntityType::Item => "Collectible item or interactive object.",
             EntityType::Trigger => "Invisible trigger zone for events.",
+            EntityType::LightSource => "Point light that illuminates in all directions.",
         };
         ui.small(description);
     });
@@ -597,6 +599,9 @@ fn render_single_entity_properties(ui: &mut egui::Ui, editor_state: &mut EditorS
     if entity_type == EntityType::Npc {
         ui.add_space(8.0);
         render_npc_properties(ui, editor_state, index);
+    } else if entity_type == EntityType::LightSource {
+        ui.add_space(8.0);
+        render_light_source_properties(ui, editor_state, index);
     }
 
     ui.add_space(8.0);
@@ -660,6 +665,137 @@ fn render_npc_properties(ui: &mut egui::Ui, editor_state: &mut EditorState, inde
     });
 }
 
+/// Render LightSource-specific properties
+fn render_light_source_properties(ui: &mut egui::Ui, editor_state: &mut EditorState, index: usize) {
+    ui.group(|ui| {
+        ui.label("Light Properties");
+
+        // Intensity
+        let current_intensity: f32 = editor_state.current_map.entities[index]
+            .properties
+            .get("intensity")
+            .and_then(|i| i.parse().ok())
+            .unwrap_or(1000.0);
+        let mut intensity = current_intensity;
+
+        ui.horizontal(|ui| {
+            ui.label("Intensity:");
+            if ui
+                .add(egui::Slider::new(&mut intensity, 0.0..=10000.0).logarithmic(true))
+                .changed()
+            {
+                editor_state.current_map.entities[index]
+                    .properties
+                    .insert("intensity".to_string(), format!("{:.0}", intensity));
+                editor_state.mark_modified();
+            }
+        });
+
+        // Range
+        let current_range: f32 = editor_state.current_map.entities[index]
+            .properties
+            .get("range")
+            .and_then(|r| r.parse().ok())
+            .unwrap_or(10.0);
+        let mut range = current_range;
+
+        ui.horizontal(|ui| {
+            ui.label("Range:");
+            if ui
+                .add(egui::Slider::new(&mut range, 0.1..=100.0).step_by(0.5))
+                .changed()
+            {
+                editor_state.current_map.entities[index]
+                    .properties
+                    .insert("range".to_string(), format!("{:.1}", range));
+                editor_state.mark_modified();
+            }
+        });
+
+        // Shadows
+        let current_shadows = editor_state.current_map.entities[index]
+            .properties
+            .get("shadows")
+            .map(|s| s == "true")
+            .unwrap_or(false);
+        let mut shadows = current_shadows;
+
+        if ui.checkbox(&mut shadows, "Cast Shadows").changed() {
+            editor_state.current_map.entities[index]
+                .properties
+                .insert("shadows".to_string(), shadows.to_string());
+            editor_state.mark_modified();
+        }
+
+        // Color (RGB sliders)
+        ui.add_space(4.0);
+        ui.label("Color:");
+
+        let color_str = editor_state.current_map.entities[index]
+            .properties
+            .get("color")
+            .cloned()
+            .unwrap_or_else(|| "1.0,1.0,1.0".to_string());
+
+        let parts: Vec<f32> = color_str
+            .split(',')
+            .filter_map(|p| p.trim().parse().ok())
+            .collect();
+
+        let (mut r, mut g, mut b) = if parts.len() == 3 {
+            (parts[0], parts[1], parts[2])
+        } else {
+            (1.0, 1.0, 1.0)
+        };
+
+        let mut color_changed = false;
+
+        ui.horizontal(|ui| {
+            ui.label("R:");
+            if ui
+                .add(egui::Slider::new(&mut r, 0.0..=1.0).step_by(0.01))
+                .changed()
+            {
+                color_changed = true;
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.label("G:");
+            if ui
+                .add(egui::Slider::new(&mut g, 0.0..=1.0).step_by(0.01))
+                .changed()
+            {
+                color_changed = true;
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.label("B:");
+            if ui
+                .add(egui::Slider::new(&mut b, 0.0..=1.0).step_by(0.01))
+                .changed()
+            {
+                color_changed = true;
+            }
+        });
+
+        if color_changed {
+            editor_state.current_map.entities[index]
+                .properties
+                .insert("color".to_string(), format!("{:.2},{:.2},{:.2}", r, g, b));
+            editor_state.mark_modified();
+        }
+
+        // Color preview
+        let preview_color = egui::Color32::from_rgb(
+            (r * 255.0) as u8,
+            (g * 255.0) as u8,
+            (b * 255.0) as u8,
+        );
+        let (rect, _) = ui.allocate_exact_size(egui::vec2(60.0, 20.0), egui::Sense::hover());
+        ui.painter().rect_filled(rect, 2.0, preview_color);
+    });
+}
+
 /// Camera tool content
 fn render_camera_content(ui: &mut egui::Ui) {
     ui.group(|ui| {
@@ -713,6 +849,7 @@ fn get_entity_icon(entity_type: &EntityType) -> &'static str {
         EntityType::Enemy => "🔴",
         EntityType::Item => "🟡",
         EntityType::Trigger => "🟣",
+        EntityType::LightSource => "💡",
     }
 }
 
