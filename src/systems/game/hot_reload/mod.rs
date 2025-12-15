@@ -9,7 +9,7 @@ mod state;
 mod systems;
 
 pub use notifications::{show_reload_notification, update_reload_notifications};
-pub use reload_handler::{handle_map_reload, restore_player_position, PendingPlayerState};
+pub use reload_handler::{handle_map_reload, restore_player_position};
 pub use state::HotReloadState;
 pub use systems::{
     cleanup_hot_reload, handle_hot_reload_toggle, handle_reload_hotkey, poll_hot_reload,

@@ -25,7 +25,7 @@ Files sorted by line count, with those exceeding ~400 lines flagged for splittin
 | `src/systems/game/map/geometry/` | 546 → 5 files | 🟡 Medium | ✅ Done |
 | `src/editor/cursor/` | 505 → 5 files | 🟡 Medium | ✅ Done |
 | `src/systems/game/hot_reload/` | 494 → 5 files | 🟡 Medium | ✅ Done |
-| `src/systems/game/map/format.rs` | 471 | 🟡 Medium | Pending |
+| `src/systems/game/map/format/` | 471 → 9 files | 🟡 Medium | ✅ Done |
 | `src/editor/grid.rs` | 447 | 🟡 Medium | Pending |
 | `src/editor/tools/voxel_tool.rs` | 416 | 🟢 Low | Pending |
 
@@ -264,7 +264,9 @@ src/systems/game/
 
 ---
 
-## Refactoring 10: format.rs (471 lines → ~2 files)
+## Refactoring 10: format.rs (471 lines → ~9 files) ✅ COMPLETED
+
+### Status: ✅ IMPLEMENTED (2025-12-15)
 
 ### Problem
 
