@@ -57,3 +57,143 @@ cargo fmt                            # Format code (runs on save)
 - Components are pure data structs with `#[derive(Component)]`
 - Use `info!()`, `warn!()`, `error!()` for logging (Bevy's tracing)
 - Tests are inline with `#[cfg(test)]` modules at bottom of files
+
+---
+
+## Critical Coding Rules
+
+- **Cylinder collider math**: Player collision uses cylinder (radius: 0.2, half_height: 0.4). Horizontal checks use radius, vertical uses half_height. See [`check_sub_voxel_collision()`](src/systems/game/collision.rs:103-189)
+- **SubVoxel bounds are cached**: Never recalculate bounds - use `sub_voxel.bounds` directly. Bounds are set at spawn time in [`spawn_voxels_chunked()`](src/systems/game/map/spawner.rs:1003-1224)
+- **SpatialGrid required for collision**: Always use `spatial_grid.get_entities_in_aabb()` for collision queries. Direct iteration over all SubVoxels is O(n²) and will cause performance issues
+- **Delta time clamping**: Physics systems clamp `time.delta_secs().min(0.1)` to prevent physics explosions after window focus loss. See [`apply_gravity()`](src/systems/game/physics.rs:22-28)
+- **Editor history required**: All map modifications in editor MUST go through `EditorHistory` for undo/redo support. Direct map mutation breaks undo stack
+
+## System Set Ordering
+
+Game systems run in strict order via `GameSystemSet`:
+1. `Input` - gather input
+2. `Movement` - process player movement  
+3. `Physics` - apply gravity, collisions
+4. `Visual` - update visual elements
+5. `Camera` - update camera last
+
+Adding systems to wrong set causes race conditions.
+
+## Sub-Voxel Geometry
+
+- Geometry stored as bit arrays in [`SubVoxelGeometry`](src/systems/game/map/geometry.rs:30-35) - 8 u64 layers
+- Rotation uses integer math centered at (3.5, 3.5, 3.5) - see [`rotate_point()`](src/systems/game/map/geometry.rs:143-173)
+- Pattern variants like `StaircaseX`, `StaircaseNegX`, `StaircaseZ` are pre-rotated versions, not runtime rotations
+
+## Chunk Meshing
+
+- Greedy meshing merges adjacent same-color faces into larger quads
+- LOD meshes are built at spawn time, not runtime - see [`ChunkLOD`](src/systems/game/map/spawner.rs:55-61)
+- Chunk material can be either `OcclusionMaterial` (custom shader) or `StandardMaterial` (PBR) based on config
+
+---
+
+## Debugging
+
+### In-Game Debug Keys
+
+- `C` - Toggle collision box visualization (shows cylinder collider)
+- `F3` - Toggle FPS counter overlay
+- `ESC` - Pause menu
+
+### VSCode Debugging
+
+- Use "Debug (CodeLLDB, Debug Build)" launch config for breakpoints
+- LLDB configured to hide disassembly - see [`.vscode/settings.json`](.vscode/settings.json:11)
+- Debug builds have `opt-level = 1` for faster iteration while dependencies use `opt-level = 3`
+
+### Common Issues
+
+- **Physics explosion after alt-tab**: Delta time is clamped to 0.1s max in physics systems. If you see teleporting, check delta clamping
+- **Camera order ambiguity warning**: 2D and 3D cameras must not coexist. Check [`cleanup_2d_camera()`](src/main.rs:282-287) runs on state transition
+- **Collision not working**: Verify SubVoxel entities are in SpatialGrid. Check [`spawn_voxels_chunked()`](src/systems/game/map/spawner.rs:1199-1218) for grid insertion
+- **Map not loading**: Check RON syntax. Validation errors logged via `warn!()`. See [`validation.rs`](src/systems/game/map/validation.rs)
+
+### Hot Reload
+
+- F5 or Ctrl+R reloads map file when running from editor
+- Ctrl+H toggles hot reload on/off
+- Player position is preserved across reloads via [`restore_player_position()`](src/systems/game/hot_reload.rs)
+- Debounce prevents rapid reloads - 500ms minimum between reloads
+
+### Logging
+
+- Use `RUST_LOG=info cargo run` for detailed logs
+- Map loading progress logged at each stage
+- Chunk/quad counts logged after spawn: "Spawned X chunks with Y quads"
+
+---
+
+## Documentation & Code Organization
+
+### Key Documentation Locations
+
+- [`docs/developer-guide/architecture.md`](docs/developer-guide/architecture.md) - System architecture and ECS patterns
+- [`docs/developer-guide/systems/`](docs/developer-guide/systems/) - Individual system documentation
+- [`docs/api/map-format-spec.md`](docs/api/map-format-spec.md) - RON map format specification
+- [`docs/user-guide/map-editor/`](docs/user-guide/map-editor/) - Map editor user guide
+
+### Non-Obvious Code Organization
+
+- `src/lib.rs` exports shared code for both binaries (game and editor)
+- `src/systems/game/` contains core gameplay - NOT in a separate crate
+- `src/editor/` is editor-specific code but lives in main crate
+- `src/bin/map_editor.rs` is just the entry point - actual editor code in `src/editor/`
+
+### Terminology
+
+- **Voxel**: 1×1×1 world unit containing 8×8×8 sub-voxels
+- **Sub-voxel**: 0.125×0.125×0.125 unit, smallest renderable element
+- **Chunk**: 16×16×16 voxels grouped for meshing/LOD
+- **Pattern**: Sub-voxel arrangement (Full, Staircase, Platform, Pillar, Fence)
+- **Greedy meshing**: Optimization that merges adjacent same-color faces
+
+### State Machine
+
+```
+IntroAnimation → TitleScreen → LoadingMap → InGame ⇄ Paused
+```
+
+States defined in [`src/states.rs`](src/states.rs). Systems are state-gated via `.run_if(in_state(...))`.
+
+---
+
+## Architecture Constraints
+
+- **ECS-only**: All game logic must use Bevy's Entity Component System. No OOP patterns with methods on components
+- **State-gated systems**: Systems must be gated to appropriate `GameState`. Adding systems without state conditions causes them to run in all states
+- **System set ordering**: Physics-related systems MUST respect `GameSystemSet` ordering or race conditions occur
+- **Single camera per state**: 2D camera for UI states, 3D camera for InGame. Never have both active simultaneously
+
+## Performance-Critical Patterns
+
+- **SpatialGrid for collision**: O(n) spatial partitioning is mandatory. Direct SubVoxel iteration is O(n²) and unacceptable for large maps
+- **Bounds caching**: SubVoxel bounds are computed once at spawn. Any system that needs bounds must use cached values, not recompute
+- **Chunk-based rendering**: Sub-voxels are merged into chunk meshes via greedy meshing. Individual sub-voxel entities are collision-only (no mesh)
+- **LOD system**: 4 LOD levels per chunk, switched based on camera distance. LOD meshes built at spawn time
+
+## Extension Points
+
+- **New entity types**: Add to `EntityType` enum in [`format.rs`](src/systems/game/map/format.rs:229-243), spawn logic in [`spawner.rs`](src/systems/game/map/spawner.rs:1227-1264)
+- **New sub-voxel patterns**: Add to `SubVoxelPattern` enum, implement geometry in [`geometry.rs`](src/systems/game/map/geometry.rs)
+- **New game states**: Add to `GameState` enum in [`states.rs`](src/states.rs), create state module in `src/systems/`
+
+## Hidden Coupling
+
+- `LoadedMapData` resource must exist before `spawn_map_system` runs
+- `GameInitialized` resource prevents duplicate spawning - must be reset for hot reload
+- `OcclusionConfig` affects material type selection at spawn time - cannot be changed after spawn
+- Editor's `EditorHistory` and `EditorState` are tightly coupled - modifications must update both
+
+## Map Editor Architecture
+
+- Editor is standalone binary but shares game code via `src/lib.rs`
+- Uses `bevy_egui` for immediate-mode UI
+- Tool system: `EditorTool` enum with tool-specific state in `ToolMemory`
+- All map changes go through `EditorHistory` for undo/redo
+- Renderer detects map changes via `MapRenderState` dirty flag
