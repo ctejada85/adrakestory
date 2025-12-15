@@ -20,7 +20,7 @@ Files sorted by line count, with those exceeding ~400 lines flagged for splittin
 | `src/editor/ui/properties/` | 778 → 5 files | 🔴 High | ✅ Done |
 | `src/editor/tools/input/` | 768 → 4 files | 🔴 High | ✅ Done |
 | `src/editor/ui/toolbar/` | 701 → 5 files | 🔴 High | ✅ Done |
-| `src/editor/tools/selection_tool.rs` | 559 | 🟡 Medium | Pending |
+| `src/editor/tools/selection_tool/` | 559 → 4 files | 🟡 Medium | ✅ Done |
 | `src/bin/map_editor.rs` | 553 | 🟡 Medium | Pending |
 | `src/systems/game/map/geometry.rs` | 546 | 🟡 Medium | Pending |
 | `src/editor/cursor.rs` | 505 | 🟡 Medium | Pending |
@@ -160,7 +160,9 @@ src/editor/ui/
 
 ---
 
-## Refactoring 5: selection_tool.rs (559 lines → ~2 files)
+## Refactoring 5: selection_tool.rs (559 lines → ~4 files) ✅ COMPLETED
+
+### Status: ✅ IMPLEMENTED (2025-12-15)
 
 ### Problem
 
