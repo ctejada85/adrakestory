@@ -31,7 +31,7 @@ cargo fmt                            # Format code (runs on save)
 ## Non-Obvious Architecture
 
 - **Two binaries**: `adrakestory` (game) and `map_editor` (standalone editor) - both share code via `src/lib.rs`
-- **Sub-voxel system**: Each voxel contains 8×8×8 sub-voxels for high-detail rendering. Constants in [`src/systems/game/map/spawner.rs`](src/systems/game/map/spawner.rs:30-32)
+- **Sub-voxel system**: Each voxel contains 8×8×8 sub-voxels for high-detail rendering. Constants in [`src/systems/game/map/spawner/`](src/systems/game/map/spawner/)
 - **Chunk-based meshing**: Voxels are grouped into 16×16×16 chunks with greedy meshing and 4 LOD levels
 - **Cylinder collider**: Player uses cylinder collision (radius: 0.2, half_height: 0.4), NOT a box. See [`Player`](src/systems/game/components.rs:4-23)
 - **SubVoxel bounds caching**: Collision bounds are pre-calculated at spawn time in [`SubVoxel.bounds`](src/systems/game/components.rs:37-42), not computed per-frame
@@ -41,9 +41,9 @@ cargo fmt                            # Format code (runs on save)
 ## Map Format
 
 - Maps use RON format in `assets/maps/`
-- Map data structures in [`src/systems/game/map/format.rs`](src/systems/game/map/format.rs)
+- Map data structures in [`src/systems/game/map/format/`](src/systems/game/map/format/)
 - Patterns like `SubVoxelPattern::Full`, `StaircaseX`, `PlatformXZ` define sub-voxel geometry
-- Rotation state is stored separately from pattern and applied via [`geometry_with_rotation()`](src/systems/game/map/format.rs:202-213)
+- Rotation state is stored separately from pattern and applied via [`geometry_with_rotation()`](src/systems/game/map/format/rotation.rs)
 
 ## Editor-Specific
 
@@ -75,7 +75,7 @@ cargo fmt                            # Format code (runs on save)
 ## Critical Coding Rules
 
 - **Cylinder collider math**: Player collision uses cylinder (radius: 0.2, half_height: 0.4). Horizontal checks use radius, vertical uses half_height. See [`check_sub_voxel_collision()`](src/systems/game/collision.rs:103-189)
-- **SubVoxel bounds are cached**: Never recalculate bounds - use `sub_voxel.bounds` directly. Bounds are set at spawn time in [`spawn_voxels_chunked()`](src/systems/game/map/spawner.rs:1003-1224)
+- **SubVoxel bounds are cached**: Never recalculate bounds - use `sub_voxel.bounds` directly. Bounds are set at spawn time in [`spawn_voxels_chunked()`](src/systems/game/map/spawner/chunks.rs)
 - **SpatialGrid required for collision**: Always use `spatial_grid.get_entities_in_aabb()` for collision queries. Direct iteration over all SubVoxels is O(n²) and will cause performance issues
 - **Delta time clamping**: Physics systems clamp `time.delta_secs().min(0.1)` to prevent physics explosions after window focus loss. See [`apply_gravity()`](src/systems/game/physics.rs:22-28)
 - **Editor history required**: All map modifications in editor MUST go through `EditorHistory` for undo/redo support. Direct map mutation breaks undo stack
@@ -93,14 +93,14 @@ Adding systems to wrong set causes race conditions.
 
 ## Sub-Voxel Geometry
 
-- Geometry stored as bit arrays in [`SubVoxelGeometry`](src/systems/game/map/geometry.rs:30-35) - 8 u64 layers
-- Rotation uses integer math centered at (3.5, 3.5, 3.5) - see [`rotate_point()`](src/systems/game/map/geometry.rs:143-173)
+- Geometry stored as bit arrays in [`SubVoxelGeometry`](src/systems/game/map/geometry/types.rs) - 8 u64 layers
+- Rotation uses integer math centered at (3.5, 3.5, 3.5) - see [`rotate_point()`](src/systems/game/map/geometry/rotation.rs)
 - Pattern variants like `StaircaseX`, `StaircaseNegX`, `StaircaseZ` are pre-rotated versions, not runtime rotations
 
 ## Chunk Meshing
 
 - Greedy meshing merges adjacent same-color faces into larger quads
-- LOD meshes are built at spawn time, not runtime - see [`ChunkLOD`](src/systems/game/map/spawner.rs:55-61)
+- LOD meshes are built at spawn time, not runtime - see [`ChunkLOD`](src/systems/game/map/spawner/meshing.rs)
 - Chunk material can be either `OcclusionMaterial` (custom shader) or `StandardMaterial` (PBR) based on config
 
 ---
@@ -123,14 +123,14 @@ Adding systems to wrong set causes race conditions.
 
 - **Physics explosion after alt-tab**: Delta time is clamped to 0.1s max in physics systems. If you see teleporting, check delta clamping
 - **Camera order ambiguity warning**: 2D and 3D cameras must not coexist. Check [`cleanup_2d_camera()`](src/main.rs:282-287) runs on state transition
-- **Collision not working**: Verify SubVoxel entities are in SpatialGrid. Check [`spawn_voxels_chunked()`](src/systems/game/map/spawner.rs:1199-1218) for grid insertion
+- **Collision not working**: Verify SubVoxel entities are in SpatialGrid. Check [`spawn_voxels_chunked()`](src/systems/game/map/spawner/chunks.rs) for grid insertion
 - **Map not loading**: Check RON syntax. Validation errors logged via `warn!()`. See [`validation.rs`](src/systems/game/map/validation.rs)
 
 ### Hot Reload
 
 - F5 or Ctrl+R reloads map file when running from editor
 - Ctrl+H toggles hot reload on/off
-- Player position is preserved across reloads via [`restore_player_position()`](src/systems/game/hot_reload.rs)
+- Player position is preserved across reloads via [`restore_player_position()`](src/systems/game/hot_reload/)
 - Debounce prevents rapid reloads - 500ms minimum between reloads
 
 ### Logging
@@ -191,8 +191,8 @@ States defined in [`src/states.rs`](src/states.rs). Systems are state-gated via 
 
 ## Extension Points
 
-- **New entity types**: Add to `EntityType` enum in [`format.rs`](src/systems/game/map/format.rs:229-243), spawn logic in [`spawner.rs`](src/systems/game/map/spawner.rs:1227-1264)
-- **New sub-voxel patterns**: Add to `SubVoxelPattern` enum, implement geometry in [`geometry.rs`](src/systems/game/map/geometry.rs)
+- **New entity types**: Add to `EntityType` enum in [`format/entities.rs`](src/systems/game/map/format/entities.rs), spawn logic in [`spawner/entities.rs`](src/systems/game/map/spawner/entities.rs)
+- **New sub-voxel patterns**: Add to `SubVoxelPattern` enum in [`format/patterns.rs`](src/systems/game/map/format/patterns.rs), implement geometry in [`geometry/`](src/systems/game/map/geometry/)
 - **New game states**: Add to `GameState` enum in [`states.rs`](src/states.rs), create state module in `src/systems/`
 
 ## Hidden Coupling

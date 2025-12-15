@@ -147,17 +147,44 @@ src/editor/
 ├── state.rs            # Editor state management
 ├── history.rs          # Undo/redo system
 ├── camera.rs           # Camera controls
-├── grid.rs             # Grid visualization
-├── cursor.rs           # 3D cursor ray casting + keyboard navigation
+├── grid/               # Grid visualization (refactored to module)
+│   ├── mod.rs
+│   ├── bounds.rs
+│   ├── mesh.rs
+│   ├── systems.rs
+│   └── cursor_indicator.rs
+├── cursor/             # 3D cursor ray casting + keyboard navigation (refactored to module)
+│   ├── mod.rs
+│   ├── state.rs
+│   ├── raycasting.rs
+│   ├── keyboard.rs
+│   └── systems.rs
 ├── renderer.rs         # Map rendering
 ├── tools/              # Editing tools
-│   ├── input.rs        # Unified input handling ⭐ NEW
+│   ├── input/          # Unified input handling (refactored to module)
+│   │   ├── mod.rs
+│   │   ├── events.rs
+│   │   ├── handlers.rs
+│   │   └── operations.rs
 │   ├── voxel_tool.rs   # Voxel placement/removal
 │   ├── entity_tool.rs  # Entity placement
-│   └── selection_tool.rs # Selection and transformation
+│   └── selection_tool/ # Selection and transformation (refactored to module)
+│       ├── mod.rs
+│       ├── selection.rs
+│       ├── move_operation.rs
+│       ├── rotation.rs
+│       └── preview.rs
 └── ui/                 # UI components
-    ├── toolbar.rs      # Top toolbar
-    ├── properties.rs   # Properties panel
+    ├── toolbar/        # Top toolbar (refactored to module)
+    │   ├── mod.rs
+    │   ├── file_menu.rs
+    │   ├── edit_menu.rs
+    │   └── view_menu.rs
+    ├── properties/     # Properties panel (refactored to module)
+    │   ├── mod.rs
+    │   ├── voxel_panel.rs
+    │   ├── entity_panel.rs
+    │   └── selection_panel.rs
     ├── viewport.rs     # Viewport controls
     └── dialogs.rs      # File dialogs
 ```
@@ -180,9 +207,9 @@ src/editor/
 6. Document in design.md and create test guide
 
 ### Adding a Keyboard Shortcut
-1. Add key mapping to `handle_keyboard_input()` in `input.rs`
-2. Add corresponding `EditorInputEvent` variant if needed
-3. Handle event in `handle_transformation_operations()` or create new handler
+1. Add key mapping to `handle_keyboard_input()` in `input/handlers.rs`
+2. Add corresponding `EditorInputEvent` variant in `input/events.rs` if needed
+3. Handle event in `handle_transformation_operations()` in `input/operations.rs` or create new handler
 4. Update [Controls Reference](../../../user-guide/map-editor/controls.md)
 5. Add to keyboard shortcuts help dialog
 

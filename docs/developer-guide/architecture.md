@@ -132,7 +132,7 @@ The game uses different cameras for different states to prevent rendering confli
   - Automatically despawned when entering InGame state via [`cleanup_2d_camera()`](../../src/main.rs:127)
 
 - **3D Camera**: Used for gameplay (InGame state)
-  - Spawned when entering InGame state in [`spawn_camera()`](../../src/systems/game/map/spawner.rs:224)
+  - Spawned when entering InGame state in [`spawn_camera()`](../../src/systems/game/map/spawner/)
   - Includes [`GameCamera`](../../src/systems/game/components.rs:38) component for rotation control
 
 This separation prevents camera order ambiguity warnings and ensures only one camera is active per render target at any time.
@@ -156,14 +156,41 @@ src/
 │   │   ├── character/      # Character model system
 │   │   │   └── mod.rs      # CharacterModel component
 │   │   ├── collision.rs    # Collision detection
+│   │   ├── hot_reload/     # Hot reload system
+│   │   │   ├── mod.rs
+│   │   │   ├── state.rs
+│   │   │   ├── watcher.rs
+│   │   │   ├── reload_handler.rs
+│   │   │   ├── systems.rs
+│   │   │   └── notifications.rs
 │   │   ├── input.rs        # Input handling
 │   │   ├── physics.rs      # Physics simulation
 │   │   ├── player_movement.rs  # Player controls
 │   │   └── map/            # Map loading system
 │   │       ├── mod.rs
-│   │       ├── format.rs   # Map data structures
+│   │       ├── format/     # Map data structures
+│   │       │   ├── mod.rs
+│   │       │   ├── camera.rs
+│   │       │   ├── defaults.rs
+│   │       │   ├── entities.rs
+│   │       │   ├── lighting.rs
+│   │       │   ├── metadata.rs
+│   │       │   ├── patterns.rs
+│   │       │   ├── rotation.rs
+│   │       │   └── world.rs
+│   │       ├── geometry/   # Sub-voxel geometry
+│   │       │   ├── mod.rs
+│   │       │   ├── types.rs
+│   │       │   ├── patterns.rs
+│   │       │   ├── rotation.rs
+│   │       │   └── utils.rs
 │   │       ├── loader.rs   # Map file loading
-│   │       ├── spawner.rs  # World instantiation
+│   │       ├── spawner/    # World instantiation
+│   │       │   ├── mod.rs
+│   │       │   ├── meshing.rs
+│   │       │   ├── entities.rs
+│   │       │   ├── chunks.rs
+│   │       │   └── systems.rs
 │   │       ├── validation.rs  # Map validation
 │   │       └── error.rs    # Error types
 │   ├── intro_animation/    # Intro screen
@@ -344,9 +371,10 @@ pub struct GameInitialized(pub bool);
 - Progress tracking
 
 **Key Files:**
-- `format.rs`: Map data structures
+- `format/`: Map data structures (split into modules)
 - `loader.rs`: File I/O and parsing
-- `spawner.rs`: Entity instantiation
+- `spawner/`: Entity instantiation (split into modules)
+- `geometry/`: Sub-voxel geometry calculations
 - `validation.rs`: Map validation
 - `error.rs`: Error types
 
@@ -532,8 +560,8 @@ opt-level = 3              # Full optimization for deps
 
 ### Adding New Entity Types
 
-1. Define in `map/format.rs`
-2. Add spawning logic in `map/spawner.rs`
+1. Define in `map/format/entities.rs`
+2. Add spawning logic in `map/spawner/entities.rs`
 3. Create component if needed
 4. Add systems for behavior
 

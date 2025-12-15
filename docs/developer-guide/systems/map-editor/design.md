@@ -16,26 +16,53 @@ adrakestory/
 │   └── editor/
 │       ├── mod.rs                  # Editor module exports
 │       ├── state.rs                # Editor state management
-│       ├── cursor.rs               # Cursor ray casting and keyboard navigation
+│       ├── cursor/                 # Cursor ray casting and keyboard navigation
+│       │   ├── mod.rs
+│       │   ├── state.rs
+│       │   ├── raycasting.rs
+│       │   ├── keyboard.rs
+│       │   └── systems.rs
 │       ├── file_io.rs              # Save/load file operations
 │       ├── shortcuts.rs            # Global keyboard shortcuts (Ctrl+S, Ctrl+Z, etc.)
 │       ├── play.rs                 # Play/test map functionality
 │       ├── recent_files.rs         # Recent files tracking
 │       ├── ui/
 │       │   ├── mod.rs
-│       │   ├── toolbar.rs          # Top toolbar UI
-│       │   ├── properties.rs       # Right properties panel
+│       │   ├── toolbar/            # Top toolbar UI
+│       │   │   ├── mod.rs
+│       │   │   ├── file_menu.rs
+│       │   │   ├── edit_menu.rs
+│       │   │   └── view_menu.rs
+│       │   ├── properties/         # Right properties panel
+│       │   │   ├── mod.rs
+│       │   │   ├── voxel_panel.rs
+│       │   │   ├── entity_panel.rs
+│       │   │   └── selection_panel.rs
 │       │   ├── viewport.rs         # 3D viewport controls
 │       │   ├── outliner.rs         # Left outliner panel
 │       │   └── dialogs.rs          # File dialogs, confirmations
 │       ├── tools/
 │       │   ├── mod.rs
-│       │   ├── input.rs            # Unified keyboard input handling
+│       │   ├── input/              # Unified keyboard input handling
+│       │   │   ├── mod.rs
+│       │   │   ├── events.rs
+│       │   │   ├── handlers.rs
+│       │   │   └── operations.rs
 │       │   ├── voxel_tool.rs       # Voxel placement/removal
 │       │   ├── entity_tool.rs      # Entity placement
-│       │   └── selection_tool.rs   # Selection and manipulation
+│       │   └── selection_tool/     # Selection and manipulation
+│       │       ├── mod.rs
+│       │       ├── selection.rs
+│       │       ├── move_operation.rs
+│       │       ├── rotation.rs
+│       │       └── preview.rs
 │       ├── camera.rs               # Editor camera controls
-│       ├── grid.rs                 # Grid visualization
+│       ├── grid/                   # Grid visualization
+│       │   ├── mod.rs
+│       │   ├── bounds.rs
+│       │   ├── mesh.rs
+│       │   ├── systems.rs
+│       │   └── cursor_indicator.rs
 │       ├── history.rs              # Undo/redo history tracking
 │       └── renderer.rs             # Map rendering with optimizations
 ```

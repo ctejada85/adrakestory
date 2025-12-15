@@ -8,17 +8,17 @@ The map editor implements a generic, geometry-based rotation system for voxel su
 
 ### Core Components
 
-1. **SubVoxelGeometry** ([`src/systems/game/map/geometry.rs`](../../../../src/systems/game/map/geometry.rs))
+1. **SubVoxelGeometry** ([`src/systems/game/map/geometry/`](../../../../src/systems/game/map/geometry/))
    - Represents 8×8×8 sub-voxel grid using bit arrays
    - Implements generic rotation transformations
    - Handles rotation around X, Y, and Z axes in 90° increments
 
-2. **RotationState** ([`src/systems/game/map/format.rs`](../../../../src/systems/game/map/format.rs))
+2. **RotationState** ([`src/systems/game/map/format/rotation.rs`](../../../../src/systems/game/map/format/rotation.rs))
    - Stores cumulative rotation applied to a voxel
    - Tracks rotation axis and angle (0-3 for 0°/90°/180°/270°)
    - Serializable for map persistence
 
-3. **SubVoxelPattern** ([`src/systems/game/map/format.rs`](../../../../src/systems/game/map/format.rs))
+3. **SubVoxelPattern** ([`src/systems/game/map/format/patterns.rs`](../../../../src/systems/game/map/format/patterns.rs))
    - Enum defining pattern types (Full, Platform, Staircase, Pillar)
    - Provides base geometry for each pattern
    - Applies rotation state when rendering
@@ -55,8 +55,8 @@ The `geometry_with_rotation()` method is a convenience function that:
 
 This happens in:
 - **Editor Renderer** ([`src/editor/renderer.rs`](../../../../src/editor/renderer.rs)) - For editor viewport
-- **Game Spawner** ([`src/systems/game/map/spawner.rs`](../../../../src/systems/game/map/spawner.rs)) - For game mode
-- **Rotation Preview** ([`src/editor/tools/selection_tool.rs`](../../../../src/editor/tools/selection_tool.rs)) - For preview during rotation
+- **Game Spawner** ([`src/systems/game/map/spawner/`](../../../../src/systems/game/map/spawner/)) - For game mode
+- **Rotation Preview** ([`src/editor/tools/selection_tool/`](../../../../src/editor/tools/selection_tool/)) - For preview during rotation
 
 ### Rotation Mathematics
 
@@ -216,8 +216,8 @@ Potential improvements:
 
 ## Related Files
 
-- [`src/systems/game/map/geometry.rs`](../../../../src/systems/game/map/geometry.rs) - Geometry and rotation logic
-- [`src/systems/game/map/format.rs`](../../../../src/systems/game/map/format.rs) - Data structures
-- [`src/editor/tools/selection_tool.rs`](../../../../src/editor/tools/selection_tool.rs) - Rotation UI and controls
+- [`src/systems/game/map/geometry/`](../../../../src/systems/game/map/geometry/) - Geometry and rotation logic
+- [`src/systems/game/map/format/`](../../../../src/systems/game/map/format/) - Data structures
+- [`src/editor/tools/selection_tool/`](../../../../src/editor/tools/selection_tool/) - Rotation UI and controls
 - [`src/editor/renderer.rs`](../../../../src/editor/renderer.rs) - Editor rendering
-- [`src/systems/game/map/spawner.rs`](../../../../src/systems/game/map/spawner.rs) - Game spawning
+- [`src/systems/game/map/spawner/`](../../../../src/systems/game/map/spawner/) - Game spawning
