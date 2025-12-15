@@ -1414,8 +1414,8 @@ fn spawn_light_source(
     let intensity = properties
         .get("intensity")
         .and_then(|i| i.parse::<f32>().ok())
-        .unwrap_or(1000.0)
-        .clamp(0.0, 100000.0);
+        .unwrap_or(10000.0) // 10,000 lumens default - bright enough for interiors
+        .clamp(0.0, 1000000.0);
 
     let range = properties
         .get("range")
@@ -1447,7 +1447,10 @@ fn spawn_light_source(
     // Spawn light source entity
     ctx.commands.spawn((
         Transform::from_translation(position),
-        Visibility::default(),
+        GlobalTransform::default(),
+        Visibility::Visible,
+        InheritedVisibility::default(),
+        ViewVisibility::default(),
         LightSource {
             color,
             intensity,

@@ -99,7 +99,7 @@ impl Default for LightSource {
     fn default() -> Self {
         Self {
             color: Color::WHITE,
-            intensity: 1000.0,
+            intensity: 10000.0, // 10,000 lumens - bright enough for interior lighting
             range: 10.0,
             shadows_enabled: false, // Disabled by default for performance
         }
