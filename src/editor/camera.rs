@@ -469,7 +469,7 @@ pub fn handle_camera_input(
     }
 }
 
-/// System to handle gamepad voxel actions (RT to place, LT to remove)
+/// System to handle gamepad voxel actions (RT to execute tool action, LT to remove)
 pub fn handle_gamepad_voxel_actions(
     gamepad_state: Res<GamepadCameraState>,
     gamepads: Query<&Gamepad>,
@@ -497,51 +497,101 @@ pub fn handle_gamepad_voxel_actions(
         let rt = gamepad.get(bevy::input::gamepad::GamepadAxis::RightZ).unwrap_or(0.0);
         let lt = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftZ).unwrap_or(0.0);
 
-        // RT = place voxel at action position
+        // RT = execute main action of current tool
         if rt > 0.5 {
-            // Check if voxel already exists
-            let exists = editor_state
-                .current_map
-                .world
-                .voxels
-                .iter()
-                .any(|v| v.pos == grid_pos);
+            match editor_state.active_tool.clone() {
+                crate::editor::state::EditorTool::VoxelPlace { voxel_type, pattern } => {
+                    // Place voxel
+                    let exists = editor_state
+                        .current_map
+                        .world
+                        .voxels
+                        .iter()
+                        .any(|v| v.pos == grid_pos);
 
-            if !exists {
-                // Get current tool settings
-                let (voxel_type, pattern) = match editor_state.active_tool {
-                    crate::editor::state::EditorTool::VoxelPlace { voxel_type, pattern } => {
-                        (voxel_type, pattern)
+                    if !exists {
+                        let voxel_data = crate::systems::game::map::format::VoxelData {
+                            pos: grid_pos,
+                            voxel_type,
+                            pattern: Some(pattern),
+                            rotation_state: None,
+                        };
+
+                        editor_state.current_map.world.voxels.push(voxel_data.clone());
+                        editor_state.mark_modified();
+
+                        history.push(crate::editor::history::EditorAction::PlaceVoxel {
+                            pos: grid_pos,
+                            data: voxel_data,
+                        });
+
+                        *cooldown = 0.15;
+                        info!("Placed voxel at {:?}", grid_pos);
                     }
-                    _ => {
-                        // Use default if not in voxel place mode
-                        use crate::systems::game::components::VoxelType;
-                        use crate::systems::game::map::format::SubVoxelPattern;
-                        (VoxelType::Grass, SubVoxelPattern::Full)
+                }
+                crate::editor::state::EditorTool::VoxelRemove => {
+                    // Remove voxel we're looking at
+                    let remove_pos = gamepad_state.target_voxel_pos.unwrap_or(grid_pos);
+                    
+                    if let Some(idx) = editor_state
+                        .current_map
+                        .world
+                        .voxels
+                        .iter()
+                        .position(|v| v.pos == remove_pos)
+                    {
+                        let removed = editor_state.current_map.world.voxels.remove(idx);
+                        editor_state.mark_modified();
+
+                        history.push(crate::editor::history::EditorAction::RemoveVoxel {
+                            pos: remove_pos,
+                            data: removed,
+                        });
+
+                        *cooldown = 0.15;
+                        info!("Removed voxel at {:?}", remove_pos);
                     }
-                };
+                }
+                crate::editor::state::EditorTool::EntityPlace { entity_type } => {
+                    // Place entity
+                    use crate::systems::game::map::format::EntityData;
+                    
+                    let entity_data = EntityData {
+                        entity_type,
+                        position: (grid_pos.0 as f32 + 0.5, grid_pos.1 as f32, grid_pos.2 as f32 + 0.5),
+                        properties: std::collections::HashMap::new(),
+                    };
 
-                let voxel_data = crate::systems::game::map::format::VoxelData {
-                    pos: grid_pos,
-                    voxel_type,
-                    pattern: Some(pattern),
-                    rotation_state: None,
-                };
+                    editor_state.current_map.entities.push(entity_data.clone());
+                    editor_state.mark_modified();
 
-                editor_state.current_map.world.voxels.push(voxel_data.clone());
-                editor_state.mark_modified();
+                    history.push(crate::editor::history::EditorAction::PlaceEntity {
+                        index: editor_state.current_map.entities.len() - 1,
+                        data: entity_data,
+                    });
 
-                history.push(crate::editor::history::EditorAction::PlaceVoxel {
-                    pos: grid_pos,
-                    data: voxel_data,
-                });
-
-                *cooldown = 0.15;
-                info!("Placed voxel at {:?}", grid_pos);
+                    *cooldown = 0.15;
+                    info!("Placed entity at {:?}", grid_pos);
+                }
+                crate::editor::state::EditorTool::Select => {
+                    // Select voxel we're looking at
+                    if let Some(target_pos) = gamepad_state.target_voxel_pos {
+                        if editor_state.selected_voxels.contains(&target_pos) {
+                            editor_state.selected_voxels.remove(&target_pos);
+                        } else {
+                            editor_state.selected_voxels.insert(target_pos);
+                        }
+                        *cooldown = 0.2;
+                        info!("Toggled selection at {:?}", target_pos);
+                    }
+                }
+                crate::editor::state::EditorTool::Camera => {
+                    // Camera tool has no action
+                }
             }
         }
 
-        // LT = remove voxel we're looking at
+        // LT = always remove voxel (secondary action)
         if lt > 0.5 {
             // Use target_voxel_pos for removal (the voxel we're looking at, not the placement position)
             let remove_pos = gamepad_state.target_voxel_pos.unwrap_or(grid_pos);
