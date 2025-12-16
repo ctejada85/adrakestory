@@ -168,28 +168,42 @@ pub fn detect_interior_system(
             ceiling_y,
             start_z,
             player_voxel_y,
-            &occupied_voxels,
+            occupied_voxels,
         );
 
-        // Check if player is inside the region (with margin for entry, smaller for exit)
-        // Hysteresis: use smaller margin if already inside to prevent flickering
-        let is_currently_inside = interior_state.current_region.is_some();
-        let margin = if is_currently_inside {
-            INTERIOR_ENTRY_MARGIN * 0.25 // Smaller margin to exit
-        } else {
-            INTERIOR_ENTRY_MARGIN // Larger margin to enter
-        };
-        
-        let player_inside = player_pos.x > region.min.x + margin
-            && player_pos.x < region.max.x - margin
-            && player_pos.z > region.min.z + margin
-            && player_pos.z < region.max.z - margin;
+        // The key check: is the player still under a ceiling?
+        // We check if ANY of the 4 positions the player overlaps has a ceiling above
+        // This is more reliable than checking if player is inside the region bounds
+        let player_under_ceiling = positions_to_check.iter().any(|(vx, vz)| {
+            find_ceiling_voxel_above(
+                *vx,
+                player_voxel_y,
+                *vz,
+                config.interior_height_threshold as i32,
+                occupied_voxels,
+            ).is_some()
+        });
 
-        if player_inside {
-            interior_state.current_region = Some(region);
-        } else {
+        // Hysteresis: once inside, stay inside as long as we're under a ceiling
+        let is_currently_inside = interior_state.current_region.is_some();
+        
+        if player_under_ceiling {
+            // Player is under a ceiling - use the detected region
+            // But only if we have a meaningful region (more than just a tiny area)
+            if region.voxel_count >= 2 {
+                interior_state.current_region = Some(region);
+            } else if is_currently_inside {
+                // Keep the previous region if we're already inside
+                // (don't change anything)
+            } else {
+                interior_state.current_region = None;
+            }
+        } else if !is_currently_inside {
+            // Player not under ceiling and wasn't inside - no region
             interior_state.current_region = None;
         }
+        // If player was inside but moved to edge, keep the region active
+        // (hysteresis - they need to fully exit)
     } else {
         interior_state.current_region = None;
     }
@@ -227,6 +241,10 @@ fn build_occupied_voxel_set(
 
 /// Find ceiling voxel directly above player within threshold.
 /// Returns the Y coordinate of the ceiling voxel, or None if no ceiling found.
+/// 
+/// A ceiling is defined as a voxel that:
+/// 1. Is above the player (Y > player_y + 1)
+/// 2. Has empty space below it (not a wall that extends from ground level)
 fn find_ceiling_voxel_above(
     x: i32,
     player_y: i32,
@@ -234,11 +252,25 @@ fn find_ceiling_voxel_above(
     max_height: i32,
     occupied_voxels: &HashSet<IVec3>,
 ) -> Option<i32> {
-    // Start from one voxel above the player's current voxel level
-    // (player standing on voxel Y means check from Y+1 upward)
-    for y in (player_y + 1)..=(player_y + max_height) {
+    // Start from 2 voxels above the player to skip the immediate head space
+    // This avoids detecting walls that the player is standing next to
+    let start_y = player_y + 2;
+    
+    for y in start_y..=(player_y + max_height) {
         if occupied_voxels.contains(&IVec3::new(x, y, z)) {
-            return Some(y);
+            // Found a voxel above - check if it's a ceiling (has empty space below)
+            // or a wall (has solid voxels below connecting to ground)
+            
+            // Check if there's empty space between player and this voxel
+            let has_gap_below = !(player_y + 1..y).any(|check_y| {
+                occupied_voxels.contains(&IVec3::new(x, check_y, z))
+            });
+            
+            if has_gap_below {
+                // This is a ceiling - there's empty space between player and this voxel
+                return Some(y);
+            }
+            // Otherwise it's a wall - continue looking higher
         }
     }
     None
@@ -246,6 +278,7 @@ fn find_ceiling_voxel_above(
 
 /// Flood-fill to find all connected ceiling voxels at same Y level.
 /// Works at voxel level (integer coordinates).
+/// Searches multiple Y levels to find comprehensive ceiling coverage.
 fn flood_fill_ceiling_region_voxel(
     start_x: i32,
     ceiling_y: i32,
@@ -255,6 +288,7 @@ fn flood_fill_ceiling_region_voxel(
 ) -> InteriorRegion {
     let mut visited: HashSet<IVec2> = HashSet::new();
     let mut queue: VecDeque<IVec2> = VecDeque::new();
+    let mut ceiling_positions: HashSet<IVec2> = HashSet::new();
 
     let start = IVec2::new(start_x, start_z);
     queue.push_back(start);
@@ -264,31 +298,41 @@ fn flood_fill_ceiling_region_voxel(
     let mut max_x = start_x;
     let mut min_z = start_z;
     let mut max_z = start_z;
-    let mut voxel_count = 0;
 
-    // BFS flood-fill in XZ plane at the ceiling Y level
+    // Y range to search for ceiling voxels (ceiling_y +/- tolerance, but above player)
+    let min_ceiling_y = (ceiling_y - 1).max(player_y + 2);
+    let max_ceiling_y = ceiling_y + 2;
+
+    // BFS flood-fill in XZ plane
+    // We continue expanding even through gaps to find the full ceiling extent
     while let Some(current) = queue.pop_front() {
-        if voxel_count >= MAX_REGION_SIZE {
+        if ceiling_positions.len() >= MAX_REGION_SIZE {
             break;
         }
 
-        // Check if there's a voxel at this XZ position at the ceiling Y level
-        // Also check Y levels within tolerance
-        let mut found = false;
-        for dy in -CEILING_Y_TOLERANCE..=CEILING_Y_TOLERANCE {
-            if occupied_voxels.contains(&IVec3::new(current.x, ceiling_y + dy, current.y)) {
-                found = true;
+        // Check if there's a ceiling voxel at this XZ position at any valid Y level
+        let mut found_ceiling = false;
+        for y in min_ceiling_y..=max_ceiling_y {
+            if occupied_voxels.contains(&IVec3::new(current.x, y, current.y)) {
+                found_ceiling = true;
                 break;
             }
         }
 
-        if found {
-            voxel_count += 1;
+        if found_ceiling {
+            ceiling_positions.insert(current);
             min_x = min_x.min(current.x);
             max_x = max_x.max(current.x);
             min_z = min_z.min(current.y);
             max_z = max_z.max(current.y);
+        }
 
+        // Always expand to neighbors within a reasonable distance from start
+        // This ensures we don't miss ceiling sections due to small gaps
+        let distance_from_start = (current.x - start_x).abs() + (current.y - start_z).abs();
+        let max_search_distance = 30; // Maximum manhattan distance to search
+
+        if distance_from_start < max_search_distance {
             // Add neighbors (4-connected in XZ plane)
             let neighbors = [
                 IVec2::new(current.x + 1, current.y),
@@ -300,11 +344,22 @@ fn flood_fill_ceiling_region_voxel(
             for neighbor in neighbors {
                 if !visited.contains(&neighbor) {
                     visited.insert(neighbor);
-                    queue.push_back(neighbor);
+                    
+                    // Only queue if we found ceiling here OR if a neighbor has ceiling
+                    // This allows crossing small gaps but not open areas
+                    let neighbor_has_ceiling = (min_ceiling_y..=max_ceiling_y)
+                        .any(|y| occupied_voxels.contains(&IVec3::new(neighbor.x, y, neighbor.y)));
+                    
+                    if found_ceiling || neighbor_has_ceiling {
+                        queue.push_back(neighbor);
+                    }
                 }
             }
         }
     }
+
+    // If we found very few ceiling voxels, the region might not be valid
+    let voxel_count = ceiling_positions.len();
 
     // Convert voxel bounds to world bounds
     // IMPORTANT: min.y must be ABOVE player level to avoid hiding fences/walls at player level
