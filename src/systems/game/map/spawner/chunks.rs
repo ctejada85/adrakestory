@@ -150,6 +150,9 @@ pub fn spawn_voxels_chunked(
         let mesher = chunk_meshers.entry(chunk_pos).or_default();
 
         // Check each face and add visible ones to the mesher
+        // Note: PosY (top) face is ALWAYS rendered regardless of neighbor,
+        // because the interior occlusion system may hide voxels above,
+        // and we need the floor to be visible when the ceiling is hidden.
         let faces = [
             Face::PosX,
             Face::NegX,
@@ -159,7 +162,10 @@ pub fn spawn_voxels_chunked(
             Face::NegZ,
         ];
         for face in faces {
-            if !occupancy.has_neighbor(x, y, z, sub_x, sub_y, sub_z, face) {
+            // Always render top faces (PosY) to handle interior occlusion
+            let should_render = face == Face::PosY
+                || !occupancy.has_neighbor(x, y, z, sub_x, sub_y, sub_z, face);
+            if should_render {
                 mesher.add_face(global_x, global_y, global_z, face, color_index, color);
             }
         }
