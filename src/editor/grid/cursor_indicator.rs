@@ -95,11 +95,11 @@ pub fn update_cursor_indicator(
         if let Some(ref gp_state) = gamepad_state {
             if gp_state.active {
                 if let Some(grid_pos) = gp_state.action_grid_pos {
-                    // Show cursor at gamepad action position (centered on voxel)
+                    // Show cursor at gamepad action position (voxels are centered at integer coords)
                     transform.translation = Vec3::new(
-                        grid_pos.0 as f32 + 0.5,
-                        grid_pos.1 as f32 + 0.5,
-                        grid_pos.2 as f32 + 0.5,
+                        grid_pos.0 as f32,
+                        grid_pos.1 as f32,
+                        grid_pos.2 as f32,
                     );
                     transform.scale = Vec3::splat(1.0);
                     continue;
@@ -121,7 +121,7 @@ pub fn update_cursor_indicator(
 
         // For other tools (Select, Remove, etc.), show original cursor position
         if let Some(grid_pos) = cursor_state.grid_pos {
-            // Show cursor at grid position (centered on voxel)
+            // Show cursor at grid position (voxels are centered at integer coords)
             transform.translation =
                 Vec3::new(grid_pos.0 as f32, grid_pos.1 as f32, grid_pos.2 as f32);
             transform.scale = Vec3::splat(1.0);

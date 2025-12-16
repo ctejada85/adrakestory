@@ -287,10 +287,11 @@ pub fn handle_camera_input(
                 voxel_pos.2 + hit_info.face_normal.z as i32,
             );
             
+            // action_position is at integer grid coords (voxels are centered at integer positions)
             gamepad_state.action_position = Some(Vec3::new(
-                placement_pos.0 as f32 + 0.5,
-                placement_pos.1 as f32 + 0.5,
-                placement_pos.2 as f32 + 0.5,
+                placement_pos.0 as f32,
+                placement_pos.1 as f32,
+                placement_pos.2 as f32,
             ));
             gamepad_state.action_grid_pos = Some(placement_pos);
             // Store the voxel we're looking at for removal
@@ -298,14 +299,14 @@ pub fn handle_camera_input(
         } else if let Some(ground_pos) = crate::editor::cursor::raycasting::intersect_ground_plane(&ray) {
             // Fallback to ground plane
             let grid_pos = (
-                ground_pos.x.floor() as i32,
+                ground_pos.x.round() as i32,
                 0,
-                ground_pos.z.floor() as i32,
+                ground_pos.z.round() as i32,
             );
             gamepad_state.action_position = Some(Vec3::new(
-                grid_pos.0 as f32 + 0.5,
-                0.5,
-                grid_pos.2 as f32 + 0.5,
+                grid_pos.0 as f32,
+                0.0,
+                grid_pos.2 as f32,
             ));
             gamepad_state.action_grid_pos = Some(grid_pos);
             gamepad_state.target_voxel_pos = None;
@@ -314,9 +315,9 @@ pub fn handle_camera_input(
             let action_pos = camera_pos + forward * gamepad_state.cursor_distance;
             gamepad_state.action_position = Some(action_pos);
             gamepad_state.action_grid_pos = Some((
-                action_pos.x.floor() as i32,
-                action_pos.y.floor() as i32,
-                action_pos.z.floor() as i32,
+                action_pos.x.round() as i32,
+                action_pos.y.round() as i32,
+                action_pos.z.round() as i32,
             ));
             gamepad_state.target_voxel_pos = None;
         }
