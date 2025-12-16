@@ -2,6 +2,50 @@
 
 Complete reference for all map editor controls and shortcuts.
 
+## Xbox Controller Support
+
+The map editor supports Xbox controllers (and other XInput-compatible gamepads) with a Minecraft Creative Mode-style editing experience.
+
+### Controller Mapping
+
+#### Movement & Camera
+| Action | Controller | Description |
+|--------|------------|-------------|
+| **Move/Fly** | Left Stick | Fly in the direction you push |
+| **Look** | Right Stick | Rotate camera view (yaw/pitch) |
+| **Fly Up** | A Button (hold) | Ascend vertically |
+| **Fly Down** | B Button (hold) | Descend vertically |
+| **Reset Camera** | Y Button | Reset camera to default position |
+
+#### Editing Actions
+| Action | Controller | Description |
+|--------|------------|-------------|
+| **Primary Action** | RT (Right Trigger) | Execute current tool's action |
+| **Remove Voxel** | LT (Left Trigger) | Always removes voxel (secondary action) |
+
+#### Tool-Specific RT Behavior
+| Tool | RT Action |
+|------|-----------|
+| Voxel Place | Places voxel at cursor position |
+| Voxel Remove | Removes voxel you're looking at |
+| Entity Place | Places entity at cursor position |
+| Select | Toggles selection on voxel you're looking at |
+| Camera | No action |
+
+### Controller Features
+- **Automatic Input Switching**: Move sticks to activate controller mode (hides cursor), move mouse to switch back
+- **Raycast Cursor**: Cursor appears on the voxel face you're looking at
+- **Flying Camera**: Minecraft Creative mode-style free movement
+- **Tool Integration**: Works with all editor tools
+
+### Controller Tips
+1. **Activate Controller Mode**: Move any stick to switch from mouse to controller
+2. **Aim at Surfaces**: The cursor snaps to voxel faces for precise placement
+3. **Quick Removal**: LT always removes voxels regardless of current tool
+4. **Switch Tools**: Use keyboard shortcuts (B, X, E, V) to change tools while using controller
+
+---
+
 ## Mouse Controls
 
 ### 3D Viewport

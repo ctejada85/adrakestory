@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Map Editor - Controller Support**: Full Xbox controller support for Minecraft Creative mode-style editing
+  - **Flying Camera**: Left stick moves, right stick looks, A/B buttons for vertical movement
+  - **Raycast Cursor**: Cursor automatically targets voxel faces you're looking at
+  - **Trigger Actions**: RT executes current tool action, LT always removes voxels
+  - **Automatic Input Switching**: Seamlessly switch between controller and mouse/keyboard
+  - **Tool Integration**: Works with all editor tools (Place, Remove, Entity, Select)
+
 - **In-Game FPS Counter**: Added toggleable FPS counter for performance monitoring
   - Press `F3` to toggle the FPS counter on/off
   - Displays in top-left corner with green text
