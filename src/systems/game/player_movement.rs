@@ -132,8 +132,7 @@ pub fn move_player(
                 } else if diagonal_collision.can_step_up && player.is_grounded {
                     transform.translation.x = new_x;
                     transform.translation.z = new_z;
-                    transform.translation.y =
-                        current_floor_y + diagonal_collision.step_up_height + player.half_height;
+                    transform.translation.y = diagonal_collision.new_y;
                     player.velocity.y = 0.0;
                 } else {
                     apply_axis_movement(
@@ -197,8 +196,7 @@ fn apply_axis_movement(
         } else if x_collision.can_step_up && player.is_grounded {
             // Step-up collision - move horizontally and adjust height
             transform.translation.x = new_x;
-            transform.translation.y =
-                *current_floor_y + x_collision.step_up_height + player.half_height;
+            transform.translation.y = x_collision.new_y;
             // Update current_floor_y for subsequent collision checks (critical for stairs)
             *current_floor_y = transform.translation.y - player.half_height;
             // Reset vertical velocity to prevent falling after step-up
@@ -228,8 +226,7 @@ fn apply_axis_movement(
         } else if z_collision.can_step_up && player.is_grounded {
             // Step-up collision - move horizontally and adjust height
             transform.translation.z = new_z;
-            transform.translation.y =
-                *current_floor_y + z_collision.step_up_height + player.half_height;
+            transform.translation.y = z_collision.new_y;
             // Reset vertical velocity to prevent falling after step-up
             player.velocity.y = 0.0;
         }

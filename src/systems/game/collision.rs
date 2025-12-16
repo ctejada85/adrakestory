@@ -21,6 +21,8 @@ pub struct CollisionResult {
     pub can_step_up: bool,
     /// The height to step up (if can_step_up is true)
     pub step_up_height: f32,
+    /// The new Y position after step-up (center of player cylinder)
+    pub new_y: f32,
 }
 
 impl CollisionResult {
@@ -30,6 +32,7 @@ impl CollisionResult {
             has_collision: false,
             can_step_up: false,
             step_up_height: 0.0,
+            new_y: 0.0,
         }
     }
 
@@ -39,15 +42,17 @@ impl CollisionResult {
             has_collision: true,
             can_step_up: false,
             step_up_height: 0.0,
+            new_y: 0.0,
         }
     }
 
     /// Step-up collision (can walk up)
-    pub fn step_up(height: f32) -> Self {
+    pub fn step_up(height: f32, new_y: f32) -> Self {
         Self {
             has_collision: true,
             can_step_up: true,
             step_up_height: height,
+            new_y,
         }
     }
 }
@@ -105,7 +110,6 @@ pub fn check_sub_voxel_collision(
     sub_voxel_query: &Query<&SubVoxel, Without<Player>>,
     params: CollisionParams,
 ) -> CollisionResult {
-    // Use slightly smaller collision radius for tighter fit
     let collision_radius = params.radius;
 
     // Calculate player's AABB for grid lookup (cylinder bounds)
@@ -126,8 +130,8 @@ pub fn check_sub_voxel_collision(
     let mut step_up_candidate: Option<f32> = None;
 
     // Check all relevant sub-voxels for collision
-    for entity in relevant_sub_voxel_entities {
-        if let Ok(sub_voxel) = sub_voxel_query.get(entity) {
+    for entity in relevant_sub_voxel_entities.iter() {
+        if let Ok(sub_voxel) = sub_voxel_query.get(*entity) {
             let (min, max) = get_sub_voxel_bounds(sub_voxel);
 
             // Skip sub-voxels that are floor/ground (below player's feet)
@@ -179,9 +183,61 @@ pub fn check_sub_voxel_collision(
         }
     }
 
-    // If we found a step-up candidate, return it
+    // If we found a step-up candidate, verify that the stepped-up position is collision-free
     if let Some(height) = step_up_candidate {
-        return CollisionResult::step_up(height);
+        let new_y = params.current_floor_y + height + params.half_height;
+
+        // Check for collisions at the stepped-up position
+        // We need to query a larger area that includes the new height
+        let stepped_min = Vec3::new(
+            params.x - collision_radius,
+            new_y - params.half_height,
+            params.z - collision_radius,
+        );
+        let stepped_max = Vec3::new(
+            params.x + collision_radius,
+            new_y + params.half_height,
+            params.z + collision_radius,
+        );
+
+        let stepped_entities = spatial_grid.get_entities_in_aabb(stepped_min, stepped_max);
+
+        // Check if player body would collide at the new height
+        for entity in stepped_entities {
+            if let Ok(sub_voxel) = sub_voxel_query.get(entity) {
+                let (min, max) = get_sub_voxel_bounds(sub_voxel);
+
+                // At the new height, check if this sub-voxel would block the player's body
+                // The player's new bottom is at the stepped-up floor level
+                let new_bottom = new_y - params.half_height;
+                let new_top = new_y + params.half_height;
+
+                // Skip sub-voxels that are now below the player's feet (floor we're standing on)
+                if max.y <= new_bottom + 0.01 {
+                    continue;
+                }
+
+                // Skip sub-voxels above the player
+                if min.y >= new_top {
+                    continue;
+                }
+
+                // Check horizontal overlap with cylinder
+                let closest_x = params.x.clamp(min.x, max.x);
+                let closest_z = params.z.clamp(min.z, max.z);
+                let dx = params.x - closest_x;
+                let dz = params.z - closest_z;
+                let distance_squared = dx * dx + dz * dz;
+
+                if distance_squared < collision_radius * collision_radius {
+                    // There's a collision at the stepped-up position - block movement
+                    return CollisionResult::blocking();
+                }
+            }
+        }
+
+        // Step-up is valid and the new position is collision-free
+        return CollisionResult::step_up(height, new_y);
     }
 
     // No collision
@@ -251,10 +307,11 @@ mod tests {
 
     #[test]
     fn test_collision_result_step_up() {
-        let result = CollisionResult::step_up(0.125);
+        let result = CollisionResult::step_up(0.125, 1.5);
         assert!(result.has_collision);
         assert!(result.can_step_up);
         assert_eq!(result.step_up_height, 0.125);
+        assert_eq!(result.new_y, 1.5);
     }
 
     // cylinder_aabb_intersects tests
