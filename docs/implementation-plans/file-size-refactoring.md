@@ -4,9 +4,9 @@
 
 This plan addresses files that exceed the file size guidelines (~200-400 lines target, ~300 lines as split threshold). The goal is to improve code navigability, maintainability, and review efficiency by splitting large files into focused modules.
 
-**Status**: ✅ Complete (11/12 refactorings done)  
+**Status**: ✅ Complete  
 **Priority**: Medium  
-**Last Updated**: 2025-12-15
+**Last Updated**: 2025-12-16
 
 ---
 
@@ -27,7 +27,7 @@ Files sorted by line count, with those exceeding ~400 lines flagged for splittin
 | `src/systems/game/hot_reload/` | 494 → 5 files | 🟡 Medium | ✅ Done |
 | `src/systems/game/map/format/` | 471 → 9 files | 🟡 Medium | ✅ Done |
 | `src/editor/grid/` | 447 → 5 files | 🟡 Medium | ✅ Done |
-| `src/editor/tools/voxel_tool.rs` | 416 | 🟢 Low | Pending |
+| `src/editor/tools/voxel_tool/` | 416 → 4 files | 🟢 Low | ✅ Done (Phase 2) |
 
 ---
 

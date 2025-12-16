@@ -12,12 +12,37 @@ The map loader system provides a complete solution for loading game maps from RO
 
 ```
 src/systems/game/map/
-├── mod.rs          # Public API and re-exports
-├── format.rs       # Data structures and types
-├── loader.rs       # File I/O and parsing
-├── spawner.rs      # World instantiation
-├── validation.rs   # Map validation logic
-└── error.rs        # Error types
+├── mod.rs              # Public API and re-exports
+├── format/             # Data structures and types
+│   ├── mod.rs          # Re-exports
+│   ├── camera.rs       # CameraData
+│   ├── defaults.rs     # Default values
+│   ├── entities.rs     # EntityData, EntityType
+│   ├── lighting.rs     # LightingData
+│   ├── metadata.rs     # MapMetadata
+│   ├── patterns.rs     # SubVoxelPattern
+│   ├── rotation.rs     # Rotation support
+│   └── world.rs        # WorldData, VoxelData
+├── geometry/           # Sub-voxel geometry
+│   ├── mod.rs          # Re-exports
+│   ├── types.rs        # SubVoxelGeometry
+│   ├── patterns.rs     # Pattern generation
+│   ├── rotation.rs     # Geometry rotation
+│   └── utils.rs        # Helper functions
+├── loader.rs           # File I/O and parsing
+├── spawner/            # World instantiation
+│   ├── mod.rs          # Constants, types, main system
+│   ├── meshing/        # Mesh generation
+│   │   ├── mod.rs      # Face enum, re-exports
+│   │   ├── occupancy.rs    # OccupancyGrid
+│   │   ├── greedy_mesher.rs # GreedyMesher algorithm
+│   │   ├── mesh_builder.rs  # ChunkMeshBuilder
+│   │   └── palette.rs      # VoxelMaterialPalette
+│   ├── entities.rs     # Entity spawning
+│   ├── chunks.rs       # Chunk spawning
+│   └── systems.rs      # LOD, lighting, camera
+├── validation.rs       # Map validation logic
+└── error.rs            # Error types
 ```
 
 ### Data Flow
@@ -470,5 +495,5 @@ fn test_full_load_cycle() {
 
 ---
 
-**Implementation Version:** 1.0.0  
-**Last Updated:** 2025-01-10
+**Implementation Version:** 2.0.0  
+**Last Updated:** 2025-12-16

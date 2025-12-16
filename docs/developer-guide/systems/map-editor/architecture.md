@@ -550,17 +550,17 @@ The map editor uses a **unified, event-driven input architecture**:
 
 ### Key Components
 
-1. **Unified Keyboard Handler** ([`handle_keyboard_input()`](../../../../src/editor/tools/input.rs:105))
+1. **Unified Keyboard Handler** ([`handle_keyboard_input()`](../../../../src/editor/tools/input/keyboard.rs))
    - Single entry point for all keyboard input
    - Context-aware key mapping based on mode
    - One UI focus check instead of 7+
 
-2. **Transformation Operations** ([`handle_transformation_operations()`](../../../../src/editor/tools/input.rs:234))
+2. **Transformation Operations** ([`handle_transformation_operations()`](../../../../src/editor/tools/input/operations.rs))
    - Event-driven execution
    - Handles both keyboard and UI button events
    - Separated from input reading
 
-3. **Event System** ([`EditorInputEvent`](../../../../src/editor/tools/input.rs:15))
+3. **Event System** ([`EditorInputEvent`](../../../../src/editor/tools/input/events.rs))
    - Semantic events (StartMove, RotateDelta, etc.)
    - Decouples input reading from execution
    - Enables better testing and maintainability
@@ -583,7 +583,7 @@ To prevent change detection pollution, cursor state was separated from `EditorSt
 
 **Problem**: Cursor updates every frame triggered `EditorState.is_changed()`, causing unnecessary lighting updates.
 
-**Solution**: Created dedicated `CursorState` resource ([`cursor.rs`](../../../../src/editor/cursor.rs))
+**Solution**: Created dedicated `CursorState` resource ([`cursor/state.rs`](../../../../src/editor/cursor/state.rs))
 ```rust
 #[derive(Resource, Default)]
 pub struct CursorState {
@@ -619,6 +619,6 @@ See [Lighting Performance Optimization](archive/lighting-performance-optimizatio
 
 ---
 
-**Document Version**: 2.3.0
-**Last Updated**: 2025-12-08
-**Status**: Updated for voxel rendering optimizations (Tiers 1-5) and grid frustum culling
+**Document Version**: 2.4.0
+**Last Updated**: 2025-12-16
+**Status**: Updated for file size refactoring (Phase 1 & 2)

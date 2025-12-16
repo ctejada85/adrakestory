@@ -187,7 +187,12 @@ src/
 │   │       ├── loader.rs   # Map file loading
 │   │       ├── spawner/    # World instantiation
 │   │       │   ├── mod.rs
-│   │       │   ├── meshing.rs
+│   │       │   ├── meshing/ # Mesh generation
+│   │       │   │   ├── mod.rs
+│   │       │   │   ├── occupancy.rs
+│   │       │   │   ├── greedy_mesher.rs
+│   │       │   │   ├── mesh_builder.rs
+│   │       │   │   └── palette.rs
 │   │       │   ├── entities.rs
 │   │       │   ├── chunks.rs
 │   │       │   └── systems.rs
@@ -197,6 +202,49 @@ src/
 │   ├── title_screen/       # Title screen
 │   ├── loading_screen/     # Loading UI
 │   └── pause_menu/         # Pause menu
+├── editor/                 # Map editor
+│   ├── mod.rs
+│   ├── cursor/             # Cursor state management
+│   │   ├── mod.rs
+│   │   ├── state.rs
+│   │   └── raycasting.rs
+│   ├── tools/              # Editor tools
+│   │   ├── mod.rs
+│   │   ├── input/          # Input handling
+│   │   │   ├── mod.rs
+│   │   │   ├── events.rs
+│   │   │   ├── keyboard.rs
+│   │   │   └── operations.rs
+│   │   ├── selection_tool/ # Selection tool
+│   │   │   ├── mod.rs
+│   │   │   ├── selection.rs
+│   │   │   ├── movement.rs
+│   │   │   └── rotation.rs
+│   │   └── voxel_tool/     # Voxel placement/removal
+│   │       ├── mod.rs
+│   │       ├── drag_state.rs
+│   │       ├── placement.rs
+│   │       └── removal.rs
+│   └── ui/                 # Editor UI
+│       ├── mod.rs
+│       ├── toolbar/        # Toolbar panel
+│       │   ├── mod.rs
+│       │   ├── file_menu.rs
+│       │   ├── edit_menu.rs
+│       │   ├── view_menu.rs
+│       │   └── tool_buttons.rs
+│       ├── dialogs/        # Dialog windows
+│       │   ├── mod.rs
+│       │   ├── events.rs
+│       │   ├── rendering.rs
+│       │   ├── file_operations.rs
+│       │   └── window_handling.rs
+│       └── properties/     # Properties panel
+│           ├── mod.rs
+│           ├── voxel.rs
+│           ├── entity.rs
+│           ├── lighting.rs
+│           └── map_info.rs
 └── components/             # Shared components
 ```
 
@@ -372,9 +420,14 @@ pub struct GameInitialized(pub bool);
 
 **Key Files:**
 - `format/`: Map data structures (split into modules)
+  - `camera.rs`, `defaults.rs`, `entities.rs`, `lighting.rs`, `metadata.rs`, `patterns.rs`, `rotation.rs`, `world.rs`
 - `loader.rs`: File I/O and parsing
 - `spawner/`: Entity instantiation (split into modules)
+  - `mod.rs`: Constants, types, main system
+  - `meshing/`: Mesh generation (`occupancy.rs`, `greedy_mesher.rs`, `mesh_builder.rs`, `palette.rs`)
+  - `entities.rs`, `chunks.rs`, `systems.rs`
 - `geometry/`: Sub-voxel geometry calculations
+  - `types.rs`, `patterns.rs`, `rotation.rs`, `utils.rs`
 - `validation.rs`: Map validation
 - `error.rs`: Error types
 
@@ -662,5 +715,5 @@ pub fn player_movement_system(/* ... */) {
 
 ---
 
-**Architecture Version:** 1.0.0
-**Last Updated:** 2025-10-22
+**Architecture Version:** 2.0.0
+**Last Updated:** 2025-12-16
