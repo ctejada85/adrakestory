@@ -325,6 +325,156 @@ pub fn reset_player_input(mut player_input: ResMut<PlayerInput>) {
     };
 }
 
+// =============================================================================
+// Tests
+// =============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -------------------------------------------------------------------------
+    // GamepadSettings Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_gamepad_settings_default() {
+        let settings = GamepadSettings::default();
+        assert!((settings.stick_deadzone - 0.15).abs() < f32::EPSILON);
+        assert!((settings.trigger_deadzone - 0.1).abs() < f32::EPSILON);
+        assert!(!settings.invert_camera_y);
+        assert!((settings.camera_sensitivity - 3.0).abs() < f32::EPSILON);
+        assert!((settings.movement_sensitivity - 1.0).abs() < f32::EPSILON);
+    }
+
+    // -------------------------------------------------------------------------
+    // apply_deadzone Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_apply_deadzone_zero_input() {
+        let result = apply_deadzone(Vec2::ZERO, 0.15);
+        assert_eq!(result, Vec2::ZERO);
+    }
+
+    #[test]
+    fn test_apply_deadzone_within_deadzone() {
+        // Input within deadzone should return zero
+        let result = apply_deadzone(Vec2::new(0.1, 0.05), 0.15);
+        assert_eq!(result, Vec2::ZERO);
+    }
+
+    #[test]
+    fn test_apply_deadzone_exactly_at_deadzone() {
+        // Input at exactly deadzone threshold (magnitude = 0.15)
+        let input = Vec2::new(0.15, 0.0);
+        let result = apply_deadzone(input, 0.15);
+        // Should return zero (< not <=)
+        assert_eq!(result, Vec2::ZERO);
+    }
+
+    #[test]
+    fn test_apply_deadzone_just_outside() {
+        // Input just outside deadzone
+        let input = Vec2::new(0.2, 0.0);
+        let result = apply_deadzone(input, 0.15);
+        // Should return small positive value
+        assert!(result.x > 0.0);
+        assert!(result.y.abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_apply_deadzone_full_input() {
+        // Full input (magnitude = 1.0)
+        let input = Vec2::new(1.0, 0.0);
+        let result = apply_deadzone(input, 0.15);
+        // Should be close to 1.0 (rescaled)
+        assert!((result.x - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_apply_deadzone_diagonal() {
+        // Diagonal input
+        let input = Vec2::new(0.7, 0.7);
+        let result = apply_deadzone(input, 0.15);
+        // Should preserve direction
+        let direction = result.normalize();
+        assert!((direction.x - direction.y).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_apply_deadzone_negative_values() {
+        // Negative input
+        let input = Vec2::new(-0.5, -0.3);
+        let result = apply_deadzone(input, 0.15);
+        // Should preserve negative direction
+        assert!(result.x < 0.0);
+        assert!(result.y < 0.0);
+    }
+
+    #[test]
+    fn test_apply_deadzone_zero_deadzone() {
+        // Zero deadzone - input passes through unchanged
+        let input = Vec2::new(0.5, 0.3);
+        let result = apply_deadzone(input, 0.0);
+        assert!((result - input).length() < 0.01);
+    }
+
+    #[test]
+    fn test_apply_deadzone_capped_at_one() {
+        // Input beyond 1.0 should be capped
+        let input = Vec2::new(1.5, 0.0);
+        let result = apply_deadzone(input, 0.15);
+        // Rescaled magnitude should be capped at 1.0
+        assert!(result.length() <= 1.01); // Small epsilon for float comparison
+    }
+
+    // -------------------------------------------------------------------------
+    // PlayerInput Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_player_input_default() {
+        let input = PlayerInput::default();
+        assert_eq!(input.movement, Vec2::ZERO);
+        assert_eq!(input.camera_delta, Vec2::ZERO);
+        assert_eq!(input.look_direction, Vec2::ZERO);
+        assert!(!input.jump_pressed);
+        assert!(!input.jump_just_pressed);
+        assert!(!input.interact_pressed);
+        assert!(!input.pause_just_pressed);
+        assert!(!input.camera_reset_just_pressed);
+        assert_eq!(input.input_source, InputSource::KeyboardMouse);
+    }
+
+    // -------------------------------------------------------------------------
+    // InputSource Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_input_source_default() {
+        let source = InputSource::default();
+        assert_eq!(source, InputSource::KeyboardMouse);
+    }
+
+    #[test]
+    fn test_input_source_equality() {
+        assert_eq!(InputSource::Gamepad, InputSource::Gamepad);
+        assert_eq!(InputSource::KeyboardMouse, InputSource::KeyboardMouse);
+        assert_ne!(InputSource::Gamepad, InputSource::KeyboardMouse);
+    }
+
+    // -------------------------------------------------------------------------
+    // ActiveGamepad Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_active_gamepad_default() {
+        let active = ActiveGamepad::default();
+        assert!(active.0.is_none());
+    }
+}
+
 /// Menu input for navigating UI with gamepad.
 ///
 /// Returns (navigate_up, navigate_down, select, back)
