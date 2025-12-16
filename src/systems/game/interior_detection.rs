@@ -99,7 +99,7 @@ pub fn detect_interior_system(
     let player_pos = player_transform.translation;
 
     // Skip if player hasn't moved significantly
-    if player_pos.distance(interior_state.last_detection_pos) < 0.5 {
+    if player_pos.distance(interior_state.last_detection_pos) < 0.3 {
         return;
     }
 
@@ -112,33 +112,56 @@ pub fn detect_interior_system(
     // Build a set of occupied voxel positions for quick lookup
     let occupied_voxels = build_occupied_voxel_set(&spatial_grid, &sub_voxels);
 
-    // Use rounded position for more centered detection
-    // This ensures the player's center must be in the voxel, not just an edge
-    let player_voxel_x = player_pos.x.round() as i32;
-    let player_voxel_z = player_pos.z.round() as i32;
+    // Check multiple voxel positions around the player's center to find a ceiling
+    // This prevents the region from disappearing when crossing voxel boundaries
+    let player_voxel_x_floor = player_pos.x.floor() as i32;
+    let player_voxel_z_floor = player_pos.z.floor() as i32;
+    
+    // Check the 4 voxels the player could be overlapping
+    let positions_to_check = [
+        (player_voxel_x_floor, player_voxel_z_floor),
+        (player_voxel_x_floor + 1, player_voxel_z_floor),
+        (player_voxel_x_floor, player_voxel_z_floor + 1),
+        (player_voxel_x_floor + 1, player_voxel_z_floor + 1),
+    ];
 
-    // Check if there's a ceiling directly above the player's center
-    let ceiling_voxel = find_ceiling_voxel_above(
-        player_voxel_x,
-        player_voxel_y,
-        player_voxel_z,
-        config.interior_height_threshold as i32,
-        &occupied_voxels,
-    );
+    // Find ceiling from any of these positions
+    let mut best_ceiling: Option<(i32, i32, i32, i32)> = None; // (x, z, ceiling_y, voxel_count estimate)
+    
+    for (vx, vz) in positions_to_check {
+        if let Some(ceiling_y) = find_ceiling_voxel_above(
+            vx,
+            player_voxel_y,
+            vz,
+            config.interior_height_threshold as i32,
+            &occupied_voxels,
+        ) {
+            // Use this ceiling if we haven't found one yet
+            if best_ceiling.is_none() {
+                best_ceiling = Some((vx, vz, ceiling_y, 0));
+            }
+        }
+    }
 
-    if let Some(ceiling_y) = ceiling_voxel {
+    if let Some((start_x, start_z, ceiling_y, _)) = best_ceiling {
         // Flood-fill to find connected ceiling region at voxel level
         let region = flood_fill_ceiling_region_voxel(
-            player_voxel_x,
+            start_x,
             ceiling_y,
-            player_voxel_z,
+            start_z,
             player_voxel_y,
             &occupied_voxels,
         );
 
-        // Only activate the region if the player is well inside it (not at the edge)
-        // This prevents flickering when the player is at doorways or edges
-        let margin = INTERIOR_ENTRY_MARGIN;
+        // Check if player is inside the region (with margin for entry, smaller for exit)
+        // Hysteresis: use smaller margin if already inside to prevent flickering
+        let is_currently_inside = interior_state.current_region.is_some();
+        let margin = if is_currently_inside {
+            INTERIOR_ENTRY_MARGIN * 0.25 // Smaller margin to exit
+        } else {
+            INTERIOR_ENTRY_MARGIN // Larger margin to enter
+        };
+        
         let player_inside = player_pos.x > region.min.x + margin
             && player_pos.x < region.max.x - margin
             && player_pos.z > region.min.z + margin
