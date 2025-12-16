@@ -686,4 +686,148 @@ mod tests {
         // After 1 second, distance should be very close to target
         assert!((camera.distance - camera.target_distance).abs() < 0.1);
     }
+
+    #[test]
+    fn test_gamepad_camera_state_default() {
+        let state = GamepadCameraState::default();
+        assert!(!state.active);
+        assert!(state.action_position.is_none());
+        assert!(state.action_grid_pos.is_none());
+        assert!(state.target_voxel_pos.is_none());
+    }
+
+    #[test]
+    fn test_gamepad_camera_state_new() {
+        let state = GamepadCameraState::new();
+        assert!(!state.active);
+        assert_eq!(state.cursor_distance, 5.0);
+        assert!(state.action_position.is_none());
+        assert!(state.action_grid_pos.is_none());
+        assert!(state.target_voxel_pos.is_none());
+    }
+
+    #[test]
+    fn test_camera_orbit() {
+        let mut camera = EditorCamera::default();
+        let initial_rotation = camera.rotation;
+
+        camera.orbit(Vec2::new(100.0, 50.0));
+
+        // Rotation should have changed
+        assert!(camera.rotation.x != initial_rotation.x);
+        assert!(camera.rotation.y != initial_rotation.y);
+    }
+
+    #[test]
+    fn test_camera_orbit_pitch_clamp() {
+        let mut camera = EditorCamera::default();
+
+        // Try to orbit way past the pitch limits
+        camera.orbit(Vec2::new(0.0, 10000.0));
+        assert!(camera.rotation.y <= 1.5);
+
+        camera.orbit(Vec2::new(0.0, -20000.0));
+        assert!(camera.rotation.y >= -1.5);
+    }
+
+    #[test]
+    fn test_camera_pan() {
+        let mut camera = EditorCamera::default();
+        let initial_target = camera.target;
+
+        camera.pan(Vec2::new(100.0, 100.0));
+
+        // Target should have moved
+        assert!(camera.target != initial_target);
+    }
+
+    #[test]
+    fn test_camera_reset() {
+        let mut camera = EditorCamera::default();
+
+        // Modify camera state
+        camera.target = Vec3::new(100.0, 100.0, 100.0);
+        camera.distance = 50.0;
+        camera.target_distance = 50.0;
+        camera.rotation = Vec2::new(3.14, 1.0);
+
+        camera.reset();
+
+        let default = EditorCamera::default();
+        assert_eq!(camera.target, default.target);
+        assert_eq!(camera.distance, default.distance);
+        assert_eq!(camera.target_distance, default.target_distance);
+        assert_eq!(camera.rotation, default.rotation);
+    }
+
+    #[test]
+    fn test_camera_set_view() {
+        let mut camera = EditorCamera::default();
+
+        let position = Vec3::new(10.0, 5.0, 10.0);
+        let target = Vec3::ZERO;
+
+        camera.set_view(position, target);
+
+        assert_eq!(camera.target, target);
+        // Distance should be approximately the distance between position and target
+        let expected_distance = (position - target).length();
+        assert!((camera.distance - expected_distance).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_camera_looking_at_constructor() {
+        let target = Vec3::new(5.0, 5.0, 5.0);
+        let distance = 15.0;
+
+        let camera = EditorCamera::looking_at(target, distance);
+
+        assert_eq!(camera.target, target);
+        assert_eq!(camera.distance, distance);
+    }
+
+    #[test]
+    fn test_camera_calculate_position_at_different_rotations() {
+        // Test that camera position varies with rotation
+        let camera1 = EditorCamera {
+            target: Vec3::ZERO,
+            distance: 10.0,
+            rotation: Vec2::new(0.0, 0.0),
+            ..Default::default()
+        };
+
+        let camera2 = EditorCamera {
+            target: Vec3::ZERO,
+            distance: 10.0,
+            rotation: Vec2::new(std::f32::consts::PI / 2.0, 0.0), // 90 degree yaw
+            ..Default::default()
+        };
+
+        let pos1 = camera1.calculate_position();
+        let pos2 = camera2.calculate_position();
+
+        // Positions should be different due to different yaw
+        assert!((pos1 - pos2).length() > 1.0);
+
+        // Both should be at same distance from target
+        assert!((pos1.length() - 10.0).abs() < 0.01);
+        assert!((pos2.length() - 10.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_camera_calculate_position_with_pitch() {
+        let camera = EditorCamera {
+            target: Vec3::ZERO,
+            distance: 10.0,
+            rotation: Vec2::new(0.0, 0.5), // Some pitch
+            ..Default::default()
+        };
+
+        let pos = camera.calculate_position();
+
+        // Camera should be elevated due to positive pitch
+        assert!(pos.y > 0.0);
+        // Still at correct distance
+        assert!((pos.length() - 10.0).abs() < 0.01);
+    }
 }
