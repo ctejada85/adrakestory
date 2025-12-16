@@ -1,104 +1,70 @@
 //! Mouse-based cursor position updates.
 
-use super::raycasting::{find_closest_voxel_intersection_with_face, intersect_ground_plane};
 use super::CursorState;
-use crate::editor::camera::EditorCamera;
-use crate::editor::state::{EditorState, KeyboardEditMode};
+use crate::editor::camera::{EditorCamera, GamepadCameraState};
+use crate::editor::state::KeyboardEditMode;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use bevy_egui::EguiContexts;
 
-/// System to update cursor position and grid position from mouse input
-/// Only updates when keyboard edit mode is disabled
+/// System to update cursor position from center-screen raycast (fly camera mode)
+/// The cursor is always positioned at where the camera is looking
 pub fn update_cursor_position(
     mut cursor_state: ResMut<CursorState>,
-    editor_state: Res<EditorState>,
-    camera_query: Query<(&Camera, &GlobalTransform), With<EditorCamera>>,
+    gamepad_state: Res<GamepadCameraState>,
+    camera_query: Query<&EditorCamera, With<EditorCamera>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     keyboard_mode: Res<KeyboardEditMode>,
-    mut contexts: EguiContexts,
 ) {
-    // Don't update cursor from mouse when in keyboard edit mode
+    // Don't update cursor from raycasting when in keyboard edit mode
     if keyboard_mode.enabled {
         return;
     }
 
-    // Don't update if mouse is over UI
-    if contexts.ctx_mut().is_pointer_over_area() {
+    let Ok(editor_cam) = camera_query.get_single() else {
         return;
+    };
+
+    let Ok(_window) = window_query.get_single() else {
+        return;
+    };
+
+    // Use center-screen raycast (from GamepadCameraState which is always updated)
+    // This works for both gamepad and keyboard/mouse since we're always in fly mode
+    if let Some(grid_pos) = gamepad_state.action_grid_pos {
+        cursor_state.placement_grid_pos = Some(grid_pos);
+        cursor_state.placement_pos = Some(Vec3::new(
+            grid_pos.0 as f32,
+            grid_pos.1 as f32,
+            grid_pos.2 as f32,
+        ));
     }
 
-    let Ok((camera, camera_transform)) = camera_query.get_single() else {
-        return;
-    };
-
-    let Ok(window) = window_query.get_single() else {
-        return;
-    };
-
-    // Get cursor position in window
-    let Some(cursor_position) = window.cursor_position() else {
-        cursor_state.position = None;
-        cursor_state.grid_pos = None;
-        return;
-    };
-
-    // Convert cursor position to world ray
-    let Ok(ray) = camera.viewport_to_world(camera_transform, cursor_position) else {
-        cursor_state.position = None;
-        cursor_state.grid_pos = None;
-        return;
-    };
-
-    // Find the closest voxel that the ray intersects with face information
-    let closest_voxel_hit = find_closest_voxel_intersection_with_face(&editor_state, &ray);
-
-    if let Some((voxel_pos, hit_info)) = closest_voxel_hit {
-        // Set cursor to the intersected voxel
-        cursor_state.grid_pos = Some(voxel_pos);
+    if let Some(target_pos) = gamepad_state.target_voxel_pos {
+        cursor_state.grid_pos = Some(target_pos);
         cursor_state.position = Some(Vec3::new(
-            voxel_pos.0 as f32,
-            voxel_pos.1 as f32,
-            voxel_pos.2 as f32,
+            target_pos.0 as f32,
+            target_pos.1 as f32,
+            target_pos.2 as f32,
         ));
-        cursor_state.hit_face_normal = Some(hit_info.face_normal);
+    } else if let Some(action_pos) = gamepad_state.action_position {
+        // No voxel being looked at, use the placement position
+        cursor_state.grid_pos = gamepad_state.action_grid_pos;
+        cursor_state.position = Some(action_pos);
+    }
 
-        // Calculate adjacent placement position
-        let offset = hit_info.face_normal;
-        let placement_grid = (
-            voxel_pos.0 + offset.x as i32,
-            voxel_pos.1 + offset.y as i32,
-            voxel_pos.2 + offset.z as i32,
-        );
-        cursor_state.placement_grid_pos = Some(placement_grid);
-        cursor_state.placement_pos = Some(Vec3::new(
-            placement_grid.0 as f32,
-            placement_grid.1 as f32,
-            placement_grid.2 as f32,
-        ));
+    // Calculate face normal from camera direction
+    let forward = editor_cam.forward();
+    
+    // Determine dominant axis for face normal (opposite of camera direction)
+    let abs_x = forward.x.abs();
+    let abs_y = forward.y.abs();
+    let abs_z = forward.z.abs();
+    
+    if abs_y > abs_x && abs_y > abs_z {
+        cursor_state.hit_face_normal = Some(if forward.y > 0.0 { Vec3::NEG_Y } else { Vec3::Y });
+    } else if abs_x > abs_z {
+        cursor_state.hit_face_normal = Some(if forward.x > 0.0 { Vec3::NEG_X } else { Vec3::X });
     } else {
-        // No voxel intersection, fall back to ground plane intersection
-        if let Some(ground_pos) = intersect_ground_plane(&ray) {
-            // Keep cursor position as exact intersection for free movement
-            cursor_state.position = Some(ground_pos);
-
-            // Snap grid position to nearest integer coordinates
-            let grid_x = ground_pos.x.round() as i32;
-            let grid_y = 0;
-            let grid_z = ground_pos.z.round() as i32;
-            cursor_state.grid_pos = Some((grid_x, grid_y, grid_z));
-            cursor_state.hit_face_normal = Some(Vec3::Y); // Upward
-
-            // Placement position snaps to grid (integer coordinates)
-            cursor_state.placement_grid_pos = Some((grid_x, grid_y, grid_z));
-            cursor_state.placement_pos =
-                Some(Vec3::new(grid_x as f32, grid_y as f32, grid_z as f32));
-        } else {
-            cursor_state.position = None;
-            cursor_state.grid_pos = None;
-            cursor_state.hit_face_normal = None;
-            cursor_state.placement_pos = None;
-            cursor_state.placement_grid_pos = None;
-        }
+        cursor_state.hit_face_normal = Some(if forward.z > 0.0 { Vec3::NEG_Z } else { Vec3::Z });
     }
 }

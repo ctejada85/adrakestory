@@ -24,32 +24,31 @@ pub fn update_infinite_grid(
     >,
     grid_query: Query<(Entity, &Mesh3d), With<EditorGrid>>,
 ) {
-    let Ok((camera_transform, frustum, editor_camera)) = camera_query.get_single() else {
+    let Ok((camera_transform, frustum, _editor_camera)) = camera_query.get_single() else {
         return;
     };
 
     let camera_pos = camera_transform.translation;
 
-    // Scale render distance based on camera distance from target (zoom level)
-    // The further the camera is zoomed out, the larger the grid render area
+    // Scale render distance based on camera height
+    // The further the camera is from ground, the larger the grid render area
     let base_render_distance = config.render_distance;
     let camera_height = camera_pos.y.abs();
-    let camera_distance = editor_camera.distance;
 
-    // Use the larger of camera height or camera distance to determine grid extent
+    // Use camera height to determine grid extent
     // Multiply by a factor to ensure grid extends beyond visible area
     let dynamic_render_distance =
-        (base_render_distance + camera_height * 2.0 + camera_distance * 1.5)
+        (base_render_distance + camera_height * 3.0)
             .max(base_render_distance);
 
-    // Check if we need to regenerate the grid (also regenerate if zoom changed significantly)
-    let zoom_changed =
-        (camera_distance - config.last_camera_pos.y.abs()).abs() > config.regeneration_threshold;
+    // Check if we need to regenerate the grid
+    let height_changed =
+        (camera_height - config.last_camera_pos.y.abs()).abs() > config.regeneration_threshold;
     if !should_regenerate_grid(
         camera_pos,
         config.last_camera_pos,
         config.regeneration_threshold,
-    ) && !zoom_changed
+    ) && !height_changed
     {
         return;
     }

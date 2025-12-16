@@ -1,10 +1,10 @@
 # Map Editor WASD Movement Implementation Plan
 
-## Status: 📋 PLANNED
+## Status: ✅ COMPLETED
 
 ## Overview
 
-This document outlines the implementation plan for replacing the orbit camera with a permanent first-person flying camera in the Map Editor. The camera will always be in fly mode, providing a Minecraft Creative mode-style editing experience with WASD movement and mouse look.
+This document outlines the implementation of replacing the orbit camera with a permanent first-person flying camera in the Map Editor. The camera is always in fly mode, providing a Minecraft Creative mode-style editing experience with WASD movement and mouse look.
 
 ## Goal
 

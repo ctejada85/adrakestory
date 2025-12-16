@@ -58,24 +58,26 @@ The map editor supports Xbox controllers (and other XInput-compatible gamepads) 
 
 ## Mouse Controls
 
-### 3D Viewport
+### 3D Viewport - Fly Camera Mode
+
+The editor uses a first-person fly camera (Minecraft Creative mode style).
 
 | Action | Control |
 |--------|---------|
-| **Orbit Camera** | Right-click + Drag |
-| **Pan Camera** | Middle-click + Drag |
-| **Pan Camera (Alt 1)** | Shift + Right-click + Drag |
-| **Pan Camera (Alt 2)** | Space + Left-click + Drag |
-| **Pan Camera (Trackpad)** | Cmd/Ctrl + Left-click + Drag |
-| **Zoom In/Out** | Mouse Wheel |
-| **Place Voxel** | Left-click (Voxel Place Tool) |
-| **Drag Place Voxels** | Left-click + Drag (Voxel Place Tool) |
-| **Remove Voxel** | Left-click (Voxel Remove Tool) |
-| **Drag Remove Voxels** | Left-click + Drag (Voxel Remove Tool) |
+| **Look Around** | Right-click + Drag |
+| **Move Forward** | W |
+| **Move Backward** | S |
+| **Strafe Left** | A |
+| **Strafe Right** | D |
+| **Fly Up** | Space |
+| **Fly Down** | Ctrl |
+| **Next Pattern/Entity** | E |
+| **Previous Pattern/Entity** | Q |
+| **Place Voxel** | Left-click (when over voxel/ground) |
+| **Remove Voxel** | Left-click (removes voxel you're looking at) |
 | **Place Entity** | Left-click (Entity Tool active) |
 | **Select Item** | Left-click (Select Tool active) |
-| **Drag Select** | Left-click + Drag (Select Tool) |
-| **Toggle Selection** | Click on already selected voxel |
+| **Reset Camera** | Home |
 
 ### UI Interactions
 
@@ -331,35 +333,41 @@ When in Move mode (after pressing `G` with selected voxels):
 
 ### Camera Tool (`C`)
 
-When the Camera Tool is active:
+When the Camera Tool is active, the camera behaves the same as other tools (fly camera mode):
 
 | Action | Control |
 |--------|---------|
-| **Free Look** | Left-click + Drag |
-| **Pan** | Middle-click + Drag |
-| **Zoom** | Mouse Wheel |
-| **Reset** | `Home` key |
+| **Move** | WASD keys |
+| **Fly Up/Down** | Space / Ctrl |
+| **Look Around** | Right-click + Drag |
+| **Reset** | Home key |
 
 ## Camera Navigation
 
-### Orbit Mode (Default)
+### Fly Camera Mode (Default)
 
-- **Rotate**: Right-click + Drag
-- **Pan**: Middle-click + Drag, or Shift + Right-click + Drag
-- **Pan (Trackpad-Friendly)**: Space + Left-click + Drag, or Cmd/Ctrl + Left-click + Drag
-- **Zoom**: Mouse Wheel
-- **Focus**: Double-click on voxel (coming soon)
+The editor uses a first-person fly camera similar to Minecraft Creative mode.
 
-### Pan Mode
+| Action | Control | Controller |
+|--------|---------|------------|
+| **Move Forward** | W | Left Stick Up |
+| **Move Backward** | S | Left Stick Down |
+| **Strafe Left** | A | Left Stick Left |
+| **Strafe Right** | D | Left Stick Right |
+| **Fly Up** | Space | A Button |
+| **Fly Down** | Ctrl | B Button |
+| **Look Around** | Right-click + Drag | Right Stick |
+| **Reset Camera** | Home | Y Button |
 
-- **Pan**: Left-click + Drag
-- **Zoom**: Mouse Wheel
+### Pattern/Entity Cycling
 
-### Zoom Behavior
+| Action | Keyboard | Controller |
+|--------|----------|------------|
+| **Next Pattern/Entity** | E | RB |
+| **Previous Pattern/Entity** | Q | LB |
 
-- **Zoom In**: Scroll wheel up
-- **Zoom Out**: Scroll wheel down
-- **Zoom Speed**: Adjustable in settings (coming soon)
+When using the Voxel Place tool, Q/E cycles through patterns.
+When using the Entity Place tool, Q/E cycles through entity types.
 
 ## Grid Controls
 
@@ -406,10 +414,9 @@ The status bar shows:
 ### Efficient Navigation
 
 1. Use `Home` to reset camera when lost
-2. Use numpad keys for quick view changes
-3. Right-click drag for most navigation
-4. Middle-click for precise panning
-5. **Mac Trackpad Users**: Use Space + Left-click or Cmd + Left-click to pan
+2. Use WASD for movement, right-click + drag to look
+3. Press Space to fly up, Ctrl to fly down
+4. Use Q/E to quickly cycle through patterns or entities
 
 ### Efficient Editing
 
@@ -455,8 +462,8 @@ Camera sensitivity settings will be available in a future update.
 ### Camera Issues
 
 - **Camera stuck**: Press `Home` to reset
-- **Can't rotate**: Ensure you're right-clicking in viewport
-- **Zoom too fast/slow**: Adjust zoom speed in settings (coming soon)
+- **Movement not working**: Make sure you're not typing in a text field (UI has focus)
+- **Look not working**: Hold right-click while moving mouse
 
 ### Input Not Working
 

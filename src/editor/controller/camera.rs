@@ -290,22 +290,19 @@ pub fn sync_camera_on_mode_switch(
     for _ in toggle_events.read() {
         match *mode {
             ControllerCameraMode::FirstPerson => {
-                // Switching to first-person: copy orbit camera position
+                // Switching to first-person: copy fly camera position
                 if let Ok(editor_cam) = editor_camera_query.get_single() {
                     for (_, controller_cam) in camera_query.iter_mut() {
                         if let Some(mut ctrl) = controller_cam {
-                            ctrl.position = editor_cam.calculate_position();
-                            // Calculate yaw/pitch from looking at target
-                            let dir = (editor_cam.target - ctrl.position).normalize();
-                            ctrl.yaw = dir.x.atan2(dir.z);
-                            ctrl.pitch = dir.y.asin();
+                            ctrl.position = editor_cam.position;
+                            ctrl.yaw = editor_cam.yaw;
+                            ctrl.pitch = editor_cam.pitch;
                         }
                     }
                 }
             }
             ControllerCameraMode::Orbit => {
-                // Switching to orbit: could set orbit camera to look at controller position
-                // For now, just leave orbit camera where it was
+                // No longer using orbit mode - this is a no-op
             }
         }
     }
