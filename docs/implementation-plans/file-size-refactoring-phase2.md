@@ -16,7 +16,7 @@ Files sorted by line count that exceed or approach the guidelines:
 
 | File | Lines | Priority | Recommendation |
 |------|-------|----------|----------------|
-| `src/systems/game/map/spawner/meshing.rs` | 649 | 🟡 Medium | Split into modules |
+| `src/systems/game/map/spawner/meshing/` | 649→5 files | ✅ Done | Split into modules |
 | `src/editor/tools/voxel_tool.rs` | 416 | 🟡 Medium | Split into modules |
 | `src/editor/ui/dialogs.rs` | 368 | 🟢 Low | Consider splitting |
 | `src/systems/game/occlusion.rs` | 341 | 🟢 Low | Acceptable - single responsibility |
@@ -29,9 +29,9 @@ Files sorted by line count that exceed or approach the guidelines:
 
 ---
 
-## Refactoring 1: meshing.rs (649 lines → ~3 files)
+## Refactoring 1: meshing.rs (649 lines → 5 files)
 
-### Status: 📋 Planned
+### Status: ✅ Completed (2025-12-15)
 
 ### Problem
 
