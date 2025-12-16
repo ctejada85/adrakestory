@@ -58,6 +58,10 @@ pub struct InteriorState {
     pub last_detection_pos: Vec3,
     /// Frame counter for throttled updates
     pub frames_since_update: u32,
+    /// Cached set of occupied voxel positions (rebuilt when map changes)
+    pub occupied_voxels_cache: Option<HashSet<IVec3>>,
+    /// Number of entities when cache was built (used to detect map changes)
+    pub cache_entity_count: usize,
 }
 
 /// System to detect if player is inside an interior.
@@ -109,8 +113,22 @@ pub fn detect_interior_system(
     // Get player's voxel Y level (floor of player position)
     let player_voxel_y = player_pos.y.floor() as i32;
 
-    // Build a set of occupied voxel positions for quick lookup
-    let occupied_voxels = build_occupied_voxel_set(&spatial_grid, &sub_voxels);
+    // Get or rebuild the occupied voxels cache
+    // We detect map changes by counting entities in the spatial grid
+    let current_entity_count = spatial_grid.cells.values().map(|v| v.len()).sum();
+    
+    let occupied_voxels = if interior_state.occupied_voxels_cache.is_some() 
+        && interior_state.cache_entity_count == current_entity_count 
+    {
+        // Use cached version
+        interior_state.occupied_voxels_cache.as_ref().unwrap()
+    } else {
+        // Rebuild cache
+        let new_cache = build_occupied_voxel_set(&spatial_grid, &sub_voxels);
+        interior_state.cache_entity_count = current_entity_count;
+        interior_state.occupied_voxels_cache = Some(new_cache);
+        interior_state.occupied_voxels_cache.as_ref().unwrap()
+    };
 
     // Check multiple voxel positions around the player's center to find a ceiling
     // This prevents the region from disappearing when crossing voxel boundaries
