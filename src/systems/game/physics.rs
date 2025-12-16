@@ -27,12 +27,14 @@ pub fn apply_gravity(time: Res<Time>, mut player_query: Query<&mut Player>) {
     }
 }
 
-/// System that applies physics to the player, including velocity and ground collision.
+/// System that applies physics to the player, including velocity and ground/ceiling collision.
 ///
 /// This system:
 /// - Updates player position based on velocity
 /// - Detects collisions with the ground (sub-voxels below the player)
+/// - Detects collisions with the ceiling (sub-voxels above the player)
 /// - Stops downward movement when hitting the ground
+/// - Stops upward movement when hitting the ceiling
 /// - Sets the player's grounded state
 ///
 /// Uses spatial grid optimization to only check nearby sub-voxels instead of
@@ -51,7 +53,9 @@ pub fn apply_physics(
         // Apply velocity
         let new_y = transform.translation.y + player.velocity.y * delta;
         let player_bottom = new_y - player.half_height;
+        let player_top = new_y + player.half_height;
         let current_bottom = transform.translation.y - player.half_height;
+        let current_top = transform.translation.y + player.half_height;
 
         // Extract player position (loop-invariant values)
         let player_x = transform.translation.x;
@@ -60,7 +64,9 @@ pub fn apply_physics(
         let player_half_height = player.half_height;
 
         let mut hit_ground = false;
+        let mut hit_ceiling = false;
         let mut highest_collision_y = f32::MIN;
+        let mut lowest_ceiling_y = f32::MAX;
 
         // Use spatial grid to get only nearby sub-voxels
         // This reduces checks from O(n) to O(k) where k << n
@@ -86,21 +92,8 @@ pub fn apply_physics(
 
             let (min, max) = get_sub_voxel_bounds(sub_voxel);
 
-            // Early exit: Skip sub-voxels above the player
-            if max.y > new_y + player_half_height {
-                continue;
-            }
-
-            // Early exit: Only check when moving downward
-            if player.velocity.y > 0.0 {
-                continue;
-            }
-
-            // For cylinder ground detection, we need to check if the player's circular
-            // footprint actually overlaps with the top surface of the sub-voxel.
-            // Using AABB alone would allow landing on corners where the cylinder doesn't
-            // actually touch the surface.
-
+            // For cylinder collision detection, we need to check if the player's circular
+            // cross-section actually overlaps with the sub-voxel's XZ bounds.
             // Find the closest point on the sub-voxel's XZ rectangle to the player center
             let closest_x = player_x.clamp(min.x, max.x);
             let closest_z = player_z.clamp(min.z, max.z);
@@ -115,21 +108,40 @@ pub fn apply_physics(
                 continue;
             }
 
-            // Check if player's bottom would go through the top of this sub-voxel
-            // Player was above (or very close due to floating-point errors), and would now be at or below the top
-            // Use epsilon tolerance on both comparisons to handle floating-point precision issues consistently
-            if current_bottom >= max.y - GROUND_DETECTION_EPSILON
-                && player_bottom <= max.y + GROUND_DETECTION_EPSILON
-            {
-                highest_collision_y = highest_collision_y.max(max.y);
-                hit_ground = true;
+            // Ground collision: Check when moving downward
+            if player.velocity.y <= 0.0 {
+                // Check if player's bottom would go through the top of this sub-voxel
+                // Player was above (or very close due to floating-point errors), and would now be at or below the top
+                if current_bottom >= max.y - GROUND_DETECTION_EPSILON
+                    && player_bottom <= max.y + GROUND_DETECTION_EPSILON
+                {
+                    highest_collision_y = highest_collision_y.max(max.y);
+                    hit_ground = true;
+                }
+            }
+
+            // Ceiling collision: Check when moving upward
+            if player.velocity.y > 0.0 {
+                // Check if player's top would go through the bottom of this sub-voxel
+                // Player's top was below (or very close), and would now be at or above the bottom
+                if current_top <= min.y + GROUND_DETECTION_EPSILON
+                    && player_top >= min.y - GROUND_DETECTION_EPSILON
+                {
+                    lowest_ceiling_y = lowest_ceiling_y.min(min.y);
+                    hit_ceiling = true;
+                }
             }
         }
 
         if hit_ground {
-            transform.translation.y = highest_collision_y + player.half_height;
+            transform.translation.y = highest_collision_y + player_half_height;
             player.velocity.y = 0.0;
             player.is_grounded = true;
+        } else if hit_ceiling {
+            // Stop upward movement when hitting ceiling
+            transform.translation.y = lowest_ceiling_y - player_half_height;
+            player.velocity.y = 0.0;
+            player.is_grounded = false;
         } else {
             transform.translation.y = new_y;
             player.is_grounded = false;
