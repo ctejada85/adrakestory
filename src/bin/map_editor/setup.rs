@@ -1,5 +1,6 @@
 //! Editor setup and initialization.
 
+use adrakestory::editor::controller::ControllerCamera;
 use adrakestory::editor::ui::dialogs::MapDataChangedEvent;
 use adrakestory::editor::{camera, grid, EditorState};
 use bevy::pbr::CascadeShadowConfigBuilder;
@@ -17,13 +18,14 @@ pub fn setup_editor(
 ) {
     info!("Starting Map Editor");
 
-    // Spawn 3D camera for viewport
+    // Spawn 3D camera for viewport with both orbit and controller camera components
     let camera_pos = Vec3::new(10.0, 10.0, 10.0);
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(camera_pos.x, camera_pos.y, camera_pos.z)
             .looking_at(Vec3::new(2.0, 0.0, 2.0), Vec3::Y),
         camera::EditorCamera::new(),
+        ControllerCamera::new(camera_pos),
     ));
 
     // Get lighting configuration from the current map

@@ -5,6 +5,7 @@
 //! rendering code for 3D preview.
 
 pub mod camera;
+pub mod controller;
 pub mod cursor;
 pub mod file_io;
 pub mod grid;
