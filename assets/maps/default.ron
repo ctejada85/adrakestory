@@ -2424,8 +2424,8 @@
             entity_type: LightSource,
             position: (18.0, 2.0, 11.0),
             properties: {
+                "intensity": "100000",
                 "range": "100.1",
-                "intensity": "10000",
             },
         ),
         (
