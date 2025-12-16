@@ -87,9 +87,26 @@ pub fn create_cursor_mesh() -> Mesh {
 pub fn update_cursor_indicator(
     cursor_state: Res<crate::editor::cursor::CursorState>,
     editor_state: Res<crate::editor::state::EditorState>,
+    gamepad_state: Option<Res<crate::editor::camera::GamepadCameraState>>,
     mut cursor_query: Query<&mut Transform, With<CursorIndicator>>,
 ) {
     for mut transform in cursor_query.iter_mut() {
+        // If gamepad is active, use gamepad action position
+        if let Some(ref gp_state) = gamepad_state {
+            if gp_state.active {
+                if let Some(grid_pos) = gp_state.action_grid_pos {
+                    // Show cursor at gamepad action position (centered on voxel)
+                    transform.translation = Vec3::new(
+                        grid_pos.0 as f32 + 0.5,
+                        grid_pos.1 as f32 + 0.5,
+                        grid_pos.2 as f32 + 0.5,
+                    );
+                    transform.scale = Vec3::splat(1.0);
+                    continue;
+                }
+            }
+        }
+
         // For VoxelPlace tool, show placement position (adjacent to hit face)
         if matches!(
             editor_state.active_tool,

@@ -3,6 +3,30 @@
 use bevy::prelude::*;
 use bevy_egui::EguiContexts;
 
+/// Resource to track if gamepad is being used for camera control
+#[derive(Resource, Default)]
+pub struct GamepadCameraState {
+    /// Whether gamepad is currently controlling the camera
+    pub active: bool,
+    /// Distance in front of camera for the cursor
+    pub cursor_distance: f32,
+    /// Position in world space where actions will be performed
+    pub action_position: Option<Vec3>,
+    /// Grid position for actions
+    pub action_grid_pos: Option<(i32, i32, i32)>,
+}
+
+impl GamepadCameraState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            cursor_distance: 5.0,
+            action_position: None,
+            action_grid_pos: None,
+        }
+    }
+}
+
 /// Component for the editor camera
 #[derive(Component)]
 pub struct EditorCamera {
@@ -186,12 +210,76 @@ pub fn handle_camera_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     gamepads: Query<&Gamepad>,
     mut input_state: ResMut<CameraInputState>,
+    mut gamepad_state: ResMut<GamepadCameraState>,
     mut contexts: EguiContexts,
+    mut windows: Query<&mut Window>,
     time: Res<Time>,
 ) {
     let Ok(mut camera) = camera_query.get_single_mut() else {
         return;
     };
+
+    // Check if any gamepad has significant input
+    let mut gamepad_has_input = false;
+    for gamepad in gamepads.iter() {
+        let left_x = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftStickX).unwrap_or(0.0);
+        let left_y = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftStickY).unwrap_or(0.0);
+        let right_x = gamepad.get(bevy::input::gamepad::GamepadAxis::RightStickX).unwrap_or(0.0);
+        let right_y = gamepad.get(bevy::input::gamepad::GamepadAxis::RightStickY).unwrap_or(0.0);
+        
+        if left_x.abs() > 0.15 || left_y.abs() > 0.15 || right_x.abs() > 0.15 || right_y.abs() > 0.15 {
+            gamepad_has_input = true;
+            break;
+        }
+    }
+
+    // Switch to gamepad mode if gamepad input detected
+    if gamepad_has_input && !gamepad_state.active {
+        gamepad_state.active = true;
+        // Hide mouse cursor
+        if let Ok(mut window) = windows.get_single_mut() {
+            window.cursor_options.visible = false;
+        }
+    }
+
+    // Switch back to mouse mode if mouse input detected
+    let mouse_moved = mouse_motion.len() > 0;
+    let mouse_clicked = mouse_button.any_just_pressed([MouseButton::Left, MouseButton::Right, MouseButton::Middle]);
+    if (mouse_moved || mouse_clicked) && gamepad_state.active {
+        gamepad_state.active = false;
+        // Show mouse cursor
+        if let Ok(mut window) = windows.get_single_mut() {
+            window.cursor_options.visible = true;
+        }
+    }
+
+    // Update gamepad action position (where cursor wireframe will be)
+    if gamepad_state.active {
+        let camera_pos = camera.calculate_position();
+        let yaw = camera.rotation.x;
+        let pitch = camera.rotation.y;
+        
+        // Calculate forward direction from camera rotation
+        let forward = Vec3::new(
+            -yaw.sin() * pitch.cos(),
+            -pitch.sin(),
+            -yaw.cos() * pitch.cos(),
+        ).normalize();
+        
+        // Position cursor at fixed distance in front of camera
+        let action_pos = camera_pos + forward * gamepad_state.cursor_distance;
+        gamepad_state.action_position = Some(action_pos);
+        
+        // Calculate grid position (snapped to voxel grid)
+        gamepad_state.action_grid_pos = Some((
+            action_pos.x.floor() as i32,
+            action_pos.y.floor() as i32,
+            action_pos.z.floor() as i32,
+        ));
+    } else {
+        gamepad_state.action_position = None;
+        gamepad_state.action_grid_pos = None;
+    }
 
     // Check if pointer is over any UI area - don't process camera input if mouse is over UI panels
     // Also check is_using_pointer() for active interactions like dragging resize handles
@@ -332,6 +420,102 @@ pub fn handle_camera_input(
         // Y button to reset camera
         if gamepad.just_pressed(bevy::input::gamepad::GamepadButton::North) {
             camera.reset();
+        }
+    }
+}
+
+/// System to handle gamepad voxel actions (RT to place, LT to remove)
+pub fn handle_gamepad_voxel_actions(
+    gamepad_state: Res<GamepadCameraState>,
+    gamepads: Query<&Gamepad>,
+    mut editor_state: ResMut<crate::editor::state::EditorState>,
+    mut history: ResMut<crate::editor::history::EditorHistory>,
+    time: Res<Time>,
+    mut cooldown: Local<f32>,
+) {
+    // Only process if gamepad is active
+    if !gamepad_state.active {
+        return;
+    }
+
+    // Update cooldown
+    *cooldown = (*cooldown - time.delta_secs()).max(0.0);
+    if *cooldown > 0.0 {
+        return;
+    }
+
+    let Some(grid_pos) = gamepad_state.action_grid_pos else {
+        return;
+    };
+
+    for gamepad in gamepads.iter() {
+        let rt = gamepad.get(bevy::input::gamepad::GamepadAxis::RightZ).unwrap_or(0.0);
+        let lt = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftZ).unwrap_or(0.0);
+
+        // RT = place voxel at action position
+        if rt > 0.5 {
+            // Check if voxel already exists
+            let exists = editor_state
+                .current_map
+                .world
+                .voxels
+                .iter()
+                .any(|v| v.pos == grid_pos);
+
+            if !exists {
+                // Get current tool settings
+                let (voxel_type, pattern) = match editor_state.active_tool {
+                    crate::editor::state::EditorTool::VoxelPlace { voxel_type, pattern } => {
+                        (voxel_type, pattern)
+                    }
+                    _ => {
+                        // Use default if not in voxel place mode
+                        use crate::systems::game::components::VoxelType;
+                        use crate::systems::game::map::format::SubVoxelPattern;
+                        (VoxelType::Grass, SubVoxelPattern::Full)
+                    }
+                };
+
+                let voxel_data = crate::systems::game::map::format::VoxelData {
+                    pos: grid_pos,
+                    voxel_type,
+                    pattern: Some(pattern),
+                    rotation_state: None,
+                };
+
+                editor_state.current_map.world.voxels.push(voxel_data.clone());
+                editor_state.mark_modified();
+
+                history.push(crate::editor::history::EditorAction::PlaceVoxel {
+                    pos: grid_pos,
+                    data: voxel_data,
+                });
+
+                *cooldown = 0.15;
+                info!("Placed voxel at {:?}", grid_pos);
+            }
+        }
+
+        // LT = remove voxel at action position
+        if lt > 0.5 {
+            if let Some(idx) = editor_state
+                .current_map
+                .world
+                .voxels
+                .iter()
+                .position(|v| v.pos == grid_pos)
+            {
+                let removed = editor_state.current_map.world.voxels.remove(idx);
+                editor_state.mark_modified();
+
+                history.push(crate::editor::history::EditorAction::RemoveVoxel {
+                    pos: grid_pos,
+                    data: removed,
+                });
+
+                *cooldown = 0.15;
+                info!("Removed voxel at {:?}", grid_pos);
+            }
         }
     }
 }
