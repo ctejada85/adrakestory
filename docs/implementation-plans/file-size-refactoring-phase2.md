@@ -18,7 +18,7 @@ Files sorted by line count that exceed or approach the guidelines:
 |------|-------|----------|----------------|
 | `src/systems/game/map/spawner/meshing/` | 649→5 files | ✅ Done | Split into modules |
 | `src/editor/tools/voxel_tool/` | 416→4 files | ✅ Done | Split into modules |
-| `src/editor/ui/dialogs.rs` | 368 | 🟢 Low | Consider splitting |
+| `src/editor/ui/dialogs/` | 416→4 files | ✅ Done | Split into modules |
 | `src/systems/game/occlusion.rs` | 341 | 🟢 Low | Acceptable - single responsibility |
 | `src/systems/game/gamepad.rs` | 339 | 🟢 Low | Acceptable - single responsibility |
 | `src/editor/ui/outliner.rs` | 330 | 🟢 Low | Acceptable - single responsibility |
@@ -105,9 +105,9 @@ src/editor/tools/voxel_tool/
 
 ---
 
-## Refactoring 3: dialogs.rs (368 lines → ~4 files)
+## Refactoring 3: dialogs.rs (416 lines → 4 files)
 
-### Status: 📋 Planned (Lower Priority)
+### Status: ✅ Completed (2025-12-16)
 
 ### Problem
 
@@ -119,30 +119,21 @@ The dialogs module contains multiple independent dialog windows:
 - Error dialog
 - File dialog handling (open file)
 
-### Proposed Structure
+### Final Structure
 
 ```
 src/editor/ui/dialogs/
-├── mod.rs              # render_dialogs dispatcher, events (~60 lines)
-├── file_dialogs.rs     # FileDialogReceiver, open/save dialogs, file handling (~120 lines)
-├── confirmation.rs     # Unsaved changes, new map dialogs (~80 lines)
-├── help.rs             # About dialog, shortcuts help (~80 lines)
-└── error.rs            # Error dialog (~30 lines)
+├── mod.rs              # Re-exports (~12 lines)
+├── events.rs           # Events and resources (~28 lines)
+├── rendering.rs        # All dialog rendering (~230 lines)
+├── file_operations.rs  # File dialog systems (~115 lines)
+└── window_handling.rs  # Window close/exit (~47 lines)
 ```
 
 ### Benefits
-- Each dialog type in its own file
-- Easier to add new dialogs
-- File dialog logic separated from UI dialogs
-
-### Migration Steps
-1. Create `dialogs/` directory
-2. Extract file dialog systems to `file_dialogs.rs`
-3. Extract confirmation dialogs to `confirmation.rs`
-4. Extract help dialogs to `help.rs`
-5. Extract error dialog to `error.rs`
-6. Update `ui/mod.rs` exports
-7. Verify build passes
+- Events and resources in dedicated module
+- Clear separation of dialog rendering vs. file operations
+- Window handling isolated from UI code
 
 ---
 
@@ -189,7 +180,7 @@ The following files exceed 300 lines but have strong cohesion and single respons
 
 1. **meshing.rs** - ✅ Completed (2025-12-15)
 2. **voxel_tool.rs** - ✅ Completed (2025-12-16)
-3. **dialogs.rs** - Lower value, mostly UI code that reads sequentially
+3. **dialogs.rs** - ✅ Completed (2025-12-16)
 
 ---
 
