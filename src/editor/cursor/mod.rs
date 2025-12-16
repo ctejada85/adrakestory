@@ -3,7 +3,7 @@
 mod keyboard_cursor;
 mod keyboard_mode;
 mod mouse_cursor;
-mod raycasting;
+pub mod raycasting;
 
 pub use keyboard_cursor::{handle_keyboard_cursor_movement, handle_keyboard_selection};
 pub use keyboard_mode::{handle_play_shortcuts, handle_tool_switching, toggle_keyboard_edit_mode};

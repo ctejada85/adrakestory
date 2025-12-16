@@ -8,12 +8,14 @@ use bevy_egui::EguiContexts;
 pub struct GamepadCameraState {
     /// Whether gamepad is currently controlling the camera
     pub active: bool,
-    /// Distance in front of camera for the cursor
+    /// Distance in front of camera for the cursor (fallback when no raycast hit)
     pub cursor_distance: f32,
     /// Position in world space where actions will be performed
     pub action_position: Option<Vec3>,
-    /// Grid position for actions
+    /// Grid position for placement actions
     pub action_grid_pos: Option<(i32, i32, i32)>,
+    /// Grid position of the voxel being looked at (for removal)
+    pub target_voxel_pos: Option<(i32, i32, i32)>,
 }
 
 impl GamepadCameraState {
@@ -23,6 +25,7 @@ impl GamepadCameraState {
             cursor_distance: 5.0,
             action_position: None,
             action_grid_pos: None,
+            target_voxel_pos: None,
         }
     }
 }
@@ -211,6 +214,7 @@ pub fn handle_camera_input(
     gamepads: Query<&Gamepad>,
     mut input_state: ResMut<CameraInputState>,
     mut gamepad_state: ResMut<GamepadCameraState>,
+    editor_state: Res<crate::editor::state::EditorState>,
     mut contexts: EguiContexts,
     mut windows: Query<&mut Window>,
     time: Res<Time>,
@@ -253,7 +257,7 @@ pub fn handle_camera_input(
         }
     }
 
-    // Update gamepad action position (where cursor wireframe will be)
+    // Update gamepad action position using raycasting
     if gamepad_state.active {
         let camera_pos = camera.calculate_position();
         let yaw = camera.rotation.x;
@@ -266,19 +270,60 @@ pub fn handle_camera_input(
             -yaw.cos() * pitch.cos(),
         ).normalize();
         
-        // Position cursor at fixed distance in front of camera
-        let action_pos = camera_pos + forward * gamepad_state.cursor_distance;
-        gamepad_state.action_position = Some(action_pos);
+        // Create ray from camera center
+        let ray = Ray3d {
+            origin: camera_pos,
+            direction: Dir3::new(forward).unwrap_or(Dir3::NEG_Z),
+        };
         
-        // Calculate grid position (snapped to voxel grid)
-        gamepad_state.action_grid_pos = Some((
-            action_pos.x.floor() as i32,
-            action_pos.y.floor() as i32,
-            action_pos.z.floor() as i32,
-        ));
+        // Raycast against voxels to find what we're looking at
+        if let Some((voxel_pos, hit_info)) = 
+            crate::editor::cursor::raycasting::find_closest_voxel_intersection_with_face(&editor_state, &ray) 
+        {
+            // For placement, offset by face normal to place adjacent
+            let placement_pos = (
+                voxel_pos.0 + hit_info.face_normal.x as i32,
+                voxel_pos.1 + hit_info.face_normal.y as i32,
+                voxel_pos.2 + hit_info.face_normal.z as i32,
+            );
+            
+            gamepad_state.action_position = Some(Vec3::new(
+                placement_pos.0 as f32 + 0.5,
+                placement_pos.1 as f32 + 0.5,
+                placement_pos.2 as f32 + 0.5,
+            ));
+            gamepad_state.action_grid_pos = Some(placement_pos);
+            // Store the voxel we're looking at for removal
+            gamepad_state.target_voxel_pos = Some(voxel_pos);
+        } else if let Some(ground_pos) = crate::editor::cursor::raycasting::intersect_ground_plane(&ray) {
+            // Fallback to ground plane
+            let grid_pos = (
+                ground_pos.x.floor() as i32,
+                0,
+                ground_pos.z.floor() as i32,
+            );
+            gamepad_state.action_position = Some(Vec3::new(
+                grid_pos.0 as f32 + 0.5,
+                0.5,
+                grid_pos.2 as f32 + 0.5,
+            ));
+            gamepad_state.action_grid_pos = Some(grid_pos);
+            gamepad_state.target_voxel_pos = None;
+        } else {
+            // No hit - place at fixed distance as fallback
+            let action_pos = camera_pos + forward * gamepad_state.cursor_distance;
+            gamepad_state.action_position = Some(action_pos);
+            gamepad_state.action_grid_pos = Some((
+                action_pos.x.floor() as i32,
+                action_pos.y.floor() as i32,
+                action_pos.z.floor() as i32,
+            ));
+            gamepad_state.target_voxel_pos = None;
+        }
     } else {
         gamepad_state.action_position = None;
         gamepad_state.action_grid_pos = None;
+        gamepad_state.target_voxel_pos = None;
     }
 
     // Check if pointer is over any UI area - don't process camera input if mouse is over UI panels
@@ -496,25 +541,28 @@ pub fn handle_gamepad_voxel_actions(
             }
         }
 
-        // LT = remove voxel at action position
+        // LT = remove voxel we're looking at
         if lt > 0.5 {
+            // Use target_voxel_pos for removal (the voxel we're looking at, not the placement position)
+            let remove_pos = gamepad_state.target_voxel_pos.unwrap_or(grid_pos);
+            
             if let Some(idx) = editor_state
                 .current_map
                 .world
                 .voxels
                 .iter()
-                .position(|v| v.pos == grid_pos)
+                .position(|v| v.pos == remove_pos)
             {
                 let removed = editor_state.current_map.world.voxels.remove(idx);
                 editor_state.mark_modified();
 
                 history.push(crate::editor::history::EditorAction::RemoveVoxel {
-                    pos: grid_pos,
+                    pos: remove_pos,
                     data: removed,
                 });
 
                 *cooldown = 0.15;
-                info!("Removed voxel at {:?}", grid_pos);
+                info!("Removed voxel at {:?}", remove_pos);
             }
         }
     }
