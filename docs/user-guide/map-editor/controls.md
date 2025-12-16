@@ -22,6 +22,8 @@ The map editor supports Xbox controllers (and other XInput-compatible gamepads) 
 |--------|------------|-------------|
 | **Primary Action** | RT (Right Trigger) | Execute current tool's action |
 | **Remove Voxel** | LT (Left Trigger) | Always removes voxel (secondary action) |
+| **Next Pattern/Entity** | RB (Right Bumper) | Cycle to next pattern or entity type |
+| **Previous Pattern/Entity** | LB (Left Bumper) | Cycle to previous pattern or entity type |
 
 #### Tool-Specific RT Behavior
 | Tool | RT Action |
@@ -31,6 +33,13 @@ The map editor supports Xbox controllers (and other XInput-compatible gamepads) 
 | Entity Place | Places entity at cursor position |
 | Select | Toggles selection on voxel you're looking at |
 | Camera | No action |
+
+#### RB/LB Cycling Behavior
+| Tool | RB/LB Action |
+|------|--------------|
+| Voxel Place | Cycles through patterns (Full, PlatformXZ, PlatformXY, PlatformYZ, StaircaseX, StaircaseNegX, StaircaseZ, StaircaseNegZ, Pillar, Fence) |
+| Entity Place | Cycles through entity types (PlayerSpawn, Npc, Enemy, Item, Trigger, LightSource) |
+| Other Tools | No action |
 
 ### Controller Features
 - **Automatic Input Switching**: Move sticks to activate controller mode (hides cursor), move mouse to switch back
@@ -42,7 +51,8 @@ The map editor supports Xbox controllers (and other XInput-compatible gamepads) 
 1. **Activate Controller Mode**: Move any stick to switch from mouse to controller
 2. **Aim at Surfaces**: The cursor snaps to voxel faces for precise placement
 3. **Quick Removal**: LT always removes voxels regardless of current tool
-4. **Switch Tools**: Use keyboard shortcuts (B, X, E, V) to change tools while using controller
+4. **Cycle Patterns/Entities**: Use RB/LB to quickly switch between patterns or entity types without opening menus
+5. **Switch Tools**: Use keyboard shortcuts (B, X, E, V) to change tools while using controller
 
 ---
 

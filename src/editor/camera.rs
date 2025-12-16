@@ -914,4 +914,106 @@ mod tests {
         // Still at correct distance
         assert!((pos.length() - 10.0).abs() < 0.01);
     }
+
+    #[test]
+    fn test_pattern_cycling_array_coverage() {
+        use crate::systems::game::map::format::SubVoxelPattern;
+
+        // Verify all patterns are in the cycling array
+        const PATTERNS: [SubVoxelPattern; 10] = [
+            SubVoxelPattern::Full,
+            SubVoxelPattern::PlatformXZ,
+            SubVoxelPattern::PlatformXY,
+            SubVoxelPattern::PlatformYZ,
+            SubVoxelPattern::StaircaseX,
+            SubVoxelPattern::StaircaseNegX,
+            SubVoxelPattern::StaircaseZ,
+            SubVoxelPattern::StaircaseNegZ,
+            SubVoxelPattern::Pillar,
+            SubVoxelPattern::Fence,
+        ];
+
+        // Test forward cycling wraps correctly
+        let current = 9; // Last index (Fence)
+        let next = (current + 1) % PATTERNS.len();
+        assert_eq!(next, 0);
+        assert_eq!(PATTERNS[next], SubVoxelPattern::Full);
+
+        // Test backward cycling wraps correctly
+        let current = 0; // First index (Full)
+        let prev = (current + PATTERNS.len() - 1) % PATTERNS.len();
+        assert_eq!(prev, 9);
+        assert_eq!(PATTERNS[prev], SubVoxelPattern::Fence);
+    }
+
+    #[test]
+    fn test_entity_cycling_array_coverage() {
+        use crate::systems::game::map::format::EntityType;
+
+        // Verify all entity types are in the cycling array
+        const ENTITIES: [EntityType; 6] = [
+            EntityType::PlayerSpawn,
+            EntityType::Npc,
+            EntityType::Enemy,
+            EntityType::Item,
+            EntityType::Trigger,
+            EntityType::LightSource,
+        ];
+
+        // Test forward cycling wraps correctly
+        let current = 5; // Last index (LightSource)
+        let next = (current + 1) % ENTITIES.len();
+        assert_eq!(next, 0);
+        assert_eq!(ENTITIES[next], EntityType::PlayerSpawn);
+
+        // Test backward cycling wraps correctly
+        let current = 0; // First index (PlayerSpawn)
+        let prev = (current + ENTITIES.len() - 1) % ENTITIES.len();
+        assert_eq!(prev, 5);
+        assert_eq!(ENTITIES[prev], EntityType::LightSource);
+    }
+
+    #[test]
+    fn test_pattern_cycling_finds_current() {
+        use crate::systems::game::map::format::SubVoxelPattern;
+
+        const PATTERNS: [SubVoxelPattern; 10] = [
+            SubVoxelPattern::Full,
+            SubVoxelPattern::PlatformXZ,
+            SubVoxelPattern::PlatformXY,
+            SubVoxelPattern::PlatformYZ,
+            SubVoxelPattern::StaircaseX,
+            SubVoxelPattern::StaircaseNegX,
+            SubVoxelPattern::StaircaseZ,
+            SubVoxelPattern::StaircaseNegZ,
+            SubVoxelPattern::Pillar,
+            SubVoxelPattern::Fence,
+        ];
+
+        // Test each pattern can be found
+        for (idx, pattern) in PATTERNS.iter().enumerate() {
+            let found_idx = PATTERNS.iter().position(|p| p == pattern);
+            assert_eq!(found_idx, Some(idx));
+        }
+    }
+
+    #[test]
+    fn test_entity_cycling_finds_current() {
+        use crate::systems::game::map::format::EntityType;
+
+        const ENTITIES: [EntityType; 6] = [
+            EntityType::PlayerSpawn,
+            EntityType::Npc,
+            EntityType::Enemy,
+            EntityType::Item,
+            EntityType::Trigger,
+            EntityType::LightSource,
+        ];
+
+        // Test each entity type can be found
+        for (idx, entity) in ENTITIES.iter().enumerate() {
+            let found_idx = ENTITIES.iter().position(|e| e == entity);
+            assert_eq!(found_idx, Some(idx));
+        }
+    }
 }

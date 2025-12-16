@@ -16,10 +16,11 @@ The controller support has been fully implemented with the following features:
 - **Vertical movement**: A button to fly up, B button to fly down
 - **Raycast-based cursor**: Cursor appears on the voxel face you're looking at
 - **Tool actions via triggers**: RT executes current tool, LT removes voxels
+- **Pattern/Entity cycling**: RB/LB to cycle through patterns or entity types
 - **Automatic input switching**: Seamlessly switch between controller and mouse/keyboard
 
 ### Files Modified
-- `src/editor/camera.rs` - Added GamepadCameraState, flying camera controls, and trigger actions
+- `src/editor/camera.rs` - Added GamepadCameraState, flying camera controls, trigger actions, and RB/LB cycling
 - `src/editor/cursor/mod.rs` - Made raycasting module public for controller use
 - `src/bin/map_editor/main.rs` - Added controller systems to the app
 
@@ -39,6 +40,8 @@ The controller support has been fully implemented with the following features:
 |--------|------------|-------------|
 | Primary Action | RT (Right Trigger) | Execute current tool's action |
 | Remove Voxel | LT (Left Trigger) | Always removes voxel (secondary action) |
+| Next Pattern/Entity | RB (Right Bumper) | Cycle to next pattern or entity type |
+| Previous Pattern/Entity | LB (Left Bumper) | Cycle to previous pattern or entity type |
 
 ### Tool-Specific RT Behavior
 | Tool | RT Action |
@@ -48,6 +51,13 @@ The controller support has been fully implemented with the following features:
 | Entity Place | Places entity at cursor position |
 | Select | Toggles selection on voxel you're looking at |
 | Camera | No action |
+
+### RB/LB Cycling Behavior
+| Tool | RB/LB Action |
+|------|--------------|
+| Voxel Place | Cycles through patterns: Full → PlatformXZ → PlatformXY → PlatformYZ → StaircaseX → StaircaseNegX → StaircaseZ → StaircaseNegZ → Pillar → Fence |
+| Entity Place | Cycles through entity types: PlayerSpawn → Npc → Enemy → Item → Trigger → LightSource |
+| Other Tools | No action |
 
 ## Technical Details
 
@@ -69,3 +79,7 @@ When gamepad is active:
 ### Deadzone Handling
 - 15% deadzone on analog sticks
 - Smooth rescaling for precise control above deadzone
+
+### Cooldown System
+- Tool actions (RT/LT): 0.15-0.2 second cooldown to prevent rapid-fire
+- Pattern/Entity cycling (RB/LB): 0.2 second cooldown for comfortable cycling
