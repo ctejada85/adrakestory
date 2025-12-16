@@ -8,10 +8,6 @@ mod setup;
 mod status_bar;
 mod ui_system;
 
-use adrakestory::editor::controller::{
-    self, ControllerCameraMode, ControllerCursor, ControllerEditMode,
-    ControllerModeToggleEvent,
-};
 use adrakestory::editor::play::{
     handle_play_map, handle_stop_game, poll_game_process, PlayMapEvent, PlayTestState,
     StopGameEvent,
@@ -68,10 +64,6 @@ fn main() {
         .init_resource::<VoxelRemoveDragState>()
         .init_resource::<ui::OutlinerState>()
         .init_resource::<PlayTestState>()
-        // Controller mode resources
-        .init_resource::<ControllerCameraMode>()
-        .init_resource::<ControllerCursor>()
-        .init_resource::<ControllerEditMode>()
         .insert_resource(RecentFiles::load()) // Load recent files from disk
         .add_event::<ui::dialogs::FileSelectedEvent>()
         .add_event::<SaveMapEvent>()
@@ -97,8 +89,6 @@ fn main() {
         .add_event::<tools::UpdateRotation>()
         .add_event::<tools::SetRotationAxis>()
         .add_event::<AppExitEvent>()
-        // Controller mode events
-        .add_event::<ControllerModeToggleEvent>()
         .add_systems(Startup, setup::setup_editor)
         .add_systems(Update, lighting::update_lighting_on_map_change)
         .add_systems(Update, ui_system::render_ui)
@@ -175,17 +165,5 @@ fn main() {
         .add_systems(Update, tools::render_selection_highlights)
         .add_systems(Update, tools::render_transform_preview)
         .add_systems(Update, tools::render_rotation_preview)
-        // Controller mode systems
-        .add_systems(Update, controller::camera::toggle_controller_mode)
-        .add_systems(Update, controller::update_controller_camera)
-        .add_systems(Update, controller::camera::sync_camera_on_mode_switch)
-        .add_systems(Update, controller::update_controller_cursor)
-        .add_systems(Update, controller::cursor::render_cursor_highlight)
-        .add_systems(Update, controller::handle_controller_hotbar)
-        .add_systems(Update, controller::handle_controller_palette)
-        .add_systems(Update, controller::handle_controller_editing)
-        .add_systems(Update, controller::input::handle_controller_pick_block)
-        .add_systems(Update, controller::render_controller_palette)
-        .add_systems(Update, controller::palette::render_controller_hud)
         .run();
 }

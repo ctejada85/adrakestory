@@ -1,7 +1,6 @@
 //! UI rendering system.
 
 use super::status_bar::render_status_bar;
-use adrakestory::editor::controller::ControllerCameraMode;
 use adrakestory::editor::play::{PlayMapEvent, PlayTestState, StopGameEvent};
 use adrakestory::editor::recent_files::{OpenRecentFileEvent, RecentFiles};
 use adrakestory::editor::tools::ActiveTransform;
@@ -65,26 +64,8 @@ pub fn render_ui(
     mut transform_events: TransformEvents,
     mut save_events: SaveEvents,
     mut ui_events: UIEventWriters,
-    controller_mode: Res<ControllerCameraMode>,
 ) {
     let ctx = contexts.ctx_mut();
-
-    // Skip rendering traditional editor UI in first-person controller mode
-    // The controller HUD is rendered by separate systems
-    if *controller_mode == ControllerCameraMode::FirstPerson {
-        // Only render dialogs in first-person mode (for save prompts, etc.)
-        ui::dialogs::render_dialogs(
-            ctx,
-            &mut ui_resources.editor_state,
-            &mut ui_resources.ui_state,
-            &mut save_events.save,
-            &mut ui_events.map_changed,
-            &mut ui_events.exit,
-            &mut ui_events.open_recent,
-        );
-        ui::dialogs::handle_file_operations(&mut ui_resources.ui_state, ui_resources.dialog_receiver);
-        return;
-    }
 
     // Render toolbar
     ui::render_toolbar(

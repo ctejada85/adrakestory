@@ -184,8 +184,10 @@ pub fn handle_camera_input(
     mut mouse_motion: EventReader<bevy::input::mouse::MouseMotion>,
     mut mouse_wheel: EventReader<bevy::input::mouse::MouseWheel>,
     keyboard: Res<ButtonInput<KeyCode>>,
+    gamepads: Query<&Gamepad>,
     mut input_state: ResMut<CameraInputState>,
     mut contexts: EguiContexts,
+    time: Res<Time>,
 ) {
     let Ok(mut camera) = camera_query.get_single_mut() else {
         return;
@@ -215,35 +217,122 @@ pub fn handle_camera_input(
         // Still need to consume events to prevent accumulation
         mouse_motion.clear();
         mouse_wheel.clear();
-        return;
-    }
+        // Continue to process gamepad input even over UI
+    } else {
+        // Panning: Middle mouse OR Right mouse + Shift OR Left mouse + Space OR Left mouse + Cmd/Ctrl
+        input_state.is_panning = middle_mouse
+            || (right_mouse && shift_pressed)
+            || (left_mouse && space_pressed)
+            || (left_mouse && (ctrl_pressed || super_pressed));
 
-    // Panning: Middle mouse OR Right mouse + Shift OR Left mouse + Space OR Left mouse + Cmd/Ctrl
-    input_state.is_panning = middle_mouse
-        || (right_mouse && shift_pressed)
-        || (left_mouse && space_pressed)
-        || (left_mouse && (ctrl_pressed || super_pressed));
+        // Orbiting: Right mouse (without shift or other modifiers)
+        input_state.is_orbiting = right_mouse && !shift_pressed && !input_state.is_panning;
 
-    // Orbiting: Right mouse (without shift or other modifiers)
-    input_state.is_orbiting = right_mouse && !shift_pressed && !input_state.is_panning;
-
-    // Handle mouse motion
-    for event in mouse_motion.read() {
-        if input_state.is_orbiting {
-            camera.orbit(Vec2::new(event.delta.x, -event.delta.y));
-        } else if input_state.is_panning {
-            camera.pan(Vec2::new(-event.delta.x, event.delta.y));
+        // Handle mouse motion
+        for event in mouse_motion.read() {
+            if input_state.is_orbiting {
+                camera.orbit(Vec2::new(event.delta.x, -event.delta.y));
+            } else if input_state.is_panning {
+                camera.pan(Vec2::new(-event.delta.x, event.delta.y));
+            }
         }
-    }
 
-    // Handle mouse wheel (zoom)
-    for event in mouse_wheel.read() {
-        camera.zoom(event.y);
+        // Handle mouse wheel (zoom)
+        for event in mouse_wheel.read() {
+            camera.zoom(event.y);
+        }
     }
 
     // Handle keyboard shortcuts
     if keyboard.just_pressed(KeyCode::Home) {
         camera.reset();
+    }
+
+    // === Gamepad input for Minecraft Creative-style camera ===
+    let dt = time.delta_secs();
+    let deadzone = 0.15;
+    let look_speed = 3.0; // Radians per second for looking
+    let move_speed = 20.0; // Units per second for flying
+
+    for gamepad in gamepads.iter() {
+        // Right stick for looking (rotating camera view)
+        let right_x = gamepad.get(bevy::input::gamepad::GamepadAxis::RightStickX).unwrap_or(0.0);
+        let right_y = gamepad.get(bevy::input::gamepad::GamepadAxis::RightStickY).unwrap_or(0.0);
+        let right_stick = Vec2::new(right_x, right_y);
+        
+        if right_stick.length() > deadzone {
+            let scaled = (right_stick.length() - deadzone) / (1.0 - deadzone);
+            let look_input = right_stick.normalize() * scaled;
+            
+            // Fix X inversion: negate X so right stick right = look right
+            camera.rotation.x -= look_input.x * look_speed * dt;
+            camera.rotation.y -= look_input.y * look_speed * dt;
+            camera.rotation.y = camera.rotation.y.clamp(-1.5, 1.5);
+        }
+
+        // Left stick for flying movement
+        let left_x = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftStickX).unwrap_or(0.0);
+        let left_y = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftStickY).unwrap_or(0.0);
+        let left_stick = Vec2::new(left_x, left_y);
+        
+        if left_stick.length() > deadzone {
+            let scaled = (left_stick.length() - deadzone) / (1.0 - deadzone);
+            let move_input = left_stick.normalize() * scaled;
+            
+            // Calculate forward and right vectors based on camera yaw
+            let yaw = camera.rotation.x;
+            let forward = Vec3::new(-yaw.sin(), 0.0, -yaw.cos());
+            let right = Vec3::new(-yaw.cos(), 0.0, yaw.sin());
+            
+            // Fix X inversion: negate X so stick right = strafe right
+            let movement = (forward * move_input.y - right * move_input.x) * move_speed * dt;
+            camera.target += movement;
+        }
+
+        // A button (South) = fly up, B button (East) = fly down
+        if gamepad.pressed(bevy::input::gamepad::GamepadButton::South) {
+            camera.target.y += move_speed * dt;
+        }
+        if gamepad.pressed(bevy::input::gamepad::GamepadButton::East) {
+            camera.target.y -= move_speed * dt;
+        }
+
+        // Triggers for zoom (LT zoom out, RT zoom in)
+        let lt = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftZ).unwrap_or(0.0);
+        let rt = gamepad.get(bevy::input::gamepad::GamepadAxis::RightZ).unwrap_or(0.0);
+        if rt > 0.1 {
+            camera.zoom(rt * dt * 60.0);
+        }
+        if lt > 0.1 {
+            camera.zoom(-lt * dt * 60.0);
+        }
+
+        // D-pad for fine movement
+        if gamepad.pressed(bevy::input::gamepad::GamepadButton::DPadUp) {
+            let yaw = camera.rotation.x;
+            let forward = Vec3::new(-yaw.sin(), 0.0, -yaw.cos());
+            camera.target += forward * move_speed * dt * 0.5;
+        }
+        if gamepad.pressed(bevy::input::gamepad::GamepadButton::DPadDown) {
+            let yaw = camera.rotation.x;
+            let forward = Vec3::new(-yaw.sin(), 0.0, -yaw.cos());
+            camera.target -= forward * move_speed * dt * 0.5;
+        }
+        if gamepad.pressed(bevy::input::gamepad::GamepadButton::DPadLeft) {
+            let yaw = camera.rotation.x;
+            let right = Vec3::new(-yaw.cos(), 0.0, yaw.sin());
+            camera.target -= right * move_speed * dt * 0.5;
+        }
+        if gamepad.pressed(bevy::input::gamepad::GamepadButton::DPadRight) {
+            let yaw = camera.rotation.x;
+            let right = Vec3::new(-yaw.cos(), 0.0, yaw.sin());
+            camera.target += right * move_speed * dt * 0.5;
+        }
+
+        // Y button to reset camera
+        if gamepad.just_pressed(bevy::input::gamepad::GamepadButton::North) {
+            camera.reset();
+        }
     }
 }
 
