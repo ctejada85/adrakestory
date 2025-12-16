@@ -1,7 +1,7 @@
 //! Tests for SubVoxelGeometry.
 
 #[cfg(test)]
-mod tests {
+mod unit_tests {
     use crate::systems::game::map::geometry::{RotationAxis, SubVoxelGeometry};
 
     #[test]
@@ -84,7 +84,7 @@ mod tests {
         // Check rails at z=0 edge
         assert!(geom.is_occupied(3, 2, 0)); // bottom rail
         assert!(geom.is_occupied(3, 5, 0)); // top rail
-        // Check gaps
+                                            // Check gaps
         assert!(!geom.is_occupied(3, 0, 0)); // below bottom rail
         assert!(!geom.is_occupied(3, 4, 0)); // between rails
     }
@@ -103,7 +103,7 @@ mod tests {
         // Check X-axis rails
         assert!(geom.is_occupied(4, 2, 0)); // bottom rail
         assert!(geom.is_occupied(4, 5, 0)); // top rail
-        // Check Z-axis rails
+                                            // Check Z-axis rails
         assert!(geom.is_occupied(0, 2, 4)); // bottom rail
         assert!(geom.is_occupied(0, 5, 4)); // top rail
     }
