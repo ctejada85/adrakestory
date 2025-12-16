@@ -17,7 +17,7 @@ Files sorted by line count that exceed or approach the guidelines:
 | File | Lines | Priority | Recommendation |
 |------|-------|----------|----------------|
 | `src/systems/game/map/spawner/meshing/` | 649→5 files | ✅ Done | Split into modules |
-| `src/editor/tools/voxel_tool.rs` | 416 | 🟡 Medium | Split into modules |
+| `src/editor/tools/voxel_tool/` | 416→4 files | ✅ Done | Split into modules |
 | `src/editor/ui/dialogs.rs` | 368 | 🟢 Low | Consider splitting |
 | `src/systems/game/occlusion.rs` | 341 | 🟢 Low | Acceptable - single responsibility |
 | `src/systems/game/gamepad.rs` | 339 | 🟢 Low | Acceptable - single responsibility |
@@ -68,9 +68,9 @@ src/systems/game/map/spawner/meshing/
 
 ---
 
-## Refactoring 2: voxel_tool.rs (416 lines → ~3 files)
+## Refactoring 2: voxel_tool.rs (416 lines → 4 files)
 
-### Status: 📋 Planned
+### Status: ✅ Completed (2025-12-16)
 
 ### Problem
 
@@ -84,10 +84,10 @@ The voxel tool handles both placement and removal with duplicate drag state logi
 
 ```
 src/editor/tools/voxel_tool/
-├── mod.rs              # Re-exports, shared types (~40 lines)
-├── placement.rs        # VoxelDragState, handle_voxel_placement, handle_voxel_drag_placement (~180 lines)
-├── removal.rs          # VoxelRemoveDragState, handle_voxel_removal, handle_voxel_drag_removal (~150 lines)
-└── helpers.rs          # try_place_voxel, try_remove_voxel, shared utilities (~50 lines)
+├── mod.rs              # Re-exports, VoxelToolInput, shared helpers (~100 lines)
+├── drag_state.rs       # VoxelDragState, VoxelRemoveDragState (~30 lines)
+├── placement.rs        # handle_voxel_placement, handle_voxel_drag_placement (~220 lines)
+└── removal.rs          # handle_voxel_removal, handle_voxel_drag_removal (~130 lines)
 ```
 
 ### Benefits
@@ -187,8 +187,8 @@ The following files exceed 300 lines but have strong cohesion and single respons
 
 ## Priority Order
 
-1. **meshing.rs** - High value due to size (649 lines) and clear separation points
-2. **voxel_tool.rs** - Medium value, reduces duplicate pattern for drag state
+1. **meshing.rs** - ✅ Completed (2025-12-15)
+2. **voxel_tool.rs** - ✅ Completed (2025-12-16)
 3. **dialogs.rs** - Lower value, mostly UI code that reads sequentially
 
 ---
