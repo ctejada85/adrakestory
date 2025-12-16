@@ -156,7 +156,7 @@ fn render_light_source_properties(ui: &mut egui::Ui, editor_state: &mut EditorSt
         ui.horizontal(|ui| {
             ui.label("Intensity:");
             if ui
-                .add(egui::Slider::new(&mut intensity, 0.0..=10000.0).logarithmic(true))
+                .add(egui::Slider::new(&mut intensity, 0.0..=100000.0).logarithmic(true))
                 .changed()
             {
                 editor_state.current_map.entities[index]

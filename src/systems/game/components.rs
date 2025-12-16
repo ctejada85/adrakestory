@@ -87,7 +87,7 @@ impl Default for Npc {
 pub struct LightSource {
     /// Light color (RGB, 0.0-1.0)
     pub color: Color,
-    /// Light intensity in lumens (typical range: 100-10000)
+    /// Light intensity in lumens (typical range: 100-100000)
     pub intensity: f32,
     /// Maximum range/radius of the light in world units
     pub range: f32,
