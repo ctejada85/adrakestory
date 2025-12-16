@@ -19,6 +19,10 @@ const MAX_REGION_SIZE: usize = 1000;
 /// Y tolerance for considering voxels at "same" ceiling level (in voxel units)
 const CEILING_Y_TOLERANCE: i32 = 0;
 
+/// Minimum distance (in world units) the player must be inside the ceiling region
+/// before occlusion is triggered. This prevents flickering at doorways/edges.
+const INTERIOR_ENTRY_MARGIN: f32 = 0.4;
+
 /// Represents a detected interior region (ceiling above player).
 #[derive(Debug, Clone, Default)]
 pub struct InteriorRegion {
@@ -108,10 +112,12 @@ pub fn detect_interior_system(
     // Build a set of occupied voxel positions for quick lookup
     let occupied_voxels = build_occupied_voxel_set(&spatial_grid, &sub_voxels);
 
-    // Cast ray upward from player to find ceiling voxel
-    let player_voxel_x = player_pos.x.floor() as i32;
-    let player_voxel_z = player_pos.z.floor() as i32;
+    // Use rounded position for more centered detection
+    // This ensures the player's center must be in the voxel, not just an edge
+    let player_voxel_x = player_pos.x.round() as i32;
+    let player_voxel_z = player_pos.z.round() as i32;
 
+    // Check if there's a ceiling directly above the player's center
     let ceiling_voxel = find_ceiling_voxel_above(
         player_voxel_x,
         player_voxel_y,
@@ -129,7 +135,20 @@ pub fn detect_interior_system(
             player_voxel_y,
             &occupied_voxels,
         );
-        interior_state.current_region = Some(region);
+
+        // Only activate the region if the player is well inside it (not at the edge)
+        // This prevents flickering when the player is at doorways or edges
+        let margin = INTERIOR_ENTRY_MARGIN;
+        let player_inside = player_pos.x > region.min.x + margin
+            && player_pos.x < region.max.x - margin
+            && player_pos.z > region.min.z + margin
+            && player_pos.z < region.max.z - margin;
+
+        if player_inside {
+            interior_state.current_region = Some(region);
+        } else {
+            interior_state.current_region = None;
+        }
     } else {
         interior_state.current_region = None;
     }
