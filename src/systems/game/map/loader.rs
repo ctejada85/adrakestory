@@ -208,14 +208,17 @@ mod tests {
 
     #[test]
     fn test_load_progress_percentage() {
-        assert_eq!(LoadProgress::Started.percentage(), 0.0);
-        assert_eq!(LoadProgress::LoadingFile(0.5).percentage(), 0.1);
-        assert_eq!(LoadProgress::ParsingData(0.5).percentage(), 0.3);
-        assert_eq!(LoadProgress::ValidatingMap(0.5).percentage(), 0.5);
-        assert_eq!(LoadProgress::SpawningVoxels(0.5).percentage(), 0.75);
-        assert_eq!(LoadProgress::SpawningEntities(0.5).percentage(), 0.925);
-        assert_eq!(LoadProgress::Finalizing(0.5).percentage(), 0.975);
-        assert_eq!(LoadProgress::Complete.percentage(), 1.0);
+        const EPSILON: f32 = 1e-6;
+        let approx_eq = |a: f32, b: f32| (a - b).abs() < EPSILON;
+
+        assert!(approx_eq(LoadProgress::Started.percentage(), 0.0));
+        assert!(approx_eq(LoadProgress::LoadingFile(0.5).percentage(), 0.1));
+        assert!(approx_eq(LoadProgress::ParsingData(0.5).percentage(), 0.3));
+        assert!(approx_eq(LoadProgress::ValidatingMap(0.5).percentage(), 0.5));
+        assert!(approx_eq(LoadProgress::SpawningVoxels(0.5).percentage(), 0.75));
+        assert!(approx_eq(LoadProgress::SpawningEntities(0.5).percentage(), 0.925));
+        assert!(approx_eq(LoadProgress::Finalizing(0.5).percentage(), 0.975));
+        assert!(approx_eq(LoadProgress::Complete.percentage(), 1.0));
     }
 
     #[test]
