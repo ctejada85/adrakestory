@@ -126,6 +126,7 @@ pub fn detect_interior_system(
             player_voxel_x,
             ceiling_y,
             player_voxel_z,
+            player_voxel_y,
             &occupied_voxels,
         );
         interior_state.current_region = Some(region);
@@ -189,6 +190,7 @@ fn flood_fill_ceiling_region_voxel(
     start_x: i32,
     ceiling_y: i32,
     start_z: i32,
+    player_y: i32,
     occupied_voxels: &HashSet<IVec3>,
 ) -> InteriorRegion {
     let mut visited: HashSet<IVec2> = HashSet::new();
@@ -245,12 +247,13 @@ fn flood_fill_ceiling_region_voxel(
     }
 
     // Convert voxel bounds to world bounds
-    // Add small padding to ensure clean edges without artifacts
+    // IMPORTANT: min.y must be ABOVE player level to avoid hiding fences/walls at player level
+    // We set min.y to be one voxel above the player's current voxel
     let padding = 0.05;
     InteriorRegion {
         min: Vec3::new(
             min_x as f32 - 0.5 + padding,
-            ceiling_y as f32 - 0.5 + padding,
+            (player_y + 1) as f32 + padding, // Start hiding from above player's voxel level
             min_z as f32 - 0.5 + padding,
         ),
         max: Vec3::new(
