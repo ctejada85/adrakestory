@@ -494,11 +494,17 @@ pub fn handle_gamepad_voxel_actions(
     };
 
     for gamepad in gamepads.iter() {
-        let rt = gamepad.get(bevy::input::gamepad::GamepadAxis::RightZ).unwrap_or(0.0);
-        let lt = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftZ).unwrap_or(0.0);
+        // Try both axis and button for triggers (different controllers report differently)
+        let rt_axis = gamepad.get(bevy::input::gamepad::GamepadAxis::RightZ).unwrap_or(0.0);
+        let lt_axis = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftZ).unwrap_or(0.0);
+        let rt_button = gamepad.pressed(bevy::input::gamepad::GamepadButton::RightTrigger2);
+        let lt_button = gamepad.pressed(bevy::input::gamepad::GamepadButton::LeftTrigger2);
+        
+        let rt_pressed = rt_axis > 0.5 || rt_button;
+        let lt_pressed = lt_axis > 0.5 || lt_button;
 
         // RT = execute main action of current tool
-        if rt > 0.5 {
+        if rt_pressed {
             match editor_state.active_tool.clone() {
                 crate::editor::state::EditorTool::VoxelPlace { voxel_type, pattern } => {
                     // Place voxel
@@ -592,7 +598,7 @@ pub fn handle_gamepad_voxel_actions(
         }
 
         // LT = always remove voxel (secondary action)
-        if lt > 0.5 {
+        if lt_pressed {
             // Use target_voxel_pos for removal (the voxel we're looking at, not the placement position)
             let remove_pos = gamepad_state.target_voxel_pos.unwrap_or(grid_pos);
             
