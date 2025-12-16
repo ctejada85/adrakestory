@@ -172,8 +172,9 @@ fn fragment(
     // Generate PbrInput from StandardMaterial bindings (includes all shadow data)
     var pbr_input = pbr_input_from_standard_material(in, is_front);
     
-    // Apply shader-based occlusion for modes 1 (ShaderBased) and 3 (Hybrid, when outside region)
-    if occlusion.mode == 1u || occlusion.mode == 3u {
+    // Apply shader-based occlusion ONLY for mode 1 (ShaderBased)
+    // Mode 3 (Hybrid) fallback is temporarily disabled
+    if occlusion.mode == 1u {
         let occlusion_alpha = calculate_occlusion_alpha(world_pos);
         let final_alpha = pbr_input.material.base_color.a * occlusion_alpha;
         
