@@ -4,7 +4,7 @@
 
 Implement a system that detects when the player enters an interior space (house, room, cave, etc.) and automatically hides or fades the voxels forming the ceiling/roof of that space. Unlike the current per-pixel shader-based occlusion, this approach identifies **connected horizontal regions** above the player and hides them as a unit.
 
-**Status**: 📋 Planned  
+**Status**: ✅ Implemented  
 **Priority**: Medium  
 **Estimated Effort**: 5-8 days  
 **Last Updated**: 2025-12-16
@@ -580,37 +580,37 @@ const POSITION_THRESHOLD: f32 = 0.5;   // Player movement threshold for re-detec
 ## Checklist
 
 ### Phase 1: Interior Detection
-- [ ] Create `interior_detection.rs` module
-- [ ] Implement `InteriorRegion` struct
-- [ ] Implement `InteriorState` resource
-- [ ] Implement upward ray casting for ceiling detection
-- [ ] Implement flood-fill algorithm for region detection
-- [ ] Add `detect_interior_system` to game systems
-- [ ] Add throttling based on config
+- [x] Create `interior_detection.rs` module
+- [x] Implement `InteriorRegion` struct
+- [x] Implement `InteriorState` resource
+- [x] Implement upward ray casting for ceiling detection
+- [x] Implement flood-fill algorithm for region detection
+- [x] Add `detect_interior_system` to game systems
+- [x] Add throttling based on config
 
 ### Phase 2: Shader Extension
-- [ ] Add region bounds to `OcclusionUniforms`
-- [ ] Update shader with `in_interior_region` function
-- [ ] Add discard for region-based hiding
-- [ ] Update `update_occlusion_uniforms` to include region bounds
+- [x] Add region bounds to `OcclusionUniforms`
+- [x] Update shader with `in_interior_region` function
+- [x] Add discard for region-based hiding
+- [x] Update `update_occlusion_uniforms` to include region bounds
 
 ### Phase 3: Shadow Handling
-- [ ] Evaluate shadow handling approaches
-- [ ] Implement chosen approach (visibility-based recommended)
-- [ ] Test shadow behavior in interiors
+- [x] Evaluate shadow handling approaches
+- [x] Implement chosen approach (region-based discard in shader)
+- [ ] Test shadow behavior in interiors (needs manual testing)
 
 ### Phase 4: Configuration
-- [ ] Add `OcclusionMode` enum
-- [ ] Extend `OcclusionConfig` with new fields
-- [ ] Add runtime switching between modes
-- [ ] Update debug visualization for regions
+- [x] Add `OcclusionMode` enum
+- [x] Extend `OcclusionConfig` with new fields
+- [x] Add runtime switching between modes
+- [x] Update debug visualization for regions
 
 ### Testing & Polish
-- [ ] Write unit tests for flood-fill
+- [x] Write unit tests for interior region
 - [ ] Write integration tests for interior detection
 - [ ] Manual testing with various room configurations
 - [ ] Performance profiling
-- [ ] Documentation update
+- [x] Documentation update
 
 ---
 

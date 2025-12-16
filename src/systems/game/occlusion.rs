@@ -22,6 +22,7 @@
 //! - `height_threshold`: Only affect voxels this far above the player
 //! - `falloff_softness`: Smoothness of the vertical transition
 //! - `technique`: Dithered (screen-door) or AlphaBlend (smooth like Photoshop)
+//! - `mode`: ShaderBased, RegionBased, or Hybrid occlusion mode
 
 use bevy::{
     pbr::{ExtendedMaterial, MaterialExtension},
@@ -30,6 +31,7 @@ use bevy::{
 };
 
 use super::components::{GameCamera, Player};
+use super::interior_detection::InteriorState;
 
 /// Transparency technique for occlusion effect
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -43,6 +45,26 @@ pub enum TransparencyTechnique {
     /// Pros: Smooth, clean transparency
     /// Cons: May have sorting issues with overlapping transparent objects
     AlphaBlend,
+}
+
+/// Occlusion mode for handling overhead voxels
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OcclusionMode {
+    /// No occlusion - voxels always visible
+    None,
+
+    /// Shader-based: per-pixel transparency based on camera-player ray
+    /// Best for: Outdoor areas, small overhangs
+    #[default]
+    ShaderBased,
+
+    /// Region-based: detect connected ceiling regions and hide entirely
+    /// Best for: Buildings, rooms, caves
+    RegionBased,
+
+    /// Hybrid: Use region detection when inside, shader-based when outside
+    /// Best for: Mixed environments
+    Hybrid,
 }
 
 /// Type alias for our extended occlusion material
@@ -93,10 +115,15 @@ pub struct OcclusionUniforms {
     pub falloff_softness: f32,
     /// Transparency technique: 0 = Dithered, 1 = AlphaBlend
     pub technique: u32,
+    /// Occlusion mode: 0 = None, 1 = ShaderBased, 2 = RegionBased, 3 = Hybrid
+    pub mode: u32,
     /// Padding for 16-byte alignment
     pub _padding3: u32,
     pub _padding4: u32,
-    pub _padding5: u32,
+    /// Interior region minimum bounds (xyz), w = unused
+    pub region_min: Vec4,
+    /// Interior region maximum bounds (xyz), w = is_active (1.0 = active)
+    pub region_max: Vec4,
 }
 
 impl Default for OcclusionUniforms {
@@ -111,9 +138,11 @@ impl Default for OcclusionUniforms {
             height_threshold: 0.5,
             falloff_softness: 2.0,
             technique: 0, // Dithered by default
+            mode: 1,      // ShaderBased by default
             _padding3: 0,
             _padding4: 0,
-            _padding5: 0,
+            region_min: Vec4::ZERO,
+            region_max: Vec4::ZERO, // w = 0 means inactive
         }
     }
 }
@@ -145,6 +174,14 @@ pub struct OcclusionConfig {
     pub technique: TransparencyTechnique,
     /// Whether to show debug visualization (can toggle with F3)
     pub show_debug: bool,
+    /// Occlusion mode (ShaderBased, RegionBased, or Hybrid)
+    pub mode: OcclusionMode,
+    /// Height threshold for interior detection (max ceiling height)
+    pub interior_height_threshold: f32,
+    /// Whether to hide shadows of occluded voxels (future use)
+    pub hide_shadows: bool,
+    /// Update frequency for region detection (frames between updates)
+    pub region_update_interval: u32,
 }
 
 impl Default for OcclusionConfig {
@@ -157,6 +194,10 @@ impl Default for OcclusionConfig {
             enabled: true,
             technique: TransparencyTechnique::AlphaBlend, // Smooth transparency by default
             show_debug: false,
+            mode: OcclusionMode::Hybrid, // Use hybrid mode for best results
+            interior_height_threshold: 8.0, // Max ceiling height to trigger interior mode
+            hide_shadows: true,
+            region_update_interval: 10, // Update every 10 frames (~6 times/sec at 60fps)
         }
     }
 }
@@ -171,10 +212,11 @@ pub fn update_occlusion_uniforms(
     player_query: Query<&Transform, With<Player>>,
     material_handle: Option<Res<OcclusionMaterialHandle>>,
     mut materials: ResMut<Assets<OcclusionMaterial>>,
+    interior_state: Option<Res<InteriorState>>,
     mut frame_counter: Local<u32>,
 ) {
-    // Skip if disabled
-    if !config.enabled {
+    // Skip if disabled or mode is None
+    if !config.enabled || config.mode == OcclusionMode::None {
         return;
     }
 
@@ -201,11 +243,30 @@ pub fn update_occlusion_uniforms(
         .map(|t| t.translation)
         .unwrap_or(Vec3::ZERO);
 
+    // Get interior region bounds if available
+    let (region_min, region_max) = interior_state
+        .as_ref()
+        .and_then(|state| state.current_region.as_ref())
+        .map(|region| {
+            (
+                Vec4::new(region.min.x, region.min.y, region.min.z, 0.0),
+                Vec4::new(region.max.x, region.max.y, region.max.z, 1.0), // w = 1.0 means active
+            )
+        })
+        .unwrap_or((Vec4::ZERO, Vec4::ZERO)); // w = 0.0 means inactive
+
     // Update the material's uniform buffer (accessing the extension part)
     if let Some(material) = materials.get_mut(&material_handle.0) {
         let technique_value = match config.technique {
             TransparencyTechnique::Dithered => 0,
             TransparencyTechnique::AlphaBlend => 1,
+        };
+
+        let mode_value = match config.mode {
+            OcclusionMode::None => 0,
+            OcclusionMode::ShaderBased => 1,
+            OcclusionMode::RegionBased => 2,
+            OcclusionMode::Hybrid => 3,
         };
 
         material.extension.occlusion_uniforms = OcclusionUniforms {
@@ -218,19 +279,20 @@ pub fn update_occlusion_uniforms(
             height_threshold: config.height_threshold,
             falloff_softness: config.falloff_softness,
             technique: technique_value,
+            mode: mode_value,
             _padding3: 0,
             _padding4: 0,
-            _padding5: 0,
+            region_min,
+            region_max,
         };
 
         // Debug: Log uniforms every 120 frames (about 2 seconds at 60fps)
         *frame_counter += 1;
         if (*frame_counter).is_multiple_of(120) {
+            let region_active = region_max.w > 0.5;
             info!(
-                "[Occlusion] Uniforms updated - Player: ({:.1}, {:.1}, {:.1}), Camera: ({:.1}, {:.1}, {:.1}), Radius: {:.1}, HeightThresh: {:.1}",
-                player_pos.x, player_pos.y, player_pos.z,
-                camera_pos.x, camera_pos.y, camera_pos.z,
-                config.occlusion_radius, config.height_threshold
+                "[Occlusion] Mode: {:?}, Region active: {}, Player: ({:.1}, {:.1}, {:.1})",
+                config.mode, region_active, player_pos.x, player_pos.y, player_pos.z
             );
         }
     } else {
@@ -247,11 +309,13 @@ pub fn update_occlusion_uniforms(
 /// - Yellow line: Camera to player ray
 /// - Red circle: Occlusion radius above player
 /// - Green line: Height threshold
+/// - Cyan box: Interior region (when detected)
 pub fn debug_draw_occlusion_zone(
     mut config: ResMut<OcclusionConfig>,
     mut gizmos: Gizmos,
     camera_query: Query<&Transform, With<GameCamera>>,
     player_query: Query<&Transform, With<Player>>,
+    interior_state: Option<Res<InteriorState>>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut show_debug: Local<bool>,
 ) {
@@ -279,16 +343,18 @@ pub fn debug_draw_occlusion_zone(
         Color::srgba(1.0, 1.0, 0.0, 0.8),
     );
 
-    // Draw occlusion cylinder above player
-    let cylinder_center = player.translation + Vec3::Y * (config.height_threshold + 2.0);
-    gizmos.circle(
-        Isometry3d::new(
-            cylinder_center,
-            Quat::from_rotation_x(std::f32::consts::FRAC_PI_2),
-        ),
-        config.occlusion_radius,
-        Color::srgba(1.0, 0.0, 0.0, 0.5),
-    );
+    // Draw occlusion cylinder above player (for shader-based mode)
+    if matches!(config.mode, OcclusionMode::ShaderBased | OcclusionMode::Hybrid) {
+        let cylinder_center = player.translation + Vec3::Y * (config.height_threshold + 2.0);
+        gizmos.circle(
+            Isometry3d::new(
+                cylinder_center,
+                Quat::from_rotation_x(std::f32::consts::FRAC_PI_2),
+            ),
+            config.occlusion_radius,
+            Color::srgba(1.0, 0.0, 0.0, 0.5),
+        );
+    }
 
     // Draw height threshold line
     let threshold_y = player.translation.y + config.height_threshold;
@@ -305,6 +371,32 @@ pub fn debug_draw_occlusion_zone(
         ),
         Color::srgba(0.0, 1.0, 0.0, 0.8),
     );
+
+    // Draw interior region bounds (for region-based or hybrid mode)
+    if let Some(ref state) = interior_state {
+        if let Some(ref region) = state.current_region {
+            // Draw wireframe box for the interior region
+            let color = Color::srgba(0.0, 1.0, 1.0, 0.8); // Cyan
+
+            // Bottom face
+            gizmos.line(Vec3::new(region.min.x, region.min.y, region.min.z), Vec3::new(region.max.x, region.min.y, region.min.z), color);
+            gizmos.line(Vec3::new(region.max.x, region.min.y, region.min.z), Vec3::new(region.max.x, region.min.y, region.max.z), color);
+            gizmos.line(Vec3::new(region.max.x, region.min.y, region.max.z), Vec3::new(region.min.x, region.min.y, region.max.z), color);
+            gizmos.line(Vec3::new(region.min.x, region.min.y, region.max.z), Vec3::new(region.min.x, region.min.y, region.min.z), color);
+
+            // Top face
+            gizmos.line(Vec3::new(region.min.x, region.max.y, region.min.z), Vec3::new(region.max.x, region.max.y, region.min.z), color);
+            gizmos.line(Vec3::new(region.max.x, region.max.y, region.min.z), Vec3::new(region.max.x, region.max.y, region.max.z), color);
+            gizmos.line(Vec3::new(region.max.x, region.max.y, region.max.z), Vec3::new(region.min.x, region.max.y, region.max.z), color);
+            gizmos.line(Vec3::new(region.min.x, region.max.y, region.max.z), Vec3::new(region.min.x, region.max.y, region.min.z), color);
+
+            // Vertical edges
+            gizmos.line(Vec3::new(region.min.x, region.min.y, region.min.z), Vec3::new(region.min.x, region.max.y, region.min.z), color);
+            gizmos.line(Vec3::new(region.max.x, region.min.y, region.min.z), Vec3::new(region.max.x, region.max.y, region.min.z), color);
+            gizmos.line(Vec3::new(region.max.x, region.min.y, region.max.z), Vec3::new(region.max.x, region.max.y, region.max.z), color);
+            gizmos.line(Vec3::new(region.min.x, region.min.y, region.max.z), Vec3::new(region.min.x, region.max.y, region.max.z), color);
+        }
+    }
 }
 
 /// Plugin to set up the occlusion transparency system.
@@ -313,6 +405,7 @@ pub fn debug_draw_occlusion_zone(
 /// 1. Registers the `OcclusionMaterial` asset type
 /// 2. Inserts the `OcclusionConfig` resource with defaults
 /// 3. Adds the uniform update system to run every frame
+/// 4. Adds interior detection system for region-based occlusion
 ///
 /// Note: You must still:
 /// - Create an `OcclusionMaterial` and store its handle in `OcclusionMaterialHandle`
@@ -321,11 +414,19 @@ pub struct OcclusionPlugin;
 
 impl Plugin for OcclusionPlugin {
     fn build(&self, app: &mut App) {
+        use super::interior_detection::{detect_interior_system, InteriorState};
+
         app.add_plugins(MaterialPlugin::<OcclusionMaterial>::default())
             .insert_resource(OcclusionConfig::default())
+            .insert_resource(InteriorState::default())
             .add_systems(
                 Update,
-                (update_occlusion_uniforms, debug_draw_occlusion_zone),
+                (
+                    detect_interior_system,
+                    update_occlusion_uniforms,
+                    debug_draw_occlusion_zone,
+                )
+                    .chain(),
             );
     }
 }

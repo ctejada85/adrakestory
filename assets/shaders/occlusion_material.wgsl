@@ -4,6 +4,11 @@
 //! based on the fragment's position relative to the player and camera.
 //! Voxels above the player become transparent so the player remains visible.
 //!
+//! Supports multiple occlusion modes:
+//! - ShaderBased: Per-pixel transparency based on camera-player ray
+//! - RegionBased: Hide voxels within detected interior region bounds
+//! - Hybrid: Use region detection when inside, shader-based when outside
+//!
 //! Uses pbr_input_from_standard_material for proper PBR lighting with shadows.
 
 #import bevy_pbr::{
@@ -35,9 +40,13 @@ struct OcclusionUniforms {
     falloff_softness: f32,
     // Transparency technique: 0 = Dithered, 1 = AlphaBlend
     technique: u32,
+    // Occlusion mode: 0 = None, 1 = ShaderBased, 2 = RegionBased, 3 = Hybrid
+    mode: u32,
     _padding3: u32,
     _padding4: u32,
-    _padding5: u32,
+    // Interior region bounds (xyz = bounds, region_max.w = is_active)
+    region_min: vec4<f32>,
+    region_max: vec4<f32>,
 }
 
 @group(2) @binding(100)
@@ -126,37 +135,61 @@ fn dither_check(screen_pos: vec2<f32>, alpha: f32) -> bool {
     return alpha > threshold;
 }
 
+// Check if fragment is inside the interior region bounds
+// Uses a small inset to avoid z-fighting at boundaries
+fn in_interior_region(world_pos: vec3<f32>) -> bool {
+    // Check if region is active (region_max.w > 0.5)
+    if occlusion.region_max.w < 0.5 {
+        return false;
+    }
+    
+    // Add small epsilon inset to avoid artifacts at exact boundaries
+    let epsilon = 0.01;
+    
+    return world_pos.x > occlusion.region_min.x + epsilon &&
+           world_pos.x < occlusion.region_max.x - epsilon &&
+           world_pos.y > occlusion.region_min.y + epsilon &&
+           world_pos.z > occlusion.region_min.z + epsilon &&
+           world_pos.z < occlusion.region_max.z - epsilon;
+    // Note: No upper Y check - we want to hide everything above ceiling_y
+}
+
 @fragment
 fn fragment(
     in: VertexOutput,
     @builtin(front_facing) is_front: bool,
 ) -> FragmentOutput {
+    let world_pos = in.world_position.xyz;
+    
+    // Early discard for region-based occlusion (must happen before any other processing)
+    // This ensures both prepass and main pass discard the same fragments
+    if occlusion.mode == 2u || occlusion.mode == 3u {
+        if in_interior_region(world_pos) {
+            discard;
+        }
+    }
+    
     // Generate PbrInput from StandardMaterial bindings (includes all shadow data)
     var pbr_input = pbr_input_from_standard_material(in, is_front);
     
-    // Calculate occlusion alpha using world position
-    let occlusion_alpha = calculate_occlusion_alpha(in.world_position.xyz);
-    
-    // Apply occlusion transparency to base color alpha
-    let final_alpha = pbr_input.material.base_color.a * occlusion_alpha;
-    
-    // Discard fully transparent fragments (for both techniques)
-    if final_alpha < 0.01 {
-        discard;
-    }
-    
-    // Apply transparency based on selected technique
-    if occlusion.technique == 0u {
-        // Dithered transparency (screen-door effect)
-        // Uses discard to create pattern, works with opaque pipeline
-        if !dither_check(in.position.xy, final_alpha) {
+    // Apply shader-based occlusion for modes 1 (ShaderBased) and 3 (Hybrid, when outside region)
+    if occlusion.mode == 1u || occlusion.mode == 3u {
+        let occlusion_alpha = calculate_occlusion_alpha(world_pos);
+        let final_alpha = pbr_input.material.base_color.a * occlusion_alpha;
+        
+        if final_alpha < 0.01 {
             discard;
         }
-        // Keep base color alpha at 1.0 for opaque rendering
-    } else {
-        // Alpha blend transparency (smooth like Photoshop layers)
-        // Modify the base color alpha for true blending
-        pbr_input.material.base_color.a = final_alpha;
+        
+        if occlusion.technique == 0u {
+            // Dithered transparency
+            if !dither_check(in.position.xy, final_alpha) {
+                discard;
+            }
+        } else {
+            // Alpha blend transparency
+            pbr_input.material.base_color.a = final_alpha;
+        }
     }
     
     // Standard alpha discard from material settings
@@ -173,8 +206,8 @@ fn fragment(
     out.color = main_pass_post_lighting_processing(pbr_input, out.color);
     
     // For alpha blend mode (AlphaToCoverage), set alpha for MSAA hardware to handle
-    if occlusion.technique == 1u {
-        out.color.a = final_alpha;
+    if occlusion.technique == 1u && occlusion.mode != 0u {
+        out.color.a = pbr_input.material.base_color.a;
     }
 #endif
 
