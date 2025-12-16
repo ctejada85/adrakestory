@@ -1,10 +1,10 @@
 # Test Coverage Improvements Plan
 
-## Current State
+## Current State (Updated 2025-12-16)
 
 - **Total .rs files**: 121
-- **Files with tests**: 11 (9.1%)
-- **Total tests**: 42
+- **Files with tests**: 14 (11.6%)
+- **Total tests**: 81
 - **Files tested**:
   - `editor/camera.rs` - 4 tests (camera position, zoom, limits, interpolation)
   - `editor/history.rs` - 3 tests (push/undo, redo, clear redo on action)
@@ -17,10 +17,13 @@
   - `systems/game/map/validation.rs` - 4 tests (default map, invalid dimensions, invalid position, missing spawn)
   - `systems/game/map/loader.rs` - 3 tests (progress percentage, map load progress, default map)
   - `systems/game/map/geometry/tests.rs` - 19 tests (comprehensive geometry tests)
+  - `systems/game/player_movement.rs` - 19 tests (input conversion, normalization, look direction, rotation) ✅ NEW
+  - `systems/game/collision.rs` - 12 tests (CollisionResult, cylinder-AABB intersection) ✅ NEW
+  - `systems/game/resources.rs` - 8 tests (spatial grid queries, world-to-grid conversion) ✅ NEW
 
 ## Prioritized Testing Improvements
 
-### Priority 1: Critical Core Systems (High Impact)
+### Priority 1: Critical Core Systems (High Impact) ✅ COMPLETED
 
 These modules are fundamental to the game's functionality and have the highest risk if broken.
 
@@ -120,10 +123,10 @@ These are harder to unit test and may need integration tests.
 
 ## Implementation Order
 
-### Phase 1: Foundation (Week 1)
-1. [ ] Add tests to `player_movement.rs`
-2. [ ] Add tests to collision system
-3. [ ] Add tests to spatial grid
+### Phase 1: Foundation (Week 1) ✅ COMPLETED
+1. [x] Add tests to `player_movement.rs` - 19 tests added (input conversion, normalization, look direction, rotation)
+2. [x] Add tests to collision system - 12 tests added (CollisionResult, cylinder-AABB intersection)
+3. [x] Add tests to spatial grid - 8 tests added (world-to-grid conversion, AABB queries, cell handling)
 
 ### Phase 2: Map System (Week 2)
 4. [ ] Add tests to `format/` modules (serialization)

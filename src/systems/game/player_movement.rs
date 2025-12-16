@@ -236,3 +236,210 @@ fn apply_axis_movement(
         // else: blocking collision, don't move
     }
 }
+
+/// Calculate 3D movement direction from 2D input.
+///
+/// Converts PlayerInput 2D movement (x = left/right, y = forward/back)
+/// to 3D world coordinates (x = forward/back, z = left/right).
+///
+/// This is a pure function useful for testing input conversion in isolation.
+#[inline]
+pub fn input_to_world_direction(input: Vec2) -> Vec3 {
+    Vec3::new(input.y, 0.0, input.x)
+}
+
+/// Calculate the look direction from input, returning the direction vector.
+///
+/// Returns Vec3::ZERO if no look direction is active.
+#[inline]
+pub fn calculate_look_direction(look_input: Vec2, movement_dir: Vec3) -> Vec3 {
+    if look_input.length() > 0.01 {
+        // Right stick is active - use it for facing direction
+        Vec3::new(look_input.y, 0.0, look_input.x)
+    } else if movement_dir.length() > 0.0 {
+        // No right stick input - face movement direction
+        movement_dir
+    } else {
+        Vec3::ZERO
+    }
+}
+
+/// Calculate target rotation angle from a look direction vector.
+///
+/// Returns the rotation angle in radians. The character model faces right by default,
+/// so we subtract π/2 (90°) to align it with the look direction.
+#[inline]
+pub fn calculate_target_rotation(look_dir: Vec3) -> f32 {
+    let normalized = look_dir.normalize();
+    normalized.z.atan2(-normalized.x) - FRAC_PI_2
+}
+
+/// Normalize movement input for consistent speed.
+///
+/// Ensures diagonal movement isn't faster than cardinal movement by
+/// normalizing the input vector while preserving analog magnitude.
+#[inline]
+pub fn normalize_movement(direction: Vec3) -> (Vec3, f32) {
+    let magnitude = direction.length().min(1.0);
+    if magnitude > 0.0 {
+        (direction.normalize(), magnitude)
+    } else {
+        (Vec3::ZERO, 0.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // input_to_world_direction tests
+    #[test]
+    fn test_input_forward() {
+        let input = Vec2::new(0.0, 1.0); // Forward
+        let result = input_to_world_direction(input);
+        assert_eq!(result, Vec3::new(1.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn test_input_backward() {
+        let input = Vec2::new(0.0, -1.0); // Backward
+        let result = input_to_world_direction(input);
+        assert_eq!(result, Vec3::new(-1.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn test_input_left() {
+        let input = Vec2::new(-1.0, 0.0); // Left
+        let result = input_to_world_direction(input);
+        assert_eq!(result, Vec3::new(0.0, 0.0, -1.0));
+    }
+
+    #[test]
+    fn test_input_right() {
+        let input = Vec2::new(1.0, 0.0); // Right
+        let result = input_to_world_direction(input);
+        assert_eq!(result, Vec3::new(0.0, 0.0, 1.0));
+    }
+
+    #[test]
+    fn test_input_diagonal() {
+        let input = Vec2::new(1.0, 1.0); // Forward-Right
+        let result = input_to_world_direction(input);
+        assert_eq!(result, Vec3::new(1.0, 0.0, 1.0));
+    }
+
+    #[test]
+    fn test_input_zero() {
+        let input = Vec2::ZERO;
+        let result = input_to_world_direction(input);
+        assert_eq!(result, Vec3::ZERO);
+    }
+
+    // normalize_movement tests
+    #[test]
+    fn test_normalize_zero_input() {
+        let (dir, mag) = normalize_movement(Vec3::ZERO);
+        assert_eq!(dir, Vec3::ZERO);
+        assert_eq!(mag, 0.0);
+    }
+
+    #[test]
+    fn test_normalize_cardinal_direction() {
+        let (dir, mag) = normalize_movement(Vec3::new(1.0, 0.0, 0.0));
+        assert!((dir - Vec3::new(1.0, 0.0, 0.0)).length() < 0.001);
+        assert!((mag - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_normalize_diagonal_same_speed() {
+        // Diagonal input should have same magnitude as cardinal
+        let (_, cardinal_mag) = normalize_movement(Vec3::new(1.0, 0.0, 0.0));
+        let (_, diagonal_mag) = normalize_movement(Vec3::new(1.0, 0.0, 1.0));
+        // Both should be clamped to 1.0
+        assert!((cardinal_mag - 1.0).abs() < 0.001);
+        assert!((diagonal_mag - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_normalize_diagonal_normalized_direction() {
+        let (dir, _) = normalize_movement(Vec3::new(1.0, 0.0, 1.0));
+        // Should be normalized
+        assert!((dir.length() - 1.0).abs() < 0.001);
+        // Components should be equal (45 degree angle)
+        assert!((dir.x - dir.z).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_normalize_partial_analog() {
+        // Analog stick pushed halfway
+        let (_, mag) = normalize_movement(Vec3::new(0.5, 0.0, 0.0));
+        assert!((mag - 0.5).abs() < 0.001);
+    }
+
+    // calculate_look_direction tests
+    #[test]
+    fn test_look_direction_from_stick() {
+        let look_input = Vec2::new(1.0, 0.0); // Looking right
+        let movement = Vec3::new(1.0, 0.0, 0.0); // Moving forward
+        let result = calculate_look_direction(look_input, movement);
+        // Should use look input, not movement
+        assert_eq!(result, Vec3::new(0.0, 0.0, 1.0));
+    }
+
+    #[test]
+    fn test_look_direction_from_movement() {
+        let look_input = Vec2::ZERO; // No look input
+        let movement = Vec3::new(1.0, 0.0, 0.0); // Moving forward
+        let result = calculate_look_direction(look_input, movement);
+        // Should use movement direction
+        assert_eq!(result, movement);
+    }
+
+    #[test]
+    fn test_look_direction_no_input() {
+        let look_input = Vec2::ZERO;
+        let movement = Vec3::ZERO;
+        let result = calculate_look_direction(look_input, movement);
+        assert_eq!(result, Vec3::ZERO);
+    }
+
+    #[test]
+    fn test_look_direction_small_stick_ignored() {
+        // Very small stick input (deadzone-like)
+        let look_input = Vec2::new(0.005, 0.005);
+        let movement = Vec3::new(1.0, 0.0, 0.0);
+        let result = calculate_look_direction(look_input, movement);
+        // Should use movement since look_input is too small
+        assert_eq!(result, movement);
+    }
+
+    // calculate_target_rotation tests
+    #[test]
+    fn test_rotation_facing_forward() {
+        // Looking in +X direction (forward in game)
+        let look_dir = Vec3::new(1.0, 0.0, 0.0);
+        let rotation = calculate_target_rotation(look_dir);
+        // Expected: atan2(0, -1) - PI/2 = PI - PI/2 = PI/2
+        let expected = std::f32::consts::FRAC_PI_2;
+        assert!((rotation - expected).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_rotation_facing_backward() {
+        // Looking in -X direction (backward in game)
+        let look_dir = Vec3::new(-1.0, 0.0, 0.0);
+        let rotation = calculate_target_rotation(look_dir);
+        // Expected: atan2(0, 1) - PI/2 = 0 - PI/2 = -PI/2
+        let expected = -std::f32::consts::FRAC_PI_2;
+        assert!((rotation - expected).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_rotation_facing_right() {
+        // Looking in +Z direction (right in game)
+        let look_dir = Vec3::new(0.0, 0.0, 1.0);
+        let rotation = calculate_target_rotation(look_dir);
+        // Expected: atan2(1, 0) - PI/2 = PI/2 - PI/2 = 0
+        assert!(rotation.abs() < 0.001);
+    }
+}
