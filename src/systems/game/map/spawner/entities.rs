@@ -219,3 +219,221 @@ pub fn spawn_light_source(
         position, intensity, range, shadows_enabled
     );
 }
+
+/// Parse light intensity from properties with defaults and clamping.
+/// Exposed for testing.
+pub(crate) fn parse_light_intensity(properties: &HashMap<String, String>) -> f32 {
+    properties
+        .get("intensity")
+        .and_then(|i| i.parse::<f32>().ok())
+        .unwrap_or(10000.0)
+        .clamp(0.0, 1000000.0)
+}
+
+/// Parse light range from properties with defaults and clamping.
+/// Exposed for testing.
+pub(crate) fn parse_light_range(properties: &HashMap<String, String>) -> f32 {
+    properties
+        .get("range")
+        .and_then(|r| r.parse::<f32>().ok())
+        .unwrap_or(10.0)
+        .clamp(0.1, 100.0)
+}
+
+/// Parse shadows enabled from properties with default.
+/// Exposed for testing.
+pub(crate) fn parse_shadows_enabled(properties: &HashMap<String, String>) -> bool {
+    properties
+        .get("shadows")
+        .map(|s| s == "true" || s == "1")
+        .unwrap_or(false)
+}
+
+/// Parse color from properties in "r,g,b" format.
+/// Exposed for testing.
+pub(crate) fn parse_color(properties: &HashMap<String, String>) -> Option<Color> {
+    properties.get("color").and_then(|c| {
+        let parts: Vec<f32> = c
+            .split(',')
+            .filter_map(|p| p.trim().parse().ok())
+            .collect();
+        if parts.len() == 3 {
+            Some(Color::srgb(parts[0], parts[1], parts[2]))
+        } else {
+            None
+        }
+    })
+}
+
+/// Parse NPC radius from properties with default.
+/// Exposed for testing.
+pub(crate) fn parse_npc_radius(properties: &HashMap<String, String>) -> f32 {
+    properties
+        .get("radius")
+        .and_then(|r| r.parse::<f32>().ok())
+        .unwrap_or(0.3)
+}
+
+/// Parse NPC name from properties with default.
+/// Exposed for testing.
+pub(crate) fn parse_npc_name(properties: &HashMap<String, String>) -> String {
+    properties
+        .get("name")
+        .cloned()
+        .unwrap_or_else(|| "NPC".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_light_intensity_default() {
+        let props = HashMap::new();
+        assert_eq!(parse_light_intensity(&props), 10000.0);
+    }
+
+    #[test]
+    fn test_parse_light_intensity_custom() {
+        let mut props = HashMap::new();
+        props.insert("intensity".to_string(), "5000.0".to_string());
+        assert_eq!(parse_light_intensity(&props), 5000.0);
+    }
+
+    #[test]
+    fn test_parse_light_intensity_clamped_high() {
+        let mut props = HashMap::new();
+        props.insert("intensity".to_string(), "2000000.0".to_string());
+        assert_eq!(parse_light_intensity(&props), 1000000.0);
+    }
+
+    #[test]
+    fn test_parse_light_intensity_clamped_low() {
+        let mut props = HashMap::new();
+        props.insert("intensity".to_string(), "-100.0".to_string());
+        assert_eq!(parse_light_intensity(&props), 0.0);
+    }
+
+    #[test]
+    fn test_parse_light_intensity_invalid() {
+        let mut props = HashMap::new();
+        props.insert("intensity".to_string(), "not_a_number".to_string());
+        assert_eq!(parse_light_intensity(&props), 10000.0); // Falls back to default
+    }
+
+    #[test]
+    fn test_parse_light_range_default() {
+        let props = HashMap::new();
+        assert_eq!(parse_light_range(&props), 10.0);
+    }
+
+    #[test]
+    fn test_parse_light_range_custom() {
+        let mut props = HashMap::new();
+        props.insert("range".to_string(), "25.0".to_string());
+        assert_eq!(parse_light_range(&props), 25.0);
+    }
+
+    #[test]
+    fn test_parse_light_range_clamped_high() {
+        let mut props = HashMap::new();
+        props.insert("range".to_string(), "500.0".to_string());
+        assert_eq!(parse_light_range(&props), 100.0);
+    }
+
+    #[test]
+    fn test_parse_light_range_clamped_low() {
+        let mut props = HashMap::new();
+        props.insert("range".to_string(), "0.01".to_string());
+        assert_eq!(parse_light_range(&props), 0.1);
+    }
+
+    #[test]
+    fn test_parse_shadows_enabled_default() {
+        let props = HashMap::new();
+        assert!(!parse_shadows_enabled(&props));
+    }
+
+    #[test]
+    fn test_parse_shadows_enabled_true() {
+        let mut props = HashMap::new();
+        props.insert("shadows".to_string(), "true".to_string());
+        assert!(parse_shadows_enabled(&props));
+    }
+
+    #[test]
+    fn test_parse_shadows_enabled_one() {
+        let mut props = HashMap::new();
+        props.insert("shadows".to_string(), "1".to_string());
+        assert!(parse_shadows_enabled(&props));
+    }
+
+    #[test]
+    fn test_parse_shadows_enabled_false() {
+        let mut props = HashMap::new();
+        props.insert("shadows".to_string(), "false".to_string());
+        assert!(!parse_shadows_enabled(&props));
+    }
+
+    #[test]
+    fn test_parse_color_valid() {
+        let mut props = HashMap::new();
+        props.insert("color".to_string(), "1.0,0.5,0.0".to_string());
+        let color = parse_color(&props);
+        assert!(color.is_some());
+    }
+
+    #[test]
+    fn test_parse_color_with_spaces() {
+        let mut props = HashMap::new();
+        props.insert("color".to_string(), "1.0, 0.5, 0.0".to_string());
+        let color = parse_color(&props);
+        assert!(color.is_some());
+    }
+
+    #[test]
+    fn test_parse_color_missing() {
+        let props = HashMap::new();
+        assert!(parse_color(&props).is_none());
+    }
+
+    #[test]
+    fn test_parse_color_invalid_format() {
+        let mut props = HashMap::new();
+        props.insert("color".to_string(), "red".to_string());
+        assert!(parse_color(&props).is_none());
+    }
+
+    #[test]
+    fn test_parse_color_incomplete() {
+        let mut props = HashMap::new();
+        props.insert("color".to_string(), "1.0,0.5".to_string()); // Only 2 values
+        assert!(parse_color(&props).is_none());
+    }
+
+    #[test]
+    fn test_parse_npc_radius_default() {
+        let props = HashMap::new();
+        assert_eq!(parse_npc_radius(&props), 0.3);
+    }
+
+    #[test]
+    fn test_parse_npc_radius_custom() {
+        let mut props = HashMap::new();
+        props.insert("radius".to_string(), "0.5".to_string());
+        assert_eq!(parse_npc_radius(&props), 0.5);
+    }
+
+    #[test]
+    fn test_parse_npc_name_default() {
+        let props = HashMap::new();
+        assert_eq!(parse_npc_name(&props), "NPC");
+    }
+
+    #[test]
+    fn test_parse_npc_name_custom() {
+        let mut props = HashMap::new();
+        props.insert("name".to_string(), "Bob".to_string());
+        assert_eq!(parse_npc_name(&props), "Bob");
+    }
+}

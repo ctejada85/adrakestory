@@ -280,3 +280,105 @@ pub fn spawn_voxels_chunked(
         total_chunks, total_quads, total_sub_voxels
     );
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calculate_sub_voxel_pos_origin() {
+        let pos = calculate_sub_voxel_pos(0, 0, 0, 0, 0, 0);
+        // First sub-voxel of first voxel
+        // offset = -0.5 + 0.125/2 = -0.4375
+        let expected_offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
+        assert!((pos.x - expected_offset).abs() < 0.001);
+        assert!((pos.y - expected_offset).abs() < 0.001);
+        assert!((pos.z - expected_offset).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_calculate_sub_voxel_pos_last_sub_voxel() {
+        let pos = calculate_sub_voxel_pos(0, 0, 0, 7, 7, 7);
+        // Last sub-voxel (index 7) of first voxel
+        let offset = -0.5 + SUB_VOXEL_SIZE * 0.5;
+        let expected = offset + (7.0 * SUB_VOXEL_SIZE);
+        assert!((pos.x - expected).abs() < 0.001);
+        assert!((pos.y - expected).abs() < 0.001);
+        assert!((pos.z - expected).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_calculate_sub_voxel_pos_adjacent_voxel() {
+        // First sub-voxel of voxel (1,0,0) should be SUB_VOXEL_COUNT * SUB_VOXEL_SIZE
+        // away from first sub-voxel of voxel (0,0,0)
+        let pos1 = calculate_sub_voxel_pos(0, 0, 0, 0, 0, 0);
+        let pos2 = calculate_sub_voxel_pos(1, 0, 0, 0, 0, 0);
+        assert!((pos2.x - pos1.x - 1.0).abs() < 0.001); // 1 voxel = 1 world unit
+    }
+
+    #[test]
+    fn test_get_sub_voxel_color_deterministic() {
+        let color1 = get_sub_voxel_color(5, 10, 15, 3, 4, 5);
+        let color2 = get_sub_voxel_color(5, 10, 15, 3, 4, 5);
+        // Same input should produce same color
+        assert_eq!(format!("{:?}", color1), format!("{:?}", color2));
+    }
+
+    #[test]
+    fn test_chunk_material_variants() {
+        // Just verify the enum variants exist and can be matched
+        let occlusion = ChunkMaterial::Occlusion(Handle::default());
+        let standard = ChunkMaterial::Standard(Handle::default());
+
+        match occlusion {
+            ChunkMaterial::Occlusion(_) => {}
+            ChunkMaterial::Standard(_) => panic!("Wrong variant"),
+        }
+
+        match standard {
+            ChunkMaterial::Standard(_) => {}
+            ChunkMaterial::Occlusion(_) => panic!("Wrong variant"),
+        }
+    }
+
+    #[test]
+    fn test_sub_voxel_size_matches_count() {
+        // 8 sub-voxels should fit in 1 world unit
+        assert!((SUB_VOXEL_COUNT as f32 * SUB_VOXEL_SIZE - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_chunk_coordinates_calculation() {
+        // Test that world position maps to correct chunk
+        let world_pos = Vec3::new(0.0, 0.0, 0.0);
+        let chunk_pos = IVec3::new(
+            (world_pos.x / CHUNK_SIZE as f32).floor() as i32,
+            (world_pos.y / CHUNK_SIZE as f32).floor() as i32,
+            (world_pos.z / CHUNK_SIZE as f32).floor() as i32,
+        );
+        assert_eq!(chunk_pos, IVec3::ZERO);
+    }
+
+    #[test]
+    fn test_chunk_coordinates_negative() {
+        let world_pos = Vec3::new(-1.0, -1.0, -1.0);
+        let chunk_pos = IVec3::new(
+            (world_pos.x / CHUNK_SIZE as f32).floor() as i32,
+            (world_pos.y / CHUNK_SIZE as f32).floor() as i32,
+            (world_pos.z / CHUNK_SIZE as f32).floor() as i32,
+        );
+        assert_eq!(chunk_pos, IVec3::new(-1, -1, -1));
+    }
+
+    #[test]
+    fn test_chunk_coordinates_boundary() {
+        // Position at exactly chunk boundary
+        let world_pos = Vec3::new(CHUNK_SIZE as f32, 0.0, 0.0);
+        let chunk_pos = IVec3::new(
+            (world_pos.x / CHUNK_SIZE as f32).floor() as i32,
+            (world_pos.y / CHUNK_SIZE as f32).floor() as i32,
+            (world_pos.z / CHUNK_SIZE as f32).floor() as i32,
+        );
+        assert_eq!(chunk_pos.x, 1);
+    }
+}
