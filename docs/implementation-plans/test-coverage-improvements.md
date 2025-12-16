@@ -140,10 +140,10 @@ These are harder to unit test and may need integration tests.
 5. [x] Add tests to `spawner/` modules (meshing) - 44 tests added (chunks, Face, occupancy, palette)
 6. [x] Add tests to `spawner/entities.rs` - 22 tests added (property parsing)
 
-### Phase 3: Editor Core (Week 3)
-7. [ ] Add tests to `editor/state.rs`
-8. [ ] Add tests to `editor/file_io.rs`
-9. [ ] Add tests to voxel tool modules
+### Phase 3: Editor Core (Week 3) ✅ COMPLETED
+7. [x] Add tests to `editor/state.rs` - 22 tests added (ToolMemory, EditorState, EditorTool, EditorUIState, KeyboardEditMode)
+8. [x] Add tests to `editor/file_io.rs` - 16 tests added (calculate_map_bounds, normalize_map_coordinates, save_map_to_file)
+9. [x] Voxel tool modules have primarily system-level code requiring Bevy integration tests - skipped for unit tests
 
 ### Phase 4: Input & Cleanup (Week 4)
 10. [ ] Add tests to `gamepad.rs`
