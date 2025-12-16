@@ -136,6 +136,7 @@ fn main() {
         .add_systems(Update, camera::handle_camera_input.after(ui_system::render_ui))
         .add_systems(Update, camera::update_editor_camera)
         .add_systems(Update, camera::handle_gamepad_voxel_actions.after(camera::handle_camera_input))
+        .add_systems(Update, camera::handle_gamepad_tool_cycling.after(camera::handle_camera_input))
         .add_systems(Update, grid::update_infinite_grid)
         .add_systems(Update, grid::update_grid_visibility)
         .add_systems(Update, grid::update_cursor_indicator)

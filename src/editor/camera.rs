@@ -625,6 +625,89 @@ pub fn handle_gamepad_voxel_actions(
     }
 }
 
+/// System to handle RB/LB for cycling through patterns/entities
+pub fn handle_gamepad_tool_cycling(
+    gamepad_state: Res<GamepadCameraState>,
+    gamepads: Query<&Gamepad>,
+    mut editor_state: ResMut<crate::editor::state::EditorState>,
+    time: Res<Time>,
+    mut cooldown: Local<f32>,
+) {
+    // Only process if gamepad is active
+    if !gamepad_state.active {
+        return;
+    }
+
+    // Update cooldown
+    *cooldown = (*cooldown - time.delta_secs()).max(0.0);
+    if *cooldown > 0.0 {
+        return;
+    }
+
+    for gamepad in gamepads.iter() {
+        let rb_pressed = gamepad.just_pressed(bevy::input::gamepad::GamepadButton::RightTrigger);
+        let lb_pressed = gamepad.just_pressed(bevy::input::gamepad::GamepadButton::LeftTrigger);
+
+        if !rb_pressed && !lb_pressed {
+            continue;
+        }
+
+        match &mut editor_state.active_tool {
+            crate::editor::state::EditorTool::VoxelPlace { pattern, .. } => {
+                use crate::systems::game::map::format::SubVoxelPattern;
+                
+                // All patterns in order
+                const PATTERNS: [SubVoxelPattern; 10] = [
+                    SubVoxelPattern::Full,
+                    SubVoxelPattern::PlatformXZ,
+                    SubVoxelPattern::PlatformXY,
+                    SubVoxelPattern::PlatformYZ,
+                    SubVoxelPattern::StaircaseX,
+                    SubVoxelPattern::StaircaseNegX,
+                    SubVoxelPattern::StaircaseZ,
+                    SubVoxelPattern::StaircaseNegZ,
+                    SubVoxelPattern::Pillar,
+                    SubVoxelPattern::Fence,
+                ];
+
+                let current_idx = PATTERNS.iter().position(|p| p == pattern).unwrap_or(0);
+                let new_idx = if rb_pressed {
+                    (current_idx + 1) % PATTERNS.len()
+                } else {
+                    (current_idx + PATTERNS.len() - 1) % PATTERNS.len()
+                };
+                *pattern = PATTERNS[new_idx];
+                *cooldown = 0.2;
+                info!("Pattern changed to {:?}", pattern);
+            }
+            crate::editor::state::EditorTool::EntityPlace { entity_type } => {
+                use crate::systems::game::map::format::EntityType;
+                
+                // All entity types in order
+                const ENTITIES: [EntityType; 6] = [
+                    EntityType::PlayerSpawn,
+                    EntityType::Npc,
+                    EntityType::Enemy,
+                    EntityType::Item,
+                    EntityType::Trigger,
+                    EntityType::LightSource,
+                ];
+
+                let current_idx = ENTITIES.iter().position(|e| e == entity_type).unwrap_or(0);
+                let new_idx = if rb_pressed {
+                    (current_idx + 1) % ENTITIES.len()
+                } else {
+                    (current_idx + ENTITIES.len() - 1) % ENTITIES.len()
+                };
+                *entity_type = ENTITIES[new_idx];
+                *cooldown = 0.2;
+                info!("Entity type changed to {:?}", entity_type);
+            }
+            _ => {}
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
