@@ -248,12 +248,14 @@ fn flood_fill_ceiling_region_voxel(
 
     // Convert voxel bounds to world bounds
     // IMPORTANT: min.y must be ABOVE player level to avoid hiding fences/walls at player level
-    // We set min.y to be one voxel above the player's current voxel
+    // A voxel at integer Y occupies world space from Y-0.5 to Y+0.5
+    // Player at voxel Y=0 means we should only hide voxels at Y >= 2 (two levels above)
+    // This ensures voxels at player level (Y=0) and one above (Y=1, where player's head might be) are visible
     let padding = 0.05;
     InteriorRegion {
         min: Vec3::new(
             min_x as f32 - 0.5 + padding,
-            (player_y + 1) as f32 + padding, // Start hiding from above player's voxel level
+            (player_y + 2) as f32 - 0.5 + padding, // Start hiding from 2 voxels above player
             min_z as f32 - 0.5 + padding,
         ),
         max: Vec3::new(
