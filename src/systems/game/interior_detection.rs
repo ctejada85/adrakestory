@@ -161,6 +161,13 @@ pub fn detect_interior_system(
         }
     }
 
+    // Check if player is currently inside an existing region (for hysteresis)
+    let is_currently_inside = interior_state.current_region.is_some();
+    let player_in_existing_region = interior_state.current_region.as_ref().map_or(false, |region| {
+        player_pos.x >= region.min.x && player_pos.x <= region.max.x &&
+        player_pos.z >= region.min.z && player_pos.z <= region.max.z
+    });
+
     if let Some((start_x, start_z, ceiling_y, _)) = best_ceiling {
         // Flood-fill to find connected ceiling region at voxel level
         let region = flood_fill_ceiling_region_voxel(
@@ -171,40 +178,19 @@ pub fn detect_interior_system(
             occupied_voxels,
         );
 
-        // The key check: is the player still under a ceiling?
-        // We check if ANY of the 4 positions the player overlaps has a ceiling above
-        // This is more reliable than checking if player is inside the region bounds
-        let player_under_ceiling = positions_to_check.iter().any(|(vx, vz)| {
-            find_ceiling_voxel_above(
-                *vx,
-                player_voxel_y,
-                *vz,
-                config.interior_height_threshold as i32,
-                occupied_voxels,
-            ).is_some()
-        });
-
-        // Hysteresis: once inside, stay inside as long as we're under a ceiling
-        let is_currently_inside = interior_state.current_region.is_some();
-        
-        if player_under_ceiling {
-            // Player is under a ceiling - use the detected region
-            // But only if we have a meaningful region (more than just a tiny area)
-            if region.voxel_count >= 2 {
-                interior_state.current_region = Some(region);
-            } else if is_currently_inside {
-                // Keep the previous region if we're already inside
-                // (don't change anything)
-            } else {
-                interior_state.current_region = None;
-            }
-        } else if !is_currently_inside {
-            // Player not under ceiling and wasn't inside - no region
+        // Player is under a ceiling - use the detected region
+        if region.voxel_count >= 2 {
+            interior_state.current_region = Some(region);
+        } else if is_currently_inside {
+            // Keep the previous region if we're already inside
+        } else {
             interior_state.current_region = None;
         }
-        // If player was inside but moved to edge, keep the region active
-        // (hysteresis - they need to fully exit)
+    } else if player_in_existing_region {
+        // No ceiling found directly above, but player is still within the existing region bounds
+        // Keep the region active (they might be near a wall within the room)
     } else {
+        // Player is outside any region
         interior_state.current_region = None;
     }
 }
