@@ -95,7 +95,7 @@ impl EditorCamera {
 
     /// Get the right direction vector
     pub fn right(&self) -> Vec3 {
-        Vec3::new(-self.yaw.cos(), 0.0, self.yaw.sin())
+        Vec3::new(self.yaw.cos(), 0.0, -self.yaw.sin())
     }
 
     /// Get the forward direction for movement (ignores pitch, stays horizontal)
@@ -443,15 +443,13 @@ pub fn handle_gamepad_voxel_actions(
 
     // Mouse buttons (only when not over UI)
     if !pointer_over_ui {
-        // Right click = primary action, Left click = secondary action (remove)
-        if mouse_button.pressed(MouseButton::Right) {
-            // Don't use right-click for action when it's being used for camera look
-            // Only trigger on just_pressed to avoid conflict with mouse look
-            if mouse_button.just_pressed(MouseButton::Right) {
-                // Skip - we use right-click held for camera, not for placement
-            }
-        }
+        // Left click = primary action (place), Right click = secondary action (remove)
         if mouse_button.just_pressed(MouseButton::Left) {
+            primary_action = true;
+        }
+        if mouse_button.just_pressed(MouseButton::Right) {
+            // Only trigger secondary action if not currently doing mouse look
+            // (mouse look requires holding right click and moving)
             secondary_action = true;
         }
     }
