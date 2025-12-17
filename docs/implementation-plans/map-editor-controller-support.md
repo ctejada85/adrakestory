@@ -17,10 +17,21 @@ The controller support has been fully implemented with the following features:
 - **Raycast-based cursor**: Cursor appears on the voxel face you're looking at
 - **Tool actions via triggers**: RT executes current tool, LT removes voxels
 - **Pattern/Entity cycling**: RB/LB to cycle through patterns or entity types
-- **Automatic input switching**: Seamlessly switch between controller and mouse/keyboard
+- **Unified input system**: Controller, keyboard, and mouse all work simultaneously
+
+### Unified Input System
+All input methods (gamepad, keyboard, mouse) now work together simultaneously:
+- No mode switching required
+- Use controller sticks while also using keyboard keys
+- Use mouse for quick look adjustments while using controller for movement
+- Seamlessly switch between any combination of input devices
 
 ### Files Modified
 - `src/editor/camera.rs` - Added GamepadCameraState, flying camera controls, trigger actions, and RB/LB cycling
+- `src/editor/controller/camera.rs` - Unified camera mode (always FirstPerson)
+- `src/editor/controller/input.rs` - Removed mode checks for simultaneous input
+- `src/editor/controller/cursor.rs` - Cursor works for all input methods
+- `src/editor/controller/palette.rs` - Palette UI works for all input methods
 - `src/editor/cursor/mod.rs` - Made raycasting module public for controller use
 - `src/bin/map_editor/main.rs` - Added controller systems to the app
 
@@ -64,13 +75,15 @@ The controller support has been fully implemented with the following features:
 ### Input Detection
 The system supports both axis-based triggers (`RightZ`/`LeftZ`) and button-based triggers (`RightTrigger2`/`LeftTrigger2`) to work with different controller types.
 
-### Automatic Input Switching
-- Moving sticks activates gamepad mode (hides mouse cursor)
-- Moving mouse or clicking deactivates gamepad mode (shows cursor)
+### Simultaneous Input Support
+- All input methods (gamepad, keyboard, mouse) work together simultaneously
+- No mode switching required - use any combination of inputs at any time
+- Moving gamepad sticks hides mouse cursor (for comfort)
+- Moving mouse or clicking shows cursor again
 - Both input methods work seamlessly without manual switching
 
 ### Raycast Cursor System
-When gamepad is active:
+The cursor system works for all input methods:
 1. A ray is cast from camera position in the look direction
 2. If it hits a voxel, cursor appears on the hit face for placement
 3. If no voxel hit, falls back to ground plane (y=0)

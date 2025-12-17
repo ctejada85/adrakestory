@@ -397,11 +397,11 @@ pub fn handle_camera_input(
     }
 }
 
-/// System to handle voxel actions (RT/Right-click to execute tool action, LT/Left-click to remove)
+/// System to handle gamepad voxel actions (RT to execute tool action, LT to remove)
+/// Note: Mouse actions are handled by the tool systems in tools/ module
 pub fn handle_gamepad_voxel_actions(
     gamepad_state: Res<GamepadCameraState>,
     gamepads: Query<&Gamepad>,
-    mouse_button: Res<ButtonInput<MouseButton>>,
     mut editor_state: ResMut<crate::editor::state::EditorState>,
     mut history: ResMut<crate::editor::history::EditorHistory>,
     mut contexts: EguiContexts,
@@ -420,13 +420,13 @@ pub fn handle_gamepad_voxel_actions(
 
     // Check if UI is being interacted with
     let ctx = contexts.ctx_mut();
-    let pointer_over_ui = ctx.is_pointer_over_area() || ctx.is_using_pointer();
+    let _pointer_over_ui = ctx.is_pointer_over_area() || ctx.is_using_pointer();
 
     // Determine if primary or secondary action is triggered
     let mut primary_action = false;
     let mut secondary_action = false;
 
-    // Gamepad triggers
+    // Gamepad triggers only - mouse is handled by tool systems
     for gamepad in gamepads.iter() {
         let rt_axis = gamepad.get(bevy::input::gamepad::GamepadAxis::RightZ).unwrap_or(0.0);
         let lt_axis = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftZ).unwrap_or(0.0);
@@ -437,19 +437,6 @@ pub fn handle_gamepad_voxel_actions(
             primary_action = true;
         }
         if lt_axis > 0.5 || lt_button {
-            secondary_action = true;
-        }
-    }
-
-    // Mouse buttons (only when not over UI)
-    if !pointer_over_ui {
-        // Left click = primary action (place), Right click = secondary action (remove)
-        if mouse_button.just_pressed(MouseButton::Left) {
-            primary_action = true;
-        }
-        if mouse_button.just_pressed(MouseButton::Right) {
-            // Only trigger secondary action if not currently doing mouse look
-            // (mouse look requires holding right click and moving)
             secondary_action = true;
         }
     }
@@ -724,8 +711,8 @@ mod tests {
         };
 
         let right = camera.right();
-        // Should be pointing in -X direction when yaw is 0
-        assert!(right.x < -0.9);
+        // When yaw is 0, cos(0)=1 and -sin(0)=0, so right = (1, 0, 0)
+        assert!(right.x > 0.9);
         assert!(right.y.abs() < 0.01);
         assert!(right.z.abs() < 0.1);
     }

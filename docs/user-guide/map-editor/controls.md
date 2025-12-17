@@ -2,6 +2,18 @@
 
 Complete reference for all map editor controls and shortcuts.
 
+## Unified Input System
+
+The map editor supports **simultaneous use** of all input methods:
+- **Xbox Controller** (and XInput-compatible gamepads)
+- **Keyboard** (WASD movement, shortcuts)
+- **Mouse** (look, clicking)
+
+You can use any combination of inputs at the same time. For example:
+- Move with keyboard WASD while looking with controller right stick
+- Use controller triggers while aiming with mouse
+- Switch between inputs seamlessly without any mode switching
+
 ## Xbox Controller Support
 
 The map editor supports Xbox controllers (and other XInput-compatible gamepads) with a Minecraft Creative Mode-style editing experience.
@@ -42,13 +54,13 @@ The map editor supports Xbox controllers (and other XInput-compatible gamepads) 
 | Other Tools | No action |
 
 ### Controller Features
-- **Automatic Input Switching**: Move sticks to activate controller mode (hides cursor), move mouse to switch back
+- **Simultaneous Input**: Use controller alongside keyboard and mouse - no switching required
 - **Raycast Cursor**: Cursor appears on the voxel face you're looking at
 - **Flying Camera**: Minecraft Creative mode-style free movement
 - **Tool Integration**: Works with all editor tools
 
 ### Controller Tips
-1. **Activate Controller Mode**: Move any stick to switch from mouse to controller
+1. **Mix Inputs**: Use controller sticks for movement while using keyboard for shortcuts
 2. **Aim at Surfaces**: The cursor snaps to voxel faces for precise placement
 3. **Quick Removal**: LT always removes voxels regardless of current tool
 4. **Cycle Patterns/Entities**: Use RB/LB to quickly switch between patterns or entity types without opening menus

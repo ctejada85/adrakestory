@@ -10,14 +10,11 @@ use bevy_egui::{egui, EguiContexts};
 
 /// System to render the controller palette UI.
 pub fn render_controller_palette(
-    mode: Res<ControllerCameraMode>,
+    _mode: Res<ControllerCameraMode>,
     edit_mode: Res<ControllerEditMode>,
     mut contexts: EguiContexts,
 ) {
-    // Only render in first-person mode
-    if *mode != ControllerCameraMode::FirstPerson {
-        return;
-    }
+    // Mode check removed - palette works for all input methods
 
     // Only render if palette is open
     if !edit_mode.palette_open {
@@ -150,15 +147,12 @@ pub fn render_controller_palette(
 
 /// System to render the controller HUD (hotbar, crosshair, etc.).
 pub fn render_controller_hud(
-    mode: Res<ControllerCameraMode>,
+    _mode: Res<ControllerCameraMode>,
     edit_mode: Res<ControllerEditMode>,
     cursor: Res<super::cursor::ControllerCursor>,
     mut contexts: EguiContexts,
 ) {
-    // Only render in first-person mode
-    if *mode != ControllerCameraMode::FirstPerson {
-        return;
-    }
+    // Mode check removed - HUD works for all input methods
 
     // Don't render HUD while palette is open
     if edit_mode.palette_open {

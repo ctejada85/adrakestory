@@ -225,16 +225,12 @@ fn intersect_ground_plane(ray_origin: Vec3, ray_dir: Vec3) -> Option<Vec3> {
 
 /// System to update the controller cursor via raycasting.
 pub fn update_controller_cursor(
-    mode: Res<ControllerCameraMode>,
+    _mode: Res<ControllerCameraMode>,
     camera_query: Query<&ControllerCamera, With<Camera3d>>,
     editor_state: Res<EditorState>,
     mut cursor: ResMut<ControllerCursor>,
 ) {
-    // Only update in first-person mode
-    if *mode != ControllerCameraMode::FirstPerson {
-        cursor.clear();
-        return;
-    }
+    // Mode check removed - cursor updates for all input methods
 
     let Ok(controller_cam) = camera_query.get_single() else {
         cursor.clear();
@@ -266,14 +262,11 @@ pub struct CursorHighlight;
 
 /// System to render the cursor highlight (wireframe cube).
 pub fn render_cursor_highlight(
-    mode: Res<ControllerCameraMode>,
+    _mode: Res<ControllerCameraMode>,
     cursor: Res<ControllerCursor>,
     mut gizmos: Gizmos,
 ) {
-    // Only render in first-person mode
-    if *mode != ControllerCameraMode::FirstPerson {
-        return;
-    }
+    // Mode check removed - cursor renders for all input methods
 
     // Render target voxel highlight (for removal - red/orange)
     if let Some(target) = cursor.target_voxel {
@@ -311,12 +304,8 @@ pub fn render_cursor_highlight(
 }
 
 /// System to render a crosshair in the center of the screen.
-pub fn render_crosshair(mode: Res<ControllerCameraMode>, _gizmos: Gizmos) {
-    // Only render in first-person mode
-    if *mode != ControllerCameraMode::FirstPerson {
-        return;
-    }
-
+pub fn render_crosshair(_mode: Res<ControllerCameraMode>, _gizmos: Gizmos) {
+    // Mode check removed - crosshair always renders
     // The crosshair is rendered via egui in the HUD
 }
 

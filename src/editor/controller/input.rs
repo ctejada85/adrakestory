@@ -131,16 +131,13 @@ impl ControllerEditMode {
 
 /// System to handle controller hotbar input.
 pub fn handle_controller_hotbar(
-    mode: Res<ControllerCameraMode>,
+    _mode: Res<ControllerCameraMode>,
     gamepads: Query<&Gamepad>,
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     mut edit_mode: ResMut<ControllerEditMode>,
 ) {
-    // Only process in first-person mode
-    if *mode != ControllerCameraMode::FirstPerson {
-        return;
-    }
+    // Mode check removed - all input methods now work together
 
     // Don't process hotbar while palette is open
     if edit_mode.palette_open {
@@ -215,15 +212,12 @@ pub fn handle_controller_hotbar(
 
 /// System to handle controller palette input.
 pub fn handle_controller_palette(
-    mode: Res<ControllerCameraMode>,
+    _mode: Res<ControllerCameraMode>,
     gamepads: Query<&Gamepad>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut edit_mode: ResMut<ControllerEditMode>,
 ) {
-    // Only process in first-person mode
-    if *mode != ControllerCameraMode::FirstPerson {
-        return;
-    }
+    // Mode check removed - all input methods now work together
 
     // Y button or E key to toggle palette
     let mut toggle_palette = keyboard.just_pressed(KeyCode::KeyE);
@@ -315,10 +309,10 @@ pub fn handle_controller_palette(
 }
 
 /// System to handle controller editing actions (place/remove).
+/// Note: This system handles gamepad triggers only. Mouse actions are handled by tool systems.
 pub fn handle_controller_editing(
-    mode: Res<ControllerCameraMode>,
+    _mode: Res<ControllerCameraMode>,
     gamepads: Query<&Gamepad>,
-    mouse_button: Res<ButtonInput<MouseButton>>,
     time: Res<Time>,
     cursor: Res<ControllerCursor>,
     mut edit_mode: ResMut<ControllerEditMode>,
@@ -326,10 +320,7 @@ pub fn handle_controller_editing(
     mut history: ResMut<EditorHistory>,
     mut render_state: ResMut<MapRenderState>,
 ) {
-    // Only process in first-person mode
-    if *mode != ControllerCameraMode::FirstPerson {
-        return;
-    }
+    // Mode check removed - all input methods now work together
 
     // Don't process while palette is open
     if edit_mode.palette_open {
@@ -351,7 +342,7 @@ pub fn handle_controller_editing(
     let mut place_action = false;
     let mut remove_action = false;
 
-    // Gamepad: RT to place, LT to remove
+    // Gamepad: RT to place, LT to remove (mouse handled by tool systems)
     for gamepad in gamepads.iter() {
         let rt = gamepad.get(GamepadAxis::RightZ).unwrap_or(0.0);
         let lt = gamepad.get(GamepadAxis::LeftZ).unwrap_or(0.0);
@@ -362,14 +353,6 @@ pub fn handle_controller_editing(
         if lt > 0.5 {
             remove_action = true;
         }
-    }
-
-    // Mouse fallback: Left click to place, right click to remove
-    if mouse_button.pressed(MouseButton::Left) {
-        place_action = true;
-    }
-    if mouse_button.pressed(MouseButton::Right) {
-        remove_action = true;
     }
 
     // Handle placement
@@ -474,17 +457,14 @@ pub fn handle_controller_editing(
 
 /// System to handle pick block (X button / middle mouse).
 pub fn handle_controller_pick_block(
-    mode: Res<ControllerCameraMode>,
+    _mode: Res<ControllerCameraMode>,
     gamepads: Query<&Gamepad>,
     mouse_button: Res<ButtonInput<MouseButton>>,
     cursor: Res<ControllerCursor>,
     editor_state: Res<EditorState>,
     mut edit_mode: ResMut<ControllerEditMode>,
 ) {
-    // Only process in first-person mode
-    if *mode != ControllerCameraMode::FirstPerson {
-        return;
-    }
+    // Mode check removed - all input methods now work together
 
     // Don't process while palette is open
     if edit_mode.palette_open {

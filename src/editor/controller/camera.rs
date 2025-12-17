@@ -2,7 +2,6 @@
 //!
 //! Provides a fly-through camera similar to Minecraft Creative mode.
 
-use bevy::input::gamepad::{GamepadAxis, GamepadButton};
 use bevy::prelude::*;
 use bevy_egui::EguiContexts;
 use std::f32::consts::PI;
@@ -12,13 +11,21 @@ use std::f32::consts::PI;
 pub struct ControllerModeToggleEvent;
 
 /// Tracks which camera mode is active.
-#[derive(Resource, Default, PartialEq, Eq, Clone, Copy, Debug)]
+/// Note: Always defaults to FirstPerson as all input methods (gamepad, keyboard, mouse)
+/// now work simultaneously without needing mode switching.
+#[derive(Resource, PartialEq, Eq, Clone, Copy, Debug)]
 pub enum ControllerCameraMode {
-    /// Traditional orbit camera (mouse-based)
-    #[default]
+    /// Traditional orbit camera (mouse-based) - DEPRECATED, kept for compatibility
     Orbit,
-    /// First-person flying camera (controller-based)
+    /// First-person flying camera (all input methods work together)
     FirstPerson,
+}
+
+impl Default for ControllerCameraMode {
+    fn default() -> Self {
+        // Always start in FirstPerson mode since all inputs work together
+        Self::FirstPerson
+    }
 }
 
 /// Component for the first-person controller camera.
@@ -135,149 +142,32 @@ impl ControllerCamera {
 }
 
 /// System to toggle between camera modes.
+/// Note: This is now mostly a no-op since we always stay in FirstPerson mode,
+/// but kept for compatibility. All input methods work simultaneously.
 pub fn toggle_controller_mode(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    gamepads: Query<&Gamepad>,
-    mut mode: ResMut<ControllerCameraMode>,
-    mut contexts: EguiContexts,
-    mut toggle_events: EventWriter<ControllerModeToggleEvent>,
+    _keyboard: Res<ButtonInput<KeyCode>>,
+    _gamepads: Query<&Gamepad>,
+    _mode: ResMut<ControllerCameraMode>,
+    mut _contexts: EguiContexts,
+    _toggle_events: EventWriter<ControllerModeToggleEvent>,
 ) {
-    // Don't toggle if UI wants input
-    if contexts.ctx_mut().wants_keyboard_input() {
-        return;
-    }
-
-    let mut should_toggle = false;
-
-    // Tab or F1 to toggle
-    if keyboard.just_pressed(KeyCode::Tab) || keyboard.just_pressed(KeyCode::F1) {
-        should_toggle = true;
-    }
-
-    // Controller: Start button or both stick clicks (L3 + R3)
-    for gamepad in gamepads.iter() {
-        if gamepad.just_pressed(GamepadButton::Start) {
-            should_toggle = true;
-        }
-        if gamepad.pressed(GamepadButton::LeftThumb) && gamepad.pressed(GamepadButton::RightThumb) {
-            should_toggle = true;
-        }
-    }
-
-    if should_toggle {
-        *mode = match *mode {
-            ControllerCameraMode::Orbit => {
-                info!("Switched to First-Person controller mode");
-                ControllerCameraMode::FirstPerson
-            }
-            ControllerCameraMode::FirstPerson => {
-                info!("Switched to Orbit camera mode");
-                ControllerCameraMode::Orbit
-            }
-        };
-        toggle_events.send(ControllerModeToggleEvent);
-    }
+    // Mode toggling is disabled - all input methods now work together in FirstPerson mode.
+    // The mode is always FirstPerson by default.
 }
 
 /// System to update the controller camera based on input.
+/// Note: This system is now a no-op as the main EditorCamera handles all input
+/// (gamepad, keyboard, mouse) together in handle_camera_input.
 pub fn update_controller_camera(
-    mode: Res<ControllerCameraMode>,
-    gamepads: Query<&Gamepad>,
-    keyboard: Res<ButtonInput<KeyCode>>,
-    time: Res<Time>,
-    mut camera_query: Query<(&mut Transform, &mut ControllerCamera), With<Camera3d>>,
-    mut contexts: EguiContexts,
+    _mode: Res<ControllerCameraMode>,
+    _gamepads: Query<&Gamepad>,
+    _keyboard: Res<ButtonInput<KeyCode>>,
+    _time: Res<Time>,
+    _camera_query: Query<(&mut Transform, &mut ControllerCamera), With<Camera3d>>,
+    mut _contexts: EguiContexts,
 ) {
-    // Only process in first-person mode
-    if *mode != ControllerCameraMode::FirstPerson {
-        return;
-    }
-
-    // Don't process if UI has focus
-    if contexts.ctx_mut().wants_keyboard_input() || contexts.ctx_mut().wants_pointer_input() {
-        return;
-    }
-
-    let dt = time.delta_secs();
-    let deadzone = 0.15;
-
-    for (mut transform, mut controller_cam) in camera_query.iter_mut() {
-        let mut movement = Vec2::ZERO;
-        let mut look = Vec2::ZERO;
-        let mut vertical: f32 = 0.0;
-        let mut sprint = false;
-
-        // Gamepad input
-        for gamepad in gamepads.iter() {
-            // Left stick for movement (invert Y so up=forward)
-            let left_x = gamepad.get(GamepadAxis::LeftStickX).unwrap_or(0.0);
-            let left_y = -gamepad.get(GamepadAxis::LeftStickY).unwrap_or(0.0); // Inverted
-            let left_stick = Vec2::new(left_x, left_y);
-            if left_stick.length() > deadzone {
-                let scaled = (left_stick.length() - deadzone) / (1.0 - deadzone);
-                movement = left_stick.normalize() * scaled;
-            }
-
-            // Right stick for looking (invert X so right=turn right)
-            let right_x = -gamepad.get(GamepadAxis::RightStickX).unwrap_or(0.0); // Inverted
-            let right_y = gamepad.get(GamepadAxis::RightStickY).unwrap_or(0.0);
-            let right_stick = Vec2::new(right_x, right_y);
-            if right_stick.length() > deadzone {
-                let scaled = (right_stick.length() - deadzone) / (1.0 - deadzone);
-                look = right_stick.normalize() * scaled;
-            }
-
-            // A button to fly up, B button to fly down
-            if gamepad.pressed(GamepadButton::South) {
-                vertical += 1.0;
-            }
-            if gamepad.pressed(GamepadButton::East) {
-                vertical -= 1.0;
-            }
-
-            // L3 (left stick click) for sprint
-            if gamepad.pressed(GamepadButton::LeftThumb) {
-                sprint = true;
-            }
-        }
-
-        // Keyboard fallback for movement
-        if keyboard.pressed(KeyCode::KeyW) {
-            movement.y += 1.0;
-        }
-        if keyboard.pressed(KeyCode::KeyS) {
-            movement.y -= 1.0;
-        }
-        if keyboard.pressed(KeyCode::KeyA) {
-            movement.x -= 1.0;
-        }
-        if keyboard.pressed(KeyCode::KeyD) {
-            movement.x += 1.0;
-        }
-        if movement.length() > 1.0 {
-            movement = movement.normalize();
-        }
-
-        // Keyboard for vertical
-        if keyboard.pressed(KeyCode::Space) {
-            vertical += 1.0;
-        }
-        if keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight) {
-            vertical -= 1.0;
-        }
-
-        // Keyboard sprint
-        if keyboard.pressed(KeyCode::ControlLeft) || keyboard.pressed(KeyCode::ControlRight) {
-            sprint = true;
-        }
-
-        controller_cam.is_sprinting = sprint;
-        controller_cam.apply_movement(movement, vertical, dt);
-        controller_cam.apply_look(look, dt);
-
-        // Update the actual camera transform
-        *transform = controller_cam.calculate_transform();
-    }
+    // Camera input is now handled by handle_camera_input in camera.rs
+    // which processes all input methods (gamepad, keyboard, mouse) together.
 }
 
 /// System to sync controller camera position when switching modes.
@@ -486,7 +376,7 @@ mod tests {
     #[test]
     fn test_controller_camera_mode_default() {
         let mode = ControllerCameraMode::default();
-        assert_eq!(mode, ControllerCameraMode::Orbit);
+        assert_eq!(mode, ControllerCameraMode::FirstPerson);
     }
 
     #[test]

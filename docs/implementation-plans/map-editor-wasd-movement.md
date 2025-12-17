@@ -188,11 +188,13 @@ Replace the orbit camera system with a permanent fly camera, enabling keyboard a
 
 ## Interaction with Existing Systems
 
-### Controller Support
-- Controller and keyboard/mouse use the same fly camera
-- Both can be used simultaneously or interchangeably
-- Controller stick input adds to keyboard movement
-- Controller look adds to mouse look
+### Unified Input System
+All input methods now work together simultaneously:
+- Controller, keyboard, and mouse can all be used at the same time
+- No mode switching required
+- Controller stick input combines with keyboard movement
+- Controller look combines with mouse look
+- Use any combination of inputs that feels comfortable
 
 ### Keyboard Edit Mode
 - `I` key keyboard edit mode may need adjustment or removal
