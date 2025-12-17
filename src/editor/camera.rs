@@ -360,7 +360,7 @@ pub fn handle_camera_input(
             let forward = camera.forward_horizontal();
             let right = camera.right();
             
-            let movement = (forward * move_input.y - right * move_input.x) * move_speed * dt;
+            let movement = (forward * move_input.y + right * move_input.x) * move_speed * dt;
             camera.move_by(movement);
         }
 
