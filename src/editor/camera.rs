@@ -106,7 +106,7 @@ impl EditorCamera {
     /// Apply mouse look rotation
     pub fn apply_look(&mut self, delta: Vec2) {
         self.yaw -= delta.x * self.look_sensitivity;
-        self.pitch -= delta.y * self.look_sensitivity;
+        self.pitch += delta.y * self.look_sensitivity;
         
         // Clamp pitch to avoid flipping
         self.pitch = self.pitch.clamp(-1.5, 1.5);
@@ -746,12 +746,12 @@ mod tests {
     fn test_camera_apply_look_pitch_clamp() {
         let mut camera = EditorCamera::default();
 
-        // Try to look way up
-        camera.apply_look(Vec2::new(0.0, -10000.0));
+        // Try to look way up (positive delta.y increases pitch)
+        camera.apply_look(Vec2::new(0.0, 10000.0));
         assert!(camera.pitch <= 1.5);
 
-        // Try to look way down
-        camera.apply_look(Vec2::new(0.0, 10000.0));
+        // Try to look way down (negative delta.y decreases pitch)
+        camera.apply_look(Vec2::new(0.0, -10000.0));
         assert!(camera.pitch >= -1.5);
     }
 
