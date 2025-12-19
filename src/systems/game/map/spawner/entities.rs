@@ -67,8 +67,24 @@ pub fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
         ))
         .set_parent(player_entity);
 
+    // Spawn a point light as a child entity to illuminate the area around the player
+    // This allows the player to see in dark areas
+    ctx.commands
+        .spawn((
+            PointLight {
+                color: Color::srgb(1.0, 0.95, 0.85), // Warm white light
+                intensity: 10000.0,                  // Moderate brightness
+                range: 8.0,                          // Short range for local illumination
+                radius: 0.0,
+                shadows_enabled: false, // Disabled for performance
+                ..default()
+            },
+            Transform::from_translation(Vec3::new(0.0, 0.5, 0.0)), // Slightly above player center
+        ))
+        .set_parent(player_entity);
+
     info!(
-        "Spawned player with character model at position: {:?}",
+        "Spawned player with character model and light at position: {:?}",
         position
     );
 
@@ -100,7 +116,11 @@ pub fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
 ///
 /// NPCs are static (non-moving) and block player movement.
 /// Properties can customize the NPC's name, model, and collision radius.
-pub fn spawn_npc(ctx: &mut EntitySpawnContext, position: Vec3, properties: &HashMap<String, String>) {
+pub fn spawn_npc(
+    ctx: &mut EntitySpawnContext,
+    position: Vec3,
+    properties: &HashMap<String, String>,
+) {
     // Parse NPC properties with defaults
     let npc_radius = properties
         .get("radius")
@@ -179,10 +199,7 @@ pub fn spawn_light_source(
     let color = properties
         .get("color")
         .and_then(|c| {
-            let parts: Vec<f32> = c
-                .split(',')
-                .filter_map(|p| p.trim().parse().ok())
-                .collect();
+            let parts: Vec<f32> = c.split(',').filter_map(|p| p.trim().parse().ok()).collect();
             if parts.len() == 3 {
                 Some(Color::srgb(parts[0], parts[1], parts[2]))
             } else {
@@ -253,10 +270,7 @@ pub(crate) fn parse_shadows_enabled(properties: &HashMap<String, String>) -> boo
 /// Exposed for testing.
 pub(crate) fn parse_color(properties: &HashMap<String, String>) -> Option<Color> {
     properties.get("color").and_then(|c| {
-        let parts: Vec<f32> = c
-            .split(',')
-            .filter_map(|p| p.trim().parse().ok())
-            .collect();
+        let parts: Vec<f32> = c.split(',').filter_map(|p| p.trim().parse().ok()).collect();
         if parts.len() == 3 {
             Some(Color::srgb(parts[0], parts[1], parts[2]))
         } else {
