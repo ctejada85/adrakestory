@@ -1,7 +1,7 @@
 //! Entity spawning functions for players, NPCs, and light sources.
 
 use super::super::super::character::CharacterModel;
-use super::super::super::components::{CollisionBox, LightSource, Npc, Player};
+use super::super::super::components::{CollisionBox, LightSource, Npc, Player, PlayerFlashlight};
 use bevy::gltf::GltfAssetLabel;
 use bevy::prelude::*;
 use std::collections::HashMap;
@@ -67,24 +67,30 @@ pub fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
         ))
         .set_parent(player_entity);
 
-    // Spawn a point light as a child entity to illuminate the area around the player
-    // This allows the player to see in dark areas
+    // Spawn a spotlight as a child entity to act as a flashlight
+    // Points forward in the direction the character is facing
+    // Toggle with F key (keyboard) or Y button (gamepad)
     ctx.commands
         .spawn((
-            PointLight {
-                color: Color::srgb(1.0, 0.95, 0.85), // Warm white light
-                intensity: 10000.0,                  // Moderate brightness
-                range: 8.0,                          // Short range for local illumination
+            SpotLight {
+                color: Color::srgb(1.0, 0.98, 0.9), // Warm white flashlight beam
+                intensity: 200000.0,                // Very bright focused beam
+                range: 20.0,                        // Good range for exploration
                 radius: 0.0,
-                shadows_enabled: false, // Disabled for performance
+                shadows_enabled: false,             // Disabled for performance
+                inner_angle: 0.08,                  // ~4.5 degrees - tight focused center
+                outer_angle: 0.25,                  // ~14 degrees - narrow cone
                 ..default()
             },
-            Transform::from_translation(Vec3::new(0.0, 0.5, 0.0)), // Slightly above player center
+            // Position close to the player, pointing forward (negative Z is forward)
+            Transform::from_translation(Vec3::new(0.0, 0.3, 0.1))
+                .looking_at(Vec3::new(0.0, 0.2, 10.0), Vec3::Y),
+            PlayerFlashlight,
         ))
         .set_parent(player_entity);
 
     info!(
-        "Spawned player with character model and light at position: {:?}",
+        "Spawned player with character model and flashlight at position: {:?}",
         position
     );
 

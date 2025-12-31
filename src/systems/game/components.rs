@@ -1,6 +1,11 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+/// Marker component for the player's flashlight.
+/// Used to identify the flashlight entity for toggling and rotation.
+#[derive(Component)]
+pub struct PlayerFlashlight;
+
 #[derive(Component)]
 pub struct Player {
     pub speed: f32,

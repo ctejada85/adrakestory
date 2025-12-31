@@ -75,6 +75,8 @@ pub struct PlayerInput {
     pub pause_just_pressed: bool,
     /// Camera reset button just pressed (R3 or Home)
     pub camera_reset_just_pressed: bool,
+    /// Flashlight toggle just pressed (F key or Y button)
+    pub flashlight_toggle_just_pressed: bool,
     /// The current active input source
     pub input_source: InputSource,
 }
@@ -151,6 +153,7 @@ pub fn gather_gamepad_input(
     let mut gamepad_interact = false;
     let mut gamepad_pause = false;
     let mut gamepad_camera_reset = false;
+    let mut gamepad_flashlight_toggle = false;
     let mut gamepad_active = false;
 
     if let Some(gamepad_entity) = active_gamepad.0 {
@@ -179,6 +182,7 @@ pub fn gather_gamepad_input(
             gamepad_interact = gamepad.just_pressed(GamepadButton::West);
             gamepad_pause = gamepad.just_pressed(GamepadButton::Start);
             gamepad_camera_reset = gamepad.just_pressed(GamepadButton::RightThumb);
+            gamepad_flashlight_toggle = gamepad.just_pressed(GamepadButton::North); // Y button
 
             // Detect if gamepad is being used (any significant input)
             gamepad_active = gamepad_movement.length() > 0.01
@@ -186,7 +190,8 @@ pub fn gather_gamepad_input(
                 || gamepad_jump_pressed
                 || gamepad_interact
                 || gamepad_pause
-                || gamepad_camera_reset;
+                || gamepad_camera_reset
+                || gamepad_flashlight_toggle;
         }
     }
 
@@ -205,6 +210,7 @@ pub fn gather_gamepad_input(
         player_input.interact_pressed = gamepad_interact;
         player_input.pause_just_pressed = gamepad_pause;
         player_input.camera_reset_just_pressed = gamepad_camera_reset;
+        player_input.flashlight_toggle_just_pressed = gamepad_flashlight_toggle;
     }
 }
 
@@ -269,6 +275,7 @@ pub fn gather_keyboard_input(
     let kb_interact = keyboard.just_pressed(KeyCode::KeyE);
     let kb_pause = keyboard.just_pressed(KeyCode::Escape);
     let kb_camera_reset = keyboard.just_pressed(KeyCode::Home);
+    let kb_flashlight_toggle = keyboard.just_pressed(KeyCode::KeyF);
 
     // Check for mouse movement
     let mouse_moved = mouse_motion.read().any(|event| event.delta.length() > 0.5);
@@ -284,6 +291,7 @@ pub fn gather_keyboard_input(
         || kb_interact
         || kb_pause
         || kb_camera_reset
+        || kb_flashlight_toggle
         || keyboard.any_pressed([
             KeyCode::KeyW,
             KeyCode::KeyA,
@@ -312,6 +320,7 @@ pub fn gather_keyboard_input(
         player_input.interact_pressed = kb_interact;
         player_input.pause_just_pressed = kb_pause;
         player_input.camera_reset_just_pressed = kb_camera_reset;
+        player_input.flashlight_toggle_just_pressed = kb_flashlight_toggle;
     }
 }
 
@@ -444,6 +453,7 @@ mod tests {
         assert!(!input.interact_pressed);
         assert!(!input.pause_just_pressed);
         assert!(!input.camera_reset_just_pressed);
+        assert!(!input.flashlight_toggle_just_pressed);
         assert_eq!(input.input_source, InputSource::KeyboardMouse);
     }
 

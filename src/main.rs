@@ -90,8 +90,8 @@ use systems::game::map::{
 };
 use systems::game::systems::{
     apply_gravity, apply_npc_collision, apply_physics, follow_player_camera, handle_escape_key,
-    move_player, rotate_camera, rotate_character_model, toggle_collision_box, toggle_fullscreen,
-    update_collision_box,
+    move_player, rotate_camera, rotate_character_model, toggle_collision_box, toggle_flashlight,
+    toggle_fullscreen, update_collision_box, update_flashlight_rotation,
 };
 use systems::intro_animation::systems::{animate_intro, cleanup_intro, setup_intro};
 use systems::loading_screen::{
@@ -223,6 +223,7 @@ fn main() {
                 gather_keyboard_input,
                 handle_escape_key,
                 toggle_collision_box,
+                toggle_flashlight,
             )
                 .chain()
                 .in_set(GameSystemSet::Input),
@@ -242,6 +243,7 @@ fn main() {
             (
                 rotate_character_model,
                 update_collision_box,
+                update_flashlight_rotation,
                 update_chunk_lods,
                 update_cursor_visibility,
             )

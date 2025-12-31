@@ -4,8 +4,9 @@
 //! - Escape key / Start button for pausing the game
 //! - Collision box visibility toggle
 //! - Collision box position synchronization
+//! - Flashlight toggle
 
-use super::components::{CollisionBox, Player};
+use super::components::{CollisionBox, Player, PlayerFlashlight};
 use super::gamepad::PlayerInput;
 use bevy::prelude::*;
 use bevy::window::{MonitorSelection, WindowMode};
@@ -81,5 +82,56 @@ pub fn toggle_fullscreen(
                 }
             };
         }
+    }
+}
+
+/// System that toggles the flashlight on/off when F key or Y button is pressed.
+///
+/// The flashlight is a spotlight attached to the player that illuminates
+/// the area in front of the character.
+pub fn toggle_flashlight(
+    player_input: Res<PlayerInput>,
+    mut flashlight_query: Query<&mut Visibility, With<PlayerFlashlight>>,
+) {
+    if player_input.flashlight_toggle_just_pressed {
+        for mut visibility in &mut flashlight_query {
+            *visibility = match *visibility {
+                Visibility::Hidden => {
+                    info!("Flashlight ON");
+                    Visibility::Visible
+                }
+                _ => {
+                    info!("Flashlight OFF");
+                    Visibility::Hidden
+                }
+            };
+        }
+    }
+}
+
+/// System that rotates the flashlight to match the player's facing direction.
+///
+/// The flashlight should always point in the direction the character is looking,
+/// which is determined by the player's current_rotation (Y-axis rotation).
+pub fn update_flashlight_rotation(
+    player_query: Query<&Player>,
+    mut flashlight_query: Query<&mut Transform, With<PlayerFlashlight>>,
+) {
+    let Ok(player) = player_query.get_single() else {
+        return;
+    };
+
+    for mut transform in &mut flashlight_query {
+        // Calculate the forward direction based on player's current rotation
+        // Player rotation is Y-axis rotation, so forward direction is rotated accordingly
+        let forward = Vec3::new(
+            player.current_rotation.sin(),
+            0.0,
+            player.current_rotation.cos(),
+        );
+
+        // Point the spotlight in the forward direction, slightly downward
+        let target = transform.translation + forward * 10.0 + Vec3::new(0.0, -1.0, 0.0);
+        transform.look_at(target, Vec3::Y);
     }
 }
