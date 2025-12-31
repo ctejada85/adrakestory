@@ -70,6 +70,7 @@ pub fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
     // Spawn a spotlight as a child entity to act as a flashlight
     // Points forward in the direction the character is facing
     // Toggle with F key (keyboard) or Y button (gamepad)
+    // Position: right at the edge of the collision cylinder (radius = 0.2)
     ctx.commands
         .spawn((
             SpotLight {
@@ -82,9 +83,9 @@ pub fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
                 outer_angle: 0.25,                  // ~14 degrees - narrow cone
                 ..default()
             },
-            // Position close to the player, pointing forward (negative Z is forward)
-            Transform::from_translation(Vec3::new(0.0, 0.3, 0.1))
-                .looking_at(Vec3::new(0.0, 0.2, 10.0), Vec3::Y),
+            // Position at chest height (y=0.2), right at collision cylinder edge (z=0.2)
+            Transform::from_translation(Vec3::new(0.0, 0.2, 0.2))
+                .looking_at(Vec3::new(0.0, 0.1, 10.0), Vec3::Y),
             PlayerFlashlight,
         ))
         .set_parent(player_entity);
