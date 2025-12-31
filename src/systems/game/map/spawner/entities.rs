@@ -79,8 +79,8 @@ pub fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
                 range: 20.0,                        // Good range for exploration
                 radius: 0.0,
                 shadows_enabled: false, // Disabled for performance
-                inner_angle: 0.08,      // ~4.5 degrees - tight focused center
-                outer_angle: 0.25,      // ~14 degrees - narrow cone
+                inner_angle: 0.12,      // ~6.9 degrees - focused center (50% wider)
+                outer_angle: 0.375,     // ~21.5 degrees - wider cone (50% wider)
                 ..default()
             },
             // Position at chest height (y=0.2), right at collision cylinder edge (z=0.2)
