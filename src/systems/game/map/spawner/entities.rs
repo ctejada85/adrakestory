@@ -71,6 +71,7 @@ pub fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
     // Points forward in the direction the character is facing
     // Toggle with F key (keyboard) or Y button (gamepad)
     // Position: right at the edge of the collision cylinder (radius = 0.2)
+    // Starts hidden (off) by default
     ctx.commands
         .spawn((
             SpotLight {
@@ -86,6 +87,7 @@ pub fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
             // Position at chest height (y=0.2), right at collision cylinder edge (z=0.2)
             Transform::from_translation(Vec3::new(0.0, 0.2, 0.2))
                 .looking_at(Vec3::new(0.0, 0.1, 10.0), Vec3::Y),
+            Visibility::Hidden, // Off by default
             PlayerFlashlight,
         ))
         .insert(ChildOf(player_entity));
