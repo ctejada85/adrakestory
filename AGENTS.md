@@ -8,7 +8,7 @@ Skills are located in `.claude/skills/`. Each skill is a directory with a `SKILL
 
 | Skill | Directory | When to Use |
 |-------|-----------|-------------|
-| `composed-changes-implement` | `.claude/skills/composed-changes-implement/` | Full end-to-end workflow: investigate → requirements → architecture → user story → code → tests → validate → commit. Use when implementing a feature or bug fix from scratch through to a committed result. |
+| `composed-changes-implement` | `.claude/skills/composed-changes-implement/` | Implements a change from a completed user story ticket. Pre-requisites: requirements.md, architecture.md, and ticket.md must exist. Use when the user says "implement this ticket". |
 | `basic-bugs-investigate` | `.claude/skills/basic-bugs-investigate/` | Investigate why something is broken, slow, or behaving unexpectedly. Produces an investigation report and identifies discrete bugs. |
 | `basic-bugs-report` | `.claude/skills/basic-bugs-report/` | Write a structured bug report for a known issue. Use after `basic-bugs-investigate` or when a bug is directly reported. |
 | `basic-agents-skills-create` | `.claude/skills/basic-agents-skills-create/` | Create, update, rename, or delete agent skills following the Agent Skills spec. |

@@ -1,176 +1,152 @@
 ---
 name: composed-changes-implement
-description: "Orchestrates the full end-to-end workflow for implementing a change: investigate → requirements → architecture → user story → code → tests → validate → commit. Use when the user asks to implement a feature, fix a bug, or work a ticket from scratch through to a committed, tested result."
+description: "Implements a change from a completed user story ticket. Pre-requisites: requirements.md, architecture.md, and ticket.md must all exist. Use when the user says 'implement this ticket' or points at a ticket.md file to execute."
 ---
 
-# Implementing Changes End-to-End
+# Implementing from a User Story Ticket
+
+## Pre-requisites (must exist before this skill runs)
+
+| Document | Typical location |
+|----------|-----------------|
+| `requirements.md` | `docs/bugs/<slug>/` or `docs/features/<slug>/` |
+| `architecture.md` | same folder |
+| `ticket.md` | same folder |
+
+If any of these are missing, stop and use the appropriate upstream skill first:
+- Missing requirements → `basic-documents-requirements-write`
+- Missing architecture → `composed-documents-architecture-write`
+- Missing ticket → `basic-documents-userstory-write`
 
 ## When to use
 
-- User asks to implement a feature, fix a bug, or work a ticket end-to-end
-- User says "implement this", "fix this", "build this" with a description or linked document
-- Starting from a bug report, requirements doc, or verbal description
-- Any change that warrants documentation before coding
+- User says "implement this ticket" or "implement `ticket.md`"
+- User points at a `ticket.md` and says "get to work"
+- All planning documents are already complete and code changes are ready to start
 
 ## Workflow
 
-Track each step in the SQL `todos` table before starting.
-
 ```
 Implementation:
-- [ ] Step 1: Clarify scope
-- [ ] Step 2: Investigate (if bug or unknown code area)
-- [ ] Step 3: Write requirements doc
-- [ ] Step 4: Write architecture doc
-- [ ] Step 5: Write user story / ticket
-- [ ] Step 6: Implement code changes
-- [ ] Step 7: Write unit tests
-- [ ] Step 8: Validate (build + lint + tests)
-- [ ] Step 9: Commit
+- [ ] Step 1: Read all three documents
+- [ ] Step 2: Load ticket tasks into SQL todos
+- [ ] Step 3: Implement code changes (task by task)
+- [ ] Step 4: Write unit tests
+- [ ] Step 5: Validate (build + lint + tests)
+- [ ] Step 6: Commit
 ```
 
 ---
 
-### Step 1: Clarify scope
+### Step 1: Read all three documents
 
-Before doing anything else, confirm:
-- Is this a **bug fix** or a **new feature**?
-- Is there an existing bug report, requirements doc, or ticket to work from?
-- What is explicitly **out of scope**?
+Read `requirements.md`, `architecture.md`, and `ticket.md` in full before writing any code.
 
-Use `ask_user` if ambiguous. Do not start Step 2 until scope is clear.
+Extract from `ticket.md`:
+- The numbered **task list** → each task becomes a SQL todo
+- The **acceptance criteria** → used to verify completeness at Step 5
+- The **non-functional requirements** → inform code quality constraints
 
----
-
-### Step 2: Investigate (bugs and unknown areas)
-
-Use the `basic-bugs-investigate` skill.
-
-Skip this step if:
-- Requirements are already written and the code area is well understood
-- The user provides a clear enough description to proceed directly to Step 3
-
-Output: investigation report (in `docs/bugs/` or session state), discrete list of root causes.
+If any open questions remain in the requirements or architecture, stop and resolve them with `ask_user` before proceeding.
 
 ---
 
-### Step 3: Write requirements document
+### Step 2: Load ticket tasks into SQL todos
 
-Use the `basic-documents-requirements-write` skill.
-
-- Output goes in `docs/bugs/<slug>/requirements.md` (bugs) or `docs/features/<slug>/requirements.md` (features)
-- Resolve all open questions before proceeding — do not leave `TBD` in scope-critical fields
-- Phase boundaries must be explicit; confirm with user if phasing is unclear
-
----
-
-### Step 4: Write architecture document
-
-Use the `composed-documents-architecture-write` skill.
-
-- Output goes alongside requirements at `docs/…/<slug>/architecture.md`
-- Must include: current state, target state, sequence diagrams, code template (Appendix D)
-- Verify all Mermaid diagrams render (no `~`, `&`, `||`/`&&` in node labels; quote complex edge labels)
-- Align with requirements: every FR should map to a code change in the architecture
-
----
-
-### Step 5: Write user story / ticket
-
-Use the `basic-documents-userstory-write` skill.
-
-- Output: `docs/…/<slug>/ticket.md`
-- Required sections: story, description, acceptance criteria (numbered), non-functional requirements (bulleted), tasks (numbered)
-- Always include unit test tasks — one task per test case group
-- Tasks must be granular enough to track individually in SQL todos
-
----
-
-### Step 6: Implement code changes
-
-Load the ticket tasks into the `todos` SQL table, then execute them in order.
+Insert one row per task. Use descriptive IDs.
 
 ```sql
 INSERT INTO todos (id, title, description) VALUES
-  ('task-1', 'Task title', 'Detail from ticket');
+  ('task-1', 'Task title from ticket', 'Implementation detail from architecture Appendix D');
 ```
 
-**Per task:**
-1. Set `status = 'in_progress'` before starting
-2. Make surgical, focused changes — one concern per edit
-3. Follow project code style (see AGENTS.md)
-4. Set `status = 'done'` when complete
+Add dependencies where tasks must be sequential:
+
+```sql
+INSERT INTO todo_deps (todo_id, depends_on) VALUES ('task-3', 'task-2');
+```
+
+Query ready tasks before starting each one:
+
+```sql
+SELECT t.* FROM todos t
+WHERE t.status = 'pending'
+AND NOT EXISTS (
+  SELECT 1 FROM todo_deps td
+  JOIN todos dep ON td.depends_on = dep.id
+  WHERE td.todo_id = t.id AND dep.status != 'done'
+);
+```
+
+---
+
+### Step 3: Implement code changes
+
+Execute tasks in dependency order. For each task:
+
+1. `UPDATE todos SET status = 'in_progress' WHERE id = 'task-N'`
+2. Make the change — follow the code template in `architecture.md` Appendix D
+3. `UPDATE todos SET status = 'done' WHERE id = 'task-N'`
 
 **Bevy / Rust specifics for this repo:**
-- Systems must be added to the correct `GameSystemSet` (see AGENTS.md ordering)
-- All map mutations in editor must go through `EditorHistory`
-- Never use `Assets::get_mut()` unconditionally — always guard with change detection or dirty check
-- Use `SpatialGrid` for collision queries, never iterate all `SubVoxel` entities directly
+- Systems must be added to the correct `GameSystemSet` (Input → Movement → Physics → Visual → Camera)
+- All map mutations in the editor must go through `EditorHistory`
+- Never call `Assets::get_mut()` unconditionally — guard with change detection or a dirty check
+- Use `SpatialGrid` for collision queries; never iterate all `SubVoxel` entities directly
+- Derive `Debug` on any struct used in `assert_eq!` / `assert_ne!` tests
+- Private types used in `pub` function signatures need `pub(super)` to satisfy Clippy
 
 ---
 
-### Step 7: Write unit tests
+### Step 4: Write unit tests
 
-Tests live in an inline `#[cfg(test)]` module at the bottom of the file being tested.
+Tests live in an inline `#[cfg(test)]` module at the bottom of the file under test.
 
-**What to test:**
-- Happy path (cache hit, expected output)
-- Miss/change path (changed input → different result)
-- Independence of concerns (changing A does not affect B)
-- First-frame / cold-start (empty cache → always executes)
-- Assembly correctness (output struct maps all fields correctly)
+Write tests for every test task listed in `ticket.md`. Cover at minimum:
+- **Cache / no-op path** — identical input produces no observable change
+- **Change path** — mutated input produces a different result
+- **Independence** — changing concern A does not affect concern B
+- **Cold-start / first-frame** — empty state always triggers the action
+- **Assembly correctness** — output struct maps every field from inputs
 
-**Rules:**
-- Pure helper functions only — no Bevy `World` setup required unless unavoidable
-- One `assert_*` per logical claim; prefer `assert_eq!` with descriptive values
-- Both structs under test must derive `Debug` (required by `assert_eq!` / `assert_ne!`)
-- Keep tests in the same file as the code under test
+Rules:
+- Prefer pure helper functions — avoid full Bevy `World` setup unless unavoidable
+- One logical claim per `assert_*`; use descriptive values, not magic numbers
+- Keep tests in the same file as the production code
 
 ---
 
-### Step 8: Validate
+### Step 5: Validate
 
-Run in order; fix any failures before proceeding to Step 9.
+Run in order. Fix all failures before proceeding to Step 6.
 
 ```bash
-cargo test --lib                  # all unit tests
-cargo clippy --lib                # lint; zero errors allowed
-cargo build --release             # confirm release build is clean
+cargo test --lib                  # unit tests
+cargo clippy --lib                # lint — zero errors allowed
+cargo build --release             # confirm clean release build
 ```
 
-**Interpreting results:**
-- Test failures in unrelated files: check `git stash` + rerun to confirm pre-existing; document but do not fix
-- Clippy `private type in public interface`: add `pub(super)` to the private type
-- Clippy `unused`: remove or add `#[allow(dead_code)]` only if intentional
+For each acceptance criterion in `ticket.md`, verify it is satisfied:
+- Automated ACs → confirmed by a passing test
+- Manual ACs → note them for the user; do not block the commit
+
+Pre-existing test failures in unrelated files: confirm with `git stash` + rerun, then document but do not fix.
 
 ---
 
-### Step 9: Commit
+### Step 6: Commit
 
-Stage all changed files and commit with a conventional commit message.
+Stage all changed source files and commit with a conventional message.
 
 ```
 <type>(<scope>): <short imperative summary>
 
-- Bullet list of what changed and why
-- One bullet per logical change (struct added, system rewritten, tests added, docs created)
+- One bullet per logical change (struct added, system rewritten, tests added)
+- Reference the ticket or requirements doc if helpful
 
 Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 ```
 
 Commit types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 
-Group related changes (code + docs + skill) in a single commit unless the user asks to split them.
-
----
-
-## Decision table
-
-| Situation | Action |
-|-----------|--------|
-| Bug with unknown root cause | Start at Step 2 (investigate) |
-| Bug with known root cause | Start at Step 3 (requirements) |
-| New feature from scratch | Start at Step 1 (clarify), then Step 3 |
-| Existing ticket to implement | Start at Step 6 (load todos from ticket tasks) |
-| Requirements exist, no architecture | Start at Step 4 |
-| Architecture exists, no ticket | Start at Step 5 |
+Group all changes from the ticket (code + tests) in a single commit unless the user asks to split them.
