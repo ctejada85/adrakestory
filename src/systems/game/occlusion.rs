@@ -95,7 +95,7 @@ impl MaterialExtension for OcclusionExtension {
 ///
 /// This struct is uploaded to the GPU once per frame and used by all
 /// fragments to calculate their transparency.
-#[derive(Clone, Copy, Debug, ShaderType)]
+#[derive(Clone, Copy, Debug, ShaderType, PartialEq)]
 pub struct OcclusionUniforms {
     /// Player world position (xyz)
     pub player_position: Vec3,
@@ -202,18 +202,111 @@ impl Default for OcclusionConfig {
     }
 }
 
-/// System to update occlusion material uniforms each frame.
+/// Private helper: config-driven uniform fields, used for Rust-side change tracking only.
+/// Never sent to the GPU directly — assembled into [`OcclusionUniforms`] before writing.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct StaticOcclusionUniforms {
+    min_alpha: f32,
+    occlusion_radius: f32,
+    height_threshold: f32,
+    falloff_softness: f32,
+    technique: u32,
+    mode: u32,
+}
+
+impl StaticOcclusionUniforms {
+    fn from_config(config: &OcclusionConfig) -> Self {
+        let technique = match config.technique {
+            TransparencyTechnique::Dithered => 0,
+            TransparencyTechnique::AlphaBlend => 1,
+        };
+        let mode = match config.mode {
+            OcclusionMode::None => 0,
+            OcclusionMode::ShaderBased => 1,
+            OcclusionMode::RegionBased => 2,
+            OcclusionMode::Hybrid => 3,
+        };
+        Self {
+            min_alpha: config.min_alpha,
+            occlusion_radius: config.occlusion_radius,
+            height_threshold: config.height_threshold,
+            falloff_softness: config.falloff_softness,
+            technique,
+            mode,
+        }
+    }
+}
+
+/// Private helper: per-frame positional fields, used for Rust-side change tracking only.
+/// Never sent to the GPU directly — assembled into [`OcclusionUniforms`] before writing.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct DynamicOcclusionUniforms {
+    player_position: Vec3,
+    camera_position: Vec3,
+    region_min: Vec4,
+    region_max: Vec4,
+}
+
+impl DynamicOcclusionUniforms {
+    fn new(
+        player_position: Vec3,
+        camera_position: Vec3,
+        interior_state: Option<&InteriorState>,
+    ) -> Self {
+        let (region_min, region_max) = interior_state
+            .and_then(|s| s.current_region.as_ref())
+            .map(|r| {
+                (
+                    Vec4::new(r.min.x, r.min.y, r.min.z, 0.0),
+                    Vec4::new(r.max.x, r.max.y, r.max.z, 1.0),
+                )
+            })
+            .unwrap_or((Vec4::ZERO, Vec4::ZERO));
+        Self {
+            player_position,
+            camera_position,
+            region_min,
+            region_max,
+        }
+    }
+}
+
+fn assemble_uniforms(s: &StaticOcclusionUniforms, d: &DynamicOcclusionUniforms) -> OcclusionUniforms {
+    OcclusionUniforms {
+        player_position: d.player_position,
+        _padding1: 0.0,
+        camera_position: d.camera_position,
+        _padding2: 0.0,
+        min_alpha: s.min_alpha,
+        occlusion_radius: s.occlusion_radius,
+        height_threshold: s.height_threshold,
+        falloff_softness: s.falloff_softness,
+        technique: s.technique,
+        mode: s.mode,
+        _padding3: 0,
+        _padding4: 0,
+        region_min: d.region_min,
+        region_max: d.region_max,
+    }
+}
+
+/// System to update occlusion material uniforms with fine-grained change detection.
 ///
-/// This system runs in O(1) time - it just copies a few floats to the
-/// uniform buffer. The actual occlusion calculation happens on the GPU.
+/// Uses two private sub-struct caches — [`StaticOcclusionUniforms`] for config-driven
+/// fields and [`DynamicOcclusionUniforms`] for per-frame positional fields — so that
+/// each half is only recomputed when its inputs actually change. [`Assets::get_mut`] is
+/// called (and the GPU re-upload triggered) only when at least one cache differs from
+/// the newly computed value.
 pub fn update_occlusion_uniforms(
     config: Res<OcclusionConfig>,
-    camera_query: Query<&Transform, With<GameCamera>>,
-    player_query: Query<&Transform, With<Player>>,
+    camera_query: Query<Ref<Transform>, With<GameCamera>>,
+    player_query: Query<Ref<Transform>, With<Player>>,
     material_handle: Option<Res<OcclusionMaterialHandle>>,
     mut materials: ResMut<Assets<OcclusionMaterial>>,
     interior_state: Option<Res<InteriorState>>,
     mut frame_counter: Local<u32>,
+    mut static_cache: Local<Option<StaticOcclusionUniforms>>,
+    mut dynamic_cache: Local<Option<DynamicOcclusionUniforms>>,
 ) {
     // Skip if disabled or mode is None
     if !config.enabled || config.mode == OcclusionMode::None {
@@ -222,84 +315,90 @@ pub fn update_occlusion_uniforms(
 
     // Skip if material handle not yet available
     let Some(material_handle) = material_handle else {
-        // Debug: Log when material handle is missing
         *frame_counter += 1;
-        // Only log every 300 frames (5 seconds at 60fps) since this is expected during loading
         if (*frame_counter).is_multiple_of(300) {
             info!("[Occlusion] Material handle not available yet (waiting for map to load)");
         }
         return;
     };
 
-    // Get camera position (fall back to default if not found)
-    let camera_pos = camera_query
-        .get_single()
-        .map(|t| t.translation)
-        .unwrap_or(Vec3::new(0.0, 10.0, 10.0));
+    let camera_ref = camera_query.get_single().ok();
+    let player_ref = player_query.get_single().ok();
 
-    // Get player position (fall back to origin if not found)
-    let player_pos = player_query
-        .get_single()
-        .map(|t| t.translation)
-        .unwrap_or(Vec3::ZERO);
-
-    // Get interior region bounds if available
-    let (region_min, region_max) = interior_state
-        .as_ref()
-        .and_then(|state| state.current_region.as_ref())
-        .map(|region| {
-            (
-                Vec4::new(region.min.x, region.min.y, region.min.z, 0.0),
-                Vec4::new(region.max.x, region.max.y, region.max.z, 1.0), // w = 1.0 means active
-            )
-        })
-        .unwrap_or((Vec4::ZERO, Vec4::ZERO)); // w = 0.0 means inactive
-
-    // Update the material's uniform buffer (accessing the extension part)
-    if let Some(material) = materials.get_mut(&material_handle.0) {
-        let technique_value = match config.technique {
-            TransparencyTechnique::Dithered => 0,
-            TransparencyTechnique::AlphaBlend => 1,
-        };
-
-        let mode_value = match config.mode {
-            OcclusionMode::None => 0,
-            OcclusionMode::ShaderBased => 1,
-            OcclusionMode::RegionBased => 2,
-            OcclusionMode::Hybrid => 3,
-        };
-
-        material.extension.occlusion_uniforms = OcclusionUniforms {
-            player_position: player_pos,
-            _padding1: 0.0,
-            camera_position: camera_pos,
-            _padding2: 0.0,
-            min_alpha: config.min_alpha,
-            occlusion_radius: config.occlusion_radius,
-            height_threshold: config.height_threshold,
-            falloff_softness: config.falloff_softness,
-            technique: technique_value,
-            mode: mode_value,
-            _padding3: 0,
-            _padding4: 0,
-            region_min,
-            region_max,
-        };
-
-        // Debug: Log uniforms every 120 frames (about 2 seconds at 60fps)
-        *frame_counter += 1;
-        if (*frame_counter).is_multiple_of(120) {
-            let region_active = region_max.w > 0.5;
-            info!(
-                "[Occlusion] Mode: {:?}, Region active: {}, Player: ({:.1}, {:.1}, {:.1})",
-                config.mode, region_active, player_pos.x, player_pos.y, player_pos.z
-            );
-        }
+    // Recompute static fields only when OcclusionConfig changed or cache is empty.
+    let new_static = if config.is_changed() || static_cache.is_none() {
+        Some(StaticOcclusionUniforms::from_config(&config))
     } else {
-        *frame_counter += 1;
-        if (*frame_counter).is_multiple_of(60) {
-            warn!("[Occlusion] Material asset not found in Assets<OcclusionMaterial>");
+        None
+    };
+
+    // Recompute dynamic fields only when positions/interior changed or cache is empty.
+    let dynamic_input_changed = camera_ref.as_ref().map(|r| r.is_changed()).unwrap_or(false)
+        || player_ref.as_ref().map(|r| r.is_changed()).unwrap_or(false)
+        || interior_state.as_ref().map(|s| s.is_changed()).unwrap_or(false)
+        || dynamic_cache.is_none();
+
+    let new_dynamic = if dynamic_input_changed {
+        let camera_pos = camera_ref
+            .as_ref()
+            .map(|t| t.translation)
+            .unwrap_or(Vec3::new(0.0, 10.0, 10.0));
+        let player_pos = player_ref
+            .as_ref()
+            .map(|t| t.translation)
+            .unwrap_or(Vec3::ZERO);
+        Some(DynamicOcclusionUniforms::new(
+            player_pos,
+            camera_pos,
+            interior_state.as_deref(),
+        ))
+    } else {
+        None
+    };
+
+    // Resolve effective values by copying out of Local (both types are Copy).
+    // This ends any immutable borrow of the caches before the mutable update below.
+    let effective_static: Option<StaticOcclusionUniforms> = new_static.or(*static_cache);
+    let effective_dynamic: Option<DynamicOcclusionUniforms> = new_dynamic.or(*dynamic_cache);
+    let (Some(s), Some(d)) = (effective_static, effective_dynamic) else {
+        // Neither cache populated yet — only possible before first frame with a handle.
+        return;
+    };
+
+    // Safety fallback: skip GPU work if neither sub-struct actually changed value.
+    // This catches Bevy change-detection false positives on startup/state transitions.
+    let static_dirty = new_static
+        .as_ref()
+        .map_or(false, |n| static_cache.as_ref() != Some(n));
+    let dynamic_dirty = new_dynamic
+        .as_ref()
+        .map_or(false, |n| dynamic_cache.as_ref() != Some(n));
+
+    if static_dirty || dynamic_dirty {
+        if let Some(material) = materials.get_mut(&material_handle.0) {
+            material.extension.occlusion_uniforms = assemble_uniforms(&s, &d);
+            if let Some(new) = new_static {
+                *static_cache = Some(new);
+            }
+            if let Some(new) = new_dynamic {
+                *dynamic_cache = Some(new);
+            }
+        } else {
+            *frame_counter += 1;
+            if (*frame_counter).is_multiple_of(60) {
+                warn!("[Occlusion] Material asset not found in Assets<OcclusionMaterial>");
+            }
+            return;
         }
+    }
+
+    *frame_counter += 1;
+    if (*frame_counter).is_multiple_of(120) {
+        let region_active = d.region_max.w > 0.5;
+        info!(
+            "[Occlusion] Mode: {:?}, Region active: {}, Player: ({:.1}, {:.1}, {:.1})",
+            config.mode, region_active, d.player_position.x, d.player_position.y, d.player_position.z
+        );
     }
 }
 
@@ -468,4 +567,167 @@ pub fn create_occlusion_material(
         },
         extension: OcclusionExtension::default(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn default_config() -> OcclusionConfig {
+        OcclusionConfig::default()
+    }
+
+    // ── Task 10: cache hit path ───────────────────────────────────────────────
+    // Verify that computing StaticOcclusionUniforms twice from the same config
+    // produces equal values, so the dirty check returns false (no GPU work).
+
+    #[test]
+    fn static_cache_hit_same_config_is_not_dirty() {
+        let config = default_config();
+        let first = StaticOcclusionUniforms::from_config(&config);
+        let second = StaticOcclusionUniforms::from_config(&config);
+        // Identical inputs → equal values → cache matches → not dirty
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn dynamic_cache_hit_same_positions_is_not_dirty() {
+        let pos = Vec3::new(1.0, 2.0, 3.0);
+        let cam = Vec3::new(4.0, 5.0, 6.0);
+        let first = DynamicOcclusionUniforms::new(pos, cam, None);
+        let second = DynamicOcclusionUniforms::new(pos, cam, None);
+        assert_eq!(first, second);
+    }
+
+    // ── Task 11: cache miss path ──────────────────────────────────────────────
+    // Verify that a changed value produces a different struct, so the dirty check
+    // returns true and get_mut() would be called.
+
+    #[test]
+    fn static_cache_miss_changed_min_alpha_is_dirty() {
+        let config_a = OcclusionConfig {
+            min_alpha: 0.1,
+            ..default_config()
+        };
+        let config_b = OcclusionConfig {
+            min_alpha: 0.9,
+            ..default_config()
+        };
+        let cached = StaticOcclusionUniforms::from_config(&config_a);
+        let new = StaticOcclusionUniforms::from_config(&config_b);
+        assert_ne!(cached, new);
+    }
+
+    #[test]
+    fn dynamic_cache_miss_moved_player_is_dirty() {
+        let cam = Vec3::new(0.0, 10.0, 10.0);
+        let cached = DynamicOcclusionUniforms::new(Vec3::ZERO, cam, None);
+        let new = DynamicOcclusionUniforms::new(Vec3::new(5.0, 0.0, 5.0), cam, None);
+        assert_ne!(cached, new);
+    }
+
+    // ── Task 12: static/dynamic independence ─────────────────────────────────
+    // Verify that config fields only appear in StaticOcclusionUniforms and
+    // positional fields only appear in DynamicOcclusionUniforms.
+
+    #[test]
+    fn static_uniforms_reflect_config_fields() {
+        let config = OcclusionConfig {
+            min_alpha: 0.42,
+            occlusion_radius: 7.0,
+            height_threshold: 1.5,
+            falloff_softness: 3.0,
+            technique: TransparencyTechnique::Dithered,
+            mode: OcclusionMode::RegionBased,
+            ..default_config()
+        };
+        let s = StaticOcclusionUniforms::from_config(&config);
+        assert_eq!(s.min_alpha, 0.42);
+        assert_eq!(s.occlusion_radius, 7.0);
+        assert_eq!(s.height_threshold, 1.5);
+        assert_eq!(s.falloff_softness, 3.0);
+        assert_eq!(s.technique, 0); // Dithered → 0
+        assert_eq!(s.mode, 2);      // RegionBased → 2
+    }
+
+    #[test]
+    fn dynamic_uniforms_reflect_positional_fields() {
+        let player = Vec3::new(1.0, 2.0, 3.0);
+        let camera = Vec3::new(4.0, 5.0, 6.0);
+        let d = DynamicOcclusionUniforms::new(player, camera, None);
+        assert_eq!(d.player_position, player);
+        assert_eq!(d.camera_position, camera);
+        assert_eq!(d.region_min, Vec4::ZERO);
+        assert_eq!(d.region_max, Vec4::ZERO); // no interior state → inactive
+    }
+
+    #[test]
+    fn config_change_does_not_affect_dynamic_uniforms() {
+        let player = Vec3::new(1.0, 0.0, 1.0);
+        let camera = Vec3::new(0.0, 10.0, 10.0);
+        let d1 = DynamicOcclusionUniforms::new(player, camera, None);
+        // Simulated config change — dynamic struct is computed independently
+        let d2 = DynamicOcclusionUniforms::new(player, camera, None);
+        assert_eq!(d1, d2); // positions unchanged → dynamic cache still hits
+    }
+
+    // ── Task 13: first-frame unconditional write ──────────────────────────────
+    // Verify that with empty caches (None), both sub-structs are always considered
+    // dirty so the first write always proceeds.
+
+    #[test]
+    fn empty_static_cache_is_always_dirty() {
+        let config = default_config();
+        let new_static = StaticOcclusionUniforms::from_config(&config);
+        let cache: Option<StaticOcclusionUniforms> = None;
+        // Dirty when cache is None
+        let dirty = cache.as_ref() != Some(&new_static);
+        assert!(dirty);
+    }
+
+    #[test]
+    fn empty_dynamic_cache_is_always_dirty() {
+        let d = DynamicOcclusionUniforms::new(Vec3::ZERO, Vec3::new(0.0, 10.0, 10.0), None);
+        let cache: Option<DynamicOcclusionUniforms> = None;
+        let dirty = cache.as_ref() != Some(&d);
+        assert!(dirty);
+    }
+
+    // ── Assembly correctness ──────────────────────────────────────────────────
+
+    #[test]
+    fn assemble_uniforms_maps_all_fields_correctly() {
+        let config = OcclusionConfig {
+            min_alpha: 0.05,
+            occlusion_radius: 4.0,
+            height_threshold: 1.0,
+            falloff_softness: 2.5,
+            technique: TransparencyTechnique::AlphaBlend,
+            mode: OcclusionMode::Hybrid,
+            ..default_config()
+        };
+        let s = StaticOcclusionUniforms::from_config(&config);
+        let d = DynamicOcclusionUniforms::new(
+            Vec3::new(1.0, 0.0, 1.0),
+            Vec3::new(0.0, 10.0, 0.0),
+            None,
+        );
+        let u = assemble_uniforms(&s, &d);
+
+        assert_eq!(u.player_position, d.player_position);
+        assert_eq!(u.camera_position, d.camera_position);
+        assert_eq!(u.min_alpha, s.min_alpha);
+        assert_eq!(u.occlusion_radius, s.occlusion_radius);
+        assert_eq!(u.height_threshold, s.height_threshold);
+        assert_eq!(u.falloff_softness, s.falloff_softness);
+        assert_eq!(u.technique, 1); // AlphaBlend → 1
+        assert_eq!(u.mode, 3);      // Hybrid → 3
+        assert_eq!(u.region_min, d.region_min);
+        assert_eq!(u.region_max, d.region_max);
+        // Padding fields must always be zero
+        assert_eq!(u._padding1, 0.0);
+        assert_eq!(u._padding2, 0.0);
+        assert_eq!(u._padding3, 0);
+        assert_eq!(u._padding4, 0);
+    }
 }
