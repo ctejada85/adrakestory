@@ -156,6 +156,9 @@ src/
 │   │   ├── character/      # Character model system
 │   │   │   └── mod.rs      # CharacterModel component
 │   │   ├── collision.rs    # Collision detection
+│   │   ├── occlusion/      # Occlusion material system
+│   │   │   ├── mod.rs      # OcclusionPlugin, OcclusionUniforms, update system
+│   │   │   └── tests.rs    # Unit tests for uniform caching logic
 │   │   ├── hot_reload/     # Hot reload system
 │   │   │   ├── mod.rs
 │   │   │   ├── state.rs
@@ -257,6 +260,7 @@ src/
 - Player movement
 - Camera control
 - Map loading
+- Occlusion material uniform updates
 
 **2. UI Systems** (`systems/*/`)
 - Menu interfaces
@@ -572,7 +576,20 @@ The `SpatialGrid` resource divides the world into cells for efficient collision 
 let nearby = spatial_grid.query_cell(position);
 ```
 
-### Sub-Voxel Rendering
+### Conditional GPU Uniform Updates
+
+The occlusion system (`systems/game/occlusion/`) uses a **two-level cache** to prevent unconditional GPU re-uploads:
+
+- Bevy's `Assets::get_mut()` stamps the asset as `Changed` even before any write occurs, causing the render world to re-prepare GPU bind groups every frame.
+- The fix splits `OcclusionUniforms` into two private `Copy + PartialEq` sub-structs:
+  - `StaticOcclusionUniforms` — config-driven fields; cached in `Local<Option<StaticOcclusionUniforms>>`
+  - `DynamicOcclusionUniforms` — positional fields (player/camera transform, interior region); cached in `Local<Option<DynamicOcclusionUniforms>>`
+- `get_mut()` is only called when at least one sub-struct cache differs from the newly computed value.
+- Bevy `Ref<Transform>` queries and `is_changed()` gates skip sub-struct recomputation independently: a camera move does not recompute static config fields and vice versa.
+
+**Rule**: Any system that writes to a Bevy `Assets<T>` via `get_mut()` must guard the call behind an actual value change. See `coding-guardrails.md` §1.
+
+
 
 Each voxel contains 8×8×8 sub-voxels for high detail without excessive entity count.
 
@@ -715,5 +732,5 @@ pub fn player_movement_system(/* ... */) {
 
 ---
 
-**Architecture Version:** 2.0.0
-**Last Updated:** 2025-12-16
+**Architecture Version:** 2.1.0
+**Last Updated:** 2026-03-15
