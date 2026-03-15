@@ -2,6 +2,20 @@
 
 This file provides guidance to agents when working with code in this repository.
 
+## Agent Skills
+
+Skills are located in `.claude/skills/`. Each skill is a directory with a `SKILL.md` file.
+
+| Skill | Directory | When to Use |
+|-------|-----------|-------------|
+| `basic-bugs-investigate` | `.claude/skills/basic-bugs-investigate/` | Investigate why something is broken, slow, or behaving unexpectedly. Produces an investigation report and identifies discrete bugs. |
+| `basic-bugs-report` | `.claude/skills/basic-bugs-report/` | Write a structured bug report for a known issue. Use after `basic-bugs-investigate` or when a bug is directly reported. |
+| `basic-agents-skills-create` | `.claude/skills/basic-agents-skills-create/` | Create, update, rename, or delete agent skills following the Agent Skills spec. |
+| `basic-documents-requirements-write` | `.claude/skills/basic-documents-requirements-write/` | Write requirements documents. |
+| `composed-documents-architecture-write` | `.claude/skills/composed-documents-architecture-write/` | Write architecture documents. |
+| `composed-documents-productvisioncanvas-write` | `.claude/skills/composed-documents-productvisioncanvas-write/` | Write a product vision canvas document. |
+| `system-date-get` | `.claude/skills/system-date-get/` | Get the current system date/time. |
+
 ## Build Commands
 
 ```bash
