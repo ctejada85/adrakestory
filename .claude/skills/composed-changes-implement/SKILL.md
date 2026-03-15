@@ -28,30 +28,45 @@ If any of these are missing, stop and use the appropriate upstream skill first:
 
 ```
 Implementation:
-- [ ] Step 1: Read all three documents
-- [ ] Step 2: Load ticket tasks into SQL todos
-- [ ] Step 3: Implement code changes (task by task)
-- [ ] Step 4: Write unit tests
-- [ ] Step 5: Validate (build + lint + tests)
-- [ ] Step 6: Commit
+- [ ] Step 1: Prime — read developer guides
+- [ ] Step 2: Read all three ticket documents
+- [ ] Step 3: Load ticket tasks into SQL todos
+- [ ] Step 4: Implement code changes (task by task)
+- [ ] Step 5: Write unit tests
+- [ ] Step 6: Validate (build + lint + tests)
+- [ ] Step 7: Commit
 ```
 
 ---
 
-### Step 1: Read all three documents
+### Step 1: Prime — read developer guides
+
+Read these three files in full before touching any code. They define non-negotiable rules and patterns that all implementation must follow.
+
+| File | What it covers |
+|------|---------------|
+| `docs/developer-guide/coding-guardrails.md` | 10 hard rules — things that cause real bugs if violated (unconditional `get_mut`, missing `SpatialGrid`, delta clamping, etc.) |
+| `docs/developer-guide/coding-style.md` | Naming, derives, system signatures, module layout, logging format, test structure |
+| `docs/developer-guide/architecture.md` | High-level system architecture, ECS patterns, state machine, two-binary structure |
+
+Read all three before proceeding. Do not skip this step even if the task seems small.
+
+---
+
+### Step 2: Read all three ticket documents
 
 Read `requirements.md`, `architecture.md`, and `ticket.md` in full before writing any code.
 
 Extract from `ticket.md`:
 - The numbered **task list** → each task becomes a SQL todo
-- The **acceptance criteria** → used to verify completeness at Step 5
+- The **acceptance criteria** → used to verify completeness at Step 6
 - The **non-functional requirements** → inform code quality constraints
 
 If any open questions remain in the requirements or architecture, stop and resolve them with `ask_user` before proceeding.
 
 ---
 
-### Step 2: Load ticket tasks into SQL todos
+### Step 3: Load ticket tasks into SQL todos
 
 Insert one row per task. Use descriptive IDs.
 
@@ -80,7 +95,7 @@ AND NOT EXISTS (
 
 ---
 
-### Step 3: Implement code changes
+### Step 4: Implement code changes
 
 Execute tasks in dependency order. For each task:
 
@@ -88,21 +103,13 @@ Execute tasks in dependency order. For each task:
 2. Make the change — follow the code template in `architecture.md` Appendix D
 3. `UPDATE todos SET status = 'done' WHERE id = 'task-N'`
 
-**Bevy / Rust specifics for this repo:**
-- Systems must be added to the correct `GameSystemSet` (Input → Movement → Physics → Visual → Camera)
-- All map mutations in the editor must go through `EditorHistory`
-- Never call `Assets::get_mut()` unconditionally — guard with change detection or a dirty check
-- Use `SpatialGrid` for collision queries; never iterate all `SubVoxel` entities directly
-- Derive `Debug` on any struct used in `assert_eq!` / `assert_ne!` tests
-- Private types used in `pub` function signatures need `pub(super)` to satisfy Clippy
+Refer back to `coding-guardrails.md` (read in Step 1) if you are unsure whether a pattern is safe.
 
 ---
 
-### Step 4: Write unit tests
+### Step 5: Write unit tests
 
-Tests live in an inline `#[cfg(test)]` module at the bottom of the file under test.
-
-Write tests for every test task listed in `ticket.md`. Cover at minimum:
+Tests live in a sibling `tests.rs` file (see `coding-style.md` §7). Write tests for every test task in `ticket.md`. Cover at minimum:
 - **Cache / no-op path** — identical input produces no observable change
 - **Change path** — mutated input produces a different result
 - **Independence** — changing concern A does not affect concern B
@@ -112,13 +119,12 @@ Write tests for every test task listed in `ticket.md`. Cover at minimum:
 Rules:
 - Prefer pure helper functions — avoid full Bevy `World` setup unless unavoidable
 - One logical claim per `assert_*`; use descriptive values, not magic numbers
-- Keep tests in the same file as the production code
 
 ---
 
-### Step 5: Validate
+### Step 6: Validate
 
-Run in order. Fix all failures before proceeding to Step 6.
+Run in order. Fix all failures before proceeding to Step 7.
 
 ```bash
 cargo test --lib                  # unit tests
@@ -134,7 +140,7 @@ Pre-existing test failures in unrelated files: confirm with `git stash` + rerun,
 
 ---
 
-### Step 6: Commit
+### Step 7: Commit
 
 Stage all changed source files and commit with a conventional message.
 
