@@ -31,7 +31,7 @@ The fix splits `OcclusionUniforms` into two private Rust-side sub-structs (`Stat
 7. On the first frame after the material handle becomes available, uniforms are written unconditionally regardless of cache state.
 8. The GPU-facing `OcclusionUniforms` struct, its `#[uniform(100)]` binding, and the WGSL shader are unchanged.
 9. All existing early-return conditions (occlusion disabled, mode is `None`, material handle unavailable) are preserved.
-10. The debug logging and frame counter in `update_occlusion_uniforms` continue to function as before.
+11. All unit tests for cache hit, cache miss, static/dynamic independence, and first-frame write pass.
 
 ---
 
@@ -57,4 +57,8 @@ The fix splits `OcclusionUniforms` into two private Rust-side sub-structs (`Stat
 7. Implement the dirty check: skip `get_mut()` when both sub-struct caches match the newly computed values.
 8. Assemble the full `OcclusionUniforms` from both sub-structs and write to the material only when dirty.
 9. Update both sub-struct caches after a successful write.
-10. Verify with the FPS counter (F3) that frame rate under a static scene is no longer degraded compared to the map editor.
+10. Write a unit test verifying the cache hit path: given identical inputs on a second system call, `get_mut()` is not triggered.
+11. Write a unit test verifying the cache miss path: when a uniform field changes, `get_mut()` is triggered and the material is updated.
+12. Write a unit test verifying static/dynamic cache independence: a config change only dirties the static cache; a transform change only dirties the dynamic cache.
+13. Write a unit test verifying first-frame unconditional write: with empty caches, uniforms are always written regardless of change detection.
+14. Verify with the FPS counter (F3) that frame rate under a static scene is no longer degraded compared to the map editor.
