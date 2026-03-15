@@ -34,7 +34,8 @@ Implementation:
 - [ ] Step 4: Implement code changes (task by task)
 - [ ] Step 5: Write unit tests
 - [ ] Step 6: Validate (build + lint + tests)
-- [ ] Step 7: Commit
+- [ ] Step 7: Update architecture.md
+- [ ] Step 8: Commit
 ```
 
 ---
@@ -140,7 +141,30 @@ Pre-existing test failures in unrelated files: confirm with `git stash` + rerun,
 
 ---
 
-### Step 7: Commit
+### Step 7: Update architecture.md
+
+After validation passes, update `docs/developer-guide/architecture.md` to reflect any structural changes introduced by this ticket.
+
+Review what changed and update the relevant sections:
+
+| What changed | Section to update |
+|---|---|
+| New component, resource, or system added | Component/Resource/System inventory or ECS overview |
+| New module or file added | File structure / module organization section |
+| Data flow or system ordering changed | System set ordering or data flow diagrams |
+| New state or state transition added | State machine section |
+| New external dependency or Bevy plugin added | Dependencies or architecture notes |
+| Performance-critical pattern introduced | Performance-critical patterns section |
+
+Rules:
+- Only update sections that are materially affected — do not rewrite unrelated content
+- Keep descriptions concise; this is a reference doc, not a tutorial
+- If a section does not exist yet but the change warrants one, add it
+- Do not add speculative or future content — only document what was actually implemented
+
+---
+
+### Step 8: Commit
 
 Stage all changed source files and commit with a conventional message.
 
@@ -155,4 +179,4 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 
 Commit types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 
-Group all changes from the ticket (code + tests) in a single commit unless the user asks to split them.
+Group all changes from the ticket (code + tests + architecture.md) in a single commit unless the user asks to split them.
