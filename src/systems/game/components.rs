@@ -30,11 +30,6 @@ pub struct Player {
 #[derive(Component)]
 pub struct CollisionBox;
 
-/// Marker component for a voxel entity.
-/// All voxel data is managed in VoxelWorld; this is used for ECS queries and cleanup.
-#[derive(Component)]
-pub struct Voxel;
-
 /// Sub-voxel component with cached bounding box for efficient collision detection.
 ///
 /// Previously stored parent and sub-voxel coordinates to calculate bounds on-demand,
