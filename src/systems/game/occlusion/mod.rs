@@ -522,7 +522,9 @@ pub struct OcclusionPlugin;
 
 impl Plugin for OcclusionPlugin {
     fn build(&self, app: &mut App) {
+        use bevy::prelude::in_state;
         use super::interior_detection::{detect_interior_system, InteriorState};
+        use crate::states::GameState;
 
         app.add_plugins(MaterialPlugin::<OcclusionMaterial>::default())
             .insert_resource(OcclusionConfig::default())
@@ -534,7 +536,8 @@ impl Plugin for OcclusionPlugin {
                     update_occlusion_uniforms,
                     debug_draw_occlusion_zone,
                 )
-                    .chain(),
+                    .chain()
+                    .run_if(in_state(GameState::InGame).or(in_state(GameState::Paused))),
             );
     }
 }
