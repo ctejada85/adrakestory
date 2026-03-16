@@ -9,14 +9,16 @@
 mod chunks;
 mod entities;
 mod meshing;
+mod shadow_quality;
 
 pub use chunks::{spawn_voxels_chunked, ChunkMaterial, ChunkSpawnContext};
 pub use entities::{spawn_light_source, spawn_npc, spawn_player, EntitySpawnContext};
 pub use meshing::{ChunkMeshBuilder, GreedyMesher, OccupancyGrid, VoxelMaterialPalette};
+pub use shadow_quality::apply_shadow_quality_system;
 
 use super::super::components::GameCamera;
 use super::super::occlusion::{
-    create_occlusion_material, OcclusionConfig, OcclusionMaterialHandle,
+    create_occlusion_material, OcclusionConfig, OcclusionMaterialHandle, ShadowQuality,
 };
 use super::super::resources::{GameInitialized, SpatialGrid};
 use super::format::{EntityType, MapData};
@@ -24,7 +26,7 @@ use super::loader::{LoadProgress, LoadedMapData, MapLoadProgress};
 use crate::diagnostics::FrameProfiler;
 use crate::profile_scope;
 use bevy::ecs::system::SystemParam;
-use bevy::pbr::CascadeShadowConfigBuilder;
+use bevy::pbr::{CascadeShadowConfig, CascadeShadowConfigBuilder};
 use bevy::prelude::*;
 
 /// Number of sub-voxels per voxel axis (8x8x8 = 512 sub-voxels per voxel)
@@ -371,6 +373,7 @@ pub fn spawn_map_system(
             spatial_grid: &mut spatial_grid,
             meshes: assets.meshes.as_mut(),
             chunk_material,
+            shadow_quality: occlusion_config.shadow_quality,
         };
         let _p_chunks = profiler
             .as_ref()
@@ -396,7 +399,7 @@ pub fn spawn_map_system(
 
     // Stage 6: Setup lighting (95-97%)
     progress.update(LoadProgress::Finalizing(0.0));
-    spawn_lighting(&mut commands, map);
+    spawn_lighting(&mut commands, map, &occlusion_config);
 
     // Stage 7: Setup camera (97-100%)
     progress.update(LoadProgress::Finalizing(0.5));
@@ -497,27 +500,54 @@ fn spawn_entities(ctx: &mut EntitySpawnContext, map: &MapData, progress: &mut Ma
 }
 
 /// Spawn lighting from the map data.
-fn spawn_lighting(commands: &mut Commands, map: &MapData) {
+/// Returns `(shadows_enabled, CascadeShadowConfig)` for each shadow quality level.
+///
+/// Used both at map-spawn time and by `apply_shadow_quality_system` for runtime changes.
+pub fn shadow_params_for_quality(quality: ShadowQuality) -> (bool, CascadeShadowConfig) {
+    match quality {
+        ShadowQuality::None => (
+            false,
+            CascadeShadowConfigBuilder::default().build(),
+        ),
+        ShadowQuality::CharactersOnly | ShadowQuality::Low => (
+            true,
+            CascadeShadowConfigBuilder {
+                num_cascades: 2,
+                first_cascade_far_bound: 4.0,
+                maximum_distance: 20.0,
+                ..default()
+            }
+            .build(),
+        ),
+        ShadowQuality::High => (
+            true,
+            CascadeShadowConfigBuilder {
+                num_cascades: 4,
+                first_cascade_far_bound: 4.0,
+                maximum_distance: 100.0,
+                ..default()
+            }
+            .build(),
+        ),
+    }
+}
+
+fn spawn_lighting(commands: &mut Commands, map: &MapData, config: &OcclusionConfig) {
     let lighting = &map.lighting;
 
-    // Spawn directional light if configured with high-quality shadows
+    // Spawn directional light if configured, applying the shadow quality setting
     if let Some(dir_light) = &lighting.directional_light {
         let (dx, dy, dz) = dir_light.direction;
         let direction = Vec3::new(dx, dy, dz).normalize();
 
-        let cascade_shadow_config = CascadeShadowConfigBuilder {
-            num_cascades: 4,
-            first_cascade_far_bound: 4.0,
-            maximum_distance: 100.0,
-            ..default()
-        }
-        .build();
+        let (shadows_enabled, cascade_shadow_config) =
+            shadow_params_for_quality(config.shadow_quality);
 
         commands.spawn((
             DirectionalLight {
                 illuminance: dir_light.illuminance,
                 color: Color::srgb(dir_light.color.0, dir_light.color.1, dir_light.color.2),
-                shadows_enabled: true,
+                shadows_enabled,
                 shadow_depth_bias: 0.02,
                 shadow_normal_bias: 1.8,
             },

@@ -3,10 +3,11 @@
 use super::super::format::{MapData, SubVoxelPattern};
 use super::super::loader::{LoadProgress, MapLoadProgress};
 use super::super::super::components::SubVoxel;
-use super::super::super::occlusion::OcclusionMaterial;
+use super::super::super::occlusion::{OcclusionMaterial, ShadowQuality};
 use super::super::super::resources::SpatialGrid;
 use super::meshing::{ChunkMeshBuilder, GreedyMesher, OccupancyGrid, VoxelMaterialPalette};
 use super::{ChunkLOD, Face, VoxelChunk, CHUNK_SIZE, LOD_LEVELS, SUB_VOXEL_COUNT, SUB_VOXEL_SIZE};
+use bevy::pbr::NotShadowCaster;
 use bevy::prelude::*;
 use bevy::math::Vec3A;
 use bevy::render::primitives::Aabb;
@@ -25,6 +26,8 @@ pub struct ChunkSpawnContext<'w, 's, 'a> {
     pub spatial_grid: &'a mut SpatialGrid,
     pub meshes: &'a mut Assets<Mesh>,
     pub chunk_material: ChunkMaterial,
+    /// Shadow quality applied at chunk spawn time (inserts `NotShadowCaster` for `CharactersOnly`).
+    pub shadow_quality: ShadowQuality,
 }
 
 /// Calculate color for a sub-voxel based on its position.
@@ -230,7 +233,7 @@ pub fn spawn_voxels_chunked(
         // Spawn chunk with appropriate material type
         match &ctx.chunk_material {
             ChunkMaterial::Occlusion(mat) => {
-                ctx.commands.spawn((
+                let mut entity = ctx.commands.spawn((
                     Mesh3d(lod_meshes[0].clone()),
                     MeshMaterial3d(mat.clone()),
                     Transform::default(),
@@ -247,9 +250,12 @@ pub fn spawn_voxels_chunked(
                         half_extents: Vec3A::splat(CHUNK_SIZE as f32 / 2.0),
                     },
                 ));
+                if ctx.shadow_quality == ShadowQuality::CharactersOnly {
+                    entity.insert(NotShadowCaster);
+                }
             }
             ChunkMaterial::Standard(mat) => {
-                ctx.commands.spawn((
+                let mut entity = ctx.commands.spawn((
                     Mesh3d(lod_meshes[0].clone()),
                     MeshMaterial3d(mat.clone()),
                     Transform::default(),
@@ -266,6 +272,9 @@ pub fn spawn_voxels_chunked(
                         half_extents: Vec3A::splat(CHUNK_SIZE as f32 / 2.0),
                     },
                 ));
+                if ctx.shadow_quality == ShadowQuality::CharactersOnly {
+                    entity.insert(NotShadowCaster);
+                }
             }
         }
     }

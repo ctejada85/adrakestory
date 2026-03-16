@@ -667,6 +667,27 @@ The interior detection system (`systems/game/interior_detection.rs`) maintains a
 
 **Rule**: Never inline `LOD_MOVEMENT_THRESHOLD` in the guard — always read from `lod_config.movement_threshold` so the value is tunable at runtime.
 
+### Shadow Quality
+
+Shadow rendering quality is controlled by `OcclusionConfig.shadow_quality: ShadowQuality`, persisted in `settings.ron`.
+
+**`ShadowQuality` variants:**
+
+| Variant | `shadows_enabled` | Cascades | Max distance | `NotShadowCaster` on chunks |
+|---|---|---|---|---|
+| `None` | `false` | — | — | No |
+| `CharactersOnly` | `true` | 2 | 20 units | **Yes** |
+| `Low` (default) | `true` | 2 | 20 units | No |
+| `High` | `true` | 4 | 100 units | No (original behaviour) |
+
+**Application paths:**
+1. **Spawn time** — `spawn_lighting()` calls `shadow_params_for_quality(config.shadow_quality)` to set `DirectionalLight.shadows_enabled` and `CascadeShadowConfig` when the map loads. `spawn_voxels_chunked()` inserts `NotShadowCaster` on each `VoxelChunk` if quality is `CharactersOnly`.
+2. **Runtime** — `apply_shadow_quality_system` (`GameSystemSet::Visual`, `InGame | Paused`) watches `OcclusionConfig::is_changed()` and `Added<VoxelChunk>`. On change it updates `DirectionalLight`, `CascadeShadowConfig`, and adds/removes `NotShadowCaster` on all chunks. On hot-reload it applies only to newly added chunks.
+
+**Performance note (profiled):** The default `Low` reduces p95 frame spikes from ~38ms (`High`) to under 15ms by cutting shadow cascade volume from 4×(100u)³ to 2×(20u)³.
+
+**Rule**: All shadow quality changes must go through `OcclusionConfig.shadow_quality`. Never hard-code `shadows_enabled: true` or a specific `CascadeShadowConfigBuilder` — always call `shadow_params_for_quality()`.
+
 ### Sub-Voxel Rendering
 
 ### Build Profiles

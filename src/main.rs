@@ -90,7 +90,8 @@ use systems::game::hot_reload::{
     MapReloadedEvent,
 };
 use systems::game::map::{
-    spawn_map_system, update_chunk_lods, LoadedMapData, LodConfig, MapLoadProgress, MapLoader,
+    apply_shadow_quality_system, spawn_map_system, update_chunk_lods, LoadedMapData, LodConfig,
+    MapLoadProgress, MapLoader,
 };
 use systems::game::systems::{
     apply_gravity, apply_npc_collision, apply_physics, follow_player_camera, handle_escape_key,
@@ -255,8 +256,10 @@ fn main() {
                 update_flashlight_rotation,
                 update_chunk_lods,
                 update_cursor_visibility,
+                apply_shadow_quality_system,
             )
-                .in_set(GameSystemSet::Visual),
+                .in_set(GameSystemSet::Visual)
+                .run_if(in_state(GameState::InGame).or(in_state(GameState::Paused))),
         )
         // Camera phase: Update camera last (follow then rotate)
         .add_systems(

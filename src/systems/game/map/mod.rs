@@ -32,7 +32,7 @@ pub use loader::{LoadProgress, LoadedMapData, MapLoadProgress, MapLoader};
 // Exported for external use (game spawning, editor rendering, chunk management, LOD, material access)
 #[allow(unused_imports)]
 pub use spawner::{
-    spawn_map_system, update_chunk_lods, ChunkLOD, ChunkMeshBuilder, Face, GreedyMesher,
-    LodConfig, OccupancyGrid, VoxelChunk, VoxelMaterialPalette, CHUNK_SIZE, LOD_DISTANCES,
-    LOD_LEVELS, LOD_MOVEMENT_THRESHOLD, SUB_VOXEL_COUNT, SUB_VOXEL_SIZE,
+    apply_shadow_quality_system, spawn_map_system, update_chunk_lods, ChunkLOD, ChunkMeshBuilder,
+    Face, GreedyMesher, LodConfig, OccupancyGrid, VoxelChunk, VoxelMaterialPalette, CHUNK_SIZE,
+    LOD_DISTANCES, LOD_LEVELS, LOD_MOVEMENT_THRESHOLD, SUB_VOXEL_COUNT, SUB_VOXEL_SIZE,
 };

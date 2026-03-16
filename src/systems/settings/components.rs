@@ -18,7 +18,7 @@ pub enum SettingId {
     Technique,
     Mode,
     MinAlpha,
-    HideShadows,
+    ShadowQuality,
     ShowDebug,
     OcclusionRadius,
     HeightThreshold,

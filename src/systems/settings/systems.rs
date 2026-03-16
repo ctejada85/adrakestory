@@ -2,7 +2,7 @@ use super::components::{BackButton, SettingId, SettingRow, SettingValueDisplay, 
 use super::resources::{SelectedSettingsIndex, SettingsOrigin};
 use crate::states::GameState;
 use crate::systems::game::gamepad::{get_menu_gamepad_input, ActiveGamepad, GamepadSettings};
-use crate::systems::game::occlusion::{OcclusionConfig, OcclusionMode, TransparencyTechnique};
+use crate::systems::game::occlusion::{OcclusionConfig, OcclusionMode, ShadowQuality, TransparencyTechnique};
 use bevy::prelude::*;
 
 const NORMAL_ROW: Color = Color::srgba(0.15, 0.15, 0.15, 0.0);
@@ -17,7 +17,7 @@ const ALL_SETTINGS: &[(SettingId, &str)] = &[
     (SettingId::Technique, "Transparency"),
     (SettingId::Mode, "Occlusion Mode"),
     (SettingId::MinAlpha, "Min Alpha"),
-    (SettingId::HideShadows, "Hide Shadows"),
+    (SettingId::ShadowQuality, "Shadow Quality"),
     (SettingId::ShowDebug, "Debug Visualization"),
     (SettingId::OcclusionRadius, "Occlusion Radius"),
     (SettingId::HeightThreshold, "Height Threshold"),
@@ -40,7 +40,12 @@ fn format_value(id: SettingId, config: &OcclusionConfig) -> String {
             OcclusionMode::Hybrid => "Hybrid".to_string(),
         },
         SettingId::MinAlpha => format!("{:.2}", config.min_alpha),
-        SettingId::HideShadows => bool_label(config.hide_shadows),
+        SettingId::ShadowQuality => match config.shadow_quality {
+            ShadowQuality::None => "Off".to_string(),
+            ShadowQuality::CharactersOnly => "Characters".to_string(),
+            ShadowQuality::Low => "Low".to_string(),
+            ShadowQuality::High => "High".to_string(),
+        },
         SettingId::ShowDebug => bool_label(config.show_debug),
         SettingId::OcclusionRadius => format!("{:.2}", config.occlusion_radius),
         SettingId::HeightThreshold => format!("{:.2}", config.height_threshold),
@@ -83,7 +88,20 @@ fn adjust_value(id: SettingId, config: &mut OcclusionConfig, delta: i32) {
             config.min_alpha =
                 round2((config.min_alpha + delta as f32 * 0.05).clamp(0.0, 1.0));
         }
-        SettingId::HideShadows => config.hide_shadows = !config.hide_shadows,
+        SettingId::ShadowQuality => {
+            let variants = [
+                ShadowQuality::None,
+                ShadowQuality::CharactersOnly,
+                ShadowQuality::Low,
+                ShadowQuality::High,
+            ];
+            let cur = variants
+                .iter()
+                .position(|v| *v == config.shadow_quality)
+                .unwrap_or(2);
+            config.shadow_quality =
+                variants[(cur as i32 + delta).rem_euclid(variants.len() as i32) as usize];
+        }
         SettingId::ShowDebug => config.show_debug = !config.show_debug,
         SettingId::OcclusionRadius => {
             config.occlusion_radius =
