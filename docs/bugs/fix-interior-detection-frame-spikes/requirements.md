@@ -31,8 +31,8 @@ This document covers a Phase 1 fix that addresses all three issues in a single c
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| FR-2.2.1 | The default value of `OcclusionConfig.mode` must change from `OcclusionMode::Hybrid` to `OcclusionMode::ShaderBased`. | Phase 1 |
-| FR-2.2.2 | `OcclusionMode::Hybrid` and `OcclusionMode::RegionBased` must remain fully functional for users who configure them explicitly. | Phase 1 |
+| ~~FR-2.2.1~~ | ~~The default value of `OcclusionConfig.mode` must change from `OcclusionMode::Hybrid` to `OcclusionMode::ShaderBased`.~~ | ~~Phase 1~~ |
+| FR-2.2.2 | `OcclusionMode::Hybrid`, `OcclusionMode::RegionBased`, and `OcclusionMode::ShaderBased` must all remain functional. | Phase 1 |
 | FR-2.2.3 | When the mode is `ShaderBased`, `detect_interior_system` must return early without executing any BFS or cache work (existing early-return path, confirmed unchanged). | Phase 1 |
 
 ### 2.3 Event-Based Cache Invalidation
@@ -74,7 +74,7 @@ This document covers a Phase 1 fix that addresses all three issues in a single c
 ### Phase 1 (all delivered together)
 
 - Raise `region_update_interval` default from `10` → `60`
-- Change default `OcclusionMode` from `Hybrid` → `ShaderBased`
+- ~~Change default `OcclusionMode` from `Hybrid` → `ShaderBased`~~ (reverted — Hybrid remains default)
 - Remove `InteriorState.cache_entity_count`
 - Replace entity-count cache invalidation with `Added<SubVoxel>` + `RemovedComponents<SubVoxel>` event detection
 

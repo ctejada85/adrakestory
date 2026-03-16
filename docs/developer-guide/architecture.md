@@ -596,7 +596,7 @@ The interior detection system (`systems/game/interior_detection.rs`) maintains a
 - The cache is invalidated using Bevy's built-in change-detection: `Added<SubVoxel>` query filter and `RemovedComponents<SubVoxel>` system parameter.
 - During steady-state gameplay (no map changes), the cache is reused across all detection cycles.
 - On hot reload, the despawned/respawned `SubVoxel` entities trigger the invalidation automatically.
-- The default `OcclusionMode` is `ShaderBased`, which skips the BFS path entirely. `RegionBased` and `Hybrid` modes must be enabled explicitly via `OcclusionConfig`.
+- The default `OcclusionMode` is `Hybrid`. `ShaderBased` mode skips the BFS path entirely and can be set via `OcclusionConfig` for maps that don't need region detection.
 - The BFS throttle interval defaults to 60 frames (~1×/sec at 60 fps), down from the original 10 frames.
 
 **Rule**: Never use entity-count comparison as a cache-invalidation key. Use `Added<C>` / `RemovedComponents<C>` instead — they are O(1) and event-driven.

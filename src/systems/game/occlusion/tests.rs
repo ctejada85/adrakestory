@@ -170,7 +170,7 @@ use super::*;
     }
 
     #[test]
-    fn default_occlusion_mode_is_shader_based() {
+    fn default_occlusion_mode_is_hybrid() {
         let config = OcclusionConfig::default();
-        assert_eq!(config.mode, OcclusionMode::ShaderBased);
+        assert_eq!(config.mode, OcclusionMode::Hybrid);
     }

@@ -14,14 +14,14 @@ As a player, I want the game to run smoothly at all times so that I am not distr
 
 ## Description
 
-`detect_interior_system` causes visible frame spikes every ~167 ms by running a BFS flood-fill (up to 1,000 voxels, 5–50 ms) six times per second and rebuilding a full voxel occupancy `HashSet` via an entity-count check on every detection cycle. The fix raises the update interval from 10 to 60 frames, changes the default `OcclusionMode` from `Hybrid` to `ShaderBased` (skipping the BFS path for the common case), and replaces the fragile entity-count cache-invalidation with Bevy's `Added<SubVoxel>` / `RemovedComponents<SubVoxel>` change-detection. The BFS logic, flood-fill algorithm, and hysteresis behaviour are unchanged and out of scope.
+`detect_interior_system` causes visible frame spikes every ~167 ms by running a BFS flood-fill (up to 1,000 voxels, 5–50 ms) six times per second and rebuilding a full voxel occupancy `HashSet` via an entity-count check on every detection cycle. The fix raises the update interval from 10 to 60 frames and replaces the fragile entity-count cache-invalidation with Bevy's `Added<SubVoxel>` / `RemovedComponents<SubVoxel>` change-detection. The default `OcclusionMode` remains `Hybrid`. The BFS logic, flood-fill algorithm, and hysteresis behaviour are unchanged and out of scope.
 
 ---
 
 ## Acceptance Criteria
 
 1. The default value of `OcclusionConfig.region_update_interval` is `60` frames.
-2. The default value of `OcclusionConfig.mode` is `OcclusionMode::ShaderBased`.
+2. The default value of `OcclusionConfig.mode` remains `OcclusionMode::Hybrid`.
 3. When `mode` is `ShaderBased`, `detect_interior_system` returns early without executing any BFS or cache work.
 4. `InteriorState` no longer contains a `cache_entity_count` field.
 5. During steady-state gameplay (no `SubVoxel` entities added or removed), `build_occupied_voxel_set` is not called — the existing cache is reused across detection cycles.
@@ -47,7 +47,7 @@ As a player, I want the game to run smoothly at all times so that I am not distr
 
 ## Tasks
 
-1. Change `OcclusionConfig` default: `region_update_interval` `10` → `60`, `mode` `Hybrid` → `ShaderBased`
+1. Change `OcclusionConfig` default: `region_update_interval` `10` → `60` (mode default stays `Hybrid`)
 2. Remove `cache_entity_count: usize` field from `InteriorState`
 3. Add `added_sub_voxels: Query<(), Added<SubVoxel>>` and `mut removed_sub_voxels: RemovedComponents<SubVoxel>` parameters to `detect_interior_system`
 4. Replace entity-count scan with event-based invalidation: if either parameter is non-empty, set `occupied_voxels_cache = None`
