@@ -45,11 +45,16 @@ pub fn apply_gravity(time: Res<Time>, mut player_query: Query<&mut Player>) {
 /// query AABB, the cached entity slice is reused to avoid a second grid query.
 pub fn apply_physics(
     time: Res<Time>,
-    spatial_grid: Res<SpatialGrid>,
+    spatial_grid: Option<Res<SpatialGrid>>,
     pre_fetched: Res<PreFetchedCollisionEntities>,
     sub_voxel_query: Query<&SubVoxel, Without<Player>>,
     mut player_query: Query<(&mut Player, &mut Transform)>,
 ) {
+    // SpatialGrid is removed during hot reload between despawn and respawn frames.
+    let Some(spatial_grid) = spatial_grid else {
+        return;
+    };
+
     if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
         // Clamp delta time to prevent physics issues
         let delta = time.delta_secs().min(0.1);

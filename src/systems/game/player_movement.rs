@@ -33,7 +33,7 @@ use std::f32::consts::FRAC_PI_2;
 pub fn move_player(
     time: Res<Time>,
     player_input: Res<PlayerInput>,
-    spatial_grid: Res<SpatialGrid>,
+    spatial_grid: Option<Res<SpatialGrid>>,
     mut pre_fetched: ResMut<PreFetchedCollisionEntities>,
     sub_voxel_query: Query<&SubVoxel, Without<Player>>,
     mut player_query: Query<(&mut Player, &mut Transform)>,
@@ -41,6 +41,10 @@ pub fn move_player(
     // Clear the cache so a stale slice from the previous frame is never read by apply_physics
     pre_fetched.entities.clear();
     pre_fetched.bounds = None;
+    // SpatialGrid is removed during hot reload between despawn and respawn frames.
+    let Some(spatial_grid) = spatial_grid else {
+        return;
+    };
     if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
         // Clamp delta time to prevent physics issues when window regains focus
         let delta = time.delta_secs().min(0.1);
