@@ -212,8 +212,14 @@ fn fragment(
     pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);
 
 #ifdef PREPASS_PIPELINE
-    // In deferred mode, output deferred data
+#ifdef DEFERRED_PREPASS
+    // Deferred GBuffer path — write albedo/normals/depth to GBuffer textures
     let out = deferred_output(in, pbr_input);
+#else
+    // Forward depth prepass — depth is written automatically from fragment position.
+    // Discard logic above already executed; surviving fragments write correct depth.
+    var out: FragmentOutput;
+#endif
 #else
     var out: FragmentOutput;
     // Apply PBR lighting (includes shadows, ambient, etc.)
