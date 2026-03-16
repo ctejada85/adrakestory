@@ -194,10 +194,10 @@ impl Default for OcclusionConfig {
             enabled: true,
             technique: TransparencyTechnique::AlphaBlend, // Smooth transparency by default
             show_debug: false,
-            mode: OcclusionMode::Hybrid, // Use hybrid mode for best results
+            mode: OcclusionMode::ShaderBased, // ShaderBased by default; RegionBased/Hybrid require explicit opt-in
             interior_height_threshold: 8.0, // Max ceiling height to trigger interior mode
             hide_shadows: true,
-            region_update_interval: 10, // Update every 10 frames (~6 times/sec at 60fps)
+            region_update_interval: 60, // Update every 60 frames (~1 time/sec at 60fps)
         }
     }
 }

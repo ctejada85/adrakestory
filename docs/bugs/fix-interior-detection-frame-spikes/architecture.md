@@ -387,9 +387,13 @@ Fields before and after fix:
 
 ### Open
 
-| # | Question | Impact | Notes |
-|---|----------|--------|-------|
-| 4 | Should `interior_height_threshold` default (8.0) be reviewed as part of this fix? | Low — cosmetic tuning only, no perf impact | Deferred to a separate tuning pass |
+No open questions remain.
+
+### Resolved (continued)
+
+| # | Question | Resolution |
+|---|----------|------------|
+| 4 | Should `interior_height_threshold` default (8.0) be reviewed as part of this fix? | **Deferred.** Cosmetic tuning only, no performance impact. Addressed in a separate pass. |
 
 ---
 

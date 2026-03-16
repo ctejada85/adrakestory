@@ -589,9 +589,19 @@ The occlusion system (`systems/game/occlusion/`) uses a **two-level cache** to p
 
 **Rule**: Any system that writes to a Bevy `Assets<T>` via `get_mut()` must guard the call behind an actual value change. See `coding-guardrails.md` §1.
 
+### Interior Detection Cache Invalidation
 
+The interior detection system (`systems/game/interior_detection.rs`) maintains a `HashSet<IVec3>` occupancy cache of all voxel positions for its BFS flood-fill. Rebuilding this cache is expensive (iterates all `SubVoxel` entities), so it is only rebuilt when geometry actually changes:
 
-Each voxel contains 8×8×8 sub-voxels for high detail without excessive entity count.
+- The cache is invalidated using Bevy's built-in change-detection: `Added<SubVoxel>` query filter and `RemovedComponents<SubVoxel>` system parameter.
+- During steady-state gameplay (no map changes), the cache is reused across all detection cycles.
+- On hot reload, the despawned/respawned `SubVoxel` entities trigger the invalidation automatically.
+- The default `OcclusionMode` is `ShaderBased`, which skips the BFS path entirely. `RegionBased` and `Hybrid` modes must be enabled explicitly via `OcclusionConfig`.
+- The BFS throttle interval defaults to 60 frames (~1×/sec at 60 fps), down from the original 10 frames.
+
+**Rule**: Never use entity-count comparison as a cache-invalidation key. Use `Added<C>` / `RemovedComponents<C>` instead — they are O(1) and event-driven.
+
+### Sub-Voxel Rendering
 
 ### Build Profiles
 
@@ -732,5 +742,5 @@ pub fn player_movement_system(/* ... */) {
 
 ---
 
-**Architecture Version:** 2.1.0
-**Last Updated:** 2026-03-15
+**Architecture Version:** 2.2.0
+**Last Updated:** 2026-03-16

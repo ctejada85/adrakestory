@@ -160,3 +160,17 @@ use super::*;
         assert_eq!(u._padding3, 0);
         assert_eq!(u._padding4, 0);
     }
+
+    // ── Interior detection config defaults ───────────────────────────────────
+
+    #[test]
+    fn region_update_interval_default_is_60() {
+        let config = OcclusionConfig::default();
+        assert_eq!(config.region_update_interval, 60);
+    }
+
+    #[test]
+    fn default_occlusion_mode_is_shader_based() {
+        let config = OcclusionConfig::default();
+        assert_eq!(config.mode, OcclusionMode::ShaderBased);
+    }

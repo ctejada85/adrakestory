@@ -100,9 +100,13 @@ This document covers a Phase 1 fix that addresses all three issues in a single c
 
 ## 6. Open Questions
 
-| # | Question | Owner |
-|---|----------|-------|
-| 1 | Should the `interior_height_threshold` default (currently `8.0`) be reviewed as part of this fix, or deferred? | — |
+No open questions remain.
+
+### Resolved
+
+| # | Question | Resolution |
+|---|----------|------------|
+| 1 | Should the `interior_height_threshold` default (currently `8.0`) be reviewed as part of this fix, or deferred? | **Deferred.** The current value is a cosmetic tuning parameter with no performance impact. It will be addressed in a separate pass. |
 
 ---
 

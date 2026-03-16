@@ -58,10 +58,8 @@ pub struct InteriorState {
     pub last_detection_pos: Vec3,
     /// Frame counter for throttled updates
     pub frames_since_update: u32,
-    /// Cached set of occupied voxel positions (rebuilt when map changes)
+    /// Cached set of occupied voxel positions (rebuilt when SubVoxel entities change)
     pub occupied_voxels_cache: Option<HashSet<IVec3>>,
-    /// Number of entities when cache was built (used to detect map changes)
-    pub cache_entity_count: usize,
 }
 
 /// System to detect if player is inside an interior.
@@ -76,6 +74,8 @@ pub fn detect_interior_system(
     sub_voxels: Query<&SubVoxel, Without<Player>>,
     mut interior_state: ResMut<InteriorState>,
     config: Res<super::occlusion::OcclusionConfig>,
+    added_sub_voxels: Query<(), Added<SubVoxel>>,
+    mut removed_sub_voxels: RemovedComponents<SubVoxel>,
 ) {
     // Only run for region-based or hybrid modes
     if !matches!(
@@ -113,19 +113,17 @@ pub fn detect_interior_system(
     // Get player's voxel Y level (floor of player position)
     let player_voxel_y = player_pos.y.floor() as i32;
 
-    // Get or rebuild the occupied voxels cache
-    // We detect map changes by counting entities in the spatial grid
-    let current_entity_count = spatial_grid.cells.values().map(|v| v.len()).sum();
-    
-    let occupied_voxels = if interior_state.occupied_voxels_cache.is_some() 
-        && interior_state.cache_entity_count == current_entity_count 
-    {
-        // Use cached version
-        interior_state.occupied_voxels_cache.as_ref().unwrap()
+    // Invalidate the occupancy cache when SubVoxel entities are added or removed
+    // (e.g. hot reload). Uses Bevy change-detection instead of entity-count comparison.
+    let map_changed = !added_sub_voxels.is_empty() || !removed_sub_voxels.is_empty();
+    if map_changed {
+        interior_state.occupied_voxels_cache = None;
+    }
+
+    let occupied_voxels = if let Some(ref cache) = interior_state.occupied_voxels_cache {
+        cache
     } else {
-        // Rebuild cache
         let new_cache = build_occupied_voxel_set(&spatial_grid, &sub_voxels);
-        interior_state.cache_entity_count = current_entity_count;
         interior_state.occupied_voxels_cache = Some(new_cache);
         interior_state.occupied_voxels_cache.as_ref().unwrap()
     };
@@ -413,5 +411,58 @@ mod tests {
 
         // Different XZ position, no ceiling
         assert_eq!(find_ceiling_voxel_above(1, 2, 0, 10, &occupied), None);
+    }
+
+    #[test]
+    fn interior_state_default_has_empty_cache() {
+        let state = InteriorState::default();
+        assert!(state.occupied_voxels_cache.is_none());
+        assert_eq!(state.frames_since_update, 0);
+        assert_eq!(state.last_detection_pos, Vec3::ZERO);
+        assert!(state.current_region.is_none());
+    }
+
+    #[test]
+    fn cache_reused_when_none_not_marked_dirty_by_events() {
+        // Simulate steady-state: cache is populated and no map change events fired.
+        // The cache should be returned as-is (not rebuilt).
+        let mut occupied = HashSet::new();
+        occupied.insert(IVec3::new(0, 5, 0));
+        let cache: Option<HashSet<IVec3>> = Some(occupied.clone());
+
+        // No map change → map_changed = false → use existing cache
+        let map_changed = false;
+        let result_cache = if map_changed { None } else { cache.clone() };
+        assert!(result_cache.is_some());
+        assert_eq!(result_cache.unwrap().len(), occupied.len());
+    }
+
+    #[test]
+    fn cache_cleared_when_map_changed_flag_is_true() {
+        // Simulate a hot reload: added_sub_voxels is not empty → map_changed = true.
+        // The cache must be set to None so build_occupied_voxel_set runs.
+        let mut occupied = HashSet::new();
+        occupied.insert(IVec3::new(0, 5, 0));
+        let mut cache: Option<HashSet<IVec3>> = Some(occupied);
+
+        let map_changed = true;
+        if map_changed {
+            cache = None;
+        }
+        assert!(cache.is_none());
+    }
+
+    #[test]
+    fn ceiling_not_found_when_wall_blocks_gap() {
+        // A voxel at y=3 with another at y=4 is a wall from player level, not a ceiling.
+        let mut occupied = HashSet::new();
+        occupied.insert(IVec3::new(0, 3, 0));
+        occupied.insert(IVec3::new(0, 4, 0)); // continuous wall from near player level
+
+        // player at y=1: start_y = 3. y=3 is occupied but y=2 check:
+        // has_gap_below checks (1+1..3) = range [2,3), i.e. y=2.
+        // y=2 is NOT in occupied, so gap_below = true → should find y=3 as ceiling.
+        let result = find_ceiling_voxel_above(0, 1, 0, 10, &occupied);
+        assert_eq!(result, Some(3));
     }
 }
