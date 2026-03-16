@@ -114,10 +114,10 @@ impl MaterialExtension for OcclusionExtension {
     }
 
     fn prepass_fragment_shader() -> ShaderRef {
-        // Same WGSL handles both paths via #ifdef PREPASS_PIPELINE.
-        // Dither and region discards execute before the branch, so the
-        // depth buffer is accurate — no holes from skipped discards.
-        "shaders/occlusion_material.wgsl".into()
+        // Minimal prepass: runs only dither + region discards, no PBR setup.
+        // Avoids pbr_input_from_standard_material() which requires lighting
+        // uniforms not bound during a depth-only prepass.
+        "shaders/occlusion_material_prepass.wgsl".into()
     }
 }
 
