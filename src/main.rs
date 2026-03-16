@@ -86,7 +86,7 @@ use systems::game::hot_reload::{
     MapReloadedEvent,
 };
 use systems::game::map::{
-    spawn_map_system, update_chunk_lods, LoadedMapData, MapLoadProgress, MapLoader,
+    spawn_map_system, update_chunk_lods, LoadedMapData, LodConfig, MapLoadProgress, MapLoader,
 };
 use systems::game::systems::{
     apply_gravity, apply_npc_collision, apply_physics, follow_player_camera, handle_escape_key,
@@ -138,6 +138,7 @@ fn main() {
         .insert_resource(MapPathForHotReload(hot_reload_path))
         .init_resource::<MapLoadProgress>()
         .init_resource::<HotReloadState>()
+        .init_resource::<LodConfig>()
         .add_event::<MapReloadEvent>()
         .add_event::<MapReloadedEvent>()
         // Initialize gamepad resources

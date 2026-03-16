@@ -622,6 +622,16 @@ The interior detection system (`systems/game/interior_detection.rs`) maintains a
 
 **Rule**: Never use entity-count comparison as a cache-invalidation key. Use `Added<C>` / `RemovedComponents<C>` instead — they are O(1) and event-driven.
 
+### LOD Update Throttling
+
+`update_chunk_lods` (`systems/game/map/spawner/mod.rs`) runs every frame but skips the O(N) chunk iteration unless the camera has moved or new chunks have spawned:
+
+- **Distance guard**: `camera_pos.distance(last_camera_pos) >= lod_config.movement_threshold` — stored in `Local<Vec3>` per-system state. When the camera is stationary the system returns after one `distance()` call — O(1) instead of O(N).
+- **New-chunk bypass**: `Added<VoxelChunk>` query detects chunks spawned this frame (e.g. on map load or hot-reload) and forces a full pass so newly spawned chunks get their correct LOD immediately.
+- **`LodConfig` resource**: `movement_threshold: f32` (default `0.5` from `LOD_MOVEMENT_THRESHOLD`) allows runtime tuning of the dead zone without recompilation. Registered via `app.init_resource::<LodConfig>()`.
+
+**Rule**: Never inline `LOD_MOVEMENT_THRESHOLD` in the guard — always read from `lod_config.movement_threshold` so the value is tunable at runtime.
+
 ### Sub-Voxel Rendering
 
 ### Build Profiles
@@ -763,5 +773,5 @@ pub fn player_movement_system(/* ... */) {
 
 ---
 
-**Architecture Version:** 2.3.0
+**Architecture Version:** 2.4.0
 **Last Updated:** 2026-03-16

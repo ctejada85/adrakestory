@@ -39,6 +39,11 @@ pub const LOD_LEVELS: usize = 4;
 /// Distance thresholds for LOD switching (in world units)
 pub const LOD_DISTANCES: [f32; 4] = [50.0, 100.0, 200.0, f32::MAX];
 
+/// Minimum camera movement (world units) required to trigger a LOD recalculation.
+/// Keeps `update_chunk_lods` O(1) when the camera is stationary.
+/// LOD transitions span 50–200 world units, so 0.5 units dead zone is imperceptible.
+pub const LOD_MOVEMENT_THRESHOLD: f32 = 0.5;
+
 /// Bundled asset resources for map spawning.
 #[derive(SystemParam)]
 pub struct SpawnAssets<'w> {
@@ -66,6 +71,22 @@ pub struct ChunkLOD {
     pub lod_meshes: [Handle<Mesh>; LOD_LEVELS],
     /// Current active LOD level
     pub current_lod: usize,
+}
+
+/// Runtime configuration for the LOD update system.
+#[derive(Resource)]
+pub struct LodConfig {
+    /// Minimum camera movement (world units) required to trigger a LOD recalculation.
+    /// Defaults to [`LOD_MOVEMENT_THRESHOLD`].
+    pub movement_threshold: f32,
+}
+
+impl Default for LodConfig {
+    fn default() -> Self {
+        Self {
+            movement_threshold: LOD_MOVEMENT_THRESHOLD,
+        }
+    }
 }
 
 /// Face direction for hidden face culling.
@@ -238,6 +259,54 @@ mod tests {
             assert!((pn[2] + nn[2]).abs() < 0.001);
         }
     }
+
+    // --- LOD movement threshold tests ---
+
+    #[test]
+    fn lod_threshold_constant_is_well_below_lod_distances() {
+        // Threshold must be much smaller than the smallest LOD transition distance
+        // so it never causes a false skip near a LOD boundary.
+        assert!(LOD_MOVEMENT_THRESHOLD < LOD_DISTANCES[0] / 10.0);
+    }
+
+    #[test]
+    fn lod_threshold_guard_skips_when_camera_stationary() {
+        let camera_pos = Vec3::new(10.0, 5.0, 20.0);
+        let last_pos = camera_pos; // no movement
+        assert!(camera_pos.distance(last_pos) < LOD_MOVEMENT_THRESHOLD);
+    }
+
+    #[test]
+    fn lod_threshold_guard_runs_when_camera_moves_beyond_threshold() {
+        let last_pos = Vec3::new(10.0, 5.0, 20.0);
+        let camera_pos = last_pos + Vec3::new(1.0, 0.0, 0.0); // 1.0 unit — beyond 0.5
+        assert!(camera_pos.distance(last_pos) >= LOD_MOVEMENT_THRESHOLD);
+    }
+
+    #[test]
+    fn lod_threshold_exact_boundary_skips() {
+        // At exactly LOD_MOVEMENT_THRESHOLD distance the strict < guard should skip.
+        let last_pos = Vec3::ZERO;
+        let camera_pos = Vec3::new(LOD_MOVEMENT_THRESHOLD, 0.0, 0.0);
+        assert!(!(camera_pos.distance(last_pos) < LOD_MOVEMENT_THRESHOLD));
+    }
+
+    #[test]
+    fn lod_threshold_cold_start_passes_at_non_origin_position() {
+        // On first frame last_camera_pos = Vec3::ZERO; a typical camera spawn position
+        // is far from the origin, so the guard must pass and run the full pass.
+        let last_pos = Vec3::ZERO;
+        let camera_pos = Vec3::new(50.0, 10.0, 30.0);
+        assert!(camera_pos.distance(last_pos) >= LOD_MOVEMENT_THRESHOLD);
+    }
+
+    // --- LodConfig resource tests ---
+
+    #[test]
+    fn lod_config_default_matches_constant() {
+        let config = LodConfig::default();
+        assert_eq!(config.movement_threshold, LOD_MOVEMENT_THRESHOLD);
+    }
 }
 
 /// System that spawns a loaded map into the game world.
@@ -335,16 +404,31 @@ pub fn spawn_map_system(
 }
 
 /// System that updates chunk LOD levels based on camera distance.
-/// Runs each frame to swap mesh detail based on how far chunks are from the camera.
+///
+/// Runs each frame but skips the O(N) chunk iteration when the camera has not moved
+/// more than [`LOD_MOVEMENT_THRESHOLD`] world units since the last pass AND no new
+/// chunks were just spawned. This keeps CPU cost O(1) when the camera is stationary.
 pub fn update_chunk_lods(
     camera_query: Query<&Transform, With<Camera3d>>,
     mut chunks: Query<(&VoxelChunk, &mut ChunkLOD, &mut Mesh3d)>,
+    new_chunks: Query<(), Added<VoxelChunk>>,
+    lod_config: Res<LodConfig>,
+    mut last_camera_pos: Local<Vec3>,
 ) {
     // Get camera position, or early return if no camera
     let Ok(camera_transform) = camera_query.get_single() else {
         return;
     };
     let camera_pos = camera_transform.translation;
+
+    let camera_moved = camera_pos.distance(*last_camera_pos) >= lod_config.movement_threshold;
+    let new_chunks_present = !new_chunks.is_empty();
+
+    // Skip if the camera hasn't moved enough AND no new chunks just spawned.
+    if !camera_moved && !new_chunks_present {
+        return;
+    }
+    *last_camera_pos = camera_pos;
 
     for (chunk, mut lod, mut mesh) in chunks.iter_mut() {
         let distance = camera_pos.distance(chunk.center);

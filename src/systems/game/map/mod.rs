@@ -33,6 +33,6 @@ pub use loader::{LoadProgress, LoadedMapData, MapLoadProgress, MapLoader};
 #[allow(unused_imports)]
 pub use spawner::{
     spawn_map_system, update_chunk_lods, ChunkLOD, ChunkMeshBuilder, Face, GreedyMesher,
-    OccupancyGrid, VoxelChunk, VoxelMaterialPalette, CHUNK_SIZE, LOD_DISTANCES, LOD_LEVELS,
-    SUB_VOXEL_COUNT, SUB_VOXEL_SIZE,
+    LodConfig, OccupancyGrid, VoxelChunk, VoxelMaterialPalette, CHUNK_SIZE, LOD_DISTANCES,
+    LOD_LEVELS, LOD_MOVEMENT_THRESHOLD, SUB_VOXEL_COUNT, SUB_VOXEL_SIZE,
 };
