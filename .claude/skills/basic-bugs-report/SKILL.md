@@ -33,21 +33,22 @@ Before writing, have:
 
 ### Step 2: Determine severity
 
-| Severity | Criteria |
-|----------|----------|
-| Critical | Data loss, crash on startup, core feature completely broken |
-| High | Significant performance degradation, feature broken under common conditions |
-| Medium | Feature works but feels wrong, visible but non-blocking |
-| Low | Minor overhead, edge case, only measurable under profiling |
+| Priority | Severity | Criteria |
+|----------|----------|----------|
+| **p1** | Critical | Data loss, crash on startup, core feature completely broken |
+| **p2** | High | Significant performance degradation, feature broken under common conditions |
+| **p3** | Medium | Feature works but feels wrong, visible but non-blocking |
+| **p4** | Low | Minor overhead, edge case, only measurable under profiling |
 
 Severity reflects player/user impact, not code complexity.
 
 ### Step 3: Choose file name
 
-Format: `[YYYY-MM-DD-HHmm]-[kebab-case-title].md`
+Format: `[YYYY-MM-DD-HHmm]-[p1|p2|p3|p4]-[kebab-case-title].md`
 
+The priority prefix (`p1`–`p4`) encodes severity so bug files sort by importance.  
 The title should describe **the cause**, not the symptom:
-- ✅ `2026-03-15-2141-occlusion-material-gpu-reupload-every-frame`
+- ✅ `2026-03-15-2141-p1-occlusion-material-gpu-reupload-every-frame`
 - ❌ `2026-03-15-2141-game-runs-slowly`
 
 Save to `docs/bugs/`.
@@ -58,6 +59,7 @@ Save to `docs/bugs/`.
 # Bug: [Clear title — describe the cause, not the symptom]
 
 **Date:** YYYY-MM-DD
+**Priority:** p1 | p2 | p3 | p4
 **Severity:** Critical | High | Medium | Low
 **Status:** Open
 **Component:** [subsystem]

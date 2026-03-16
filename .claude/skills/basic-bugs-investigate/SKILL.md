@@ -52,12 +52,12 @@ For **correctness issues:**
 
 ### Step 4: Rank findings by severity
 
-| Severity | Criteria |
-|----------|----------|
-| Critical | Reproduces every run, core path affected |
-| High | Frequent or under common conditions |
-| Medium | Visible to users, non-blocking |
-| Low | Only measurable under profiling |
+| Priority | Severity | Criteria |
+|----------|----------|----------|
+| **p1** | Critical | Reproduces every run, core path affected |
+| **p2** | High | Frequent or under common conditions |
+| **p3** | Medium | Visible to users, non-blocking |
+| **p4** | Low | Only measurable under profiling |
 
 ### Step 5: Write investigation report
 
@@ -73,10 +73,10 @@ Save to `docs/investigations/[YYYY-MM-DD-HHmm]-[short-description].md`.
 ## Environment
 ## Investigation Method
 ## Findings
-### Finding N — [Title] (SEVERITY)
+### Finding N — [Title] (p1 Critical | p2 High | p3 Medium | p4 Low)
 File, function, line. What the code does. Why it's wrong. Code snippet.
 ## Root Cause Summary
-Table: # | Root Cause | Location | Severity | Notes
+Table: # | Root Cause | Location | Priority | Severity | Notes
 ## Recommended Fixes
 ## Related Bugs
 ```
