@@ -8,6 +8,8 @@ use super::super::super::resources::SpatialGrid;
 use super::meshing::{ChunkMeshBuilder, GreedyMesher, OccupancyGrid, VoxelMaterialPalette};
 use super::{ChunkLOD, Face, VoxelChunk, CHUNK_SIZE, LOD_LEVELS, SUB_VOXEL_COUNT, SUB_VOXEL_SIZE};
 use bevy::prelude::*;
+use bevy::math::Vec3A;
+use bevy::render::primitives::Aabb;
 use std::collections::{HashMap, HashSet};
 
 /// Enum to hold either material type for chunk rendering
@@ -240,6 +242,10 @@ pub fn spawn_voxels_chunked(
                         lod_meshes: lod_meshes.clone(),
                         current_lod: 0,
                     },
+                    Aabb {
+                        center: Vec3A::from(chunk_center),
+                        half_extents: Vec3A::splat(CHUNK_SIZE as f32 / 2.0),
+                    },
                 ));
             }
             ChunkMaterial::Standard(mat) => {
@@ -254,6 +260,10 @@ pub fn spawn_voxels_chunked(
                     ChunkLOD {
                         lod_meshes,
                         current_lod: 0,
+                    },
+                    Aabb {
+                        center: Vec3A::from(chunk_center),
+                        half_extents: Vec3A::splat(CHUNK_SIZE as f32 / 2.0),
                     },
                 ));
             }
@@ -290,6 +300,7 @@ pub fn spawn_voxels_chunked(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::math::Vec3A;
 
     #[test]
     fn test_calculate_sub_voxel_pos_origin() {
@@ -386,5 +397,22 @@ mod tests {
             (world_pos.z / CHUNK_SIZE as f32).floor() as i32,
         );
         assert_eq!(chunk_pos.x, 1);
+    }
+
+    #[test]
+    fn chunk_aabb_half_extents_match_chunk_size() {
+        let half = Vec3A::splat(CHUNK_SIZE as f32 / 2.0);
+        assert_eq!(half, Vec3A::splat(8.0));
+    }
+
+    #[test]
+    fn chunk_aabb_center_matches_chunk_center() {
+        let chunk_center = Vec3::new(8.0, 8.0, 8.0); // center of chunk at (0,0,0)
+        let aabb = Aabb {
+            center: Vec3A::from(chunk_center),
+            half_extents: Vec3A::splat(CHUNK_SIZE as f32 / 2.0),
+        };
+        assert_eq!(aabb.center, Vec3A::new(8.0, 8.0, 8.0));
+        assert_eq!(aabb.half_extents, Vec3A::splat(8.0));
     }
 }
