@@ -2,11 +2,12 @@
 
 use super::super::format::{MapData, SubVoxelPattern};
 use super::super::loader::{LoadProgress, MapLoadProgress};
-use super::super::super::components::{SubVoxel, Voxel};
+use super::super::super::components::SubVoxel;
 use super::super::super::occlusion::OcclusionMaterial;
 use super::super::super::resources::SpatialGrid;
 use super::meshing::{ChunkMeshBuilder, GreedyMesher, OccupancyGrid, VoxelMaterialPalette};
 use super::{ChunkLOD, Face, VoxelChunk, CHUNK_SIZE, LOD_LEVELS, SUB_VOXEL_COUNT, SUB_VOXEL_SIZE};
+use bevy::pbr::NotShadowCaster;
 use bevy::prelude::*;
 use bevy::math::Vec3A;
 use bevy::render::primitives::Aabb;
@@ -93,7 +94,7 @@ pub fn spawn_voxels_chunked(
         let (x, y, z) = voxel_data.pos;
 
         // Spawn parent voxel marker
-        ctx.commands.spawn(Voxel);
+
 
         // Determine which pattern to use
         let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
@@ -246,6 +247,7 @@ pub fn spawn_voxels_chunked(
                         center: Vec3A::from(chunk_center),
                         half_extents: Vec3A::splat(CHUNK_SIZE as f32 / 2.0),
                     },
+                    NotShadowCaster,
                 ));
             }
             ChunkMaterial::Standard(mat) => {
@@ -265,6 +267,7 @@ pub fn spawn_voxels_chunked(
                         center: Vec3A::from(chunk_center),
                         half_extents: Vec3A::splat(CHUNK_SIZE as f32 / 2.0),
                     },
+                    NotShadowCaster,
                 ));
             }
         }
