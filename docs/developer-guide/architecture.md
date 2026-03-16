@@ -327,13 +327,18 @@ pub struct SubVoxel {
 ```rust
 #[derive(Component)]
 pub struct GameCamera {
-    pub original_rotation: Quat,  // Original rotation quaternion
-    pub target_rotation: Quat,    // Target rotation for smooth transitions
-    pub rotation_speed: f32,      // Speed of rotation interpolation
+    pub original_rotation: Quat,   // Original rotation quaternion
+    pub target_rotation: Quat,     // Target rotation for smooth transitions
+    pub rotation_speed: f32,       // Speed of rotation interpolation (default: 5.0)
+    pub follow_offset: Vec3,       // Offset from player in local camera space
+    pub follow_speed: f32,         // Speed of position follow (default: 15.0)
+    pub target_position: Vec3,     // Current follow target (player position)
 }
 ```
 
 **Purpose**: Camera control and rotation state with smooth interpolation.
+
+**Lerp formula**: Both `follow_player_camera` and `rotate_camera` use the frame-rate-independent exponential decay formula `alpha = 1 - exp(-speed * delta)` instead of the approximation `speed * delta`. This guarantees identical convergence time regardless of frame rate (30/60/120 fps).
 
 ### CollisionBox Component
 
@@ -589,6 +594,22 @@ The occlusion system (`systems/game/occlusion/`) uses a **two-level cache** to p
 
 **Rule**: Any system that writes to a Bevy `Assets<T>` via `get_mut()` must guard the call behind an actual value change. See `coding-guardrails.md` §1.
 
+### Camera Lerp Frame-Rate Independence
+
+The camera follow and rotation systems use exponential decay to ensure smooth, frame-rate-independent interpolation:
+
+```rust
+// alpha = 1 - exp(-speed * delta)  — correct at any frame rate
+let alpha = 1.0 - (-speed * delta).exp();
+transform.translation = transform.translation.lerp(target, alpha);
+```
+
+The naive approximation `t = speed * delta` is only valid when `t ≪ 1`. At 30 fps with `speed = 5`, `t ≈ 0.17` — large enough to cause over-interpolation. The exponential formula is exact at all delta sizes.
+
+`follow_speed` defaults to `15.0` (responsive third-person). `rotation_speed` defaults to `5.0`.
+
+**Rule**: All camera lerp/slerp calls must use `lerp_alpha(speed, delta)` from `camera.rs`, never `speed * delta` directly.
+
 ### Interior Detection Cache Invalidation
 
 The interior detection system (`systems/game/interior_detection.rs`) maintains a `HashSet<IVec3>` occupancy cache of all voxel positions for its BFS flood-fill. Rebuilding this cache is expensive (iterates all `SubVoxel` entities), so it is only rebuilt when geometry actually changes:
@@ -742,5 +763,5 @@ pub fn player_movement_system(/* ... */) {
 
 ---
 
-**Architecture Version:** 2.2.0
+**Architecture Version:** 2.3.0
 **Last Updated:** 2026-03-16

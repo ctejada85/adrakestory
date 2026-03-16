@@ -481,7 +481,7 @@ fn spawn_camera(commands: &mut Commands, map: &MapData) {
             target_rotation: original_rotation,
             rotation_speed: 5.0,
             follow_offset,
-            follow_speed: 5.0,              // Medium responsiveness
+            follow_speed: 15.0,             // Responsive third-person follow
             target_position: look_at_point, // Initially look at the map's look_at point
         },
     ));
