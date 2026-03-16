@@ -12,6 +12,7 @@ use systems::game::gamepad::{
     update_cursor_visibility, ActiveGamepad, GamepadSettings, PlayerInput,
 };
 use systems::game::occlusion::OcclusionPlugin;
+use systems::game::resources::PreFetchedCollisionEntities;
 use systems::settings::SettingsPlugin;
 
 /// Command-line arguments for the game
@@ -148,6 +149,7 @@ fn main() {
         .init_resource::<ActiveGamepad>()
         .init_resource::<GamepadSettings>()
         .init_resource::<PlayerInput>()
+        .init_resource::<PreFetchedCollisionEntities>()
         .add_systems(Startup, setup)
         // Global systems that run in any state
         .add_systems(Update, (toggle_fullscreen, handle_gamepad_connections))

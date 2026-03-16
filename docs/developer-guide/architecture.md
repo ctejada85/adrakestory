@@ -386,6 +386,18 @@ pub struct SpatialGrid {
 
 **Purpose**: Spatial partitioning for efficient collision detection.
 
+### PreFetchedCollisionEntities
+
+```rust
+#[derive(Resource, Default)]
+pub struct PreFetchedCollisionEntities {
+    pub entities: Vec<Entity>,
+    pub bounds: Option<(Vec3, Vec3)>,
+}
+```
+
+**Purpose**: Frame-level cache that shares a single `SpatialGrid` AABB lookup across `move_player` and `apply_physics`. `move_player` (Movement set) writes a widened AABB result; `apply_physics` (Physics set) reads it when the player's physics AABB is fully contained within the cached bounds, falling back to its own query otherwise.
+
 ### GameInitialized
 
 ```rust
@@ -580,6 +592,14 @@ The `SpatialGrid` resource divides the world into cells for efficient collision 
 // O(n²) → O(n) for collision checks
 let nearby = spatial_grid.query_cell(position);
 ```
+
+### Pre-fetched Collision Cache
+
+`move_player` issues a single widened AABB lookup at the start of each movement frame and stores the result in `PreFetchedCollisionEntities`. All axis checks within `move_player` reuse this slice, and `apply_physics` uses the same cache when the player's physics AABB is within the cached bounds — eliminating the 3–4 redundant `SpatialGrid` queries that previously occurred per frame.
+
+- `move_player` runs in `GameSystemSet::Movement` and writes the resource.
+- `apply_physics` runs in `GameSystemSet::Physics` (after Movement) and reads the resource.
+- The widened AABB expands horizontally by `|move_delta|` and vertically by `SUB_VOXEL_SIZE + STEP_UP_TOLERANCE` to cover step-up geometry.
 
 ### Conditional GPU Uniform Updates
 

@@ -9,8 +9,8 @@ use super::components::{Player, SubVoxel};
 use super::resources::SpatialGrid;
 use bevy::prelude::*;
 
-const SUB_VOXEL_SIZE: f32 = 1.0 / 8.0;
-const STEP_UP_TOLERANCE: f32 = 0.02;
+pub(super) const SUB_VOXEL_SIZE: f32 = 1.0 / 8.0;
+pub(super) const STEP_UP_TOLERANCE: f32 = 0.02;
 
 /// Result of a collision check, including step-up information.
 #[derive(Debug, Clone, Copy)]
@@ -102,6 +102,11 @@ pub fn get_sub_voxel_bounds(sub_voxel: &SubVoxel) -> (Vec3, Vec3) {
 /// * `spatial_grid` - The spatial partitioning grid for efficient queries
 /// * `sub_voxel_query` - Query to access sub-voxel components
 /// * `params` - Collision parameters (position, dimensions, floor height)
+/// * `prefetched` - Optional pre-fetched entity slice from the caller. When `Some`,
+///   the slice is used directly for both the initial check and the step-up re-check,
+///   avoiding any `get_entities_in_aabb` calls. The caller must ensure the slice
+///   covers the full cylinder bounds plus step-up height. When `None`, the spatial
+///   grid is queried as normal.
 ///
 /// # Returns
 /// A `CollisionResult` indicating collision status and step-up information
@@ -109,6 +114,7 @@ pub fn check_sub_voxel_collision(
     spatial_grid: &SpatialGrid,
     sub_voxel_query: &Query<&SubVoxel, Without<Player>>,
     params: CollisionParams,
+    prefetched: Option<&[Entity]>,
 ) -> CollisionResult {
     let collision_radius = params.radius;
 
@@ -124,13 +130,21 @@ pub fn check_sub_voxel_collision(
         params.z + collision_radius,
     );
 
-    let relevant_sub_voxel_entities = spatial_grid.get_entities_in_aabb(player_min, player_max);
+    // Use the pre-fetched entity slice if provided, otherwise query the spatial grid.
+    let relevant_owned: Vec<Entity>;
+    let relevant: &[Entity] = match prefetched {
+        Some(pre) => pre,
+        None => {
+            relevant_owned = spatial_grid.get_entities_in_aabb(player_min, player_max);
+            &relevant_owned
+        }
+    };
 
     // Track potential step-up collision
     let mut step_up_candidate: Option<f32> = None;
 
     // Check all relevant sub-voxels for collision
-    for entity in relevant_sub_voxel_entities.iter() {
+    for entity in relevant {
         if let Ok(sub_voxel) = sub_voxel_query.get(*entity) {
             let (min, max) = get_sub_voxel_bounds(sub_voxel);
 
@@ -187,24 +201,29 @@ pub fn check_sub_voxel_collision(
     if let Some(height) = step_up_candidate {
         let new_y = params.current_floor_y + height + params.half_height;
 
-        // Check for collisions at the stepped-up position
-        // We need to query a larger area that includes the new height
-        let stepped_min = Vec3::new(
-            params.x - collision_radius,
-            new_y - params.half_height,
-            params.z - collision_radius,
-        );
-        let stepped_max = Vec3::new(
-            params.x + collision_radius,
-            new_y + params.half_height,
-            params.z + collision_radius,
-        );
-
-        let stepped_entities = spatial_grid.get_entities_in_aabb(stepped_min, stepped_max);
+        // When prefetched is provided the caller widened its Y bounds to cover the
+        // step-up height, so we reuse the same slice to avoid a second grid query.
+        let stepped_owned: Vec<Entity>;
+        let stepped: &[Entity] = if prefetched.is_some() {
+            relevant
+        } else {
+            let stepped_min = Vec3::new(
+                params.x - collision_radius,
+                new_y - params.half_height,
+                params.z - collision_radius,
+            );
+            let stepped_max = Vec3::new(
+                params.x + collision_radius,
+                new_y + params.half_height,
+                params.z + collision_radius,
+            );
+            stepped_owned = spatial_grid.get_entities_in_aabb(stepped_min, stepped_max);
+            &stepped_owned
+        };
 
         // Check if player body would collide at the new height
-        for entity in stepped_entities {
-            if let Ok(sub_voxel) = sub_voxel_query.get(entity) {
+        for entity in stepped {
+            if let Ok(sub_voxel) = sub_voxel_query.get(*entity) {
                 let (min, max) = get_sub_voxel_bounds(sub_voxel);
 
                 // At the new height, check if this sub-voxel would block the player's body
@@ -438,5 +457,89 @@ mod tests {
         assert_eq!(params.radius, 0.2);
         assert_eq!(params.half_height, 0.4);
         assert_eq!(params.current_floor_y, 1.6);
+    }
+
+    // check_sub_voxel_collision prefetch tests (using SystemState to access queries)
+    #[test]
+    fn prefetched_empty_slice_skips_grid_query() {
+        use super::super::resources::SpatialGrid;
+        use bevy::ecs::system::SystemState;
+        use bevy::prelude::IVec3;
+
+        let mut world = bevy::prelude::World::new();
+
+        // Spawn a sub-voxel that would block movement if the grid were queried
+        let bounds = (Vec3::new(-0.1, 0.2, -0.1), Vec3::new(0.1, 0.8, 0.1));
+        let entity = world.spawn(SubVoxel { bounds }).id();
+
+        // Place entity in the grid cell the player AABB would hit
+        let mut grid = SpatialGrid::default();
+        grid.cells.entry(IVec3::new(0, 0, 0)).or_default().push(entity);
+        world.insert_resource(grid);
+
+        let params = CollisionParams {
+            x: 0.0,
+            y: 0.8,
+            z: 0.0,
+            radius: 0.2,
+            half_height: 0.4,
+            current_floor_y: 0.0,
+        };
+
+        let mut state: SystemState<(
+            bevy::prelude::Res<SpatialGrid>,
+            bevy::prelude::Query<&SubVoxel, bevy::prelude::Without<Player>>,
+        )> = SystemState::new(&mut world);
+        let (spatial_grid, sub_voxel_query) = state.get(&world);
+
+        // Empty prefetched slice — function skips the grid regardless of what's there
+        let result = check_sub_voxel_collision(&spatial_grid, &sub_voxel_query, params, Some(&[]));
+        assert!(
+            !result.has_collision,
+            "Expected no collision when prefetched slice is empty (grid bypassed)"
+        );
+    }
+
+    #[test]
+    fn prefetched_none_queries_grid_and_finds_blocking_collision() {
+        use super::super::resources::SpatialGrid;
+        use bevy::ecs::system::SystemState;
+        use bevy::prelude::IVec3;
+
+        let mut world = bevy::prelude::World::new();
+
+        // A tall blocking sub-voxel (obstacle_height > SUB_VOXEL_SIZE + STEP_UP_TOLERANCE)
+        let bounds = (Vec3::new(-0.1, 0.2, -0.1), Vec3::new(0.1, 0.8, 0.1));
+        let entity = world.spawn(SubVoxel { bounds }).id();
+
+        let mut grid = SpatialGrid::default();
+        grid.cells.entry(IVec3::new(0, 0, 0)).or_default().push(entity);
+        world.insert_resource(grid);
+
+        let params = CollisionParams {
+            x: 0.0,
+            y: 0.8,
+            z: 0.0,
+            radius: 0.2,
+            half_height: 0.4,
+            current_floor_y: 0.0,
+        };
+
+        let mut state: SystemState<(
+            bevy::prelude::Res<SpatialGrid>,
+            bevy::prelude::Query<&SubVoxel, bevy::prelude::Without<Player>>,
+        )> = SystemState::new(&mut world);
+        let (spatial_grid, sub_voxel_query) = state.get(&world);
+
+        // None — function queries the grid and finds the blocking entity
+        let result = check_sub_voxel_collision(&spatial_grid, &sub_voxel_query, params, None);
+        assert!(
+            result.has_collision,
+            "Expected collision when prefetched is None and grid contains blocking entity"
+        );
+        assert!(
+            !result.can_step_up,
+            "Expected blocking collision (too tall to step up)"
+        );
     }
 }

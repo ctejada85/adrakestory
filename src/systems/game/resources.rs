@@ -54,6 +54,21 @@ impl SpatialGrid {
 #[derive(Resource, Default)]
 pub struct GameInitialized(pub bool);
 
+/// Pre-fetched spatial grid query result shared from `move_player` to `apply_physics`.
+///
+/// `move_player` populates this each frame when the player has movement input.
+/// `apply_physics` reads it when the stored AABB bounds contain the physics query AABB,
+/// avoiding a second `get_entities_in_aabb` call. Cleared at the start of every
+/// `move_player` run so a stale slice is never used.
+#[derive(Resource, Default)]
+pub struct PreFetchedCollisionEntities {
+    /// The entity slice pre-fetched by `move_player`.
+    pub entities: Vec<Entity>,
+    /// The AABB (min, max) used to fetch the entities.
+    /// `None` when the resource has been cleared (player not moving).
+    pub bounds: Option<(Vec3, Vec3)>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

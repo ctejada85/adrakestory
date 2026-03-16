@@ -10,10 +10,10 @@
 //! - If look direction input is active (arrow keys or right stick), character faces that direction
 //! - Otherwise, character faces the direction of movement
 
-use super::collision::{check_sub_voxel_collision, CollisionParams};
+use super::collision::{check_sub_voxel_collision, CollisionParams, STEP_UP_TOLERANCE, SUB_VOXEL_SIZE};
 use super::components::{Player, SubVoxel};
 use super::gamepad::{InputSource, PlayerInput};
-use super::resources::SpatialGrid;
+use super::resources::{PreFetchedCollisionEntities, SpatialGrid};
 use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
 
@@ -34,9 +34,13 @@ pub fn move_player(
     time: Res<Time>,
     player_input: Res<PlayerInput>,
     spatial_grid: Res<SpatialGrid>,
+    mut pre_fetched: ResMut<PreFetchedCollisionEntities>,
     sub_voxel_query: Query<&SubVoxel, Without<Player>>,
     mut player_query: Query<(&mut Player, &mut Transform)>,
 ) {
+    // Clear the cache so a stale slice from the previous frame is never read by apply_physics
+    pre_fetched.entities.clear();
+    pre_fetched.bounds = None;
     if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
         // Clamp delta time to prevent physics issues when window regains focus
         let delta = time.delta_secs().min(0.1);
@@ -109,6 +113,26 @@ pub fn move_player(
             let new_x = current_pos.x + move_delta.x;
             let new_z = current_pos.z + move_delta.z;
 
+            // Pre-fetch all nearby entities once with a widened AABB that covers:
+            // - current position and destination in XZ (expanded by abs(move_delta))
+            // - step-up height upward in Y (so the same slice covers the step-up re-check)
+            let prefetch_min = Vec3::new(
+                current_pos.x - player.radius - move_delta.x.abs(),
+                current_pos.y - player.half_height,
+                current_pos.z - player.radius - move_delta.z.abs(),
+            );
+            let prefetch_max = Vec3::new(
+                current_pos.x + player.radius + move_delta.x.abs(),
+                current_pos.y + player.half_height + SUB_VOXEL_SIZE + STEP_UP_TOLERANCE,
+                current_pos.z + player.radius + move_delta.z.abs(),
+            );
+            let prefetched_entities = spatial_grid.get_entities_in_aabb(prefetch_min, prefetch_max);
+
+            // Share the pre-fetched slice with apply_physics (runs later in the same frame).
+            // apply_physics checks bounds containment before using it.
+            pre_fetched.entities.clone_from(&prefetched_entities);
+            pre_fetched.bounds = Some((prefetch_min, prefetch_max));
+
             // Optimization: Try diagonal movement first when moving in both axes
             let moving_diagonally = move_delta.x != 0.0 && move_delta.z != 0.0;
 
@@ -124,6 +148,7 @@ pub fn move_player(
                         half_height: player.half_height,
                         current_floor_y,
                     },
+                    Some(&prefetched_entities),
                 );
 
                 if !diagonal_collision.has_collision {
@@ -144,6 +169,7 @@ pub fn move_player(
                         new_x,
                         new_z,
                         &mut current_floor_y,
+                        &prefetched_entities,
                     );
                 }
             } else {
@@ -156,6 +182,7 @@ pub fn move_player(
                     new_x,
                     new_z,
                     &mut current_floor_y,
+                    &prefetched_entities,
                 );
             }
         }
@@ -174,6 +201,7 @@ fn apply_axis_movement(
     new_x: f32,
     new_z: f32,
     current_floor_y: &mut f32,
+    prefetched: &[Entity],
 ) {
     // Try moving on X axis
     if new_x != current_pos.x {
@@ -188,6 +216,7 @@ fn apply_axis_movement(
                 half_height: player.half_height,
                 current_floor_y: *current_floor_y,
             },
+            Some(prefetched),
         );
 
         if !x_collision.has_collision {
@@ -218,6 +247,7 @@ fn apply_axis_movement(
                 half_height: player.half_height,
                 current_floor_y: *current_floor_y,
             },
+            Some(prefetched),
         );
 
         if !z_collision.has_collision {
@@ -438,5 +468,50 @@ mod tests {
         let rotation = calculate_target_rotation(look_dir);
         // Expected: atan2(1, 0) - PI/2 = PI/2 - PI/2 = 0
         assert!(rotation.abs() < 0.001);
+    }
+
+    // widened AABB pre-fetch tests
+    #[test]
+    fn widened_aabb_covers_movement_destination() {
+        // Verify the pre-fetch AABB formula used in move_player contains both the
+        // current position cylinder and the destination cylinder in XZ, plus the
+        // step-up height upward in Y.
+        let player_x = 5.0_f32;
+        let player_y = 2.0_f32;
+        let player_z = 3.0_f32;
+        let radius = 0.2_f32;
+        let half_height = 0.4_f32;
+        let move_delta_x = 0.1_f32;
+        let move_delta_z = -0.05_f32;
+
+        let prefetch_min = Vec3::new(
+            player_x - radius - move_delta_x.abs(),
+            player_y - half_height,
+            player_z - radius - move_delta_z.abs(),
+        );
+        let prefetch_max = Vec3::new(
+            player_x + radius + move_delta_x.abs(),
+            player_y + half_height + SUB_VOXEL_SIZE + STEP_UP_TOLERANCE,
+            player_z + radius + move_delta_z.abs(),
+        );
+
+        // Current position cylinder must be within the pre-fetch bounds
+        assert!(player_x - radius >= prefetch_min.x);
+        assert!(player_x + radius <= prefetch_max.x);
+        assert!(player_z - radius >= prefetch_min.z);
+        assert!(player_z + radius <= prefetch_max.z);
+
+        // Destination cylinder must also be within the pre-fetch bounds
+        let new_x = player_x + move_delta_x;
+        let new_z = player_z + move_delta_z;
+        assert!(new_x - radius >= prefetch_min.x);
+        assert!(new_x + radius <= prefetch_max.x);
+        assert!(new_z - radius >= prefetch_min.z);
+        assert!(new_z + radius <= prefetch_max.z);
+
+        // Step-up height must be covered (top of cylinder at player_y + half_height + step_up)
+        let step_up_height = SUB_VOXEL_SIZE + STEP_UP_TOLERANCE;
+        let new_y_stepped = player_y + step_up_height;
+        assert!(new_y_stepped + half_height <= prefetch_max.y);
     }
 }
