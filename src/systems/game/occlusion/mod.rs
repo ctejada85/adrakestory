@@ -112,6 +112,13 @@ impl MaterialExtension for OcclusionExtension {
     fn deferred_fragment_shader() -> ShaderRef {
         "shaders/occlusion_material.wgsl".into()
     }
+
+    fn prepass_fragment_shader() -> ShaderRef {
+        // Same WGSL handles both paths via #ifdef PREPASS_PIPELINE.
+        // Dither and region discards execute before the branch, so the
+        // depth buffer is accurate — no holes from skipped discards.
+        "shaders/occlusion_material.wgsl".into()
+    }
 }
 
 /// Uniform buffer for occlusion parameters.

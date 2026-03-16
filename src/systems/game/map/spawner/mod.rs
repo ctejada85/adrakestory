@@ -16,6 +16,8 @@ pub use entities::{spawn_light_source, spawn_npc, spawn_player, EntitySpawnConte
 pub use meshing::{ChunkMeshBuilder, GreedyMesher, OccupancyGrid, VoxelMaterialPalette};
 pub use shadow_quality::apply_shadow_quality_system;
 
+use bevy::core_pipeline::prepass::DepthPrepass;
+
 use super::super::components::GameCamera;
 use super::super::occlusion::{
     create_occlusion_material, OcclusionConfig, OcclusionMaterialHandle, ShadowQuality,
@@ -607,5 +609,6 @@ fn spawn_camera(commands: &mut Commands, map: &MapData) {
             follow_speed: 15.0,             // Responsive third-person follow
             target_position: look_at_point, // Initially look at the map's look_at point
         },
+        DepthPrepass,
     ));
 }

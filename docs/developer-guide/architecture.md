@@ -667,6 +667,16 @@ The interior detection system (`systems/game/interior_detection.rs`) maintains a
 
 **Rule**: Never inline `LOD_MOVEMENT_THRESHOLD` in the guard — always read from `lod_config.movement_threshold` so the value is tunable at runtime.
 
+### Depth Prepass
+
+The game camera has `bevy::core_pipeline::prepass::DepthPrepass` inserted at spawn time in `spawn_camera()`. This activates a depth-only GPU pass before the main forward pass.
+
+**Why it exists:** `OcclusionMaterial` uses `discard` in its WGSL fragment shader for dithered transparency. `discard` prevents GPU hardware early-Z optimisation in the main forward pass. With typical 3–5× overdraw in dense voxel areas, the expensive PBR + occlusion shader would run for all overlapping fragments. The depth prepass pre-populates the depth buffer so occluded fragments fail the hardware depth test before the fragment shader fires.
+
+**Prepass shader:** `OcclusionExtension::prepass_fragment_shader()` returns the same `occlusion_material.wgsl` used by the main pass. The shader's `#ifdef PREPASS_PIPELINE` branch gates the output (depth-only vs full PBR), while the dither and region-based `discard` calls run before the branch in both passes. This ensures the prepass depth buffer accurately excludes fragments that would be discarded in the main pass.
+
+**Rule:** Only the game camera (`GameCamera` component) has `DepthPrepass`. The editor camera must not receive it.
+
 ### Shadow Quality
 
 Shadow rendering quality is controlled by `OcclusionConfig.shadow_quality: ShadowQuality`, persisted in `settings.ron`.
