@@ -73,6 +73,12 @@ unsafe impl Send for ProfileLine {}
 pub struct FrameProfiler {
     sender: SyncSender<ProfileLine>,
     frame: AtomicU64,
+    /// Fixed reference point for lock-free elapsed-time arithmetic.
+    created_at: Instant,
+    /// Nanos since `created_at` at the start of the current frame (`First` schedule).
+    /// Written by `frame_begin`, read by `frame_end`. Both run on the main thread so
+    /// `Relaxed` ordering is sufficient.
+    frame_start_nanos: AtomicU64,
 }
 
 // SyncSender<T>: Send + Sync when T: Send — satisfies Resource bounds.
@@ -109,12 +115,52 @@ impl FrameProfiler {
         Self {
             sender,
             frame: AtomicU64::new(0),
+            created_at: Instant::now(),
+            frame_start_nanos: AtomicU64::new(0),
         }
     }
 
     /// Advance the frame counter. Called once per frame by [`FrameProfilerPlugin`].
     pub fn advance_frame(&self) {
         self.frame.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Called at the start of each frame (`First` schedule).
+    ///
+    /// Records:
+    /// - `frame_interval_us`: wall-clock time since the previous call (= actual frame
+    ///   duration including GPU, vsync, and any idle time). This is what determines FPS.
+    ///
+    /// Returns the current frame start timestamp (nanos since `created_at`) so the
+    /// `frame_end` system can compute CPU frame duration.
+    pub fn on_frame_begin(&self) -> u64 {
+        let now = self.created_at.elapsed().as_nanos() as u64;
+        let prev = self.frame_start_nanos.swap(now, Ordering::Relaxed);
+        if prev > 0 {
+            let interval_us = (now - prev) / 1000;
+            let frame = self.frame.load(Ordering::Relaxed);
+            let _ = self
+                .sender
+                .try_send(ProfileLine(format!("{},frame_interval_us,{}\n", frame, interval_us)));
+        }
+        now
+    }
+
+    /// Called at the end of each frame (`Last` schedule).
+    ///
+    /// Records `frame_cpu_us`: time from `First` to `Last` — captures all main-thread
+    /// work (game logic + Bevy built-in systems + render extract).
+    /// `frame_interval_us - frame_cpu_us` approximates render-pipeline overhead.
+    pub fn on_frame_end(&self) {
+        let now = self.created_at.elapsed().as_nanos() as u64;
+        let start = self.frame_start_nanos.load(Ordering::Relaxed);
+        if start > 0 {
+            let cpu_us = (now - start) / 1000;
+            let frame = self.frame.load(Ordering::Relaxed);
+            let _ = self
+                .sender
+                .try_send(ProfileLine(format!("{},frame_cpu_us,{}\n", frame, cpu_us)));
+        }
     }
 
     /// Begin timing a labeled scope. Writes a CSV row when the returned guard drops.
@@ -165,14 +211,22 @@ impl Plugin for FrameProfilerPlugin {
         // Only wire up the real profiler in debug builds.
         #[cfg(debug_assertions)]
         app.insert_resource(FrameProfiler::new())
-            .add_systems(First, advance_frame_counter);
+            .add_systems(First, frame_begin)
+            .add_systems(Last, frame_end);
     }
 }
 
-/// Increments the frame counter at the start of every frame so all `Update`
-/// timing records carry the correct frame number.
-fn advance_frame_counter(profiler: Res<FrameProfiler>) {
+/// Runs at the top of every frame (`First` schedule).
+/// Advances the frame counter and records the frame interval since the previous call.
+fn frame_begin(profiler: Res<FrameProfiler>) {
     profiler.advance_frame();
+    profiler.on_frame_begin();
+}
+
+/// Runs at the bottom of every frame (`Last` schedule).
+/// Records the CPU time spent between `First` and `Last` this frame.
+fn frame_end(profiler: Res<FrameProfiler>) {
+    profiler.on_frame_end();
 }
 
 // ---------------------------------------------------------------------------
