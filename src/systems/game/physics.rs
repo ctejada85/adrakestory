@@ -9,6 +9,8 @@
 use super::collision::get_sub_voxel_bounds;
 use super::components::{Npc, Player, SubVoxel};
 use super::resources::{PreFetchedCollisionEntities, SpatialGrid};
+use crate::diagnostics::FrameProfiler;
+use crate::profile_scope;
 use bevy::prelude::*;
 
 const GRAVITY: f32 = -32.0;
@@ -19,7 +21,12 @@ const GROUND_DETECTION_EPSILON: f32 = 0.001;
 /// Gravity is applied as a constant downward acceleration.
 /// Delta time is clamped to prevent physics issues when the window
 /// regains focus after being minimized.
-pub fn apply_gravity(time: Res<Time>, mut player_query: Query<&mut Player>) {
+pub fn apply_gravity(
+    time: Res<Time>,
+    mut player_query: Query<&mut Player>,
+    profiler: Option<Res<FrameProfiler>>,
+) {
+    profile_scope!(profiler, "apply_gravity");
     if let Ok(mut player) = player_query.get_single_mut() {
         // Clamp delta time to prevent physics issues
         let delta = time.delta_secs().min(0.1);
@@ -49,7 +56,9 @@ pub fn apply_physics(
     pre_fetched: Res<PreFetchedCollisionEntities>,
     sub_voxel_query: Query<&SubVoxel, Without<Player>>,
     mut player_query: Query<(&mut Player, &mut Transform)>,
+    profiler: Option<Res<FrameProfiler>>,
 ) {
+    profile_scope!(profiler, "apply_physics");
     // SpatialGrid is removed during hot reload between despawn and respawn frames.
     let Some(spatial_grid) = spatial_grid else {
         return;

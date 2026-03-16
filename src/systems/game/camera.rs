@@ -8,6 +8,8 @@
 
 use super::components::{GameCamera, Player};
 use super::gamepad::{InputSource, PlayerInput};
+use crate::diagnostics::FrameProfiler;
+use crate::profile_scope;
 use bevy::prelude::*;
 
 /// System that makes the camera smoothly follow the player.
@@ -25,7 +27,9 @@ pub fn follow_player_camera(
     time: Res<Time>,
     player_query: Query<&Transform, With<Player>>,
     mut camera_query: Query<(&mut GameCamera, &mut Transform), Without<Player>>,
+    profiler: Option<Res<FrameProfiler>>,
 ) {
+    profile_scope!(profiler, "follow_player_camera");
     if let Ok(player_transform) = player_query.get_single() {
         if let Ok((mut game_camera, mut camera_transform)) = camera_query.get_single_mut() {
             let player_position = player_transform.translation;

@@ -1,6 +1,8 @@
+use crate::diagnostics::FrameProfilerPlugin;
 use bevy::{prelude::*, window::WindowMode};
 use std::path::PathBuf;
 
+mod diagnostics;
 pub mod editor;
 mod states;
 mod systems;
@@ -131,6 +133,7 @@ fn main() {
         }))
         // FPS counter overlay (toggle with F3)
         .add_plugins(FpsCounterPlugin)
+        .add_plugins(FrameProfilerPlugin)
         // Occlusion transparency system for voxels above the player
         .add_plugins(OcclusionPlugin)
         // In-game settings screen

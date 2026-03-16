@@ -13,6 +13,8 @@
 use super::collision::{check_sub_voxel_collision, CollisionParams, STEP_UP_TOLERANCE, SUB_VOXEL_SIZE};
 use super::components::{Player, SubVoxel};
 use super::gamepad::{InputSource, PlayerInput};
+use crate::diagnostics::FrameProfiler;
+use crate::profile_scope;
 use super::resources::{PreFetchedCollisionEntities, SpatialGrid};
 use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
@@ -37,7 +39,9 @@ pub fn move_player(
     mut pre_fetched: ResMut<PreFetchedCollisionEntities>,
     sub_voxel_query: Query<&SubVoxel, Without<Player>>,
     mut player_query: Query<(&mut Player, &mut Transform)>,
+    profiler: Option<Res<FrameProfiler>>,
 ) {
+    profile_scope!(profiler, "move_player");
     // Clear the cache so a stale slice from the previous frame is never read by apply_physics
     pre_fetched.entities.clear();
     pre_fetched.bounds = None;

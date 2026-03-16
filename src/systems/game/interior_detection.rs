@@ -12,6 +12,8 @@ use std::collections::{HashSet, VecDeque};
 
 use super::components::{Player, SubVoxel};
 use super::resources::SpatialGrid;
+use crate::diagnostics::FrameProfiler;
+use crate::profile_scope;
 
 /// Maximum number of voxels to include in a flood-fill region (prevents runaway)
 const MAX_REGION_SIZE: usize = 1000;
@@ -79,7 +81,9 @@ pub fn detect_interior_system(
     config: Res<super::occlusion::OcclusionConfig>,
     added_sub_voxels: Query<(), Added<SubVoxel>>,
     mut removed_sub_voxels: RemovedComponents<SubVoxel>,
+    profiler: Option<Res<FrameProfiler>>,
 ) {
+    profile_scope!(profiler, "detect_interior_system");
     // Only run for region-based or hybrid modes
     if !matches!(
         config.mode,

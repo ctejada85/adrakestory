@@ -33,6 +33,8 @@ use serde::{Deserialize, Serialize};
 
 use super::components::{GameCamera, Player};
 use super::interior_detection::InteriorState;
+use crate::diagnostics::FrameProfiler;
+use crate::profile_scope;
 
 /// Transparency technique for occlusion effect
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -310,7 +312,9 @@ pub fn update_occlusion_uniforms(
     mut frame_counter: Local<u32>,
     mut static_cache: Local<Option<StaticOcclusionUniforms>>,
     mut dynamic_cache: Local<Option<DynamicOcclusionUniforms>>,
+    profiler: Option<Res<FrameProfiler>>,
 ) {
+    profile_scope!(profiler, "update_occlusion_uniforms");
     // Skip if disabled or mode is None
     if !config.enabled || config.mode == OcclusionMode::None {
         return;

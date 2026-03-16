@@ -21,6 +21,8 @@ use super::super::occlusion::{
 use super::super::resources::{GameInitialized, SpatialGrid};
 use super::format::{EntityType, MapData};
 use super::loader::{LoadProgress, LoadedMapData, MapLoadProgress};
+use crate::diagnostics::FrameProfiler;
+use crate::profile_scope;
 use bevy::ecs::system::SystemParam;
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::prelude::*;
@@ -323,7 +325,9 @@ pub fn spawn_map_system(
     mut assets: SpawnAssets,
     game_initialized: Option<Res<GameInitialized>>,
     occlusion_config: Res<OcclusionConfig>,
+    profiler: Option<Res<FrameProfiler>>,
 ) {
+    profile_scope!(profiler, "spawn_map_system");
     // If game is already initialized, don't spawn again
     if let Some(initialized) = game_initialized {
         if initialized.0 {
@@ -368,6 +372,9 @@ pub fn spawn_map_system(
             meshes: assets.meshes.as_mut(),
             chunk_material,
         };
+        let _p_chunks = profiler
+            .as_ref()
+            .map(|p| p.scope("spawn_voxels_chunked"));
         spawn_voxels_chunked(&mut chunk_ctx, map, &mut progress);
         chunk_ctx.commands
     };
@@ -414,7 +421,9 @@ pub fn update_chunk_lods(
     new_chunks: Query<(), Added<VoxelChunk>>,
     lod_config: Res<LodConfig>,
     mut last_camera_pos: Local<Vec3>,
+    profiler: Option<Res<FrameProfiler>>,
 ) {
+    profile_scope!(profiler, "update_chunk_lods");
     // Get camera position, or early return if no camera
     let Ok(camera_transform) = camera_query.get_single() else {
         return;
