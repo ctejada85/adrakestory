@@ -10,7 +10,10 @@
 //! base_color.a is always 1.0 for voxel chunks (AlphaMode::Opaque), so
 //! final_alpha == occlusion_alpha and we can skip pbr_input entirely.
 
-#import bevy_pbr::prepass_io::{VertexOutput, FragmentOutput}
+// For depth-only prepass (DepthPrepass without NormalPrepass), PREPASS_FRAGMENT is NOT defined
+// and FragmentOutput does not exist. The fragment function uses no return type — depth is written
+// automatically from the fragment position. Only discard logic is needed here.
+#import bevy_pbr::prepass_io::VertexOutput
 
 // --- Occlusion uniform (must match binding in occlusion_material.wgsl) -------
 
@@ -117,8 +120,10 @@ fn in_interior_region(world_pos: vec3<f32>) -> bool {
 
 // --- Entry point -------------------------------------------------------------
 
+// No return type: depth is written implicitly from fragment position.
+// This is valid for depth-only prepass (no color attachments, no PREPASS_FRAGMENT define).
 @fragment
-fn fragment(in: VertexOutput) -> FragmentOutput {
+fn fragment(in: VertexOutput) {
     let world_pos = in.world_position.xyz;
 
     // Region-based discard — hide interior regions entirely.
@@ -141,7 +146,5 @@ fn fragment(in: VertexOutput) -> FragmentOutput {
         }
     }
 
-    // Depth written automatically from fragment position.
-    var out: FragmentOutput;
-    return out;
+    // Depth written automatically from fragment position — no return needed.
 }

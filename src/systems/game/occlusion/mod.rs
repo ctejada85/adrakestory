@@ -223,8 +223,8 @@ impl Default for OcclusionConfig {
             height_threshold: 0.5,
             falloff_softness: 2.0,
             enabled: true,
-            // Dithered uses AlphaMode::Opaque — no MSAA cost on macOS TBDR GPUs.
-            // AlphaBlend (AlphaToCoverage) is available via the in-game settings menu.
+            // Dithered uses AlphaMode::Mask(0.001): the cutoff never fires (alpha always 1.0),
+            // so it behaves like Opaque but sets MAY_DISCARD for the depth prepass.
             technique: TransparencyTechnique::Dithered,
             show_debug: false,
             mode: OcclusionMode::Hybrid, // Use hybrid mode for best results
@@ -414,7 +414,10 @@ pub fn update_occlusion_uniforms(
             material.extension.occlusion_uniforms = assemble_uniforms(&s, &d);
             if static_dirty {
                 material.base.alpha_mode = match config.technique {
-                    TransparencyTechnique::Dithered => AlphaMode::Opaque,
+                    // Mask(0.001): sets MAY_DISCARD so the depth prepass runs our custom
+                    // fragment shader. The threshold never fires (base_color.a is always 1.0),
+                    // so visual behaviour is identical to Opaque but depth prepass is correct.
+                    TransparencyTechnique::Dithered => AlphaMode::Mask(0.001),
                     TransparencyTechnique::AlphaBlend => AlphaMode::AlphaToCoverage,
                 };
             }
@@ -596,7 +599,9 @@ pub fn create_occlusion_material(
     technique: TransparencyTechnique,
 ) -> Handle<OcclusionMaterial> {
     let alpha_mode = match technique {
-        TransparencyTechnique::Dithered => AlphaMode::Opaque, // Dithered uses discard, not blending
+        // Mask(0.001): sets MAY_DISCARD so the depth prepass runs our custom fragment shader.
+        // The cutoff never fires (base_color.a is always 1.0), visual result identical to Opaque.
+        TransparencyTechnique::Dithered => AlphaMode::Mask(0.001),
         TransparencyTechnique::AlphaBlend => AlphaMode::AlphaToCoverage, // Uses MSAA for smooth transparency without sorting issues
     };
 
