@@ -643,15 +643,19 @@ The naive approximation `t = speed * delta` is only valid when `t ≪ 1`. At 30 
 
 ### Interior Detection Cache Invalidation
 
-The interior detection system (`systems/game/interior_detection.rs`) maintains a `HashSet<IVec3>` occupancy cache of all voxel positions for its BFS flood-fill. Rebuilding this cache is expensive (iterates all `SubVoxel` entities), so it is only rebuilt when geometry actually changes:
+The interior detection system (`systems/game/interior_detection.rs`) maintains a `HashSet<IVec3>` occupancy cache of all voxel positions for its BFS flood-fill. Rebuilding this cache is expensive (iterates all `SubVoxel` entities), so it is deferred until the spawn wave settles:
 
-- The cache is invalidated using Bevy's built-in change-detection: `Added<SubVoxel>` query filter and `RemovedComponents<SubVoxel>` system parameter.
+- Change detection uses Bevy's `Added<SubVoxel>` query filter and `RemovedComponents<SubVoxel>` system parameter.
+- When either is non-empty, `InteriorState.rebuild_pending` is set to `true` and the system returns early — **no rebuild during the spawn frame**.
+- On the first frame where both are empty and `rebuild_pending` is `true`, the flag is cleared, the cache is reset, and exactly one full rebuild runs. Detection resumes on the same frame.
+- On cold start (cache `None`, no spawn in progress, `rebuild_pending` false), the rebuild runs inline as a one-time initialisation.
 - During steady-state gameplay (no map changes), the cache is reused across all detection cycles.
-- On hot reload, the despawned/respawned `SubVoxel` entities trigger the invalidation automatically.
-- The default `OcclusionMode` is `Hybrid`. `ShaderBased` mode skips the BFS path entirely and can be set via `OcclusionConfig` for maps that don't need region detection.
-- The BFS throttle interval defaults to 60 frames (~1×/sec at 60 fps), down from the original 10 frames.
+- The default `OcclusionMode` is `Hybrid`. `ShaderBased` mode skips the BFS path entirely.
+- The BFS throttle interval defaults to 60 frames (~1×/sec at 60 fps).
 
 **Rule**: Never use entity-count comparison as a cache-invalidation key. Use `Added<C>` / `RemovedComponents<C>` instead — they are O(1) and event-driven.
+
+**Rule**: Never rebuild the occupancy cache during a spawn frame. Set `rebuild_pending = true` and wait for the settle frame to avoid O(200k) work while the player is live in-game.
 
 ### LOD Update Throttling
 

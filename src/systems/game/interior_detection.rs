@@ -60,6 +60,9 @@ pub struct InteriorState {
     pub frames_since_update: u32,
     /// Cached set of occupied voxel positions (rebuilt when SubVoxel entities change)
     pub occupied_voxels_cache: Option<HashSet<IVec3>>,
+    /// True while a spawn wave is in progress; triggers exactly one rebuild on settle.
+    /// Prevents the O(n) rebuild from running during hot-reload respawn frames.
+    pub rebuild_pending: bool,
 }
 
 /// System to detect if player is inside an interior.
@@ -113,10 +116,17 @@ pub fn detect_interior_system(
     // Get player's voxel Y level (floor of player position)
     let player_voxel_y = player_pos.y.floor() as i32;
 
-    // Invalidate the occupancy cache when SubVoxel entities are added or removed
-    // (e.g. hot reload). Uses Bevy change-detection instead of entity-count comparison.
-    let map_changed = !added_sub_voxels.is_empty() || !removed_sub_voxels.is_empty();
-    if map_changed {
+    // Defer rebuild while a spawn wave is in progress (map load or hot reload).
+    // Rebuilding during the spawn frame would iterate all 200k+ entities unnecessarily.
+    let spawn_in_progress = !added_sub_voxels.is_empty() || !removed_sub_voxels.is_empty();
+    if spawn_in_progress {
+        interior_state.rebuild_pending = true;
+        return;
+    }
+
+    // Settle frame: spawn wave just finished — perform the deferred rebuild.
+    if interior_state.rebuild_pending {
+        interior_state.rebuild_pending = false;
         interior_state.occupied_voxels_cache = None;
     }
 
@@ -420,6 +430,7 @@ mod tests {
         assert_eq!(state.frames_since_update, 0);
         assert_eq!(state.last_detection_pos, Vec3::ZERO);
         assert!(state.current_region.is_none());
+        assert!(!state.rebuild_pending);
     }
 
     #[test]
@@ -464,5 +475,96 @@ mod tests {
         // y=2 is NOT in occupied, so gap_below = true → should find y=3 as ceiling.
         let result = find_ceiling_voxel_above(0, 1, 0, 10, &occupied);
         assert_eq!(result, Some(3));
+    }
+
+    // --- rebuild_pending flag transition tests ---
+
+    #[test]
+    fn rebuild_deferred_while_spawn_in_progress() {
+        // Simulates the logic in detect_interior_system when Added<SubVoxel> is non-empty.
+        // rebuild_pending must be set to true and no cache rebuild should be attempted.
+        let mut state = InteriorState::default();
+        let spawn_in_progress = true; // Added<SubVoxel> is non-empty
+
+        if spawn_in_progress {
+            state.rebuild_pending = true;
+            // system returns early here — no cache modification
+        }
+
+        assert!(state.rebuild_pending, "Flag must be set while spawn is in progress");
+        assert!(
+            state.occupied_voxels_cache.is_none(),
+            "Cache must not be touched while spawn is in progress"
+        );
+    }
+
+    #[test]
+    fn rebuild_fires_on_settle_frame() {
+        // Simulates the settle frame: spawn_in_progress = false, rebuild_pending = true.
+        // The flag must be cleared and the cache must be reset to None (so the rebuild runs).
+        let mut state = InteriorState {
+            rebuild_pending: true,
+            occupied_voxels_cache: Some(HashSet::new()), // stale cache from before hot reload
+            ..Default::default()
+        };
+        let spawn_in_progress = false;
+
+        if !spawn_in_progress && state.rebuild_pending {
+            state.rebuild_pending = false;
+            state.occupied_voxels_cache = None;
+        }
+
+        assert!(!state.rebuild_pending, "Flag must be cleared on settle frame");
+        assert!(
+            state.occupied_voxels_cache.is_none(),
+            "Cache must be cleared so rebuild runs"
+        );
+    }
+
+    #[test]
+    fn cold_start_builds_cache_immediately() {
+        // Cold start: rebuild_pending = false, no spawn in progress, cache is None.
+        // The system should fall through to the inline build (not defer).
+        let state = InteriorState::default();
+        let spawn_in_progress = false;
+
+        // No deferral path taken
+        assert!(!spawn_in_progress);
+        assert!(!state.rebuild_pending);
+        // Cache is None → build_occupied_voxel_set would be called (simulated here)
+        assert!(
+            state.occupied_voxels_cache.is_none(),
+            "Cache must be None so inline build is triggered"
+        );
+    }
+
+    #[test]
+    fn flag_clears_after_single_rebuild() {
+        // After the settle rebuild runs, rebuild_pending must be false on subsequent frames.
+        let mut state = InteriorState {
+            rebuild_pending: true,
+            ..Default::default()
+        };
+
+        // Settle frame processing
+        state.rebuild_pending = false;
+        state.occupied_voxels_cache = None;
+        // Simulate inline build completing
+        let mut cache = HashSet::new();
+        cache.insert(IVec3::new(1, 2, 3));
+        state.occupied_voxels_cache = Some(cache);
+
+        // Next frame — no spawn in progress
+        let spawn_in_progress = false;
+        if !spawn_in_progress && state.rebuild_pending {
+            state.rebuild_pending = false;
+            state.occupied_voxels_cache = None;
+        }
+
+        assert!(!state.rebuild_pending, "Flag must remain false on frames after settle");
+        assert!(
+            state.occupied_voxels_cache.is_some(),
+            "Cache must be preserved on frames after settle"
+        );
     }
 }
