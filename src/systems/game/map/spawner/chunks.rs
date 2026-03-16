@@ -2,7 +2,7 @@
 
 use super::super::format::{MapData, SubVoxelPattern};
 use super::super::loader::{LoadProgress, MapLoadProgress};
-use super::super::super::components::{SubVoxel, Voxel};
+use super::super::super::components::SubVoxel;
 use super::super::super::occlusion::OcclusionMaterial;
 use super::super::super::resources::SpatialGrid;
 use super::meshing::{ChunkMeshBuilder, GreedyMesher, OccupancyGrid, VoxelMaterialPalette};
@@ -93,7 +93,7 @@ pub fn spawn_voxels_chunked(
         let (x, y, z) = voxel_data.pos;
 
         // Spawn parent voxel marker
-        ctx.commands.spawn(Voxel);
+
 
         // Determine which pattern to use
         let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
