@@ -1,1 +1,1 @@
-(min_alpha:0.03,occlusion_radius:3.0,height_threshold:0.5,falloff_softness:2.0,enabled:true,technique:Dithered,show_debug:true,mode:Hybrid,interior_height_threshold:8.0,shadow_quality:Low,region_update_interval:60)
+(min_alpha:0.03,occlusion_radius:3.0,height_threshold:0.5,falloff_softness:2.0,enabled:true,technique:Dithered,show_debug:true,mode:Hybrid,interior_height_threshold:8.0,shadow_quality:None,region_update_interval:60)
