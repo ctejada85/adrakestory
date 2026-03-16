@@ -592,6 +592,17 @@ The occlusion system (`systems/game/occlusion/`) uses a **two-level cache** to p
 - `get_mut()` is only called when at least one sub-struct cache differs from the newly computed value.
 - Bevy `Ref<Transform>` queries and `is_changed()` gates skip sub-struct recomputation independently: a camera move does not recompute static config fields and vice versa.
 
+**Transparency technique and `AlphaMode`:**
+
+`OcclusionConfig.technique` controls both shader behavior and `AlphaMode`:
+
+| Technique | `AlphaMode` | MSAA | Notes |
+|-----------|-------------|------|-------|
+| `Dithered` (default) | `Opaque` | None | Uses `discard` in shader; no MSAA cost |
+| `AlphaBlend` | `AlphaToCoverage` | 4× per chunk | Smooth transparency; high cost on macOS TBDR |
+
+The default is `Dithered` — `AlphaBlend` is available via the in-game settings menu. This prevents forced MSAA coverage-resolve on all 100–200 chunk meshes every frame on Apple Silicon and Intel macOS GPUs. See `docs/bugs/fix-alphatocoverage-msaa-macos/` for full context.
+
 **Rule**: Any system that writes to a Bevy `Assets<T>` via `get_mut()` must guard the call behind an actual value change. See `coding-guardrails.md` §1.
 
 ### Camera Lerp Frame-Rate Independence

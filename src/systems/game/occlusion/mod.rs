@@ -21,7 +21,7 @@
 //! - `occlusion_radius`: Horizontal radius of the occlusion zone
 //! - `height_threshold`: Only affect voxels this far above the player
 //! - `falloff_softness`: Smoothness of the vertical transition
-//! - `technique`: Dithered (screen-door) or AlphaBlend (smooth like Photoshop)
+//! - `technique`: Dithered (screen-door, default — no MSAA cost) or AlphaBlend (smooth, configurable via settings menu)
 //! - `mode`: ShaderBased, RegionBased, or Hybrid occlusion mode
 
 use bevy::{
@@ -192,7 +192,9 @@ impl Default for OcclusionConfig {
             height_threshold: 0.5,
             falloff_softness: 2.0,
             enabled: true,
-            technique: TransparencyTechnique::AlphaBlend, // Smooth transparency by default
+            // Dithered uses AlphaMode::Opaque — no MSAA cost on macOS TBDR GPUs.
+            // AlphaBlend (AlphaToCoverage) is available via the in-game settings menu.
+            technique: TransparencyTechnique::Dithered,
             show_debug: false,
             mode: OcclusionMode::Hybrid, // Use hybrid mode for best results
             interior_height_threshold: 8.0, // Max ceiling height to trigger interior mode

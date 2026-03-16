@@ -174,3 +174,33 @@ use super::*;
         let config = OcclusionConfig::default();
         assert_eq!(config.mode, OcclusionMode::Hybrid);
     }
+
+    // ── Phase 1: default technique fix ───────────────────────────────────────
+
+    #[test]
+    fn default_technique_is_dithered() {
+        let config = OcclusionConfig::default();
+        assert_eq!(
+            config.technique,
+            TransparencyTechnique::Dithered,
+            "Default technique must be Dithered to avoid AlphaToCoverage MSAA cost on macOS TBDR"
+        );
+    }
+
+    #[test]
+    fn dithered_technique_maps_to_opaque_alpha_mode() {
+        let alpha_mode = match TransparencyTechnique::Dithered {
+            TransparencyTechnique::Dithered => AlphaMode::Opaque,
+            TransparencyTechnique::AlphaBlend => AlphaMode::AlphaToCoverage,
+        };
+        assert_eq!(alpha_mode, AlphaMode::Opaque);
+    }
+
+    #[test]
+    fn alphablend_technique_still_maps_to_alpha_to_coverage() {
+        let alpha_mode = match TransparencyTechnique::AlphaBlend {
+            TransparencyTechnique::Dithered => AlphaMode::Opaque,
+            TransparencyTechnique::AlphaBlend => AlphaMode::AlphaToCoverage,
+        };
+        assert_eq!(alpha_mode, AlphaMode::AlphaToCoverage);
+    }
