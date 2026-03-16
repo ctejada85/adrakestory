@@ -61,6 +61,11 @@ const BAYER_MATRIX: array<f32, 16> = array<f32, 16>(
     15.0/16.0,  7.0/16.0, 13.0/16.0,  5.0/16.0
 );
 
+// Multiplier applied to occlusion_radius for the cheap XZ pre-check.
+// Fragments beyond this margin from the player in XZ cannot be on the occlusion
+// ray for typical camera arm lengths, so they are returned fully opaque early.
+const XZ_MARGIN_FACTOR: f32 = 2.0;
+
 // Calculate distance from point to ray in XZ plane (ignoring Y)
 fn point_to_ray_distance_xz(point: vec3<f32>, ray_origin: vec3<f32>, ray_dir: vec3<f32>) -> f32 {
     let point_xz = vec2<f32>(point.x, point.z);
@@ -85,8 +90,18 @@ fn calculate_occlusion_alpha(world_pos: vec3<f32>) -> f32 {
     let player_y = occlusion.player_position.y;
     let fragment_y = world_pos.y;
     
-    // Only apply occlusion to fragments above the player
+    // ① Height early-exit: fragment below the occlusion height cannot be affected.
+    // Covers the majority of fragments (floor, lower walls, ground-level chunks).
     if fragment_y <= player_y + occlusion.height_threshold {
+        return 1.0;
+    }
+
+    // ② XZ distance early-exit: fragment far from the player in XZ cannot be on
+    // the camera-to-player occlusion ray. Uses squared distance to avoid sqrt.
+    let xz_offset = world_pos.xz - occlusion.player_position.xz;
+    let xz_dist_sq = dot(xz_offset, xz_offset);
+    let xz_margin = occlusion.occlusion_radius * XZ_MARGIN_FACTOR;
+    if xz_dist_sq > xz_margin * xz_margin {
         return 1.0;
     }
     
