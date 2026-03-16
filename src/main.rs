@@ -12,6 +12,7 @@ use systems::game::gamepad::{
     update_cursor_visibility, ActiveGamepad, GamepadSettings, PlayerInput,
 };
 use systems::game::occlusion::OcclusionPlugin;
+use systems::settings::SettingsPlugin;
 
 /// Command-line arguments for the game
 #[derive(Debug, Default)]
@@ -131,6 +132,8 @@ fn main() {
         .add_plugins(FpsCounterPlugin)
         // Occlusion transparency system for voxels above the player
         .add_plugins(OcclusionPlugin)
+        // In-game settings screen
+        .add_plugins(SettingsPlugin)
         .insert_state(initial_state)
         .insert_resource(CommandLineMapPath {
             path: args.map_path,

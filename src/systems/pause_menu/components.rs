@@ -8,6 +8,10 @@ pub struct PauseMenuRoot;
 #[derive(Component)]
 pub struct ResumeButton;
 
+/// Marker for the Settings button
+#[derive(Component)]
+pub struct SettingsButton;
+
 /// Marker for the Quit button
 #[derive(Component)]
 pub struct QuitButton;

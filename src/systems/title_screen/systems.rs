@@ -2,6 +2,7 @@ use super::components::{MenuButton, ScalableText, TitleScreenBackground, TitleSc
 use super::resources::{SelectedMenuIndex, TitleScreenFadeTimer};
 use crate::states::GameState;
 use crate::systems::game::gamepad::{get_menu_gamepad_input, ActiveGamepad, GamepadSettings};
+use crate::systems::settings::resources::SettingsOrigin;
 use bevy::prelude::*;
 use bevy::window::WindowResized;
 
@@ -104,6 +105,7 @@ fn create_menu_button(parent: &mut ChildBuilder, text: &str, button_type: MenuBu
 }
 
 pub fn button_interaction(
+    mut commands: Commands,
     mut interaction_query: Query<
         (&Interaction, &mut BackgroundColor, &MenuButton),
         Changed<Interaction>,
@@ -126,6 +128,7 @@ pub fn button_interaction(
                     }
                     MenuButton::Settings => {
                         info!("Opening settings...");
+                        commands.insert_resource(SettingsOrigin::TitleScreen);
                         next_state.set(GameState::Settings);
                     }
                     MenuButton::Exit => {
@@ -197,6 +200,7 @@ pub fn scale_text_on_resize(
 }
 
 pub fn keyboard_navigation(
+    mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     active_gamepad: Res<ActiveGamepad>,
     gamepad_query: Query<&Gamepad>,
@@ -231,6 +235,7 @@ pub fn keyboard_navigation(
             }
             2 => {
                 info!("Opening settings...");
+                commands.insert_resource(SettingsOrigin::TitleScreen);
                 next_state.set(GameState::Settings);
             }
             3 => {

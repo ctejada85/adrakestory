@@ -29,12 +29,13 @@ use bevy::{
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef, ShaderType},
 };
+use serde::{Deserialize, Serialize};
 
 use super::components::{GameCamera, Player};
 use super::interior_detection::InteriorState;
 
 /// Transparency technique for occlusion effect
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum TransparencyTechnique {
     /// Dithered transparency using screen-door effect (Bayer matrix pattern)
     /// Pros: No alpha sorting issues, works with opaque pipeline
@@ -48,7 +49,7 @@ pub enum TransparencyTechnique {
 }
 
 /// Occlusion mode for handling overhead voxels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum OcclusionMode {
     /// No occlusion - voxels always visible
     None,
@@ -158,7 +159,7 @@ pub struct OcclusionMaterialHandle(pub Handle<OcclusionMaterial>);
 ///
 /// Modify this resource at runtime to adjust the occlusion effect.
 /// Changes are applied on the next frame.
-#[derive(Resource)]
+#[derive(Resource, Clone, Serialize, Deserialize)]
 pub struct OcclusionConfig {
     /// Minimum alpha for fully occluded voxels (0.0 = invisible, 1.0 = opaque)
     pub min_alpha: f32,
@@ -379,6 +380,12 @@ pub fn update_occlusion_uniforms(
     if static_dirty || dynamic_dirty {
         if let Some(material) = materials.get_mut(&material_handle.0) {
             material.extension.occlusion_uniforms = assemble_uniforms(&s, &d);
+            if static_dirty {
+                material.base.alpha_mode = match config.technique {
+                    TransparencyTechnique::Dithered => AlphaMode::Opaque,
+                    TransparencyTechnique::AlphaBlend => AlphaMode::AlphaToCoverage,
+                };
+            }
             if let Some(new) = new_static {
                 *static_cache = Some(new);
             }

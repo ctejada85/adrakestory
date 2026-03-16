@@ -11,7 +11,7 @@ impl Default for SelectedPauseMenuIndex {
     fn default() -> Self {
         Self {
             index: 0,
-            total: 2, // Resume and Quit
+            total: 3, // Resume, Settings, and Quit
         }
     }
 }

@@ -1,7 +1,8 @@
-use super::components::{PauseMenuRoot, QuitButton, ResumeButton, ScalableText};
+use super::components::{PauseMenuRoot, QuitButton, ResumeButton, ScalableText, SettingsButton};
 use super::resources::SelectedPauseMenuIndex;
 use crate::states::GameState;
 use crate::systems::game::gamepad::{get_menu_gamepad_input, ActiveGamepad, GamepadSettings};
+use crate::systems::settings::resources::SettingsOrigin;
 use bevy::prelude::*;
 use bevy::window::WindowResized;
 
@@ -82,6 +83,32 @@ pub fn setup_pause_menu(mut commands: Commands) {
                             ));
                         });
 
+                    // Settings button
+                    parent
+                        .spawn((
+                            Button,
+                            Node {
+                                width: Val::Vw(20.0),
+                                height: Val::Vh(8.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            BackgroundColor(NORMAL_BUTTON),
+                            SettingsButton,
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn((
+                                Text::new("Settings"),
+                                TextFont {
+                                    font_size: 30.0,
+                                    ..default()
+                                },
+                                TextColor(Color::srgba(0.9, 0.9, 0.9, 1.0)),
+                                ScalableText::new(30.0, 1.0),
+                            ));
+                        });
+
                     // Quit button
                     parent
                         .spawn((
@@ -141,6 +168,7 @@ pub fn pause_menu_input(
 
 /// Handles keyboard and gamepad navigation for the pause menu
 pub fn keyboard_navigation(
+    mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     active_gamepad: Res<ActiveGamepad>,
     gamepad_query: Query<&Gamepad>,
@@ -171,6 +199,11 @@ pub fn keyboard_navigation(
                 next_state.set(GameState::InGame);
             }
             1 => {
+                // Settings
+                commands.insert_resource(SettingsOrigin::Paused);
+                next_state.set(GameState::Settings);
+            }
+            2 => {
                 // Quit
                 exit.send(AppExit::Success);
             }
@@ -182,6 +215,7 @@ pub fn keyboard_navigation(
 /// Updates the visual appearance of buttons based on keyboard selection
 type PauseMenuButtonQueryItem<'a> = (
     Option<&'a ResumeButton>,
+    Option<&'a SettingsButton>,
     Option<&'a QuitButton>,
     Mut<'a, BackgroundColor>,
     &'a Interaction,
@@ -191,12 +225,14 @@ pub fn update_selected_button_visual(
     selected: Res<SelectedPauseMenuIndex>,
     mut button_query: Query<PauseMenuButtonQueryItem, With<Button>>,
 ) {
-    for (is_resume, is_quit, mut bg_color, interaction) in &mut button_query {
+    for (is_resume, is_settings, is_quit, mut bg_color, interaction) in &mut button_query {
         // Determine button index
         let button_index = if is_resume.is_some() {
             Some(0)
-        } else if is_quit.is_some() {
+        } else if is_settings.is_some() {
             Some(1)
+        } else if is_quit.is_some() {
+            Some(2)
         } else {
             None
         };
@@ -214,15 +250,17 @@ pub fn update_selected_button_visual(
     }
 }
 
-/// Handles button interaction for Resume and Quit
+/// Handles button interaction for Resume, Settings, and Quit
 type PauseMenuButtonInteractionQueryItem<'a> = (
     &'a Interaction,
     Mut<'a, BackgroundColor>,
     Option<&'a ResumeButton>,
+    Option<&'a SettingsButton>,
     Option<&'a QuitButton>,
 );
 
 pub fn pause_menu_button_interaction(
+    mut commands: Commands,
     mut interaction_query: Query<
         PauseMenuButtonInteractionQueryItem,
         (Changed<Interaction>, With<Button>),
@@ -231,12 +269,15 @@ pub fn pause_menu_button_interaction(
     mut next_state: ResMut<NextState<GameState>>,
     mut exit: EventWriter<AppExit>,
 ) {
-    for (interaction, mut color, is_resume, is_quit) in &mut interaction_query {
+    for (interaction, mut color, is_resume, is_settings, is_quit) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
                 *color = PRESSED_BUTTON.into();
                 if is_resume.is_some() {
                     next_state.set(GameState::InGame);
+                } else if is_settings.is_some() {
+                    commands.insert_resource(SettingsOrigin::Paused);
+                    next_state.set(GameState::Settings);
                 } else if is_quit.is_some() {
                     exit.send(AppExit::Success);
                 }
@@ -246,8 +287,10 @@ pub fn pause_menu_button_interaction(
                 // Update selected index when hovering
                 if is_resume.is_some() {
                     selected.index = 0;
-                } else if is_quit.is_some() {
+                } else if is_settings.is_some() {
                     selected.index = 1;
+                } else if is_quit.is_some() {
+                    selected.index = 2;
                 }
             }
             Interaction::None => {
