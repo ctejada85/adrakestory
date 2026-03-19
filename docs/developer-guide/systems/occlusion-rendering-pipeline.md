@@ -9,94 +9,85 @@ player remains visible when walking inside buildings.
 flowchart TD
     A([Frame Start]) --> B
 
-    subgraph CPU ["CPU — Occlusion Update System"]
-        B[Player & camera positions\ncollected from ECS]
-        B --> C{Interior detection\nmode active?\nmode = RegionBased / Hybrid}
-        C -- Yes --> D
-
-        subgraph INTERIOR ["detect_interior_system"]
-            D{Frame throttle:\nframes_since_update\n< region_update_interval?}
-            D -- Skip --> SKIP([return — keep\nlast region])
-            D -- Run --> D1{Player moved\n< 0.3 units since\nlast detection?}
-            D1 -- Yes → no-op --> SKIP
-            D1 -- No --> D2{SubVoxel entities\nadded or removed\nthis frame?}
-            D2 -- Yes → spawn in progress --> D3[Set rebuild_pending = true\nreturn early]
-            D2 -- No → settled --> D4{rebuild_pending\n== true?}
-            D4 -- Yes --> D5[Clear occupied_voxels_cache\nrebuild_pending = false]
-            D4 -- No --> D6
-            D5 --> D6
-
-            D6{occupied_voxels_cache\npresent?}
-            D6 -- No --> D7["build_occupied_voxel_set\nIterate SpatialGrid cells\nSub-voxel bounds.min → floor → IVec3\nResult: HashSet of occupied voxel positions"]
-            D7 --> D8
-            D6 -- Yes → reuse cache --> D8
-
-            D8["Check 4 XZ neighbour voxels the\nplayer overlaps (floor and floor+1\non both X and Z axes)"]
-            D8 --> D9
-
-            D9["find_ceiling_voxel_above (×4 positions)\nScan Y = player_y+2 … player_y+height_threshold\nFor each solid voxel found:\n  gap check — no solid between player and it?\n  Yes → ceiling found, return Y\n  No  → wall, keep scanning\nReturn None if nothing found"]
-            D9 --> D10{Any ceiling\nfound in any\nof the 4 spots?}
-
-            D10 -- Yes → best_ceiling = x,z,ceiling_y --> D11
-            D10 -- No --> D12{Player still inside\nexisting region AABB\n(XZ only)?}
-            D12 -- Yes --> D13[Keep current_region\nhysteresis — player near wall]
-            D12 -- No --> D14[current_region = None\nPlayer is outside]
-
-            D11["flood_fill_ceiling_region_voxel\nBFS queue, 4-connected XZ plane\nY search band: ceiling_y−1 … ceiling_y+2\nExpand to neighbour if current OR neighbour\nhas a ceiling voxel (crosses small gaps)\nCap: MAX_REGION_SIZE=1000 voxels\nMax search radius: 30 Manhattan steps\nTrack min_x, max_x, min_z, max_z"]
-            D11 --> D15{voxel_count ≥ 2?}
-            D15 -- Yes --> D16["Build InteriorRegion AABB\nmin.y = (player_y+2)−0.5  ← hide from 2 voxels above player\nmax.y = ceiling_y+100     ← hide everything above ceiling\nXZ = flood-fill extents ± 0.5 voxel padding"]
-            D15 -- No → noise/single voxel --> D13
-            D16 --> D17[current_region = Some(InteriorRegion)]
-        end
-
-        D17 --> E[InteriorState::current_region\nOption of AABB passed to shader]
-        C -- No --> E2[region_max.w = 0\nregion inactive]
-        E --> F
-        E2 --> F
-        F[Assemble OcclusionUniforms:\nplayer_pos, camera_pos,\nmode, technique, region bounds]
-        F --> G[Upload uniform buffer\nto GPU via ExtendedMaterial]
+    subgraph INTERIOR ["detect_interior_system (CPU)"]
+        D{"Frame throttle: frames_since_update\nlt region_update_interval?"}
+        D -- Skip --> SKIP([return, keep last region])
+        D -- Run --> D1{"Player moved less than\n0.3 units since last detection?"}
+        D1 -- "Yes, skip" --> SKIP
+        D1 -- No --> D2{"SubVoxel entities added\nor removed this frame?"}
+        D2 -- "Yes, spawn in progress" --> D3["Set rebuild_pending = true, return early"]
+        D2 -- "No, settled" --> D4{"rebuild_pending == true?"}
+        D4 -- Yes --> D5["Clear occupied_voxels_cache\nrebuild_pending = false"]
+        D4 -- No --> D6
+        D5 --> D6
+        D6{"occupied_voxels_cache present?"}
+        D6 -- No --> D7["build_occupied_voxel_set\nIterate SpatialGrid cells\nSub-voxel bounds.min to floor to IVec3\nResult: HashSet of occupied voxel positions"]
+        D7 --> D8
+        D6 -- "Yes, reuse cache" --> D8
+        D8["Check 4 XZ neighbour voxels the player overlaps\nfloor and floor+1 on both X and Z axes"]
+        D8 --> D9
+        D9["find_ceiling_voxel_above  (x4 positions)\nScan Y = player_y+2 to player_y+height_threshold\nFor each solid voxel found:\n  gap check: no solid between player and it?\n  Yes = ceiling found, return Y\n  No  = wall, keep scanning\nReturn None if nothing found"]
+        D9 --> D10{"Any ceiling found\nin any of the 4 spots?"}
+        D10 -- "Yes, ceiling found" --> D11
+        D10 -- No --> D12{"Player still inside\nexisting region AABB (XZ only)?"}
+        D12 -- Yes --> D13["Keep current_region\nhysteresis: player near wall"]
+        D12 -- No --> D14["current_region = None\nPlayer is outside"]
+        D11["flood_fill_ceiling_region_voxel\nBFS queue, 4-connected XZ plane\nY search band: ceiling_y-1 to ceiling_y+2\nExpand to neighbour if current OR neighbour\nhas a ceiling voxel (crosses small gaps)\nCap: MAX_REGION_SIZE = 1000 voxels\nMax search radius: 30 Manhattan steps\nTrack min_x, max_x, min_z, max_z"]
+        D11 --> D15{"voxel_count >= 2?"}
+        D15 -- Yes --> D16["Build InteriorRegion AABB\nmin.y = (player_y+2) - 0.5  hide from 2 voxels above player\nmax.y = ceiling_y + 100     hide everything above ceiling\nXZ = flood-fill extents +/- 0.5 voxel padding"]
+        D15 -- "No, noise" --> D13
+        D16 --> D17["current_region = Some(InteriorRegion)"]
     end
 
+    subgraph CPU ["CPU — Occlusion Update System"]
+        B["Player and camera positions collected from ECS"]
+        B --> C{"Interior detection mode active?\nmode = RegionBased or Hybrid"}
+        C -- Yes --> D
+        C -- No --> E2["region_max.w = 0, region inactive"]
+        D17 --> E["InteriorState::current_region\nOption of AABB passed to shader"]
+        E --> F
+        E2 --> F
+        F["Assemble OcclusionUniforms:\nplayer_pos, camera_pos,\nmode, technique, region bounds"]
+        F --> G["Upload uniform buffer to GPU\nvia ExtendedMaterial"]
+    end
+
+    A --> B
     G --> H
 
-    subgraph PREPASS ["GPU — Depth Prepass\n(DepthPrepass component on camera)"]
-        H[Vertex shader:\nTransform voxel chunk vertices\nWrite world_position]
-        H --> I{technique == Dithered\nAND mode != None?}
-        I -- Yes --> J{world_pos.y >\nplayer_y + height_threshold\nAND within XZ radius?}
-        J -- Yes --> K([discard\nDon't write depth])
-        J -- No --> L([Write depth\nFragment kept])
+    subgraph PREPASS ["GPU — Depth Prepass (DepthPrepass on camera)"]
+        H["Vertex shader: transform voxel chunk vertices\nwrite world_position"]
+        H --> I{"technique == Dithered\nAND mode != None?"}
+        I -- Yes --> J{"world_pos.y > player_y + height_threshold\nAND within XZ radius?"}
+        J -- Yes --> K([discard, do not write depth])
+        J -- No --> L([write depth, fragment kept])
         I -- No --> L
-
-        H --> M{mode == RegionBased\nOR Hybrid\nAND region active?}
-        M -- in_interior_region → true --> K
-        M -- outside region / inactive --> L
+        H --> M{"mode == RegionBased or Hybrid\nAND region active?"}
+        M -- "in region" --> K
+        M -- "outside or inactive" --> L
     end
 
     L --> N
 
-    subgraph MAINPASS ["GPU — Main Forward Pass\n(AlphaMask3d render phase)"]
-        N[Early-Z test vs prepass depth\nFragments above player → fail GreaterEqual\n→ skipped entirely]
-        N --> O{Survive depth test?}
-        O -- No → culled --> P([Fragment discarded\nby hardware])
+    subgraph MAINPASS ["GPU — Main Forward Pass (AlphaMask3d render phase)"]
+        N["Early-Z test vs prepass depth\nFragments above player fail GreaterEqual\nand are skipped entirely"]
+        N --> O{"Survive depth test?"}
+        O -- "No, culled" --> P([Fragment discarded by hardware])
         O -- Yes --> Q
-
-        Q[pbr_input_from_standard_material\nSample shadow maps, lighting]
-        Q --> R{mode == RegionBased\nOR Hybrid\nAND in_interior_region?}
+        Q["pbr_input_from_standard_material\nSample shadow maps, lighting"]
+        Q --> R{"mode == RegionBased or Hybrid\nAND in_interior_region?"}
         R -- Yes --> S([discard])
         R -- No --> T
-
-        T{mode == ShaderBased\nOR Hybrid?}
-        T -- Yes --> U[calculate_occlusion_alpha\nHeight + XZ ray distance\nsmooth falloff]
-        U --> V{technique?}
-        V -- Dithered --> W{dither_check\nBayer 4×4 matrix}
-        W -- alpha ≤ threshold --> S
-        W -- alpha > threshold --> X
-        V -- AlphaBlend --> Y[Set base_color.a\nATC/blending]
+        T{"mode == ShaderBased or Hybrid?"}
+        T -- Yes --> U["calculate_occlusion_alpha\nHeight + XZ ray distance\nsmooth falloff"]
+        U --> V{"technique?"}
+        V -- Dithered --> W{"dither_check\nBayer 4x4 matrix"}
+        W -- "alpha <= threshold" --> S
+        W -- "alpha > threshold" --> X
+        V -- AlphaBlend --> Y["Set base_color.a\nAlphaToCoverage blending"]
         Y --> X
-        T -- No / None --> X
-
-        X[apply_pbr_lighting\nDirectional + point lights\nShadows]
-        X --> Z[main_pass_post_lighting_processing\nFog, tonemapping]
+        T -- "No / None" --> X
+        X["apply_pbr_lighting\nDirectional + point lights, shadows"]
+        X --> Z["main_pass_post_lighting_processing\nFog, tonemapping"]
         Z --> AA([Write to color buffer])
     end
 
