@@ -12,8 +12,44 @@ flowchart TD
     subgraph CPU ["CPU — Occlusion Update System"]
         B[Player & camera positions\ncollected from ECS]
         B --> C{Interior detection\nmode active?\nmode = RegionBased / Hybrid}
-        C -- Yes --> D[detect_interior_system\nFlood-fill ceiling voxels\nabove player every N frames]
-        D --> E[InteriorState::current_region\nOption of min/max AABB]
+        C -- Yes --> D
+
+        subgraph INTERIOR ["detect_interior_system"]
+            D{Frame throttle:\nframes_since_update\n< region_update_interval?}
+            D -- Skip --> SKIP([return — keep\nlast region])
+            D -- Run --> D1{Player moved\n< 0.3 units since\nlast detection?}
+            D1 -- Yes → no-op --> SKIP
+            D1 -- No --> D2{SubVoxel entities\nadded or removed\nthis frame?}
+            D2 -- Yes → spawn in progress --> D3[Set rebuild_pending = true\nreturn early]
+            D2 -- No → settled --> D4{rebuild_pending\n== true?}
+            D4 -- Yes --> D5[Clear occupied_voxels_cache\nrebuild_pending = false]
+            D4 -- No --> D6
+            D5 --> D6
+
+            D6{occupied_voxels_cache\npresent?}
+            D6 -- No --> D7["build_occupied_voxel_set\nIterate SpatialGrid cells\nSub-voxel bounds.min → floor → IVec3\nResult: HashSet of occupied voxel positions"]
+            D7 --> D8
+            D6 -- Yes → reuse cache --> D8
+
+            D8["Check 4 XZ neighbour voxels the\nplayer overlaps (floor and floor+1\non both X and Z axes)"]
+            D8 --> D9
+
+            D9["find_ceiling_voxel_above (×4 positions)\nScan Y = player_y+2 … player_y+height_threshold\nFor each solid voxel found:\n  gap check — no solid between player and it?\n  Yes → ceiling found, return Y\n  No  → wall, keep scanning\nReturn None if nothing found"]
+            D9 --> D10{Any ceiling\nfound in any\nof the 4 spots?}
+
+            D10 -- Yes → best_ceiling = x,z,ceiling_y --> D11
+            D10 -- No --> D12{Player still inside\nexisting region AABB\n(XZ only)?}
+            D12 -- Yes --> D13[Keep current_region\nhysteresis — player near wall]
+            D12 -- No --> D14[current_region = None\nPlayer is outside]
+
+            D11["flood_fill_ceiling_region_voxel\nBFS queue, 4-connected XZ plane\nY search band: ceiling_y−1 … ceiling_y+2\nExpand to neighbour if current OR neighbour\nhas a ceiling voxel (crosses small gaps)\nCap: MAX_REGION_SIZE=1000 voxels\nMax search radius: 30 Manhattan steps\nTrack min_x, max_x, min_z, max_z"]
+            D11 --> D15{voxel_count ≥ 2?}
+            D15 -- Yes --> D16["Build InteriorRegion AABB\nmin.y = (player_y+2)−0.5  ← hide from 2 voxels above player\nmax.y = ceiling_y+100     ← hide everything above ceiling\nXZ = flood-fill extents ± 0.5 voxel padding"]
+            D15 -- No → noise/single voxel --> D13
+            D16 --> D17[current_region = Some(InteriorRegion)]
+        end
+
+        D17 --> E[InteriorState::current_region\nOption of AABB passed to shader]
         C -- No --> E2[region_max.w = 0\nregion inactive]
         E --> F
         E2 --> F
