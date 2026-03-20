@@ -16,6 +16,7 @@ Skills are located in `.claude/skills/`. Each skill is a directory with a `SKILL
 | `basic-documents-userstory-write` | `.claude/skills/basic-documents-userstory-write/` | Write user story ticket files with story, description, acceptance criteria, non-functional requirements, and tasks. |
 | `composed-documents-architecture-write` | `.claude/skills/composed-documents-architecture-write/` | Write architecture documents. |
 | `composed-documents-productvisioncanvas-write` | `.claude/skills/composed-documents-productvisioncanvas-write/` | Write a product vision canvas document. |
+| `workspace-git-commit` | `.claude/skills/workspace-git-commit/` | Creates a git commit with conventional commits format. Use when the user asks to commit changes or create a commit message. |
 | `system-date-get` | `.claude/skills/system-date-get/` | Get the current system date/time. |
 
 ## Build Commands
