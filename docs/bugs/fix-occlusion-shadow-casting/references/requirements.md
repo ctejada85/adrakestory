@@ -2,7 +2,7 @@
 
 **Source:** Design discussion — 2026-03-21
 **Participants:** Developer (Engineer)
-**Status:** Draft — pending team review
+**Status:** Implemented
 
 ---
 

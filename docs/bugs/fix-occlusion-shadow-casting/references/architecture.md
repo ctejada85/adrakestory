@@ -1,7 +1,7 @@
 # Architecture — Occlusion Shadow Casting Fix
 
 **Repo:** adrakestory
-**Runtime:** Bevy 0.15 → 0.18
+**Runtime:** Bevy 0.18
 **Purpose:** Document the root cause, options considered, and the chosen implementation for restoring shadow casting from occluded voxels.
 
 ---
@@ -12,7 +12,8 @@
 |---------|------|--------|---------|
 | v1 | 2026-03-21 | Developer | Initial draft — Option A (`DEPTH_CLAMP_ORTHO` guard) selected |
 | v2 | 2026-03-21 | Developer | Option B (view projection check) promoted to chosen approach; Option A superseded — `DEPTH_CLAMP_ORTHO` renamed in Bevy 0.18 |
-| **v3** | **2026-03-21** | **Developer** | **Codebase validation pass — confirmed fix not yet applied; corrected `XZ_MARGIN_FACTOR` (1.2 → 2.0); updated `in_interior_region` to match actual shader (epsilon guard, `region_max.w` activation flag); expanded Appendix A with all `OcclusionUniforms` fields** |
+| v3 | 2026-03-21 | Developer | Codebase validation pass — confirmed fix not yet applied; corrected `XZ_MARGIN_FACTOR` (1.2 → 2.0); updated `in_interior_region` to match actual shader (epsilon guard, `region_max.w` activation flag); expanded Appendix A with all `OcclusionUniforms` fields |
+| **v4** | **2026-03-21** | **Developer** | **Fix implemented — `is_shadow_pass` projection check applied; `occlusion.technique == 0u` guard removed (smooth transparency fix, separate commit 4bc5011); `@group(2)` updated to `@group(#{MATERIAL_BIND_GROUP})` (Bevy 0.18 shader fix, commit 3c75f1b)** |
 
 ---
 
@@ -112,7 +113,7 @@ classDiagram
         +region_max: Vec4
     }
     OcclusionMaterial --> PrepassPlugin : registered via MaterialPlugin
-    OcclusionMaterial --> OcclusionUniforms : bound at group(2) binding(100)
+    OcclusionMaterial --> OcclusionUniforms : bound at group(MATERIAL_BIND_GROUP) binding(100)
 ```
 
 ### 1.5 Discard Logic Routing
@@ -125,9 +126,10 @@ if occlusion.mode == 2u || occlusion.mode == 3u {
     if in_interior_region(world_pos) { discard; }
 }
 
-// Block 2 — height-based (mode 1 or 3, technique 0 = shader-based discard)
-// technique == 0u means ShaderBased discard; technique == 1u means Alpha/Dither.
-if (occlusion.mode == 1u || occlusion.mode == 3u) && occlusion.technique == 0u {
+// Block 2 — height-based (mode 1 or 3)
+// NOTE: occlusion.technique guard was removed by the smooth transparency fix (commit 4bc5011)
+// to ensure the prepass discards above-floor voxels for both dithered AND smooth techniques.
+if occlusion.mode == 1u || occlusion.mode == 3u {
     if world_pos.y > occlusion.player_position.y + occlusion.height_threshold {
         ...
         discard;
@@ -157,7 +159,7 @@ Both discard blocks fire during the directional shadow map pass, removing discar
 ```
 OcclusionSystem (Rust)
   → writes OcclusionUniforms buffer (mode, player_position, height_threshold, …)
-  → bound at @group(2) @binding(100) in prepass shader
+  → bound at @group(#{MATERIAL_BIND_GROUP}) @binding(100) in prepass shader
 
 Bevy PrepassPipeline
   → binds @group(0) @binding(0) view: View  (projection matrix, etc.)
@@ -194,7 +196,7 @@ Options A, C, D were considered and rejected or deferred — see Appendix B.
 #import bevy_render::view::View
 
 @group(0) @binding(0) var<uniform> view: View;
-@group(2) @binding(100) var<uniform> occlusion: OcclusionUniforms;
+@group(#{MATERIAL_BIND_GROUP}) @binding(100) var<uniform> occlusion: OcclusionUniforms;
 
 @fragment
 fn fragment(in: VertexOutput) {
@@ -220,7 +222,7 @@ fn fragment(in: VertexOutput) {
             // inset on X/Z axes, no upper Y bound (preserves tall geometry above the AABB).
         }
 
-        if (occlusion.mode == 1u || occlusion.mode == 3u) && occlusion.technique == 0u {
+        if (occlusion.mode == 1u || occlusion.mode == 3u) {
             if world_pos.y > occlusion.player_position.y + occlusion.height_threshold {
                 let xz_offset = world_pos.xz - occlusion.player_position.xz;
                 let xz_dist_sq = dot(xz_offset, xz_offset);
@@ -273,7 +275,7 @@ sequenceDiagram
 | Uniform | Binding | Type | Description |
 |---------|---------|------|-------------|
 | `view` | `@group(0) @binding(0)` | `View` (Bevy built-in) | View/projection matrices, viewport, etc. |
-| `occlusion` | `@group(2) @binding(100)` | `OcclusionUniforms` | Mode, player position, thresholds, region AABB |
+| `occlusion` | `@group(#{MATERIAL_BIND_GROUP}) @binding(100)` | `OcclusionUniforms` | Mode, player position, thresholds, region AABB |
 
 `OcclusionUniforms` full Rust struct (all fields uploaded to GPU each frame):
 

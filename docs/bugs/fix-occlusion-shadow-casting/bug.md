@@ -3,7 +3,7 @@
 **Date:** 2026-03-21
 **Priority:** p3
 **Severity:** Medium
-**Status:** Open
+**Status:** Fixed
 **Component:** Occlusion system / depth prepass shader
 
 ---
@@ -38,11 +38,11 @@ When the player enters a building, ceiling and upper-wall voxels are correctly d
 
 The shadow map pass uses `DrawPrepass<M>` — the same pipeline as the camera depth prepass. Because the material is `AlphaMode::Mask`, Bevy sets `MAY_DISCARD` and the prepass fragment shader runs for both passes. There is no mechanism inside the shader to distinguish a shadow map invocation from a camera depth prepass invocation, so the discard logic fires unconditionally for all passes.
 
-Bevy sets `MeshPipelineKey::DEPTH_CLAMP_ORTHO` (and therefore the `DEPTH_CLAMP_ORTHO` shader def) **only** for directional-light shadow passes. Point and spot light shadow passes do not receive this flag. The camera depth prepass also never sets it. This makes `#ifdef DEPTH_CLAMP_ORTHO` a reliable signal to distinguish directional-light shadow passes from everything else.
+Directional-light shadow passes use **orthographic** projection; the player camera uses **perspective**. This difference is detectable via `view.projection[3][3]`: `1.0` for orthographic, `0.0` for perspective.
 
 ```wgsl
-// Current: discard fires for all invocations, including shadow map passes
-if (occlusion.mode == 1u || occlusion.mode == 3u) && occlusion.technique == 0u {
+// Before fix: discard fires for all invocations, including shadow map passes
+if occlusion.mode == 1u || occlusion.mode == 3u {
     if world_pos.y > occlusion.player_position.y + occlusion.height_threshold {
         ...
         discard;   // ← also runs during shadow map pass
@@ -61,29 +61,43 @@ if (occlusion.mode == 1u || occlusion.mode == 3u) && occlusion.technique == 0u {
 
 ---
 
-## Suggested Fix
+## Fix Applied
 
-Wrap all discard logic in the prepass shader in `#ifndef DEPTH_CLAMP_ORTHO`, so directional-light shadow passes skip discarding and all voxels write depth into the shadow map:
+`assets/shaders/occlusion_material_prepass.wgsl` — wrap all discard logic in a shadow-pass guard using the projection matrix:
 
 ```wgsl
-#ifndef DEPTH_CLAMP_ORTHO
-// Only discard for camera depth prepass — not for shadow map passes.
-// DEPTH_CLAMP_ORTHO is set exclusively for directional-light shadow passes in Bevy 0.15.
-if occlusion.mode == 2u || occlusion.mode == 3u {
-    if in_interior_region(world_pos) { discard; }
-}
-if (occlusion.mode == 1u || occlusion.mode == 3u) && occlusion.technique == 0u {
-    if world_pos.y > occlusion.player_position.y + occlusion.height_threshold {
-        let xz_offset = world_pos.xz - occlusion.player_position.xz;
-        let xz_dist_sq = dot(xz_offset, xz_offset);
-        let xz_margin = occlusion.occlusion_radius * XZ_MARGIN_FACTOR;
-        if xz_dist_sq <= xz_margin * xz_margin { discard; }
+// projection[3][3]: 1.0 = orthographic (shadow pass) → skip discards
+//                  0.0 = perspective  (camera prepass) → apply discards
+let is_shadow_pass = view.projection[3][3] >= 0.5;
+
+if !is_shadow_pass {
+    // Region-based discard
+    if occlusion.mode == 2u || occlusion.mode == 3u {
+        if in_interior_region(world_pos) { discard; }
+    }
+    // Height-based discard (any technique)
+    if occlusion.mode == 1u || occlusion.mode == 3u {
+        if world_pos.y > occlusion.player_position.y + occlusion.height_threshold {
+            let xz_offset = world_pos.xz - occlusion.player_position.xz;
+            let xz_dist_sq = dot(xz_offset, xz_offset);
+            let xz_margin = occlusion.occlusion_radius * XZ_MARGIN_FACTOR;
+            if xz_dist_sq <= xz_margin * xz_margin { discard; }
+        }
     }
 }
-#endif // DEPTH_CLAMP_ORTHO
 ```
 
-**Known limitation:** Point and spot light shadow passes do not set `DEPTH_CLAMP_ORTHO`, so they still discard occluded voxels. In practice, map-placed point/spot lights default to `shadows_enabled: false`, so this is low impact. If point/spot shadow casting is enabled in future, toggling `NotShadowCaster` per chunk (Option D) would be the correct complement.
+The projection matrix check is Bevy-version-agnostic — it relies on pure WGSL math rather than shader defines, making it more robust across upgrades.
+
+**Known limitation:** Point and spot light shadow passes also use perspective projection, so discards still fire for those. In practice, map-placed point/spot lights default to `shadows_enabled: false`, making this low impact.
+
+---
+
+## Suggested Fix (Superseded)
+
+~~Wrap all discard logic in `#ifndef DEPTH_CLAMP_ORTHO`.~~
+
+This approach was considered but not used. `DEPTH_CLAMP_ORTHO` is only set for directional-light shadow passes in specific Bevy versions and is not available in Bevy 0.18 as a reliable shader define. The projection matrix check above is the implemented solution.
 
 See `references/architecture.md` for full analysis of fix options.
 
