@@ -69,8 +69,8 @@ adrakestory/
 
 ### Technology Stack
 
-- **GUI Framework**: bevy_egui (v0.30+)
-- **Rendering**: Bevy 0.15 (reuse game rendering)
+- **GUI Framework**: bevy_egui (v0.39+)
+- **Rendering**: Bevy 0.18 (reuse game rendering)
 - **File I/O**: Existing map loader/saver
 - **State Management**: Bevy ECS resources
 
@@ -346,8 +346,8 @@ pub enum EditorAction {
 
 ```toml
 [dependencies]
-bevy = "0.15"
-bevy_egui = "0.30"
+bevy = "0.18"
+bevy_egui = "0.39"
 serde = { version = "1.0", features = ["derive"] }
 ron = "0.8"
 thiserror = "1.0"

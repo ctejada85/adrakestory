@@ -25,7 +25,7 @@ This document tracks the implementation status of the A Drake's Story Map Editor
 - ✅ Module organization and exports
 
 ### 3. Dependencies
-- ✅ `bevy_egui` v0.31 added to Cargo.toml (updated for Bevy 0.15 compatibility)
+- ✅ `bevy_egui` v0.39 added to Cargo.toml (updated for Bevy 0.18 compatibility)
 - ✅ `rfd` v0.15 for native file dialogs
 - ✅ All game dependencies available to editor
 
@@ -159,7 +159,7 @@ This document tracks the implementation status of the A Drake's Story Map Editor
 ### Build Test
 ```bash
 $ cargo build --bin map_editor
-   Compiling bevy_egui v0.31.1
+   Compiling bevy_egui v0.39.1
    Compiling adrakestory v0.1.0
    Finished `dev` profile [optimized + debuginfo] target(s) in 1m 22s
 ✅ SUCCESS - No errors
@@ -559,7 +559,7 @@ To complete the map editor implementation:
 ## 🔧 Technical Notes
 
 ### Resolved Issues
-- ✅ Fixed bevy_egui version compatibility (0.30 → 0.31)
+- ✅ Fixed bevy_egui version compatibility (0.30 → 0.31 → 0.39 for Bevy 0.18)
 - ✅ Fixed module visibility for game components
 - ✅ Resolved file corruption in dialogs.rs
 - ✅ Fixed borrow checker issues in properties panel

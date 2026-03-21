@@ -235,7 +235,7 @@ The visual model is purely cosmetic and doesn't participate in collision detecti
 
 ```toml
 [dependencies]
-bevy = { version = "0.15", features = ["bevy_gltf"] }
+bevy = { version = "0.18", features = ["bevy_gltf"] }
 ```
 
 The `bevy_gltf` feature must be enabled to load GLB/GLTF files.

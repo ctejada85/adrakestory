@@ -432,8 +432,8 @@ This document outlines the step-by-step implementation plan for the A Drake's St
 
 ### Required Dependencies
 ```toml
-bevy = "0.15"
-bevy_egui = "0.30"
+bevy = "0.18"
+bevy_egui = "0.39"
 serde = { version = "1.0", features = ["derive"] }
 ron = "0.8"
 thiserror = "1.0"
