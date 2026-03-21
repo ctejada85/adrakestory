@@ -67,8 +67,30 @@ impl Default for MonitorInfo {
 /// Per-system state for the software frame limiter.
 #[derive(Default)]
 pub struct FrameLimiterState {
-    pub last_frame_end: Option<Instant>,
+    /// Absolute time the current frame should start by.
+    ///
+    /// Advanced by `target_frame_time` from the **previous deadline** (not from the
+    /// actual wakeup time), giving self-correcting frame pacing: a 1 ms overshoot in
+    /// frame N automatically shortens frame N+1's sleep by 1 ms.
+    pub next_frame_deadline: Option<Instant>,
     pub target_frame_time: Option<Duration>,
+}
+
+/// Sleeps for approximately `duration` with sub-millisecond precision.
+///
+/// Uses OS sleep for the bulk of the wait, then busy-spins for the final
+/// `SPIN_THRESHOLD` to avoid scheduler wakeup latency on non-RT systems like macOS
+/// where `std::thread::sleep` can overshoot short durations by 1–2 ms.
+fn precise_sleep(duration: Duration) {
+    const SPIN_THRESHOLD: Duration = Duration::from_millis(2);
+    // Fix the deadline before the OS sleep so overshoot is automatically absorbed.
+    let deadline = Instant::now() + duration;
+    if duration > SPIN_THRESHOLD {
+        std::thread::sleep(duration - SPIN_THRESHOLD);
+    }
+    while Instant::now() < deadline {
+        std::hint::spin_loop();
+    }
 }
 
 /// Computes the target frame time for a given refresh rate and multiplier.
@@ -137,9 +159,10 @@ pub fn detect_monitor_refresh_system(
 /// Applies VSync configuration changes to the window and manages software frame pacing.
 ///
 /// Registered in the `First` schedule so the sleep happens **before** any frame work.
-/// This measures true frame-to-frame time (work + present + event overhead all included
-/// in `elapsed`), giving an accurate cap. Running in `Last` instead would under-count
-/// elapsed time by Bevy's post-Last presentation overhead, causing the cap to run short.
+/// Uses self-correcting absolute deadlines: the next deadline is always the previous
+/// deadline + target, so sleep overshoots in one frame are automatically compensated
+/// by a shorter sleep in the next. `precise_sleep` adds spin-waiting for the final
+/// 2 ms to avoid macOS scheduler wakeup latency.
 /// Gated by `VsyncConfig.dirty` to avoid mutating `Window` every frame.
 pub fn apply_vsync_system(
     mut vsync_config: ResMut<VsyncConfig>,
@@ -147,14 +170,19 @@ pub fn apply_vsync_system(
     mut window_query: Query<&mut Window, With<PrimaryWindow>>,
     mut limiter: Local<FrameLimiterState>,
 ) {
-    // Software frame cap: sleep if the current frame finished early.
-    if let (Some(target), Some(last)) = (limiter.target_frame_time, limiter.last_frame_end) {
-        let elapsed = last.elapsed();
-        if elapsed < target {
-            std::thread::sleep(target - elapsed);
+    // Software frame cap with self-correcting absolute deadlines.
+    // Advancing the deadline from the PREVIOUS deadline (not from actual wakeup)
+    // means any sleep overshoot is compensated: the next sleep is automatically
+    // shorter by the same amount. Clamp to now to avoid burst catch-up after a
+    // long stall (e.g., window minimized, breakpoint).
+    if let (Some(target), Some(deadline)) = (limiter.target_frame_time, limiter.next_frame_deadline) {
+        let now = Instant::now();
+        if now < deadline {
+            precise_sleep(deadline - now);
         }
+        let next = deadline + target;
+        limiter.next_frame_deadline = Some(next.max(Instant::now()));
     }
-    limiter.last_frame_end = Some(Instant::now());
 
     if !vsync_config.dirty {
         return;
@@ -178,6 +206,10 @@ pub fn apply_vsync_system(
     // Configure software frame cap.
     limiter.target_frame_time =
         target_frame_time(monitor_info.refresh_hz, vsync_config.vsync_enabled, vsync_config.vsync_multiplier);
+
+    // Reset to a fresh deadline so stale past/future deadlines don't cause
+    // an immediate burst or a long wait after a settings change.
+    limiter.next_frame_deadline = limiter.target_frame_time.map(|t| Instant::now() + t);
 
     if let Some(ft) = limiter.target_frame_time {
         let target_fps = 1.0 / ft.as_secs_f32();
@@ -295,6 +327,39 @@ mod tests {
     }
 
     // --- RON round-trip serialization ---
+
+    #[test]
+    fn precise_sleep_sleeps_at_least_the_requested_duration() {
+        let duration = Duration::from_millis(5);
+        let before = Instant::now();
+        precise_sleep(duration);
+        let elapsed = before.elapsed();
+        assert!(
+            elapsed >= duration,
+            "precise_sleep undershot: requested {duration:?}, slept {elapsed:?}"
+        );
+    }
+
+    #[test]
+    fn precise_sleep_does_not_overshoot_excessively() {
+        // Allow up to 5 ms of overshoot — this is a sanity check, not a precision test.
+        let duration = Duration::from_millis(5);
+        let max_allowed = duration + Duration::from_millis(5);
+        let before = Instant::now();
+        precise_sleep(duration);
+        let elapsed = before.elapsed();
+        assert!(
+            elapsed <= max_allowed,
+            "precise_sleep overshot excessively: requested {duration:?}, slept {elapsed:?}"
+        );
+    }
+
+    #[test]
+    fn precise_sleep_zero_duration_returns_immediately() {
+        let before = Instant::now();
+        precise_sleep(Duration::ZERO);
+        assert!(before.elapsed() < Duration::from_millis(5));
+    }
 
     #[test]
     fn vsync_config_ron_roundtrip_preserves_values() {
