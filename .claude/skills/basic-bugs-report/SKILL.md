@@ -51,7 +51,9 @@ The title should describe **the cause**, not the symptom:
 - ✅ `2026-03-15-2141-p1-occlusion-material-gpu-reupload-every-frame`
 - ❌ `2026-03-15-2141-game-runs-slowly`
 
-Save to `docs/bugs/`.
+**Where to save:**
+- General bugs → `docs/bugs/`
+- Bug discovered in a feature under active development → save alongside the feature docs as `docs/features/<slug>/bug.md` (or `bug-<short-title>.md` if multiple bugs). This keeps the bug co-located with the requirements and architecture it relates to, and avoids cluttering `docs/bugs/` with in-flight work.
 
 ### Step 4: Write the report
 

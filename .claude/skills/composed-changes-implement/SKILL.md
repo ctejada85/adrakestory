@@ -120,6 +120,9 @@ Tests live in a sibling `tests.rs` file (see `coding-style.md` §7). Write tests
 Rules:
 - Prefer pure helper functions — avoid full Bevy `World` setup unless unavoidable
 - One logical claim per `assert_*`; use descriptive values, not magic numbers
+- **Always test the OFF/disabled path** — if the feature has a toggle, test that disabling it fully clears all side effects (no residual state)
+- **Test boundary multipliers / edge values** — e.g., if a multiplier can be 0.25×–16×, test 0.25, 1.0, and 16.0, not just the default
+- **Test state transitions** — toggle on → off, change setting mid-session; bugs from implementation fixes often appear at transition points, not at steady state
 
 ---
 

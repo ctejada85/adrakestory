@@ -91,3 +91,17 @@ For each distinct root cause found, create a bug report using the `basic-bugs-re
 - `iter_mut()` alone does NOT mark components dirty; only writing through `DerefMut` does
 - Frame-rate-dependent lerp: `lerp(a, b, speed * delta)` is NOT frame-rate-independent — use `1.0 - exp(-speed * delta)`
 - Periodic spikes ≠ constant lag — check throttle intervals on recurring systems
+
+### Frame pacing / timing bugs
+
+- `std::thread::sleep` is imprecise on macOS/Windows — overshoots by 1–2 ms for short durations (< 10 ms). Consistent fps below target (e.g., 100 instead of 120) is a strong signal.
+- Non-self-correcting timing: if `last_timestamp` is recorded *after* the sleep, `elapsed` on the next call only covers game-logic time, not the full frame. Every frame independently overshoots with no compensation. Fix: record the ideal timestamp *before* sleeping, or use absolute deadlines (`deadline = prev_deadline + target`).
+- `PresentMode::Fifo` hard-caps fps at the native monitor refresh rate regardless of software cap. Multipliers > 1× require `AutoNoVsync` + software cap.
+- Bevy pipelined rendering: `First` schedule timing measures main-thread cadence, not GPU present cadence. If the render thread is the bottleneck, the main-thread sleep fires too early.
+
+### Platform-specific / external crate bugs
+
+When a bug involves platform-specific behavior (OS scheduler, GPU APIs, display drivers), read the relevant crate source in `~/.cargo/registry/src/`:
+- Check the platform-specific impl (e.g., `src/platform_impl/macos/`)
+- Look for fallback paths — the primary API may return 0/None on the target platform and a secondary API handles it (e.g., `CGDisplayModeGetRefreshRate` returns 0 for ProMotion; winit falls back to `CVDisplayLinkGetNominalOutputVideoRefreshPeriod`)
+- Grep for `unwrap_or`, `fallback`, `None` branches to find silent failure modes
