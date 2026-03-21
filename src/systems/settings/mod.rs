@@ -34,7 +34,7 @@ impl Plugin for SettingsPlugin {
                 Update,
                 detect_monitor_refresh_system,
             )
-            .add_systems(Last, apply_vsync_system)
+            .add_systems(First, apply_vsync_system)
             .add_systems(OnEnter(GameState::Settings), setup_settings_menu)
             .add_systems(
                 OnExit(GameState::Settings),

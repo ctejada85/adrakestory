@@ -136,7 +136,10 @@ pub fn detect_monitor_refresh_system(
 
 /// Applies VSync configuration changes to the window and manages software frame pacing.
 ///
-/// Registered in the `Last` schedule so pacing sleeps happen after all game logic.
+/// Registered in the `First` schedule so the sleep happens **before** any frame work.
+/// This measures true frame-to-frame time (work + present + event overhead all included
+/// in `elapsed`), giving an accurate cap. Running in `Last` instead would under-count
+/// elapsed time by Bevy's post-Last presentation overhead, causing the cap to run short.
 /// Gated by `VsyncConfig.dirty` to avoid mutating `Window` every frame.
 pub fn apply_vsync_system(
     mut vsync_config: ResMut<VsyncConfig>,
