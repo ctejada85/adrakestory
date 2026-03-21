@@ -67,16 +67,17 @@ fn in_interior_region(world_pos: vec3<f32>) -> bool {
 fn fragment(in: VertexOutput) {
     let world_pos = in.world_position.xyz;
 
-    // projection[3][3]:
+    // clip_from_view[3][3]:
     //   1.0 = orthographic  → directional light shadow map pass  → skip discards
     //   0.0 = perspective   → player camera depth prepass        → apply discards
     //
     // Directional light shadow maps use orthographic projection; the player camera
     // uses perspective. This check is Bevy-version-agnostic (pure WGSL math).
+    // In Bevy 0.18, the projection matrix is named `clip_from_view` (not `projection`).
     //
     // NOTE: Point/spot light shadow passes also use perspective, so discards fire
     // for those too. Acceptable — both have shadows_enabled: false in current maps.
-    let is_shadow_pass = view.projection[3][3] >= 0.5;
+    let is_shadow_pass = view.clip_from_view[3][3] >= 0.5;
 
     if !is_shadow_pass {
         // Region-based discard — hide interior regions entirely.
