@@ -86,17 +86,18 @@ fn fragment(in: VertexOutput) {
             }
         }
 
-        // Shader-based height discard (mode 1 or 3, dithered technique).
+        // Shader-based height discard (mode 1 or 3, any technique).
         //
-        // The prepass must make a BINARY keep/discard decision per fragment.
-        // Using dither here would leave some above-player fragments in the depth buffer,
-        // which would block the player (lower reverse-Z depth fails GreaterEqual test).
+        // The prepass MUST discard above-floor fragments for both dithered AND smooth
+        // techniques. If above-floor voxels write depth here, the character's fragments
+        // will fail the depth test in the main pass and become invisible — regardless of
+        // how transparent the voxel is rendered in the main pass.
         //
         // Rule: discard fragments ABOVE the player level; keep fragments BELOW.
         // The XZ proximity guard avoids discarding distant above-height geometry that
         // the main pass would keep opaque (over-discarding is safe — the main pass
         // re-writes depth for any fragment it renders that the prepass skipped).
-        if (occlusion.mode == 1u || occlusion.mode == 3u) && occlusion.technique == 0u {
+        if occlusion.mode == 1u || occlusion.mode == 3u {
             if world_pos.y > occlusion.player_position.y + occlusion.height_threshold {
                 let xz_offset = world_pos.xz - occlusion.player_position.xz;
                 let xz_dist_sq = dot(xz_offset, xz_offset);
