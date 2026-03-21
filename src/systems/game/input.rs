@@ -9,7 +9,7 @@
 use super::components::{CollisionBox, Player, PlayerFlashlight};
 use super::gamepad::PlayerInput;
 use bevy::prelude::*;
-use bevy::window::{MonitorSelection, WindowMode};
+use bevy::window::{MonitorSelection, PrimaryWindow, WindowMode};
 
 /// System that handles pause input (Escape key or Start button).
 ///
@@ -47,13 +47,14 @@ pub fn toggle_collision_box(
 /// This system ensures the collision box visualization stays synchronized
 /// with the player's actual position, making it easier to debug collision issues.
 pub fn update_collision_box(
-    player_query: Query<&Transform, With<Player>>,
+    player_transform: Option<Single<&Transform, With<Player>>>,
     mut collision_box_query: Query<&mut Transform, (With<CollisionBox>, Without<Player>)>,
 ) {
-    if let Ok(player_transform) = player_query.single() {
-        for mut box_transform in &mut collision_box_query {
-            box_transform.translation = player_transform.translation;
-        }
+    let Some(player_transform) = player_transform else {
+        return;
+    };
+    for mut box_transform in &mut collision_box_query {
+        box_transform.translation = player_transform.translation;
     }
 }
 
@@ -63,25 +64,23 @@ pub fn update_collision_box(
 /// borderless fullscreen and windowed mode.
 pub fn toggle_fullscreen(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut windows: Query<&mut Window>,
+    mut window: Single<&mut Window, With<PrimaryWindow>>,
 ) {
     let alt_pressed =
         keyboard_input.pressed(KeyCode::AltLeft) || keyboard_input.pressed(KeyCode::AltRight);
     let enter_just_pressed = keyboard_input.just_pressed(KeyCode::Enter);
 
     if alt_pressed && enter_just_pressed {
-        if let Ok(mut window) = windows.single_mut() {
-            window.mode = match window.mode {
-                WindowMode::Windowed => {
-                    info!("Switching to fullscreen mode");
-                    WindowMode::BorderlessFullscreen(MonitorSelection::Current)
-                }
-                _ => {
-                    info!("Switching to windowed mode");
-                    WindowMode::Windowed
-                }
-            };
-        }
+        window.mode = match window.mode {
+            WindowMode::Windowed => {
+                info!("Switching to fullscreen mode");
+                WindowMode::BorderlessFullscreen(MonitorSelection::Current)
+            }
+            _ => {
+                info!("Switching to windowed mode");
+                WindowMode::Windowed
+            }
+        };
     }
 }
 
@@ -114,10 +113,10 @@ pub fn toggle_flashlight(
 /// The flashlight should always point in the direction the character is looking,
 /// which is determined by the player's current_rotation (Y-axis rotation).
 pub fn update_flashlight_rotation(
-    player_query: Query<&Player>,
+    player: Option<Single<&Player>>,
     mut flashlight_query: Query<&mut Transform, With<PlayerFlashlight>>,
 ) {
-    let Ok(player) = player_query.single() else {
+    let Some(player) = player else {
         return;
     };
 

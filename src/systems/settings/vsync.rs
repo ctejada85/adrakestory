@@ -181,7 +181,7 @@ pub fn detect_monitor_refresh_system(
 pub fn apply_vsync_system(
     mut vsync_config: ResMut<VsyncConfig>,
     monitor_info: Res<MonitorInfo>,
-    mut window_query: Query<&mut Window, With<PrimaryWindow>>,
+    mut window: Single<&mut Window, With<PrimaryWindow>>,
     mut limiter: Local<FrameLimiterState>,
 ) {
     // Defensively clear the limiter whenever VSync is disabled, regardless of the
@@ -216,11 +216,9 @@ pub fn apply_vsync_system(
     // Update Window present mode.
     // multiplier > 1.0 uses AutoNoVsync: Fifo would hard-cap at the native refresh
     // rate, preventing any frame rate above the monitor Hz regardless of multiplier.
-    if let Ok(mut window) = window_query.single_mut() {
-        let present_mode = select_present_mode(vsync_config.vsync_enabled, vsync_config.vsync_multiplier);
-        if window.present_mode != present_mode {
-            window.present_mode = present_mode;
-        }
+    let present_mode = select_present_mode(vsync_config.vsync_enabled, vsync_config.vsync_multiplier);
+    if window.present_mode != present_mode {
+        window.present_mode = present_mode;
     }
 
     // Configure software frame cap.

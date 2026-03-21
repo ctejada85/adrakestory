@@ -18,7 +18,7 @@ pub fn handle_voxel_placement(
     mouse_button: Res<ButtonInput<MouseButton>>,
     mut contexts: EguiContexts,
     mut drag_state: ResMut<VoxelDragState>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    window_query: Single<&Window, With<PrimaryWindow>>,
 ) {
     // Check if voxel place tool is active
     let (voxel_type, pattern) = match &editor_state.active_tool {
@@ -66,9 +66,7 @@ pub fn handle_voxel_placement(
         drag_state.last_cursor_grid_pos = cursor_state.grid_pos;
 
         // Record the screen position where the drag started
-        if let Ok(window) = window_query.single() {
-            drag_state.drag_start_screen_pos = window.cursor_position();
-        }
+        drag_state.drag_start_screen_pos = window_query.cursor_position();
 
         // Check if voxel already exists at this position
         let voxel_exists = editor_state
@@ -125,7 +123,7 @@ pub fn handle_voxel_drag_placement(
     mouse_button: Res<ButtonInput<MouseButton>>,
     mut contexts: EguiContexts,
     mut drag_state: ResMut<VoxelDragState>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    window_query: Single<&Window, With<PrimaryWindow>>,
 ) {
     // Only process if we're in drag-place mode
     if !drag_state.is_dragging {
@@ -164,10 +162,8 @@ pub fn handle_voxel_drag_placement(
 
     // Check if mouse has actually moved enough from the drag start position
     // This prevents false drag triggers when grid_pos changes due to geometry changes
-    if let (Some(start_pos), Ok(window)) =
-        (drag_state.drag_start_screen_pos, window_query.single())
-    {
-        if let Some(current_pos) = window.cursor_position() {
+    if let Some(start_pos) = drag_state.drag_start_screen_pos {
+        if let Some(current_pos) = window_query.cursor_position() {
             let distance = (current_pos - start_pos).length();
             if distance < DRAG_MOVEMENT_THRESHOLD {
                 return;

@@ -22,8 +22,8 @@ use bevy::window::PrimaryWindow;
 /// Bundle of queries needed for viewport raycasting
 #[derive(bevy::ecs::system::SystemParam)]
 pub struct ViewportRaycast<'w, 's> {
-    pub camera: Query<'w, 's, (&'static Camera, &'static GlobalTransform), With<EditorCamera>>,
-    pub window: Query<'w, 's, &'static Window, With<PrimaryWindow>>,
+    pub camera: Single<'w, 's, (&'static Camera, &'static GlobalTransform), With<EditorCamera>>,
+    pub window: Single<'w, 's, &'static Window, With<PrimaryWindow>>,
 }
 
 /// Marker component for selection highlight visuals

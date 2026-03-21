@@ -14,7 +14,7 @@ pub fn should_regenerate_grid(camera_pos: Vec3, last_pos: Vec3, threshold: f32) 
 pub fn update_infinite_grid(
     mut config: ResMut<InfiniteGridConfig>,
     mut meshes: ResMut<Assets<Mesh>>,
-    camera_query: Query<
+    camera: Single<
         (
             &Transform,
             &bevy::camera::primitives::Frustum,
@@ -24,9 +24,7 @@ pub fn update_infinite_grid(
     >,
     grid_query: Query<(Entity, &Mesh3d), With<EditorGrid>>,
 ) {
-    let Ok((camera_transform, frustum, _editor_camera)) = camera_query.single() else {
-        return;
-    };
+    let (camera_transform, frustum, _editor_camera) = camera.into_inner();
 
     let camera_pos = camera_transform.translation;
 

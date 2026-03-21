@@ -164,7 +164,7 @@ pub struct CameraInputState {
 
 /// System to handle camera input (WASD movement, mouse look, gamepad)
 pub fn handle_camera_input(
-    mut camera_query: Query<&mut EditorCamera>,
+    mut camera: Single<&mut EditorCamera>,
     mouse_button: Res<ButtonInput<MouseButton>>,
     mut mouse_motion: MessageReader<bevy::input::mouse::MouseMotion>,
     keyboard: Res<ButtonInput<KeyCode>>,
@@ -172,13 +172,9 @@ pub fn handle_camera_input(
     mut gamepad_state: ResMut<GamepadCameraState>,
     editor_state: Res<crate::editor::state::EditorState>,
     mut contexts: EguiContexts,
-    mut cursor_query: Query<&mut bevy::window::CursorOptions>,
+    mut cursor: Single<&mut bevy::window::CursorOptions>,
     time: Res<Time>,
 ) {
-    let Ok(mut camera) = camera_query.single_mut() else {
-        return;
-    };
-
     let dt = time.delta_secs();
 
     // Check if any gamepad has significant input
@@ -198,9 +194,7 @@ pub fn handle_camera_input(
     // Switch to gamepad mode if gamepad input detected
     if gamepad_has_input && !gamepad_state.active {
         gamepad_state.active = true;
-        if let Ok(mut cursor) = cursor_query.single_mut() {
-            cursor.visible = false;
-        }
+        cursor.visible = false;
     }
 
     // Switch back to mouse/keyboard mode if mouse input detected
@@ -208,9 +202,7 @@ pub fn handle_camera_input(
     let mouse_clicked = mouse_button.any_just_pressed([MouseButton::Left, MouseButton::Right, MouseButton::Middle]);
     if (mouse_moved || mouse_clicked) && gamepad_state.active {
         gamepad_state.active = false;
-        if let Ok(mut cursor) = cursor_query.single_mut() {
-            cursor.visible = true;
-        }
+        cursor.visible = true;
     }
 
     // Update action position using raycasting (used for both gamepad and keyboard/mouse)

@@ -37,41 +37,39 @@ pub fn setup_intro(mut commands: Commands) {
 pub fn animate_intro(
     time: Res<Time>,
     mut timer: ResMut<IntroAnimationTimer>,
-    mut text_query: Query<&mut TextColor, With<IntroText>>,
+    mut text_color: Single<&mut TextColor, With<IntroText>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     timer.timer.tick(time.delta());
 
-    if let Ok(mut text_color) = text_query.single_mut() {
-        match timer.phase {
-            IntroPhase::FadeIn => {
-                // Fade in over 200ms
-                let alpha = timer.timer.fraction();
-                text_color.0.set_alpha(alpha);
+    match timer.phase {
+        IntroPhase::FadeIn => {
+            // Fade in over 200ms
+            let alpha = timer.timer.fraction();
+            text_color.0.set_alpha(alpha);
 
-                if timer.timer.just_finished() {
-                    timer.phase = IntroPhase::Display;
-                    timer.timer = Timer::from_seconds(1.5, TimerMode::Once);
-                }
+            if timer.timer.just_finished() {
+                timer.phase = IntroPhase::Display;
+                timer.timer = Timer::from_seconds(1.5, TimerMode::Once);
             }
-            IntroPhase::Display => {
-                // Display text fully visible
-                text_color.0.set_alpha(1.0);
+        }
+        IntroPhase::Display => {
+            // Display text fully visible
+            text_color.0.set_alpha(1.0);
 
-                if timer.timer.just_finished() {
-                    timer.phase = IntroPhase::FadeOut;
-                    timer.timer = Timer::from_seconds(0.2, TimerMode::Once);
-                }
+            if timer.timer.just_finished() {
+                timer.phase = IntroPhase::FadeOut;
+                timer.timer = Timer::from_seconds(0.2, TimerMode::Once);
             }
-            IntroPhase::FadeOut => {
-                // Fade out over 200ms
-                let alpha = 1.0 - timer.timer.fraction();
-                text_color.0.set_alpha(alpha);
+        }
+        IntroPhase::FadeOut => {
+            // Fade out over 200ms
+            let alpha = 1.0 - timer.timer.fraction();
+            text_color.0.set_alpha(alpha);
 
-                if timer.timer.just_finished() {
-                    // Transition to title screen
-                    next_state.set(GameState::TitleScreen);
-                }
+            if timer.timer.just_finished() {
+                // Transition to title screen
+                next_state.set(GameState::TitleScreen);
             }
         }
     }

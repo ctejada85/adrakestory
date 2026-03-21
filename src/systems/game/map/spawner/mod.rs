@@ -60,6 +60,8 @@ pub struct SpawnAssets<'w> {
 }
 
 /// Marker component for chunk entities
+///
+/// Invariant: always spawned together with `ChunkLOD` — see `spawn_voxels_chunked`.
 #[derive(Component)]
 pub struct VoxelChunk {
     /// The chunk position for potential future use (chunk updates, unloading)
@@ -421,7 +423,7 @@ pub fn spawn_map_system(
 /// more than [`LOD_MOVEMENT_THRESHOLD`] world units since the last pass AND no new
 /// chunks were just spawned. This keeps CPU cost O(1) when the camera is stationary.
 pub fn update_chunk_lods(
-    camera_query: Query<&Transform, With<Camera3d>>,
+    camera_transform: Single<&Transform, With<Camera3d>>,
     mut chunks: Query<(&VoxelChunk, &mut ChunkLOD, &mut Mesh3d)>,
     new_chunks: Query<(), Added<VoxelChunk>>,
     lod_config: Res<LodConfig>,
@@ -429,10 +431,6 @@ pub fn update_chunk_lods(
     profiler: Option<Res<FrameProfiler>>,
 ) {
     profile_scope!(profiler, "update_chunk_lods");
-    // Get camera position, or early return if no camera
-    let Ok(camera_transform) = camera_query.single() else {
-        return;
-    };
     let camera_pos = camera_transform.translation;
 
     let camera_moved = camera_pos.distance(*last_camera_pos) >= lod_config.movement_threshold;

@@ -56,12 +56,8 @@ pub fn handle_selection(
     }
 
     // Get mouse ray for entity selection
-    let Ok((camera, camera_transform)) = viewport.camera.single() else {
-        return;
-    };
-    let Ok(window) = viewport.window.single() else {
-        return;
-    };
+    let (camera, camera_transform) = viewport.camera.into_inner();
+    let window = viewport.window.into_inner();
     let Some(cursor_position) = window.cursor_position() else {
         return;
     };

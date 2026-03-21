@@ -362,8 +362,8 @@ fn quantize_position(pos: Vec3, step: f32) -> Vec3 {
 /// the newly computed value.
 pub fn update_occlusion_uniforms(
     config: Res<OcclusionConfig>,
-    camera_query: Query<Ref<Transform>, With<GameCamera>>,
-    player_query: Query<Ref<Transform>, With<Player>>,
+    camera_query: Option<Single<Ref<Transform>, With<GameCamera>>>,
+    player_query: Option<Single<Ref<Transform>, With<Player>>>,
     material_handle: Option<Res<OcclusionMaterialHandle>>,
     mut materials: ResMut<Assets<OcclusionMaterial>>,
     interior_state: Option<Res<InteriorState>>,
@@ -387,8 +387,8 @@ pub fn update_occlusion_uniforms(
         return;
     };
 
-    let camera_ref = camera_query.single().ok();
-    let player_ref = player_query.single().ok();
+    let camera_ref = camera_query;
+    let player_ref = player_query;
 
     // Recompute static fields only when OcclusionConfig changed or cache is empty.
     let new_static = if config.is_changed() || static_cache.is_none() {
@@ -503,8 +503,8 @@ pub fn update_occlusion_uniforms(
 pub fn debug_draw_occlusion_zone(
     mut config: ResMut<OcclusionConfig>,
     mut gizmos: Gizmos,
-    camera_query: Query<&Transform, With<GameCamera>>,
-    player_query: Query<&Transform, With<Player>>,
+    camera_query: Option<Single<&Transform, With<GameCamera>>>,
+    player_query: Option<Single<&Transform, With<Player>>>,
     interior_state: Option<Res<InteriorState>>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut show_debug: Local<bool>,
@@ -519,10 +519,10 @@ pub fn debug_draw_occlusion_zone(
         return;
     }
 
-    let Ok(camera) = camera_query.single() else {
+    let Some(camera) = camera_query else {
         return;
     };
-    let Ok(player) = player_query.single() else {
+    let Some(player) = player_query else {
         return;
     };
 

@@ -14,8 +14,8 @@ pub fn update_cursor_position(
     mut cursor_state: ResMut<CursorState>,
     gamepad_state: Res<GamepadCameraState>,
     editor_state: Res<EditorState>,
-    camera_query: Query<(&Camera, &GlobalTransform, &EditorCamera)>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    camera: Single<(&Camera, &GlobalTransform, &EditorCamera)>,
+    window: Single<&Window, With<PrimaryWindow>>,
     keyboard_mode: Res<KeyboardEditMode>,
 ) {
     // Don't update cursor from raycasting when in keyboard edit mode
@@ -23,13 +23,7 @@ pub fn update_cursor_position(
         return;
     }
 
-    let Ok((camera, camera_transform, editor_cam)) = camera_query.single() else {
-        return;
-    };
-
-    let Ok(window) = window_query.single() else {
-        return;
-    };
+    let (camera_comp, camera_transform, editor_cam) = camera.into_inner();
 
     // If gamepad is active, use center-screen raycast from GamepadCameraState
     if gamepad_state.active {
@@ -73,7 +67,7 @@ pub fn update_cursor_position(
             return;
         };
 
-        let Ok(ray) = camera.viewport_to_world(camera_transform, cursor_position) else {
+        let Ok(ray) = camera_comp.viewport_to_world(camera_transform, cursor_position) else {
             return;
         };
 

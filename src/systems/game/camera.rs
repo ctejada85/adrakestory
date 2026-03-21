@@ -25,31 +25,28 @@ use bevy::prelude::*;
 /// maintains its relative position to the player even when rotated.
 pub fn follow_player_camera(
     time: Res<Time>,
-    player_query: Query<&Transform, With<Player>>,
-    mut camera_query: Query<(&mut GameCamera, &mut Transform), Without<Player>>,
+    player_transform: Single<&Transform, With<Player>>,
+    mut camera: Single<(&mut GameCamera, &mut Transform), Without<Player>>,
     profiler: Option<Res<FrameProfiler>>,
 ) {
     profile_scope!(profiler, "follow_player_camera");
-    if let Ok(player_transform) = player_query.single() {
-        if let Ok((mut game_camera, mut camera_transform)) = camera_query.single_mut() {
-            let player_position = player_transform.translation;
+    let player_position = player_transform.translation;
+    let (mut game_camera, mut camera_transform) = camera.into_inner();
 
-            // Update the target position for rotation system
-            game_camera.target_position = player_position;
+    // Update the target position for rotation system
+    game_camera.target_position = player_position;
 
-            // Calculate the offset in world space by rotating it with the camera's current rotation
-            let rotated_offset = camera_transform.rotation * game_camera.follow_offset;
+    // Calculate the offset in world space by rotating it with the camera's current rotation
+    let rotated_offset = camera_transform.rotation * game_camera.follow_offset;
 
-            // Calculate target camera position
-            let target_position = player_position + rotated_offset;
+    // Calculate target camera position
+    let target_position = player_position + rotated_offset;
 
-            // Smoothly interpolate camera position using frame-rate-independent exponential decay.
-            // alpha = 1 - exp(-speed * delta) gives identical convergence time at any frame rate.
-            let alpha = 1.0 - (-game_camera.follow_speed * time.delta_secs()).exp();
-            camera_transform.translation =
-                camera_transform.translation.lerp(target_position, alpha);
-        }
-    }
+    // Smoothly interpolate camera position using frame-rate-independent exponential decay.
+    // alpha = 1 - exp(-speed * delta) gives identical convergence time at any frame rate.
+    let alpha = 1.0 - (-game_camera.follow_speed * time.delta_secs()).exp();
+    camera_transform.translation =
+        camera_transform.translation.lerp(target_position, alpha);
 }
 
 /// System that handles camera rotation based on keyboard input.
@@ -66,37 +63,36 @@ pub fn rotate_camera(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     player_input: Res<PlayerInput>,
-    mut camera_query: Query<(&mut GameCamera, &mut Transform)>,
+    mut camera: Single<(&mut GameCamera, &mut Transform)>,
 ) {
-    if let Ok((mut game_camera, mut transform)) = camera_query.single_mut() {
-        let center = game_camera.target_position;
-        let delta = time.delta_secs();
+    let (mut game_camera, mut transform) = camera.into_inner();
+    let center = game_camera.target_position;
+    let delta = time.delta_secs();
 
-        // Handle keyboard camera rotation (Delete key)
-        if keyboard_input.pressed(KeyCode::Delete) {
-            // Delete key: Rotate 90 degrees to the left around the world Y-axis
-            let rotation_offset = Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
-            game_camera.target_rotation = rotation_offset * game_camera.original_rotation;
-        } else {
-            // Return to original rotation when not pressing Delete
-            game_camera.target_rotation = game_camera.original_rotation;
-        }
+    // Handle keyboard camera rotation (Delete key)
+    if keyboard_input.pressed(KeyCode::Delete) {
+        // Delete key: Rotate 90 degrees to the left around the world Y-axis
+        let rotation_offset = Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
+        game_camera.target_rotation = rotation_offset * game_camera.original_rotation;
+    } else {
+        // Return to original rotation when not pressing Delete
+        game_camera.target_rotation = game_camera.original_rotation;
+    }
 
-        // Smoothly interpolate rotation for keyboard (Delete key) using frame-rate-independent
-        // exponential decay. alpha = 1 - exp(-speed * delta) gives identical convergence time
-        // at any frame rate.
-        if player_input.input_source == InputSource::KeyboardMouse {
-            let alpha = 1.0 - (-game_camera.rotation_speed * delta).exp();
-            let new_rotation = transform.rotation.slerp(game_camera.target_rotation, alpha);
+    // Smoothly interpolate rotation for keyboard (Delete key) using frame-rate-independent
+    // exponential decay. alpha = 1 - exp(-speed * delta) gives identical convergence time
+    // at any frame rate.
+    if player_input.input_source == InputSource::KeyboardMouse {
+        let alpha = 1.0 - (-game_camera.rotation_speed * delta).exp();
+        let new_rotation = transform.rotation.slerp(game_camera.target_rotation, alpha);
 
-            let rotation_delta = new_rotation * transform.rotation.inverse();
+        let rotation_delta = new_rotation * transform.rotation.inverse();
 
-            let offset = transform.translation - center;
-            let rotated_offset = rotation_delta * offset;
+        let offset = transform.translation - center;
+        let rotated_offset = rotation_delta * offset;
 
-            transform.translation = center + rotated_offset;
-            transform.rotation = new_rotation;
-        }
+        transform.translation = center + rotated_offset;
+        transform.rotation = new_rotation;
     }
 }
 

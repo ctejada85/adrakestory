@@ -74,7 +74,7 @@ pub struct InteriorState {
 /// 2. If a ceiling is found within threshold, flood-fills to find the region
 /// 3. Updates `InteriorState` with the detected region bounds
 pub fn detect_interior_system(
-    player_query: Query<&Transform, With<Player>>,
+    player_query: Option<Single<&Transform, With<Player>>>,
     spatial_grid: Option<Res<SpatialGrid>>,
     sub_voxels: Query<&SubVoxel, Without<Player>>,
     mut interior_state: ResMut<InteriorState>,
@@ -104,7 +104,7 @@ pub fn detect_interior_system(
         return;
     };
 
-    let Ok(player_transform) = player_query.single() else {
+    let Some(player_transform) = player_query else {
         return;
     };
     let player_pos = player_transform.translation;

@@ -23,15 +23,13 @@ const GROUND_DETECTION_EPSILON: f32 = 0.001;
 /// regains focus after being minimized.
 pub fn apply_gravity(
     time: Res<Time>,
-    mut player_query: Query<&mut Player>,
+    mut player: Single<&mut Player>,
     profiler: Option<Res<FrameProfiler>>,
 ) {
     profile_scope!(profiler, "apply_gravity");
-    if let Ok(mut player) = player_query.single_mut() {
-        // Clamp delta time to prevent physics issues
-        let delta = time.delta_secs().min(0.1);
-        player.velocity.y += GRAVITY * delta;
-    }
+    // Clamp delta time to prevent physics issues
+    let delta = time.delta_secs().min(0.1);
+    player.velocity.y += GRAVITY * delta;
 }
 
 /// System that applies physics to the player, including velocity and ground/ceiling collision.
@@ -55,7 +53,7 @@ pub fn apply_physics(
     spatial_grid: Option<Res<SpatialGrid>>,
     pre_fetched: Res<PreFetchedCollisionEntities>,
     sub_voxel_query: Query<&SubVoxel, Without<Player>>,
-    mut player_query: Query<(&mut Player, &mut Transform)>,
+    mut player: Single<(&mut Player, &mut Transform)>,
     profiler: Option<Res<FrameProfiler>>,
 ) {
     profile_scope!(profiler, "apply_physics");
@@ -64,123 +62,122 @@ pub fn apply_physics(
         return;
     };
 
-    if let Ok((mut player, mut transform)) = player_query.single_mut() {
-        // Clamp delta time to prevent physics issues
-        let delta = time.delta_secs().min(0.1);
+    let (mut player, mut transform) = player.into_inner();
+    // Clamp delta time to prevent physics issues
+    let delta = time.delta_secs().min(0.1);
 
-        // Apply velocity
-        let new_y = transform.translation.y + player.velocity.y * delta;
-        let player_bottom = new_y - player.half_height;
-        let player_top = new_y + player.half_height;
-        let current_bottom = transform.translation.y - player.half_height;
-        let current_top = transform.translation.y + player.half_height;
+    // Apply velocity
+    let new_y = transform.translation.y + player.velocity.y * delta;
+    let player_bottom = new_y - player.half_height;
+    let player_top = new_y + player.half_height;
+    let current_bottom = transform.translation.y - player.half_height;
+    let current_top = transform.translation.y + player.half_height;
 
-        // Extract player position (loop-invariant values)
-        let player_x = transform.translation.x;
-        let player_z = transform.translation.z;
-        let player_radius = player.radius;
-        let player_half_height = player.half_height;
+    // Extract player position (loop-invariant values)
+    let player_x = transform.translation.x;
+    let player_z = transform.translation.z;
+    let player_radius = player.radius;
+    let player_half_height = player.half_height;
 
-        let mut hit_ground = false;
-        let mut hit_ceiling = false;
-        let mut highest_collision_y = f32::MIN;
-        let mut lowest_ceiling_y = f32::MAX;
+    let mut hit_ground = false;
+    let mut hit_ceiling = false;
+    let mut highest_collision_y = f32::MIN;
+    let mut lowest_ceiling_y = f32::MAX;
 
-        // Physics AABB — based on new_y after gravity, not the horizontal movement AABB.
-        let physics_min = Vec3::new(
-            player_x - player_radius,
-            new_y - player_half_height,
-            player_z - player_radius,
-        );
-        let physics_max = Vec3::new(
-            player_x + player_radius,
-            new_y + player_half_height,
-            player_z + player_radius,
-        );
+    // Physics AABB — based on new_y after gravity, not the horizontal movement AABB.
+    let physics_min = Vec3::new(
+        player_x - player_radius,
+        new_y - player_half_height,
+        player_z - player_radius,
+    );
+    let physics_max = Vec3::new(
+        player_x + player_radius,
+        new_y + player_half_height,
+        player_z + player_radius,
+    );
 
-        // Reuse the pre-fetched slice from move_player when it covers the physics AABB.
-        // This avoids a second get_entities_in_aabb call on frames where the player moves.
-        let owned: Vec<Entity>;
-        let relevant: &[Entity] = if let Some((cache_min, cache_max)) = pre_fetched.bounds {
-            let covered = cache_min.x <= physics_min.x
-                && cache_min.y <= physics_min.y
-                && cache_min.z <= physics_min.z
-                && cache_max.x >= physics_max.x
-                && cache_max.y >= physics_max.y
-                && cache_max.z >= physics_max.z;
-            if covered {
-                &pre_fetched.entities
-            } else {
-                owned = spatial_grid.get_entities_in_aabb(physics_min, physics_max);
-                &owned
-            }
+    // Reuse the pre-fetched slice from move_player when it covers the physics AABB.
+    // This avoids a second get_entities_in_aabb call on frames where the player moves.
+    let owned: Vec<Entity>;
+    let relevant: &[Entity] = if let Some((cache_min, cache_max)) = pre_fetched.bounds {
+        let covered = cache_min.x <= physics_min.x
+            && cache_min.y <= physics_min.y
+            && cache_min.z <= physics_min.z
+            && cache_max.x >= physics_max.x
+            && cache_max.y >= physics_max.y
+            && cache_max.z >= physics_max.z;
+        if covered {
+            &pre_fetched.entities
         } else {
             owned = spatial_grid.get_entities_in_aabb(physics_min, physics_max);
             &owned
+        }
+    } else {
+        owned = spatial_grid.get_entities_in_aabb(physics_min, physics_max);
+        &owned
+    };
+
+    // Check collision with nearby sub-voxels only
+    for &entity in relevant {
+        let Ok(sub_voxel) = sub_voxel_query.get(entity) else {
+            continue;
         };
 
-        // Check collision with nearby sub-voxels only
-        for &entity in relevant {
-            let Ok(sub_voxel) = sub_voxel_query.get(entity) else {
-                continue;
-            };
+        let (min, max) = get_sub_voxel_bounds(sub_voxel);
 
-            let (min, max) = get_sub_voxel_bounds(sub_voxel);
+        // For cylinder collision detection, we need to check if the player's circular
+        // cross-section actually overlaps with the sub-voxel's XZ bounds.
+        // Find the closest point on the sub-voxel's XZ rectangle to the player center
+        let closest_x = player_x.clamp(min.x, max.x);
+        let closest_z = player_z.clamp(min.z, max.z);
 
-            // For cylinder collision detection, we need to check if the player's circular
-            // cross-section actually overlaps with the sub-voxel's XZ bounds.
-            // Find the closest point on the sub-voxel's XZ rectangle to the player center
-            let closest_x = player_x.clamp(min.x, max.x);
-            let closest_z = player_z.clamp(min.z, max.z);
+        // Check if the closest point is within the cylinder's radius
+        let dx = player_x - closest_x;
+        let dz = player_z - closest_z;
+        let distance_squared = dx * dx + dz * dz;
 
-            // Check if the closest point is within the cylinder's radius
-            let dx = player_x - closest_x;
-            let dz = player_z - closest_z;
-            let distance_squared = dx * dx + dz * dz;
+        // Skip if the cylinder doesn't actually overlap horizontally
+        if distance_squared >= player_radius * player_radius {
+            continue;
+        }
 
-            // Skip if the cylinder doesn't actually overlap horizontally
-            if distance_squared >= player_radius * player_radius {
-                continue;
-            }
-
-            // Ground collision: Check when moving downward
-            if player.velocity.y <= 0.0 {
-                // Check if player's bottom would go through the top of this sub-voxel
-                // Player was above (or very close due to floating-point errors), and would now be at or below the top
-                if current_bottom >= max.y - GROUND_DETECTION_EPSILON
-                    && player_bottom <= max.y + GROUND_DETECTION_EPSILON
-                {
-                    highest_collision_y = highest_collision_y.max(max.y);
-                    hit_ground = true;
-                }
-            }
-
-            // Ceiling collision: Check when moving upward
-            if player.velocity.y > 0.0 {
-                // Check if player's top would go through the bottom of this sub-voxel
-                // Player's top was below (or very close), and would now be at or above the bottom
-                if current_top <= min.y + GROUND_DETECTION_EPSILON
-                    && player_top >= min.y - GROUND_DETECTION_EPSILON
-                {
-                    lowest_ceiling_y = lowest_ceiling_y.min(min.y);
-                    hit_ceiling = true;
-                }
+        // Ground collision: Check when moving downward
+        if player.velocity.y <= 0.0 {
+            // Check if player's bottom would go through the top of this sub-voxel
+            // Player was above (or very close due to floating-point errors), and would now be at or below the top
+            if current_bottom >= max.y - GROUND_DETECTION_EPSILON
+                && player_bottom <= max.y + GROUND_DETECTION_EPSILON
+            {
+                highest_collision_y = highest_collision_y.max(max.y);
+                hit_ground = true;
             }
         }
 
-        if hit_ground {
-            transform.translation.y = highest_collision_y + player_half_height;
-            player.velocity.y = 0.0;
-            player.is_grounded = true;
-        } else if hit_ceiling {
-            // Stop upward movement when hitting ceiling
-            transform.translation.y = lowest_ceiling_y - player_half_height;
-            player.velocity.y = 0.0;
-            player.is_grounded = false;
-        } else {
-            transform.translation.y = new_y;
-            player.is_grounded = false;
+        // Ceiling collision: Check when moving upward
+        if player.velocity.y > 0.0 {
+            // Check if player's top would go through the bottom of this sub-voxel
+            // Player's top was below (or very close), and would now be at or above the bottom
+            if current_top <= min.y + GROUND_DETECTION_EPSILON
+                && player_top >= min.y - GROUND_DETECTION_EPSILON
+            {
+                lowest_ceiling_y = lowest_ceiling_y.min(min.y);
+                hit_ceiling = true;
+            }
         }
+    }
+
+    if hit_ground {
+        transform.translation.y = highest_collision_y + player_half_height;
+        player.velocity.y = 0.0;
+        player.is_grounded = true;
+    } else if hit_ceiling {
+        // Stop upward movement when hitting ceiling
+        transform.translation.y = lowest_ceiling_y - player_half_height;
+        player.velocity.y = 0.0;
+        player.is_grounded = false;
+    } else {
+        transform.translation.y = new_y;
+        player.is_grounded = false;
     }
 }
 
@@ -192,11 +189,12 @@ pub fn apply_physics(
 /// - Prevents the player from walking through NPCs
 pub fn apply_npc_collision(
     npc_query: Query<(&Npc, &Transform), Without<Player>>,
-    mut player_query: Query<(&Player, &mut Transform)>,
+    mut player: Option<Single<(&Player, &mut Transform)>>,
 ) {
-    let Ok((player, mut player_transform)) = player_query.single_mut() else {
+    let Some(mut player) = player else {
         return;
     };
+    let (player, mut player_transform) = player.into_inner();
 
     let player_pos = player_transform.translation;
     let player_radius = player.radius;

@@ -226,16 +226,11 @@ fn intersect_ground_plane(ray_origin: Vec3, ray_dir: Vec3) -> Option<Vec3> {
 /// System to update the controller cursor via raycasting.
 pub fn update_controller_cursor(
     _mode: Res<ControllerCameraMode>,
-    camera_query: Query<&ControllerCamera, With<Camera3d>>,
+    controller_cam: Single<&ControllerCamera, With<Camera3d>>,
     editor_state: Res<EditorState>,
     mut cursor: ResMut<ControllerCursor>,
 ) {
     // Mode check removed - cursor updates for all input methods
-
-    let Ok(controller_cam) = camera_query.single() else {
-        cursor.clear();
-        return;
-    };
 
     let ray_origin = controller_cam.position;
     let ray_dir = controller_cam.forward_3d();

@@ -175,19 +175,17 @@ pub fn sync_camera_on_mode_switch(
     mut toggle_events: MessageReader<ControllerModeToggleEvent>,
     mode: Res<ControllerCameraMode>,
     mut camera_query: Query<(&Transform, Option<&mut ControllerCamera>), With<Camera3d>>,
-    editor_camera_query: Query<&crate::editor::camera::EditorCamera>,
+    editor_cam: Single<&crate::editor::camera::EditorCamera>,
 ) {
     for _ in toggle_events.read() {
         match *mode {
             ControllerCameraMode::FirstPerson => {
                 // Switching to first-person: copy fly camera position
-                if let Ok(editor_cam) = editor_camera_query.single() {
-                    for (_, controller_cam) in camera_query.iter_mut() {
-                        if let Some(mut ctrl) = controller_cam {
-                            ctrl.position = editor_cam.position;
-                            ctrl.yaw = editor_cam.yaw;
-                            ctrl.pitch = editor_cam.pitch;
-                        }
+                for (_, controller_cam) in camera_query.iter_mut() {
+                    if let Some(mut ctrl) = controller_cam {
+                        ctrl.position = editor_cam.position;
+                        ctrl.yaw = editor_cam.yaw;
+                        ctrl.pitch = editor_cam.pitch;
                     }
                 }
             }
