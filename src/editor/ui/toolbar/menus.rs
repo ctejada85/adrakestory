@@ -15,9 +15,9 @@ pub fn render_file_menu(
     editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
     recent_files: &mut RecentFiles,
-    save_events: &mut EventWriter<SaveMapEvent>,
-    save_as_events: &mut EventWriter<SaveMapAsEvent>,
-    open_recent_events: &mut EventWriter<OpenRecentFileEvent>,
+    save_events: &mut MessageWriter<SaveMapEvent>,
+    save_as_events: &mut MessageWriter<SaveMapAsEvent>,
+    open_recent_events: &mut MessageWriter<OpenRecentFileEvent>,
 ) {
     ui.menu_button("File", |ui| {
         if ui.button("📄 New (Ctrl+N)").clicked() {
@@ -55,7 +55,7 @@ pub fn render_file_menu(
                             ui_state.pending_action =
                                 Some(PendingAction::OpenRecentFile(path.clone()));
                         } else {
-                            open_recent_events.send(OpenRecentFileEvent { path: path.clone() });
+                            open_recent_events.write(OpenRecentFileEvent { path: path.clone() });
                         }
                         ui.close_menu();
                     }
@@ -73,12 +73,12 @@ pub fn render_file_menu(
         ui.separator();
 
         if ui.button("💾 Save (Ctrl+S)").clicked() {
-            save_events.send(SaveMapEvent);
+            save_events.write(SaveMapEvent);
             ui.close_menu();
         }
 
         if ui.button("💾 Save As... (Ctrl+Shift+S)").clicked() {
-            save_as_events.send(SaveMapAsEvent);
+            save_as_events.write(SaveMapAsEvent);
             ui.close_menu();
         }
 
@@ -100,8 +100,8 @@ pub fn render_file_menu(
 pub fn render_edit_menu(
     ui: &mut egui::Ui,
     history: &EditorHistory,
-    undo_events: &mut EventWriter<UndoEvent>,
-    redo_events: &mut EventWriter<RedoEvent>,
+    undo_events: &mut MessageWriter<UndoEvent>,
+    redo_events: &mut MessageWriter<RedoEvent>,
 ) {
     ui.menu_button("Edit", |ui| {
         let can_undo = history.can_undo();
@@ -115,7 +115,7 @@ pub fn render_edit_menu(
             };
 
             if ui.button(undo_text).clicked() {
-                undo_events.send(UndoEvent);
+                undo_events.write(UndoEvent);
                 info!("Undo clicked");
                 ui.close_menu();
             }
@@ -129,7 +129,7 @@ pub fn render_edit_menu(
             };
 
             if ui.button(redo_text).clicked() {
-                redo_events.send(RedoEvent);
+                redo_events.write(RedoEvent);
                 info!("Redo clicked");
                 ui.close_menu();
             }
@@ -165,19 +165,19 @@ pub fn render_view_menu(ui: &mut egui::Ui, editor_state: &mut EditorState) {
 pub fn render_run_menu(
     ui: &mut egui::Ui,
     play_state: &PlayTestState,
-    play_events: &mut EventWriter<PlayMapEvent>,
-    stop_events: &mut EventWriter<StopGameEvent>,
+    play_events: &mut MessageWriter<PlayMapEvent>,
+    stop_events: &mut MessageWriter<StopGameEvent>,
 ) {
     ui.menu_button("Run", |ui| {
         if play_state.is_running {
             if ui.button("⏹ Stop Game          Shift+F5").clicked() {
-                stop_events.send(StopGameEvent);
+                stop_events.write(StopGameEvent);
                 ui.close_menu();
             }
             ui.add_enabled(false, egui::Button::new("▶ Play Map                  F5"));
         } else {
             if ui.button("▶ Play Map                  F5").clicked() {
-                play_events.send(PlayMapEvent);
+                play_events.write(PlayMapEvent);
                 ui.close_menu();
             }
             ui.add_enabled(false, egui::Button::new("⏹ Stop Game          Shift+F5"));

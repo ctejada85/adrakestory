@@ -13,6 +13,13 @@
 // and FragmentOutput does not exist. The fragment function uses no return type — depth is written
 // automatically from the fragment position. Only discard logic is needed here.
 #import bevy_pbr::prepass_io::VertexOutput
+#import bevy_render::view::View
+
+// --- View uniform (group 0, binding 0) ----------------------------------------
+// Used to detect shadow passes: projection[3][3] == 1.0 → orthographic → shadow map pass.
+
+@group(0) @binding(0)
+var<uniform> view: View;
 
 // --- Occlusion uniform (must match binding in occlusion_material.wgsl) -------
 
@@ -60,30 +67,43 @@ fn in_interior_region(world_pos: vec3<f32>) -> bool {
 fn fragment(in: VertexOutput) {
     let world_pos = in.world_position.xyz;
 
-    // Region-based discard — hide interior regions entirely.
-    if occlusion.mode == 2u || occlusion.mode == 3u {
-        if in_interior_region(world_pos) {
-            discard;
-        }
-    }
+    // projection[3][3]:
+    //   1.0 = orthographic  → directional light shadow map pass  → skip discards
+    //   0.0 = perspective   → player camera depth prepass        → apply discards
+    //
+    // Directional light shadow maps use orthographic projection; the player camera
+    // uses perspective. This check is Bevy-version-agnostic (pure WGSL math).
+    //
+    // NOTE: Point/spot light shadow passes also use perspective, so discards fire
+    // for those too. Acceptable — both have shadows_enabled: false in current maps.
+    let is_shadow_pass = view.projection[3][3] >= 0.5;
 
-    // Shader-based height discard (mode 1 or 3, dithered technique).
-    //
-    // The prepass must make a BINARY keep/discard decision per fragment.
-    // Using dither here would leave some above-player fragments in the depth buffer,
-    // which would block the player (lower reverse-Z depth fails GreaterEqual test).
-    //
-    // Rule: discard fragments ABOVE the player level; keep fragments BELOW.
-    // The XZ proximity guard avoids discarding distant above-height geometry that
-    // the main pass would keep opaque (over-discarding is safe — the main pass
-    // re-writes depth for any fragment it renders that the prepass skipped).
-    if (occlusion.mode == 1u || occlusion.mode == 3u) && occlusion.technique == 0u {
-        if world_pos.y > occlusion.player_position.y + occlusion.height_threshold {
-            let xz_offset = world_pos.xz - occlusion.player_position.xz;
-            let xz_dist_sq = dot(xz_offset, xz_offset);
-            let xz_margin = occlusion.occlusion_radius * XZ_MARGIN_FACTOR;
-            if xz_dist_sq <= xz_margin * xz_margin {
+    if !is_shadow_pass {
+        // Region-based discard — hide interior regions entirely.
+        if occlusion.mode == 2u || occlusion.mode == 3u {
+            if in_interior_region(world_pos) {
                 discard;
+            }
+        }
+
+        // Shader-based height discard (mode 1 or 3, dithered technique).
+        //
+        // The prepass must make a BINARY keep/discard decision per fragment.
+        // Using dither here would leave some above-player fragments in the depth buffer,
+        // which would block the player (lower reverse-Z depth fails GreaterEqual test).
+        //
+        // Rule: discard fragments ABOVE the player level; keep fragments BELOW.
+        // The XZ proximity guard avoids discarding distant above-height geometry that
+        // the main pass would keep opaque (over-discarding is safe — the main pass
+        // re-writes depth for any fragment it renders that the prepass skipped).
+        if (occlusion.mode == 1u || occlusion.mode == 3u) && occlusion.technique == 0u {
+            if world_pos.y > occlusion.player_position.y + occlusion.height_threshold {
+                let xz_offset = world_pos.xz - occlusion.player_position.xz;
+                let xz_dist_sq = dot(xz_offset, xz_offset);
+                let xz_margin = occlusion.occlusion_radius * XZ_MARGIN_FACTOR;
+                if xz_dist_sq <= xz_margin * xz_margin {
+                    discard;
+                }
             }
         }
     }

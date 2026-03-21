@@ -2,7 +2,7 @@
 
 use bevy::math::{Affine3A, Vec3A};
 use bevy::prelude::*;
-use bevy::render::primitives::{Aabb, Frustum};
+use bevy::camera::primitives::{Aabb, Frustum};
 
 /// Grid bounds for rendering
 #[derive(Debug, Clone, Copy)]

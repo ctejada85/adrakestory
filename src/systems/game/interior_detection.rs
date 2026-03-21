@@ -104,7 +104,7 @@ pub fn detect_interior_system(
         return;
     };
 
-    let Ok(player_transform) = player_query.get_single() else {
+    let Ok(player_transform) = player_query.single() else {
         return;
     };
     let player_pos = player_transform.translation;

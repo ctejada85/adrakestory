@@ -30,8 +30,8 @@ pub fn follow_player_camera(
     profiler: Option<Res<FrameProfiler>>,
 ) {
     profile_scope!(profiler, "follow_player_camera");
-    if let Ok(player_transform) = player_query.get_single() {
-        if let Ok((mut game_camera, mut camera_transform)) = camera_query.get_single_mut() {
+    if let Ok(player_transform) = player_query.single() {
+        if let Ok((mut game_camera, mut camera_transform)) = camera_query.single_mut() {
             let player_position = player_transform.translation;
 
             // Update the target position for rotation system
@@ -68,7 +68,7 @@ pub fn rotate_camera(
     player_input: Res<PlayerInput>,
     mut camera_query: Query<(&mut GameCamera, &mut Transform)>,
 ) {
-    if let Ok((mut game_camera, mut transform)) = camera_query.get_single_mut() {
+    if let Ok((mut game_camera, mut transform)) = camera_query.single_mut() {
         let center = game_camera.target_position;
         let delta = time.delta_secs();
 

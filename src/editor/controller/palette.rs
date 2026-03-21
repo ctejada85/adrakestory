@@ -21,7 +21,7 @@ pub fn render_controller_palette(
         return;
     }
 
-    let ctx = contexts.ctx_mut();
+    let ctx = contexts.ctx_mut().expect("egui context");
 
     // Semi-transparent background
     egui::Area::new(egui::Id::new("palette_background"))
@@ -159,7 +159,7 @@ pub fn render_controller_hud(
         return;
     }
 
-    let ctx = contexts.ctx_mut();
+    let ctx = contexts.ctx_mut().expect("egui context");
 
     // Crosshair in center
     let screen_rect = ctx.screen_rect();

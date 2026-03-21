@@ -92,10 +92,10 @@ fn render_transform_mode_content(
     // Action buttons
     ui.horizontal(|ui| {
         if ui.button("✓ Confirm").clicked() {
-            events.confirm.send(ConfirmTransform);
+            events.confirm.write(ConfirmTransform);
         }
         if ui.button("✗ Cancel").clicked() {
-            events.cancel.send(CancelTransform);
+            events.cancel.write(CancelTransform);
         }
     });
 
@@ -140,16 +140,16 @@ fn render_voxel_selection_content(
     ui.label("Actions");
     ui.horizontal(|ui| {
         if ui.button("🔄 Move").on_hover_text("G").clicked() {
-            events.move_start.send(StartMoveOperation);
+            events.move_start.write(StartMoveOperation);
         }
         if ui.button("↻ Rotate").on_hover_text("R").clicked() {
-            events.rotate_start.send(StartRotateOperation);
+            events.rotate_start.write(StartRotateOperation);
         }
     });
 
     ui.horizontal(|ui| {
         if ui.button("🗑 Delete").on_hover_text("Delete").clicked() {
-            events.delete.send(DeleteSelectedVoxels);
+            events.delete.write(DeleteSelectedVoxels);
         }
         if ui.button("Clear").on_hover_text("Escape").clicked() {
             editor_state.clear_selections();

@@ -42,7 +42,7 @@ pub fn animate_intro(
 ) {
     timer.timer.tick(time.delta());
 
-    if let Ok(mut text_color) = text_query.get_single_mut() {
+    if let Ok(mut text_color) = text_query.single_mut() {
         match timer.phase {
             IntroPhase::FadeIn => {
                 // Fade in over 200ms
@@ -82,7 +82,7 @@ pub fn cleanup_intro(
     query: Query<Entity, With<IntroUI>>,
 ) {
     for entity in &query {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
     commands.remove_resource::<IntroAnimationTimer>();
 }

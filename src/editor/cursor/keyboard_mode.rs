@@ -14,7 +14,7 @@ pub fn toggle_keyboard_edit_mode(
     editor_state: Res<EditorState>,
 ) {
     // Don't toggle if UI wants keyboard input
-    if contexts.ctx_mut().wants_keyboard_input() {
+    if contexts.ctx_mut().expect("egui context").wants_keyboard_input() {
         return;
     }
 
@@ -51,7 +51,7 @@ pub fn handle_tool_switching(
     mut tool_memory: ResMut<crate::editor::state::ToolMemory>,
 ) {
     // Check if UI wants keyboard input (user is typing in text fields, etc.)
-    if contexts.ctx_mut().wants_keyboard_input() {
+    if contexts.ctx_mut().expect("egui context").wants_keyboard_input() {
         return;
     }
 
@@ -128,12 +128,12 @@ pub fn handle_tool_switching(
 pub fn handle_play_shortcuts(
     keyboard: Res<ButtonInput<KeyCode>>,
     play_state: Res<PlayTestState>,
-    mut play_events: EventWriter<PlayMapEvent>,
-    mut stop_events: EventWriter<StopGameEvent>,
+    mut play_events: MessageWriter<PlayMapEvent>,
+    mut stop_events: MessageWriter<StopGameEvent>,
     mut contexts: EguiContexts,
 ) {
     // Don't handle shortcuts if UI wants keyboard input
-    if contexts.ctx_mut().wants_keyboard_input() {
+    if contexts.ctx_mut().expect("egui context").wants_keyboard_input() {
         return;
     }
 
@@ -145,13 +145,13 @@ pub fn handle_play_shortcuts(
         if shift_held {
             // Shift+F5 to Stop
             if play_state.is_running {
-                stop_events.send(StopGameEvent);
+                stop_events.write(StopGameEvent);
                 info!("Stop game triggered via Shift+F5");
             }
         } else {
             // F5 to Play
             if !play_state.is_running {
-                play_events.send(PlayMapEvent);
+                play_events.write(PlayMapEvent);
                 info!("Play game triggered via F5");
             }
         }

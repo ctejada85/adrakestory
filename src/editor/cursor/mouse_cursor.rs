@@ -23,11 +23,11 @@ pub fn update_cursor_position(
         return;
     }
 
-    let Ok((camera, camera_transform, editor_cam)) = camera_query.get_single() else {
+    let Ok((camera, camera_transform, editor_cam)) = camera_query.single() else {
         return;
     };
 
-    let Ok(window) = window_query.get_single() else {
+    let Ok(window) = window_query.single() else {
         return;
     };
 

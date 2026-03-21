@@ -14,10 +14,10 @@ pub fn render_dialogs(
     ctx: &egui::Context,
     editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
-    save_events: &mut EventWriter<SaveMapEvent>,
-    map_changed_events: &mut EventWriter<MapDataChangedEvent>,
-    exit_events: &mut EventWriter<AppExitEvent>,
-    open_recent_events: &mut EventWriter<OpenRecentFileEvent>,
+    save_events: &mut MessageWriter<SaveMapEvent>,
+    map_changed_events: &mut MessageWriter<MapDataChangedEvent>,
+    exit_events: &mut MessageWriter<AppExitEvent>,
+    open_recent_events: &mut MessageWriter<OpenRecentFileEvent>,
 ) {
     // Unsaved changes dialog
     if ui_state.unsaved_changes_dialog_open {
@@ -57,9 +57,9 @@ fn render_unsaved_changes_dialog(
     ctx: &egui::Context,
     editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
-    save_events: &mut EventWriter<SaveMapEvent>,
-    exit_events: &mut EventWriter<AppExitEvent>,
-    open_recent_events: &mut EventWriter<OpenRecentFileEvent>,
+    save_events: &mut MessageWriter<SaveMapEvent>,
+    exit_events: &mut MessageWriter<AppExitEvent>,
+    open_recent_events: &mut MessageWriter<OpenRecentFileEvent>,
 ) {
     egui::Window::new("Unsaved Changes")
         .collapsible(false)
@@ -73,7 +73,7 @@ fn render_unsaved_changes_dialog(
 
             ui.horizontal(|ui| {
                 if ui.button("Save").clicked() {
-                    save_events.send(SaveMapEvent);
+                    save_events.write(SaveMapEvent);
                     ui_state.unsaved_changes_dialog_open = false;
                     handle_pending_action(editor_state, ui_state, exit_events, open_recent_events);
                 }
@@ -96,8 +96,8 @@ fn render_unsaved_changes_dialog(
 fn handle_pending_action(
     _editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
-    exit_events: &mut EventWriter<AppExitEvent>,
-    open_recent_events: &mut EventWriter<OpenRecentFileEvent>,
+    exit_events: &mut MessageWriter<AppExitEvent>,
+    open_recent_events: &mut MessageWriter<OpenRecentFileEvent>,
 ) {
     if let Some(action) = ui_state.pending_action.take() {
         match action {
@@ -108,11 +108,11 @@ fn handle_pending_action(
                 ui_state.file_dialog_open = true;
             }
             PendingAction::OpenRecentFile(path) => {
-                open_recent_events.send(OpenRecentFileEvent { path });
+                open_recent_events.write(OpenRecentFileEvent { path });
             }
             PendingAction::Quit => {
                 info!("Quitting editor");
-                exit_events.send(AppExitEvent);
+                exit_events.write(AppExitEvent);
             }
         }
     }
@@ -123,7 +123,7 @@ fn render_new_map_dialog(
     ctx: &egui::Context,
     editor_state: &mut EditorState,
     ui_state: &mut EditorUIState,
-    map_changed_events: &mut EventWriter<MapDataChangedEvent>,
+    map_changed_events: &mut MessageWriter<MapDataChangedEvent>,
 ) {
     egui::Window::new("New Map")
         .collapsible(false)
@@ -142,7 +142,7 @@ fn render_new_map_dialog(
                     ui_state.new_map_dialog_open = false;
                     info!("Created new map");
                     // Send event to trigger lighting update
-                    map_changed_events.send(MapDataChangedEvent);
+                    map_changed_events.write(MapDataChangedEvent);
                 }
 
                 if ui.button("Cancel").clicked() {

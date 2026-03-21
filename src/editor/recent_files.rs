@@ -148,7 +148,7 @@ impl RecentFiles {
 }
 
 /// Event to open a recent file
-#[derive(Event)]
+#[derive(Message)]
 pub struct OpenRecentFileEvent {
     pub path: PathBuf,
 }
@@ -166,7 +166,7 @@ fn get_config_path() -> PathBuf {
 
 /// System to update recent files when a file is saved
 pub fn update_recent_on_save(
-    mut events: EventReader<super::file_io::FileSavedEvent>,
+    mut events: MessageReader<super::file_io::FileSavedEvent>,
     mut recent_files: ResMut<RecentFiles>,
 ) {
     for event in events.read() {

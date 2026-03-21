@@ -8,17 +8,17 @@ use std::sync::{
 };
 
 /// Event sent when a file is selected from the file dialog
-#[derive(Event)]
+#[derive(Message)]
 pub struct FileSelectedEvent {
     pub path: PathBuf,
 }
 
 /// Event sent when map data changes (needs to be public for map_editor.rs)
-#[derive(Event)]
+#[derive(Message)]
 pub struct MapDataChangedEvent;
 
 /// Event sent when the app should exit
-#[derive(Event)]
+#[derive(Message)]
 pub struct AppExitEvent;
 
 /// Resource to track the file dialog receiver

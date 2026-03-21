@@ -12,7 +12,7 @@ pub fn render_selection_highlights(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     existing_highlights: Query<Entity, With<SelectionHighlight>>,
-    mut update_events: EventReader<UpdateSelectionHighlights>,
+    mut update_events: MessageReader<UpdateSelectionHighlights>,
 ) {
     // Only update if event received
     if update_events.read().count() == 0 {

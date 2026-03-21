@@ -11,8 +11,8 @@ use bevy::prelude::*;
 pub fn delete_selected_items(
     editor_state: &mut EditorState,
     history: &mut EditorHistory,
-    render_events: &mut EventWriter<RenderMapEvent>,
-    update_events: &mut EventWriter<UpdateSelectionHighlights>,
+    render_events: &mut MessageWriter<RenderMapEvent>,
+    update_events: &mut MessageWriter<UpdateSelectionHighlights>,
 ) {
     // Nothing to delete
     if editor_state.selected_voxels.is_empty() && editor_state.selected_entities.is_empty() {
@@ -97,15 +97,15 @@ pub fn delete_selected_items(
     editor_state.selected_voxels.clear();
 
     // Trigger re-render
-    render_events.send(RenderMapEvent);
-    update_events.send(UpdateSelectionHighlights);
+    render_events.write(RenderMapEvent);
+    update_events.write(UpdateSelectionHighlights);
 }
 
 /// Move selected entities by an offset
 pub fn move_selected_entities(
     editor_state: &mut EditorState,
     history: &mut EditorHistory,
-    render_events: &mut EventWriter<RenderMapEvent>,
+    render_events: &mut MessageWriter<RenderMapEvent>,
     offset: Vec3,
 ) {
     // Nothing to move
@@ -153,7 +153,7 @@ pub fn move_selected_entities(
     }
 
     // Trigger re-render
-    render_events.send(RenderMapEvent);
+    render_events.write(RenderMapEvent);
 }
 
 /// Calculate rotated position around pivot

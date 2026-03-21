@@ -41,8 +41,8 @@ pub fn render_outliner_panel(
     ctx: &egui::Context,
     editor_state: &mut EditorState,
     outliner_state: &mut OutlinerState,
-    selection_events: &mut EventWriter<UpdateSelectionHighlights>,
-    render_events: &mut EventWriter<RenderMapEvent>,
+    selection_events: &mut MessageWriter<UpdateSelectionHighlights>,
+    render_events: &mut MessageWriter<RenderMapEvent>,
 ) {
     let response = egui::SidePanel::left("outliner")
         .default_width(200.0)
@@ -104,7 +104,7 @@ fn render_voxels_section(
     ui: &mut egui::Ui,
     editor_state: &mut EditorState,
     outliner_state: &mut OutlinerState,
-    selection_events: &mut EventWriter<UpdateSelectionHighlights>,
+    selection_events: &mut MessageWriter<UpdateSelectionHighlights>,
 ) {
     let voxel_count = editor_state.current_map.world.voxels.len();
     
@@ -159,7 +159,7 @@ fn render_voxels_section(
                                     } else {
                                         editor_state.selected_voxels.insert(*pos);
                                     }
-                                    selection_events.send(UpdateSelectionHighlights);
+                                    selection_events.write(UpdateSelectionHighlights);
                                 }
                                 
                                 // Show position on hover
@@ -191,11 +191,11 @@ fn render_voxels_section(
                     for voxel in &editor_state.current_map.world.voxels {
                         editor_state.selected_voxels.insert(voxel.pos);
                     }
-                    selection_events.send(UpdateSelectionHighlights);
+                    selection_events.write(UpdateSelectionHighlights);
                 }
                 if ui.small_button("Deselect").clicked() {
                     editor_state.selected_voxels.clear();
-                    selection_events.send(UpdateSelectionHighlights);
+                    selection_events.write(UpdateSelectionHighlights);
                 }
             });
         });
@@ -208,8 +208,8 @@ fn render_entities_section(
     ui: &mut egui::Ui,
     editor_state: &mut EditorState,
     outliner_state: &mut OutlinerState,
-    selection_events: &mut EventWriter<UpdateSelectionHighlights>,
-    render_events: &mut EventWriter<RenderMapEvent>,
+    selection_events: &mut MessageWriter<UpdateSelectionHighlights>,
+    render_events: &mut MessageWriter<RenderMapEvent>,
 ) {
     let entity_count = editor_state.current_map.entities.len();
     
@@ -264,7 +264,7 @@ fn render_entities_section(
                             editor_state.selected_entities.clear();
                             editor_state.selected_entities.insert(index);
                         }
-                        selection_events.send(UpdateSelectionHighlights);
+                        selection_events.write(UpdateSelectionHighlights);
                     }
                     
                     // Context menu on right-click
@@ -291,8 +291,8 @@ fn render_entities_section(
                     editor_state.current_map.entities.remove(index);
                     editor_state.selected_entities.clear();
                     editor_state.mark_modified();
-                    selection_events.send(UpdateSelectionHighlights);
-                    render_events.send(RenderMapEvent);
+                    selection_events.write(UpdateSelectionHighlights);
+                    render_events.write(RenderMapEvent);
                     info!("Deleted entity at index {}", index);
                 }
             }
@@ -308,7 +308,7 @@ fn render_entities_section(
                 
                 if !editor_state.selected_entities.is_empty() && ui.small_button("Deselect").clicked() {
                     editor_state.selected_entities.clear();
-                    selection_events.send(UpdateSelectionHighlights);
+                    selection_events.write(UpdateSelectionHighlights);
                 }
             });
         });

@@ -8,11 +8,11 @@ use bevy::prelude::*;
 
 /// System to handle opening a recent file
 pub fn handle_open_recent_file(
-    mut events: EventReader<OpenRecentFileEvent>,
+    mut events: MessageReader<OpenRecentFileEvent>,
     mut editor_state: ResMut<EditorState>,
     mut ui_state: ResMut<state::EditorUIState>,
     mut recent_files: ResMut<RecentFiles>,
-    mut map_changed_events: EventWriter<MapDataChangedEvent>,
+    mut map_changed_events: MessageWriter<MapDataChangedEvent>,
 ) {
     for event in events.read() {
         info!("Opening recent file: {:?}", event.path);
@@ -32,7 +32,7 @@ pub fn handle_open_recent_file(
                         recent_files.add(event.path.clone());
 
                         // Send event to trigger lighting update
-                        map_changed_events.send(MapDataChangedEvent);
+                        map_changed_events.write(MapDataChangedEvent);
                     }
                     Err(e) => {
                         error!("Failed to parse map file: {}", e);

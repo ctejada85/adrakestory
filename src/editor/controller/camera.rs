@@ -7,7 +7,7 @@ use bevy_egui::EguiContexts;
 use std::f32::consts::PI;
 
 /// Event to toggle between orbit and controller camera modes.
-#[derive(Event)]
+#[derive(Message)]
 pub struct ControllerModeToggleEvent;
 
 /// Tracks which camera mode is active.
@@ -149,7 +149,7 @@ pub fn toggle_controller_mode(
     _gamepads: Query<&Gamepad>,
     _mode: ResMut<ControllerCameraMode>,
     mut _contexts: EguiContexts,
-    _toggle_events: EventWriter<ControllerModeToggleEvent>,
+    _toggle_events: MessageWriter<ControllerModeToggleEvent>,
 ) {
     // Mode toggling is disabled - all input methods now work together in FirstPerson mode.
     // The mode is always FirstPerson by default.
@@ -172,7 +172,7 @@ pub fn update_controller_camera(
 
 /// System to sync controller camera position when switching modes.
 pub fn sync_camera_on_mode_switch(
-    mut toggle_events: EventReader<ControllerModeToggleEvent>,
+    mut toggle_events: MessageReader<ControllerModeToggleEvent>,
     mode: Res<ControllerCameraMode>,
     mut camera_query: Query<(&Transform, Option<&mut ControllerCamera>), With<Camera3d>>,
     editor_camera_query: Query<&crate::editor::camera::EditorCamera>,
@@ -181,7 +181,7 @@ pub fn sync_camera_on_mode_switch(
         match *mode {
             ControllerCameraMode::FirstPerson => {
                 // Switching to first-person: copy fly camera position
-                if let Ok(editor_cam) = editor_camera_query.get_single() {
+                if let Ok(editor_cam) = editor_camera_query.single() {
                     for (_, controller_cam) in camera_query.iter_mut() {
                         if let Some(mut ctrl) = controller_cam {
                             ctrl.position = editor_cam.position;

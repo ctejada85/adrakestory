@@ -2,7 +2,7 @@
 
 use adrakestory::editor::ui::dialogs::MapDataChangedEvent;
 use adrakestory::editor::{camera, grid, EditorState};
-use bevy::pbr::CascadeShadowConfigBuilder;
+use bevy::light::CascadeShadowConfigBuilder;
 use bevy::prelude::*;
 use grid::InfiniteGridConfig;
 
@@ -13,7 +13,7 @@ pub fn setup_editor(
     mut materials: ResMut<Assets<StandardMaterial>>,
     grid_config: Res<InfiniteGridConfig>,
     editor_state: Res<EditorState>,
-    mut map_changed_events: EventWriter<MapDataChangedEvent>,
+    mut map_changed_events: MessageWriter<MapDataChangedEvent>,
 ) {
     info!("Starting Map Editor");
 
@@ -50,6 +50,7 @@ pub fn setup_editor(
                 shadows_enabled: true,
                 shadow_depth_bias: 0.02,
                 shadow_normal_bias: 1.8,
+                affects_lightmapped_mesh_diffuse: true,
             },
             cascade_shadow_config,
             Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, direction)),
@@ -64,9 +65,10 @@ pub fn setup_editor(
     // Spawn ambient light using map configuration
     // Convert 0.0-1.0 intensity to brightness (scale by 1000 for Bevy's lighting system)
     let ambient_brightness = lighting.ambient_intensity * 1000.0;
-    commands.insert_resource(AmbientLight {
+    commands.insert_resource(GlobalAmbientLight {
         color: Color::WHITE,
         brightness: ambient_brightness,
+        affects_lightmapped_meshes: true,
     });
 
     info!(
@@ -88,7 +90,7 @@ pub fn setup_editor(
     grid::spawn_cursor_indicator(&mut commands, &mut meshes, &mut materials);
 
     // Send event to trigger initial lighting setup
-    map_changed_events.send(MapDataChangedEvent);
+    map_changed_events.write(MapDataChangedEvent);
 
     info!("Map editor setup complete");
 }

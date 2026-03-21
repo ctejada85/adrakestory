@@ -104,7 +104,7 @@ fn render_keyboard_mode_indicator(
         .show(ctx, |ui| {
             egui::Frame::none()
                 .fill(egui::Color32::from_rgba_unmultiplied(40, 80, 40, 220))
-                .inner_margin(egui::Margin::same(8.0))
+                .inner_margin(egui::Margin::same(8))
                 .rounding(4.0)
                 .show(ui, |ui| {
                     ui.visuals_mut().override_text_color =
@@ -171,7 +171,7 @@ fn render_selection_tooltip(
         .show(ctx, |ui| {
             egui::Frame::none()
                 .fill(egui::Color32::from_rgba_unmultiplied(50, 50, 80, 200))
-                .inner_margin(egui::Margin::same(8.0))
+                .inner_margin(egui::Margin::same(8))
                 .rounding(4.0)
                 .show(ui, |ui| {
                     ui.visuals_mut().override_text_color =
@@ -223,7 +223,7 @@ fn render_transform_overlay(
         .show(ctx, |ui| {
             egui::Frame::none()
                 .fill(egui::Color32::from_rgba_unmultiplied(80, 80, 40, 230))
-                .inner_margin(egui::Margin::same(12.0))
+                .inner_margin(egui::Margin::same(12))
                 .rounding(6.0)
                 .show(ui, |ui| {
                     ui.visuals_mut().override_text_color =
@@ -301,7 +301,7 @@ fn render_tool_hint(
         .show(ctx, |ui| {
             egui::Frame::none()
                 .fill(egui::Color32::from_rgba_unmultiplied(40, 40, 40, 180))
-                .inner_margin(egui::Margin::same(6.0))
+                .inner_margin(egui::Margin::same(6))
                 .rounding(4.0)
                 .show(ui, |ui| {
                     ui.visuals_mut().override_text_color =

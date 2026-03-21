@@ -9,7 +9,7 @@
 
 use super::{shadow_params_for_quality, VoxelChunk};
 use crate::systems::game::occlusion::{OcclusionConfig, ShadowQuality};
-use bevy::pbr::{CascadeShadowConfig, NotShadowCaster};
+use bevy::light::{CascadeShadowConfig, NotShadowCaster};
 use bevy::prelude::*;
 
 /// Applies `OcclusionConfig::shadow_quality` to the live scene every time the

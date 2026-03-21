@@ -29,7 +29,7 @@ A Drake's Story is built using the **Entity Component System (ECS)** architectur
 ### Core Technologies
 
 - **Language**: Rust 2021 Edition
-- **Game Engine**: Bevy 0.15
+- **Game Engine**: Bevy 0.18
 - **Build System**: Cargo
 - **Serialization**: Serde + RON
 
@@ -37,7 +37,7 @@ A Drake's Story is built using the **Entity Component System (ECS)** architectur
 
 ```toml
 [dependencies]
-bevy = { version = "0.15", features = ["bevy_gltf"] }  # Game engine with GLTF support
+bevy = { version = "0.18", features = ["bevy_gltf"] }  # Game engine with GLTF support
 serde = { version = "1.0", features = ["derive"] }     # Serialization
 ron = "0.8"                                            # Map format
 thiserror = "1.0"                                      # Error handling
@@ -523,21 +523,23 @@ app.add_systems(
 );
 ```
 
-### Observer Pattern
+### Message Pattern (Bevy 0.18+)
 
-Events for system communication:
+The polling-based event system uses `Message`/`MessageReader`/`MessageWriter` (renamed from `Event`/`EventReader`/`EventWriter` in Bevy 0.18):
 
 ```rust
-fn emit_event(mut events: EventWriter<CustomEvent>) {
-    events.send(CustomEvent { /* ... */ });
+fn emit_message(mut messages: MessageWriter<CustomMessage>) {
+    messages.write(CustomMessage { /* ... */ });
 }
 
-fn handle_event(mut events: EventReader<CustomEvent>) {
-    for event in events.read() {
-        // Handle event
+fn handle_message(mut messages: MessageReader<CustomMessage>) {
+    for msg in messages.read() {
+        // Handle message
     }
 }
 ```
+
+Note: `#[derive(Message)]` and `app.add_message::<T>()` replace the old `#[derive(Event)]` / `app.add_event::<T>()`. The `Event` trait is now reserved for the observer/trigger pattern only.
 
 ### Component Pattern
 

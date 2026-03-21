@@ -27,7 +27,7 @@ pub fn apply_gravity(
     profiler: Option<Res<FrameProfiler>>,
 ) {
     profile_scope!(profiler, "apply_gravity");
-    if let Ok(mut player) = player_query.get_single_mut() {
+    if let Ok(mut player) = player_query.single_mut() {
         // Clamp delta time to prevent physics issues
         let delta = time.delta_secs().min(0.1);
         player.velocity.y += GRAVITY * delta;
@@ -64,7 +64,7 @@ pub fn apply_physics(
         return;
     };
 
-    if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
+    if let Ok((mut player, mut transform)) = player_query.single_mut() {
         // Clamp delta time to prevent physics issues
         let delta = time.delta_secs().min(0.1);
 
@@ -194,7 +194,7 @@ pub fn apply_npc_collision(
     npc_query: Query<(&Npc, &Transform), Without<Player>>,
     mut player_query: Query<(&Player, &mut Transform)>,
 ) {
-    let Ok((player, mut player_transform)) = player_query.get_single_mut() else {
+    let Ok((player, mut player_transform)) = player_query.single_mut() else {
         return;
     };
 

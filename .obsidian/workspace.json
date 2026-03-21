@@ -1,0 +1,190 @@
+{
+  "main": {
+    "id": "6af526dddaf51074",
+    "type": "split",
+    "children": [
+      {
+        "id": "0b3651cc92d6cfde",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "512c5a17a5f69715",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "docs/features/upgrade-bevy-0-18/ticket.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "ticket"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "51cda564a5386b18",
+    "type": "split",
+    "children": [
+      {
+        "id": "21b767a27fa68ade",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "da4d61969360ad14",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "3fa11f0c8ad52fd7",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "97425d05e8831ae9",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "8be1d74e900482ea",
+    "type": "split",
+    "children": [
+      {
+        "id": "29f935f9a65e7387",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "01684b0fe7eebf9c",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "docs/features/upgrade-bevy-0-18/ticket.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for ticket"
+            }
+          },
+          {
+            "id": "f5b8dd6cd3868228",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "docs/features/upgrade-bevy-0-18/ticket.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from ticket"
+            }
+          },
+          {
+            "id": "8940f84428666060",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "0b6b143fc65ff5d5",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "docs/features/upgrade-bevy-0-18/ticket.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of ticket"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false
+    }
+  },
+  "active": "512c5a17a5f69715",
+  "lastOpenFiles": [
+    "target/debug/deps/libwgpu-15ecd997f251c74e.rmeta",
+    "target/debug/deps/skrifa-c3a612aed49a3d83.skrifa.e3a6f25fe66fa84b-cgu.04.rcgu.o",
+    "target/debug/deps/naga_oil-c321f1f524b9e686.naga_oil.933ad890553f3c8e-cgu.03.rcgu.o",
+    "target/debug/deps/wgpu-15ecd997f251c74e.d",
+    "target/debug/deps/naga_oil-c321f1f524b9e686.naga_oil.933ad890553f3c8e-cgu.02.rcgu.o",
+    "target/debug/deps/wgpu_hal-24921ec0d458c4ba.wgpu_hal.2a6261cb4d7e6022-cgu.02.rcgu.o",
+    "target/debug/deps/libbevy_encase_derive-5d43df4d51a65826.dylib",
+    "target/debug/deps/skrifa-c3a612aed49a3d83.skrifa.e3a6f25fe66fa84b-cgu.00.rcgu.o",
+    "target/debug/deps/gltf-75c108d176320000.gltf.cab221bc5f7e1d7b-cgu.00.rcgu.o",
+    "target/debug/deps/naga_oil-c321f1f524b9e686.naga_oil.933ad890553f3c8e-cgu.08.rcgu.o",
+    "target/debug/deps/libswash-a5c2e9b454489c16.rmeta",
+    "docs/features/upgrade-bevy-0-18/references/requirements.md",
+    "docs/features/upgrade-bevy-0-18/references/architecture.md",
+    "docs/bugs/fix-occlusion-shadow-casting/references/architecture.md",
+    "docs/features/upgrade-bevy-0-18/ticket.md",
+    "docs/bugs/fix-occlusion-shadow-casting/references/requirements.md"
+  ]
+}

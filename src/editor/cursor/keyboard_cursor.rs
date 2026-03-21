@@ -23,7 +23,7 @@ pub fn handle_keyboard_cursor_movement(
     }
 
     // Check if UI wants keyboard input (user is typing in text fields, etc.)
-    if contexts.ctx_mut().wants_keyboard_input() {
+    if contexts.ctx_mut().expect("egui context").wants_keyboard_input() {
         return;
     }
 
@@ -110,7 +110,7 @@ pub fn handle_keyboard_selection(
     cursor_state: Res<CursorState>,
     mut editor_state: ResMut<EditorState>,
     keyboard_mode: Res<KeyboardEditMode>,
-    mut update_events: EventWriter<crate::editor::tools::UpdateSelectionHighlights>,
+    mut update_events: MessageWriter<crate::editor::tools::UpdateSelectionHighlights>,
 ) {
     // Only allow keyboard selection when in keyboard edit mode
     if !keyboard_mode.enabled {
@@ -118,7 +118,7 @@ pub fn handle_keyboard_selection(
     }
 
     // Check if UI wants keyboard input (user is typing in text fields, etc.)
-    if contexts.ctx_mut().wants_keyboard_input() {
+    if contexts.ctx_mut().expect("egui context").wants_keyboard_input() {
         return;
     }
 
@@ -147,5 +147,5 @@ pub fn handle_keyboard_selection(
     }
 
     // Trigger highlight update
-    update_events.send(crate::editor::tools::UpdateSelectionHighlights);
+    update_events.write(crate::editor::tools::UpdateSelectionHighlights);
 }

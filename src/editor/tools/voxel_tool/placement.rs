@@ -38,7 +38,7 @@ pub fn handle_voxel_placement(
 
     // Check if pointer is over any UI area (panels, buttons, etc.)
     // Also check is_using_pointer() for active interactions like dragging resize handles
-    let ctx = contexts.ctx_mut();
+    let ctx = contexts.ctx_mut().expect("egui context");
     if ctx.is_pointer_over_area() || ctx.is_using_pointer() {
         return;
     }
@@ -66,7 +66,7 @@ pub fn handle_voxel_placement(
         drag_state.last_cursor_grid_pos = cursor_state.grid_pos;
 
         // Record the screen position where the drag started
-        if let Ok(window) = window_query.get_single() {
+        if let Ok(window) = window_query.single() {
             drag_state.drag_start_screen_pos = window.cursor_position();
         }
 
@@ -157,7 +157,7 @@ pub fn handle_voxel_drag_placement(
     }
 
     // Check if pointer is over any UI area
-    let ctx = contexts.ctx_mut();
+    let ctx = contexts.ctx_mut().expect("egui context");
     if ctx.is_pointer_over_area() || ctx.is_using_pointer() {
         return;
     }
@@ -165,7 +165,7 @@ pub fn handle_voxel_drag_placement(
     // Check if mouse has actually moved enough from the drag start position
     // This prevents false drag triggers when grid_pos changes due to geometry changes
     if let (Some(start_pos), Ok(window)) =
-        (drag_state.drag_start_screen_pos, window_query.get_single())
+        (drag_state.drag_start_screen_pos, window_query.single())
     {
         if let Some(current_pos) = window.cursor_position() {
             let distance = (current_pos - start_pos).length();

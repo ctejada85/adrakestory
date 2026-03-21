@@ -12,11 +12,11 @@ use std::process::Child;
 use std::sync::{Arc, Mutex};
 
 /// Event sent when user wants to play/test the map
-#[derive(Event)]
+#[derive(Message)]
 pub struct PlayMapEvent;
 
 /// Event sent when user wants to stop the running game
-#[derive(Event)]
+#[derive(Message)]
 pub struct StopGameEvent;
 
 /// State for the play/test functionality
@@ -140,7 +140,7 @@ pub fn get_game_executable_path() -> PathBuf {
 
 /// System to handle the PlayMapEvent
 pub fn handle_play_map(
-    mut play_events: EventReader<PlayMapEvent>,
+    mut play_events: MessageReader<PlayMapEvent>,
     editor_state: Res<EditorState>,
     mut play_state: ResMut<PlayTestState>,
     mut ui_state: ResMut<EditorUIState>,
@@ -208,7 +208,7 @@ pub fn handle_play_map(
 
 /// System to handle the StopGameEvent
 pub fn handle_stop_game(
-    mut stop_events: EventReader<StopGameEvent>,
+    mut stop_events: MessageReader<StopGameEvent>,
     mut play_state: ResMut<PlayTestState>,
 ) {
     for _event in stop_events.read() {

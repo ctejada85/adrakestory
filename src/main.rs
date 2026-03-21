@@ -147,8 +147,8 @@ fn main() {
         .init_resource::<MapLoadProgress>()
         .init_resource::<HotReloadState>()
         .init_resource::<LodConfig>()
-        .add_event::<MapReloadEvent>()
-        .add_event::<MapReloadedEvent>()
+        .add_message::<MapReloadEvent>()
+        .add_message::<MapReloadedEvent>()
         // Initialize gamepad resources
         .init_resource::<ActiveGamepad>()
         .init_resource::<GamepadSettings>()

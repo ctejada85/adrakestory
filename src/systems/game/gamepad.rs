@@ -103,7 +103,7 @@ pub fn apply_deadzone(value: Vec2, deadzone: f32) -> Vec2 {
 /// When the active gamepad disconnects, the next available one (if any) becomes active.
 pub fn handle_gamepad_connections(
     mut active_gamepad: ResMut<ActiveGamepad>,
-    mut connection_events: EventReader<GamepadConnectionEvent>,
+    mut connection_events: MessageReader<GamepadConnectionEvent>,
     gamepads: Query<Entity, With<Gamepad>>,
 ) {
     for event in connection_events.read() {
@@ -225,7 +225,7 @@ pub fn gather_gamepad_input(
 pub fn gather_keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mouse_button: Res<ButtonInput<MouseButton>>,
-    mut mouse_motion: EventReader<bevy::input::mouse::MouseMotion>,
+    mut mouse_motion: MessageReader<bevy::input::mouse::MouseMotion>,
     mut player_input: ResMut<PlayerInput>,
 ) {
     // Calculate keyboard movement (WASD keys only)
@@ -519,15 +519,15 @@ pub fn get_menu_gamepad_input(
 ///
 /// Hides the cursor when using a gamepad and shows it when using keyboard/mouse.
 /// This provides a cleaner experience when playing with a controller.
-pub fn update_cursor_visibility(player_input: Res<PlayerInput>, mut windows: Query<&mut Window>) {
+pub fn update_cursor_visibility(player_input: Res<PlayerInput>, mut cursor_query: Query<&mut bevy::window::CursorOptions>) {
     if player_input.is_changed() {
-        if let Ok(mut window) = windows.get_single_mut() {
+        if let Ok(mut cursor) = cursor_query.single_mut() {
             match player_input.input_source {
                 InputSource::Gamepad => {
-                    window.cursor_options.visible = false;
+                    cursor.visible = false;
                 }
                 InputSource::KeyboardMouse => {
-                    window.cursor_options.visible = true;
+                    cursor.visible = true;
                 }
             }
         }

@@ -27,7 +27,8 @@
 use bevy::{
     pbr::{ExtendedMaterial, MaterialExtension},
     prelude::*,
-    render::render_resource::{AsBindGroup, ShaderRef, ShaderType},
+    render::render_resource::{AsBindGroup, ShaderType},
+    shader::ShaderRef,
 };
 use serde::{Deserialize, Serialize};
 
@@ -357,8 +358,8 @@ pub fn update_occlusion_uniforms(
         return;
     };
 
-    let camera_ref = camera_query.get_single().ok();
-    let player_ref = player_query.get_single().ok();
+    let camera_ref = camera_query.single().ok();
+    let player_ref = player_query.single().ok();
 
     // Recompute static fields only when OcclusionConfig changed or cache is empty.
     let new_static = if config.is_changed() || static_cache.is_none() {
@@ -472,10 +473,10 @@ pub fn debug_draw_occlusion_zone(
         return;
     }
 
-    let Ok(camera) = camera_query.get_single() else {
+    let Ok(camera) = camera_query.single() else {
         return;
     };
-    let Ok(player) = player_query.get_single() else {
+    let Ok(player) = player_query.single() else {
         return;
     };
 

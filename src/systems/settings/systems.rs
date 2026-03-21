@@ -215,7 +215,7 @@ pub fn setup_settings_menu(mut commands: Commands, config: Res<OcclusionConfig>)
 }
 
 fn spawn_setting_row(
-    parent: &mut ChildBuilder,
+    parent: &mut ChildSpawnerCommands<'_>,
     index: usize,
     id: SettingId,
     label: &str,
@@ -288,7 +288,7 @@ pub fn cleanup_settings_menu(
     root_query: Query<Entity, With<SettingsMenuRoot>>,
 ) {
     for entity in &root_query {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
     commands.remove_resource::<SelectedSettingsIndex>();
 }

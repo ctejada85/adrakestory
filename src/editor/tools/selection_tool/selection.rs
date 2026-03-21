@@ -12,7 +12,7 @@ pub fn handle_selection(
     mut editor_state: ResMut<EditorState>,
     mouse_button: Res<ButtonInput<MouseButton>>,
     mut contexts: EguiContexts,
-    mut update_events: EventWriter<UpdateSelectionHighlights>,
+    mut update_events: MessageWriter<UpdateSelectionHighlights>,
     mut drag_state: ResMut<DragSelectState>,
     viewport: ViewportRaycast,
 ) {
@@ -23,7 +23,7 @@ pub fn handle_selection(
 
     // Check if pointer is over any UI area (panels, buttons, backgrounds, etc.)
     // Also check is_using_pointer() for active interactions like dragging resize handles
-    let ctx = contexts.ctx_mut();
+    let ctx = contexts.ctx_mut().expect("egui context");
     if ctx.is_pointer_over_area() || ctx.is_using_pointer() {
         return;
     }
@@ -36,7 +36,7 @@ pub fn handle_selection(
                 if let Some(start_pos) = drag_state.start_grid_pos {
                     editor_state.selected_voxels.remove(&start_pos);
                     info!("Deselected voxel at {:?}", start_pos);
-                    update_events.send(UpdateSelectionHighlights);
+                    update_events.write(UpdateSelectionHighlights);
                 }
             }
 
@@ -56,10 +56,10 @@ pub fn handle_selection(
     }
 
     // Get mouse ray for entity selection
-    let Ok((camera, camera_transform)) = viewport.camera.get_single() else {
+    let Ok((camera, camera_transform)) = viewport.camera.single() else {
         return;
     };
-    let Ok(window) = viewport.window.get_single() else {
+    let Ok(window) = viewport.window.single() else {
         return;
     };
     let Some(cursor_position) = window.cursor_position() else {
@@ -102,7 +102,7 @@ pub fn handle_selection(
         }
 
         // Trigger highlight update
-        update_events.send(UpdateSelectionHighlights);
+        update_events.write(UpdateSelectionHighlights);
         return;
     }
 
@@ -132,7 +132,7 @@ pub fn handle_selection(
     }
 
     // Trigger highlight update
-    update_events.send(UpdateSelectionHighlights);
+    update_events.write(UpdateSelectionHighlights);
 }
 
 /// Handle continuous drag selection while mouse is held
@@ -141,7 +141,7 @@ pub fn handle_drag_selection(
     mut editor_state: ResMut<EditorState>,
     mouse_button: Res<ButtonInput<MouseButton>>,
     mut contexts: EguiContexts,
-    mut update_events: EventWriter<UpdateSelectionHighlights>,
+    mut update_events: MessageWriter<UpdateSelectionHighlights>,
     mut drag_state: ResMut<DragSelectState>,
 ) {
     // Only process if we're in drag-select mode
@@ -170,7 +170,7 @@ pub fn handle_drag_selection(
     }
 
     // Check if pointer is over any UI area
-    let ctx = contexts.ctx_mut();
+    let ctx = contexts.ctx_mut().expect("egui context");
     if ctx.is_pointer_over_area() || ctx.is_using_pointer() {
         return;
     }
@@ -197,7 +197,7 @@ pub fn handle_drag_selection(
         info!("Drag-selected voxel at {:?}", grid_pos);
 
         // Trigger highlight update
-        update_events.send(UpdateSelectionHighlights);
+        update_events.write(UpdateSelectionHighlights);
     }
 }
 

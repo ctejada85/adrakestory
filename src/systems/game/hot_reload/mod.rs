@@ -20,14 +20,14 @@ use bevy::prelude::*;
 use std::path::PathBuf;
 
 /// Event sent when a map reload is triggered
-#[derive(Event)]
+#[derive(Message)]
 pub struct MapReloadEvent {
     /// Path to the map file to reload
     pub path: PathBuf,
 }
 
 /// Event sent when map reload completes
-#[derive(Event)]
+#[derive(Message)]
 pub struct MapReloadedEvent {
     /// Whether the reload was successful
     pub success: bool,

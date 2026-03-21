@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn test_insert_and_query_single_entity() {
         let mut grid = SpatialGrid::default();
-        let entity = Entity::from_raw(42);
+        let entity = Entity::from_raw_u32(42).unwrap();
         let cell = IVec3::new(1, 2, 3);
 
         grid.cells.entry(cell).or_default().push(entity);
@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn test_get_entities_in_aabb_single_cell() {
         let mut grid = SpatialGrid::default();
-        let entity = Entity::from_raw(1);
+        let entity = Entity::from_raw_u32(1).unwrap();
         grid.cells.entry(IVec3::new(0, 0, 0)).or_default().push(entity);
 
         let entities = grid.get_entities_in_aabb(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.5, 0.5, 0.5));
@@ -146,9 +146,9 @@ mod tests {
     #[test]
     fn test_get_entities_in_aabb_multiple_cells() {
         let mut grid = SpatialGrid::default();
-        let e1 = Entity::from_raw(1);
-        let e2 = Entity::from_raw(2);
-        let e3 = Entity::from_raw(3);
+        let e1 = Entity::from_raw_u32(1).unwrap();
+        let e2 = Entity::from_raw_u32(2).unwrap();
+        let e3 = Entity::from_raw_u32(3).unwrap();
 
         grid.cells.entry(IVec3::new(0, 0, 0)).or_default().push(e1);
         grid.cells.entry(IVec3::new(1, 0, 0)).or_default().push(e2);
@@ -162,7 +162,7 @@ mod tests {
     #[test]
     fn test_get_entities_in_aabb_empty_cells() {
         let mut grid = SpatialGrid::default();
-        let entity = Entity::from_raw(1);
+        let entity = Entity::from_raw_u32(1).unwrap();
         grid.cells.entry(IVec3::new(5, 5, 5)).or_default().push(entity);
 
         // Query area that doesn't include the entity's cell
@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn test_cell_boundary_handling() {
         let mut grid = SpatialGrid::default();
-        let entity = Entity::from_raw(1);
+        let entity = Entity::from_raw_u32(1).unwrap();
         // Entity at exact boundary (1.0, 1.0, 1.0) should be in cell (1, 1, 1)
         grid.cells.entry(IVec3::new(1, 1, 1)).or_default().push(entity);
 

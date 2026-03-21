@@ -232,7 +232,7 @@ pub fn update_controller_cursor(
 ) {
     // Mode check removed - cursor updates for all input methods
 
-    let Ok(controller_cam) = camera_query.get_single() else {
+    let Ok(controller_cam) = camera_query.single() else {
         cursor.clear();
         return;
     };
@@ -277,7 +277,7 @@ pub fn render_cursor_highlight(
         };
 
         let center = Vec3::new(target.x as f32 + 0.5, target.y as f32 + 0.5, target.z as f32 + 0.5);
-        gizmos.cuboid(
+        gizmos.cube(
             Transform::from_translation(center).with_scale(Vec3::splat(1.02)),
             color,
         );
@@ -296,7 +296,7 @@ pub fn render_cursor_highlight(
             placement.y as f32 + 0.5,
             placement.z as f32 + 0.5,
         );
-        gizmos.cuboid(
+        gizmos.cube(
             Transform::from_translation(center).with_scale(Vec3::splat(1.01)),
             color,
         );

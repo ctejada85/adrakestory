@@ -11,15 +11,15 @@ use std::sync::{
 };
 
 /// Event sent when the user wants to save the current map
-#[derive(Event)]
+#[derive(Message)]
 pub struct SaveMapEvent;
 
 /// Event sent when the user wants to save the current map with a new name/location
-#[derive(Event)]
+#[derive(Message)]
 pub struct SaveMapAsEvent;
 
 /// Event sent when a file has been successfully saved
-#[derive(Event)]
+#[derive(Message)]
 pub struct FileSavedEvent {
     pub path: PathBuf,
 }
@@ -32,10 +32,10 @@ pub struct SaveFileDialogReceiver {
 
 /// System to handle SaveMapEvent - saves to existing path or triggers Save As
 pub fn handle_save_map(
-    mut save_events: EventReader<SaveMapEvent>,
+    mut save_events: MessageReader<SaveMapEvent>,
     editor_state: Res<EditorState>,
-    mut save_as_events: EventWriter<SaveMapAsEvent>,
-    mut file_saved_events: EventWriter<FileSavedEvent>,
+    mut save_as_events: MessageWriter<SaveMapAsEvent>,
+    mut file_saved_events: MessageWriter<FileSavedEvent>,
     mut ui_state: ResMut<EditorUIState>,
 ) {
     for _event in save_events.read() {
@@ -44,7 +44,7 @@ pub fn handle_save_map(
             match save_map_to_file(&editor_state.current_map, path) {
                 Ok(()) => {
                     info!("Map saved successfully to: {:?}", path);
-                    file_saved_events.send(FileSavedEvent { path: path.clone() });
+                    file_saved_events.write(FileSavedEvent { path: path.clone() });
                 }
                 Err(e) => {
                     error!("Failed to save map: {}", e);
@@ -55,14 +55,14 @@ pub fn handle_save_map(
         } else {
             // No file path, trigger Save As dialog
             info!("No file path set, triggering Save As dialog");
-            save_as_events.send(SaveMapAsEvent);
+            save_as_events.write(SaveMapAsEvent);
         }
     }
 }
 
 /// System to handle SaveMapAsEvent - triggers the save file dialog
 pub fn handle_save_map_as(
-    mut save_as_events: EventReader<SaveMapAsEvent>,
+    mut save_as_events: MessageReader<SaveMapAsEvent>,
     mut dialog_receiver: ResMut<SaveFileDialogReceiver>,
 ) {
     for _event in save_as_events.read() {
@@ -89,7 +89,7 @@ pub fn handle_save_map_as(
 pub fn check_save_dialog_result(
     mut dialog_receiver: ResMut<SaveFileDialogReceiver>,
     editor_state: Res<EditorState>,
-    mut file_saved_events: EventWriter<FileSavedEvent>,
+    mut file_saved_events: MessageWriter<FileSavedEvent>,
     mut ui_state: ResMut<EditorUIState>,
 ) {
     // Check if we have a receiver
@@ -105,7 +105,7 @@ pub fn check_save_dialog_result(
                     match save_map_to_file(&editor_state.current_map, &path) {
                         Ok(()) => {
                             info!("Map saved successfully to: {:?}", path);
-                            file_saved_events.send(FileSavedEvent { path });
+                            file_saved_events.write(FileSavedEvent { path });
                         }
                         Err(e) => {
                             error!("Failed to save map: {}", e);
@@ -135,7 +135,7 @@ pub fn check_save_dialog_result(
 
 /// System to handle file saved events - updates editor state
 pub fn handle_file_saved(
-    mut events: EventReader<FileSavedEvent>,
+    mut events: MessageReader<FileSavedEvent>,
     mut editor_state: ResMut<EditorState>,
 ) {
     for event in events.read() {

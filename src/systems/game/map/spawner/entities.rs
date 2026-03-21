@@ -65,7 +65,7 @@ pub fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
             SceneRoot(character_scene),
             Transform::from_translation(Vec3::new(0.0, -0.3, 0.0)).with_scale(Vec3::splat(0.5)),
         ))
-        .set_parent(player_entity);
+        .insert(ChildOf(player_entity));
 
     // Spawn a spotlight as a child entity to act as a flashlight
     // Points forward in the direction the character is facing
@@ -88,7 +88,7 @@ pub fn spawn_player(ctx: &mut EntitySpawnContext, position: Vec3) {
                 .looking_at(Vec3::new(0.0, 0.1, 10.0), Vec3::Y),
             PlayerFlashlight,
         ))
-        .set_parent(player_entity);
+        .insert(ChildOf(player_entity));
 
     info!(
         "Spawned player with character model and flashlight at position: {:?}",
@@ -167,7 +167,7 @@ pub fn spawn_npc(
             SceneRoot(npc_scene),
             Transform::from_translation(Vec3::new(0.0, -0.3, 0.0)).with_scale(Vec3::splat(0.5)),
         ))
-        .set_parent(npc_entity);
+        .insert(ChildOf(npc_entity));
 
     info!(
         "Spawned NPC '{}' at position: {:?} with radius {}",

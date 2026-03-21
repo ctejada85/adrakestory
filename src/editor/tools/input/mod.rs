@@ -23,7 +23,7 @@ use bevy::prelude::*;
 use bevy_egui::EguiContexts;
 
 /// Semantic events representing user input actions in the editor
-#[derive(Event, Debug, Clone)]
+#[derive(Message, Debug, Clone)]
 pub enum EditorInputEvent {
     // Selection operations
     StartMove,
@@ -61,10 +61,10 @@ pub fn handle_keyboard_input(
     mut contexts: EguiContexts,
     editor_state: Res<EditorState>,
     active_transform: Res<ActiveTransform>,
-    mut input_events: EventWriter<EditorInputEvent>,
+    mut input_events: MessageWriter<EditorInputEvent>,
 ) {
     // Single UI focus check for ALL keyboard input
-    if contexts.ctx_mut().wants_keyboard_input() {
+    if contexts.ctx_mut().expect("egui context").wants_keyboard_input() {
         return;
     }
 
@@ -101,12 +101,12 @@ pub fn handle_keyboard_input(
 /// - handle_delete_selected (deletion logic)
 /// - handle_deselect_shortcut (deselection logic)
 pub fn handle_transformation_operations(
-    mut input_events: EventReader<EditorInputEvent>,
+    mut input_events: MessageReader<EditorInputEvent>,
     mut active_transform: ResMut<ActiveTransform>,
     mut editor_state: ResMut<EditorState>,
     mut history: ResMut<EditorHistory>,
-    mut render_events: EventWriter<RenderMapEvent>,
-    mut update_events: EventWriter<UpdateSelectionHighlights>,
+    mut render_events: MessageWriter<RenderMapEvent>,
+    mut update_events: MessageWriter<UpdateSelectionHighlights>,
     preview_query: Query<&TransformPreview>,
 ) {
     for event in input_events.read() {
@@ -134,7 +134,7 @@ pub fn handle_transformation_operations(
                 {
                     editor_state.clear_selections();
                     info!("Cleared all selections");
-                    update_events.send(UpdateSelectionHighlights);
+                    update_events.write(UpdateSelectionHighlights);
                 }
             }
 

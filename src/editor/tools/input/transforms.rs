@@ -103,8 +103,8 @@ pub fn confirm_move_internal(
     editor_state: &mut EditorState,
     history: &mut EditorHistory,
     preview_query: &Query<&TransformPreview>,
-    render_events: &mut EventWriter<RenderMapEvent>,
-    update_events: &mut EventWriter<UpdateSelectionHighlights>,
+    render_events: &mut MessageWriter<RenderMapEvent>,
+    update_events: &mut MessageWriter<UpdateSelectionHighlights>,
 ) {
     // Check if all previews are valid (no collisions)
     let has_collision = preview_query.iter().any(|p| !p.is_valid);
@@ -191,8 +191,8 @@ pub fn confirm_move_internal(
     *active_transform = ActiveTransform::default();
 
     // Trigger updates
-    render_events.send(RenderMapEvent);
-    update_events.send(UpdateSelectionHighlights);
+    render_events.write(RenderMapEvent);
+    update_events.write(UpdateSelectionHighlights);
 }
 
 /// Confirm and apply a rotate operation
@@ -201,8 +201,8 @@ pub fn confirm_rotate_internal(
     editor_state: &mut EditorState,
     history: &mut EditorHistory,
     preview_query: &Query<&TransformPreview>,
-    render_events: &mut EventWriter<RenderMapEvent>,
-    update_events: &mut EventWriter<UpdateSelectionHighlights>,
+    render_events: &mut MessageWriter<RenderMapEvent>,
+    update_events: &mut MessageWriter<UpdateSelectionHighlights>,
 ) {
     // Check if all previews are valid (no collisions)
     let has_collision = preview_query.iter().any(|p| !p.is_valid);
@@ -327,6 +327,6 @@ pub fn confirm_rotate_internal(
     *active_transform = ActiveTransform::default();
 
     // Trigger updates
-    render_events.send(RenderMapEvent);
-    update_events.send(UpdateSelectionHighlights);
+    render_events.write(RenderMapEvent);
+    update_events.write(UpdateSelectionHighlights);
 }

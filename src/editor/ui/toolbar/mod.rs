@@ -39,13 +39,13 @@ pub fn render_toolbar(
     history: &EditorHistory,
     recent_files: &mut RecentFiles,
     play_state: &mut PlayTestState,
-    save_events: &mut EventWriter<SaveMapEvent>,
-    save_as_events: &mut EventWriter<SaveMapAsEvent>,
-    open_recent_events: &mut EventWriter<OpenRecentFileEvent>,
-    play_events: &mut EventWriter<PlayMapEvent>,
-    stop_events: &mut EventWriter<StopGameEvent>,
-    undo_events: &mut EventWriter<UndoEvent>,
-    redo_events: &mut EventWriter<RedoEvent>,
+    save_events: &mut MessageWriter<SaveMapEvent>,
+    save_as_events: &mut MessageWriter<SaveMapAsEvent>,
+    open_recent_events: &mut MessageWriter<OpenRecentFileEvent>,
+    play_events: &mut MessageWriter<PlayMapEvent>,
+    stop_events: &mut MessageWriter<StopGameEvent>,
+    undo_events: &mut MessageWriter<UndoEvent>,
+    redo_events: &mut MessageWriter<RedoEvent>,
 ) {
     // Menu bar panel
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {

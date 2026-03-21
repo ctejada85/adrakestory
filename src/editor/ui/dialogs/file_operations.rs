@@ -43,7 +43,7 @@ pub fn handle_file_operations(
 /// System to check for file dialog results and send events
 pub fn check_file_dialog_result(
     mut dialog_receiver: ResMut<FileDialogReceiver>,
-    mut file_selected_events: EventWriter<FileSelectedEvent>,
+    mut file_selected_events: MessageWriter<FileSelectedEvent>,
 ) {
     // Check if we have a receiver
     let should_clear = if let Some(receiver_arc) = &dialog_receiver.receiver {
@@ -53,7 +53,7 @@ pub fn check_file_dialog_result(
                 // Process the result
                 if let Some(path) = result {
                     info!("File selected: {:?}", path);
-                    file_selected_events.send(FileSelectedEvent { path });
+                    file_selected_events.write(FileSelectedEvent { path });
                 } else {
                     info!("File dialog cancelled");
                 }
@@ -76,11 +76,11 @@ pub fn check_file_dialog_result(
 
 /// System to handle file selected events
 pub fn handle_file_selected(
-    mut events: EventReader<FileSelectedEvent>,
+    mut events: MessageReader<FileSelectedEvent>,
     mut editor_state: ResMut<EditorState>,
     mut ui_state: ResMut<EditorUIState>,
     mut recent_files: ResMut<crate::editor::recent_files::RecentFiles>,
-    mut map_changed_events: EventWriter<MapDataChangedEvent>,
+    mut map_changed_events: MessageWriter<MapDataChangedEvent>,
 ) {
     for event in events.read() {
         match load_map_from_file(&event.path) {
@@ -93,7 +93,7 @@ pub fn handle_file_selected(
                 // Update recent files
                 recent_files.add(event.path.clone());
                 // Send event to trigger lighting update
-                map_changed_events.send(MapDataChangedEvent);
+                map_changed_events.write(MapDataChangedEvent);
             }
             Err(e) => {
                 error!("Failed to load map: {}", e);

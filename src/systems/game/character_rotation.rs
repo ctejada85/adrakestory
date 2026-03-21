@@ -83,7 +83,7 @@ pub fn rotate_character_model(
         }
 
         // Find and update the character model child entity
-        for &child in children.iter() {
+        for child in children.iter() {
             if let Ok(mut transform) = transform_query.get_mut(child) {
                 // Apply Y-axis rotation to the character model
                 transform.rotation = Quat::from_rotation_y(player.current_rotation);

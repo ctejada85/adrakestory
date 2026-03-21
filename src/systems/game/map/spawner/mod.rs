@@ -28,7 +28,7 @@ use super::loader::{LoadProgress, LoadedMapData, MapLoadProgress};
 use crate::diagnostics::FrameProfiler;
 use crate::profile_scope;
 use bevy::ecs::system::SystemParam;
-use bevy::pbr::{CascadeShadowConfig, CascadeShadowConfigBuilder};
+use bevy::light::{CascadeShadowConfig, CascadeShadowConfigBuilder};
 use bevy::prelude::*;
 
 /// Number of sub-voxels per voxel axis (8x8x8 = 512 sub-voxels per voxel)
@@ -430,7 +430,7 @@ pub fn update_chunk_lods(
 ) {
     profile_scope!(profiler, "update_chunk_lods");
     // Get camera position, or early return if no camera
-    let Ok(camera_transform) = camera_query.get_single() else {
+    let Ok(camera_transform) = camera_query.single() else {
         return;
     };
     let camera_pos = camera_transform.translation;
@@ -552,6 +552,7 @@ fn spawn_lighting(commands: &mut Commands, map: &MapData, config: &OcclusionConf
                 shadows_enabled,
                 shadow_depth_bias: 0.02,
                 shadow_normal_bias: 1.8,
+                affects_lightmapped_mesh_diffuse: true,
             },
             cascade_shadow_config,
             Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, direction)),
@@ -561,9 +562,10 @@ fn spawn_lighting(commands: &mut Commands, map: &MapData, config: &OcclusionConf
     // Spawn ambient light using map-defined intensity
     // Convert 0.0-1.0 intensity to brightness (scale by 1000 for Bevy's lighting system)
     let ambient_brightness = lighting.ambient_intensity * 1000.0;
-    commands.insert_resource(AmbientLight {
+    commands.insert_resource(GlobalAmbientLight {
         color: Color::WHITE,
         brightness: ambient_brightness,
+        affects_lightmapped_meshes: true,
     });
 
     info!(

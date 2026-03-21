@@ -30,6 +30,7 @@ use adrakestory::editor::{
 };
 use adrakestory::editor::{FileSavedEvent, SaveFileDialogReceiver, SaveMapAsEvent, SaveMapEvent};
 use bevy::prelude::*;
+use bevy::window::WindowResolution;
 use bevy_egui::EguiPlugin;
 use grid::InfiniteGridConfig;
 
@@ -38,7 +39,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Map Editor - A Drake's Story".to_string(),
-                resolution: (1600.0, 900.0).into(),
+                resolution: WindowResolution::new(1600u32, 900u32),
                 // Prevent window from closing immediately - we handle it manually
                 prevent_default_event_handling: false,
                 ..default()
@@ -46,7 +47,7 @@ fn main() {
             close_when_requested: false, // Don't auto-close, we'll handle it
             ..default()
         }))
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin { enable_multipass_for_primary_context: false, ..default() })
         .init_resource::<EditorState>()
         .init_resource::<CursorState>()
         .init_resource::<EditorHistory>()
@@ -66,30 +67,30 @@ fn main() {
         .init_resource::<ui::OutlinerState>()
         .init_resource::<PlayTestState>()
         .insert_resource(RecentFiles::load()) // Load recent files from disk
-        .add_event::<ui::dialogs::FileSelectedEvent>()
-        .add_event::<SaveMapEvent>()
-        .add_event::<SaveMapAsEvent>()
-        .add_event::<FileSavedEvent>()
-        .add_event::<RenderMapEvent>()
-        .add_event::<ui::dialogs::MapDataChangedEvent>()
-        .add_event::<OpenRecentFileEvent>()
-        .add_event::<PlayMapEvent>()
-        .add_event::<StopGameEvent>()
-        .add_event::<UndoEvent>()
-        .add_event::<RedoEvent>()
-        .add_event::<tools::UpdateSelectionHighlights>()
+        .add_message::<ui::dialogs::FileSelectedEvent>()
+        .add_message::<SaveMapEvent>()
+        .add_message::<SaveMapAsEvent>()
+        .add_message::<FileSavedEvent>()
+        .add_message::<RenderMapEvent>()
+        .add_message::<ui::dialogs::MapDataChangedEvent>()
+        .add_message::<OpenRecentFileEvent>()
+        .add_message::<PlayMapEvent>()
+        .add_message::<StopGameEvent>()
+        .add_message::<UndoEvent>()
+        .add_message::<RedoEvent>()
+        .add_message::<tools::UpdateSelectionHighlights>()
         // New unified input event
-        .add_event::<tools::EditorInputEvent>()
+        .add_message::<tools::EditorInputEvent>()
         // Keep these events for UI button compatibility
-        .add_event::<tools::DeleteSelectedVoxels>()
-        .add_event::<tools::StartMoveOperation>()
-        .add_event::<tools::StartRotateOperation>()
-        .add_event::<tools::ConfirmTransform>()
-        .add_event::<tools::CancelTransform>()
-        .add_event::<tools::UpdateTransformPreview>()
-        .add_event::<tools::UpdateRotation>()
-        .add_event::<tools::SetRotationAxis>()
-        .add_event::<AppExitEvent>()
+        .add_message::<tools::DeleteSelectedVoxels>()
+        .add_message::<tools::StartMoveOperation>()
+        .add_message::<tools::StartRotateOperation>()
+        .add_message::<tools::ConfirmTransform>()
+        .add_message::<tools::CancelTransform>()
+        .add_message::<tools::UpdateTransformPreview>()
+        .add_message::<tools::UpdateRotation>()
+        .add_message::<tools::SetRotationAxis>()
+        .add_message::<AppExitEvent>()
         .add_systems(Startup, setup::setup_editor)
         .add_systems(Update, lighting::update_lighting_on_map_change)
         .add_systems(Update, ui_system::render_ui)

@@ -40,8 +40,8 @@ pub fn render_view_toggles(ui: &mut egui::Ui, editor_state: &mut EditorState) {
 pub fn render_play_controls(
     ui: &mut egui::Ui,
     play_state: &mut PlayTestState,
-    play_events: &mut EventWriter<PlayMapEvent>,
-    stop_events: &mut EventWriter<StopGameEvent>,
+    play_events: &mut MessageWriter<PlayMapEvent>,
+    stop_events: &mut MessageWriter<StopGameEvent>,
 ) {
     if play_state.is_running {
         // Show Stop button when game is running
@@ -54,7 +54,7 @@ pub fn render_play_controls(
             .on_hover_text("Stop the running game (Shift+F5)")
             .clicked()
         {
-            stop_events.send(StopGameEvent);
+            stop_events.write(StopGameEvent);
         }
 
         // Running indicator
@@ -83,7 +83,7 @@ pub fn render_play_controls(
             .on_hover_text("Test map in game (F5)")
             .clicked()
         {
-            play_events.send(PlayMapEvent);
+            play_events.write(PlayMapEvent);
         }
     }
 }

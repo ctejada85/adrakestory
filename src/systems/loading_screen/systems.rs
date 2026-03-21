@@ -43,7 +43,7 @@ pub fn setup_loading_screen(mut commands: Commands) {
                         border: UiRect::all(Val::Px(2.0)),
                         ..default()
                     },
-                    BorderColor(Color::srgb(0.5, 0.5, 0.5)),
+                    BorderColor::all(Color::srgb(0.5, 0.5, 0.5)),
                     BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
                 ))
                 .with_children(|parent| {
@@ -98,6 +98,6 @@ pub fn update_loading_progress(
 /// Cleanup the loading screen.
 pub fn cleanup_loading_screen(mut commands: Commands, query: Query<Entity, With<LoadingScreenUI>>) {
     for entity in &query {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 }

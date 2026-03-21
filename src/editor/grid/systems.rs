@@ -17,14 +17,14 @@ pub fn update_infinite_grid(
     camera_query: Query<
         (
             &Transform,
-            &bevy::render::primitives::Frustum,
+            &bevy::camera::primitives::Frustum,
             &crate::editor::camera::EditorCamera,
         ),
         With<crate::editor::camera::EditorCamera>,
     >,
     grid_query: Query<(Entity, &Mesh3d), With<EditorGrid>>,
 ) {
-    let Ok((camera_transform, frustum, _editor_camera)) = camera_query.get_single() else {
+    let Ok((camera_transform, frustum, _editor_camera)) = camera_query.single() else {
         return;
     };
 

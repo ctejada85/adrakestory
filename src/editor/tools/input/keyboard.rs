@@ -7,24 +7,24 @@ use bevy::prelude::*;
 /// Handle input when in selection mode (no active transformation)
 pub fn handle_selection_mode_input(
     keyboard: &ButtonInput<KeyCode>,
-    events: &mut EventWriter<EditorInputEvent>,
+    events: &mut MessageWriter<EditorInputEvent>,
 ) {
     // Start operations
     if keyboard.just_pressed(KeyCode::KeyG) {
-        events.send(EditorInputEvent::StartMove);
+        events.write(EditorInputEvent::StartMove);
     }
     if keyboard.just_pressed(KeyCode::KeyR) {
-        events.send(EditorInputEvent::StartRotate);
+        events.write(EditorInputEvent::StartRotate);
     }
 
     // Delete selected
     if keyboard.just_pressed(KeyCode::Delete) || keyboard.just_pressed(KeyCode::Backspace) {
-        events.send(EditorInputEvent::DeleteSelected);
+        events.write(EditorInputEvent::DeleteSelected);
     }
 
     // Deselect all
     if keyboard.just_pressed(KeyCode::Escape) {
-        events.send(EditorInputEvent::DeselectAll);
+        events.write(EditorInputEvent::DeselectAll);
     }
 
     // Entity movement with arrow keys (grid-aligned movement for entities)
@@ -56,14 +56,14 @@ pub fn handle_selection_mode_input(
     }
 
     if offset != Vec3::ZERO {
-        events.send(EditorInputEvent::MoveSelectedEntities(offset));
+        events.write(EditorInputEvent::MoveSelectedEntities(offset));
     }
 }
 
 /// Handle input during move operation
 pub fn handle_move_mode_input(
     keyboard: &ButtonInput<KeyCode>,
-    events: &mut EventWriter<EditorInputEvent>,
+    events: &mut MessageWriter<EditorInputEvent>,
 ) {
     // Calculate movement step (1 or 5 with Shift)
     let step = if keyboard.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
@@ -97,47 +97,47 @@ pub fn handle_move_mode_input(
 
     // Send offset update if any movement occurred
     if offset != IVec3::ZERO {
-        events.send(EditorInputEvent::UpdateMoveOffset(offset));
+        events.write(EditorInputEvent::UpdateMoveOffset(offset));
     }
 
     // Confirm or cancel
     if keyboard.just_pressed(KeyCode::Enter) {
-        events.send(EditorInputEvent::ConfirmTransform);
+        events.write(EditorInputEvent::ConfirmTransform);
     }
     if keyboard.just_pressed(KeyCode::Escape) {
-        events.send(EditorInputEvent::CancelTransform);
+        events.write(EditorInputEvent::CancelTransform);
     }
 }
 
 /// Handle input during rotate operation
 pub fn handle_rotate_mode_input(
     keyboard: &ButtonInput<KeyCode>,
-    events: &mut EventWriter<EditorInputEvent>,
+    events: &mut MessageWriter<EditorInputEvent>,
 ) {
     // Axis selection
     if keyboard.just_pressed(KeyCode::KeyX) {
-        events.send(EditorInputEvent::SetRotationAxis(RotationAxis::X));
+        events.write(EditorInputEvent::SetRotationAxis(RotationAxis::X));
     }
     if keyboard.just_pressed(KeyCode::KeyY) {
-        events.send(EditorInputEvent::SetRotationAxis(RotationAxis::Y));
+        events.write(EditorInputEvent::SetRotationAxis(RotationAxis::Y));
     }
     if keyboard.just_pressed(KeyCode::KeyZ) {
-        events.send(EditorInputEvent::SetRotationAxis(RotationAxis::Z));
+        events.write(EditorInputEvent::SetRotationAxis(RotationAxis::Z));
     }
 
     // Rotation with arrow keys
     if keyboard.just_pressed(KeyCode::ArrowLeft) {
-        events.send(EditorInputEvent::RotateDelta(-1));
+        events.write(EditorInputEvent::RotateDelta(-1));
     }
     if keyboard.just_pressed(KeyCode::ArrowRight) {
-        events.send(EditorInputEvent::RotateDelta(1));
+        events.write(EditorInputEvent::RotateDelta(1));
     }
 
     // Confirm or cancel
     if keyboard.just_pressed(KeyCode::Enter) {
-        events.send(EditorInputEvent::ConfirmTransform);
+        events.write(EditorInputEvent::ConfirmTransform);
     }
     if keyboard.just_pressed(KeyCode::Escape) {
-        events.send(EditorInputEvent::CancelTransform);
+        events.write(EditorInputEvent::CancelTransform);
     }
 }

@@ -89,43 +89,43 @@ pub struct DragSelectState {
 }
 
 /// Event to trigger selection highlight update
-#[derive(Event)]
+#[derive(Message)]
 pub struct UpdateSelectionHighlights;
 
 /// Event to trigger deletion of selected voxels
-#[derive(Event)]
+#[derive(Message)]
 pub struct DeleteSelectedVoxels;
 
 /// Event to start move operation
-#[derive(Event)]
+#[derive(Message)]
 pub struct StartMoveOperation;
 
 /// Event to start rotate operation
-#[derive(Event)]
+#[derive(Message)]
 pub struct StartRotateOperation;
 
 /// Event to set rotation axis
-#[derive(Event)]
+#[derive(Message)]
 pub struct SetRotationAxis {
     pub axis: RotationAxis,
 }
 
 /// Event to confirm transformation
-#[derive(Event)]
+#[derive(Message)]
 pub struct ConfirmTransform;
 
 /// Event to cancel transformation
-#[derive(Event)]
+#[derive(Message)]
 pub struct CancelTransform;
 
 /// Event to update transform preview
-#[derive(Event)]
+#[derive(Message)]
 pub struct UpdateTransformPreview {
     pub offset: IVec3,
 }
 
 /// Event to update rotation
-#[derive(Event)]
+#[derive(Message)]
 pub struct UpdateRotation {
     pub delta: i32, // +1 or -1 for 90-degree rotations
 }

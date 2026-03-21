@@ -50,7 +50,7 @@ pub fn update_collision_box(
     player_query: Query<&Transform, With<Player>>,
     mut collision_box_query: Query<&mut Transform, (With<CollisionBox>, Without<Player>)>,
 ) {
-    if let Ok(player_transform) = player_query.get_single() {
+    if let Ok(player_transform) = player_query.single() {
         for mut box_transform in &mut collision_box_query {
             box_transform.translation = player_transform.translation;
         }
@@ -70,7 +70,7 @@ pub fn toggle_fullscreen(
     let enter_just_pressed = keyboard_input.just_pressed(KeyCode::Enter);
 
     if alt_pressed && enter_just_pressed {
-        if let Ok(mut window) = windows.get_single_mut() {
+        if let Ok(mut window) = windows.single_mut() {
             window.mode = match window.mode {
                 WindowMode::Windowed => {
                     info!("Switching to fullscreen mode");
@@ -117,7 +117,7 @@ pub fn update_flashlight_rotation(
     player_query: Query<&Player>,
     mut flashlight_query: Query<&mut Transform, With<PlayerFlashlight>>,
 ) {
-    let Ok(player) = player_query.get_single() else {
+    let Ok(player) = player_query.single() else {
         return;
     };
 

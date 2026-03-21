@@ -2,16 +2,16 @@
 
 use adrakestory::editor::ui::dialogs::MapDataChangedEvent;
 use adrakestory::editor::EditorState;
-use bevy::pbr::CascadeShadowConfigBuilder;
+use bevy::light::CascadeShadowConfigBuilder;
 use bevy::prelude::*;
 
 /// System to update lighting when the map changes (e.g., after loading a new map)
 pub fn update_lighting_on_map_change(
     mut commands: Commands,
     editor_state: Res<EditorState>,
-    mut ambient_light: ResMut<AmbientLight>,
+    mut ambient_light: ResMut<GlobalAmbientLight>,
     directional_lights: Query<Entity, With<DirectionalLight>>,
-    mut map_changed_events: EventReader<MapDataChangedEvent>,
+    mut map_changed_events: MessageReader<MapDataChangedEvent>,
 ) {
     // Only update if we received a map data changed event
     if map_changed_events.read().next().is_none() {
@@ -55,6 +55,7 @@ pub fn update_lighting_on_map_change(
                 shadows_enabled: true,
                 shadow_depth_bias: 0.02,
                 shadow_normal_bias: 1.8,
+                affects_lightmapped_mesh_diffuse: true,
             },
             cascade_shadow_config,
             Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, direction)),

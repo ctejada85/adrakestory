@@ -166,16 +166,16 @@ pub struct CameraInputState {
 pub fn handle_camera_input(
     mut camera_query: Query<&mut EditorCamera>,
     mouse_button: Res<ButtonInput<MouseButton>>,
-    mut mouse_motion: EventReader<bevy::input::mouse::MouseMotion>,
+    mut mouse_motion: MessageReader<bevy::input::mouse::MouseMotion>,
     keyboard: Res<ButtonInput<KeyCode>>,
     gamepads: Query<&Gamepad>,
     mut gamepad_state: ResMut<GamepadCameraState>,
     editor_state: Res<crate::editor::state::EditorState>,
     mut contexts: EguiContexts,
-    mut windows: Query<&mut Window>,
+    mut cursor_query: Query<&mut bevy::window::CursorOptions>,
     time: Res<Time>,
 ) {
-    let Ok(mut camera) = camera_query.get_single_mut() else {
+    let Ok(mut camera) = camera_query.single_mut() else {
         return;
     };
 
@@ -198,8 +198,8 @@ pub fn handle_camera_input(
     // Switch to gamepad mode if gamepad input detected
     if gamepad_has_input && !gamepad_state.active {
         gamepad_state.active = true;
-        if let Ok(mut window) = windows.get_single_mut() {
-            window.cursor_options.visible = false;
+        if let Ok(mut cursor) = cursor_query.single_mut() {
+            cursor.visible = false;
         }
     }
 
@@ -208,8 +208,8 @@ pub fn handle_camera_input(
     let mouse_clicked = mouse_button.any_just_pressed([MouseButton::Left, MouseButton::Right, MouseButton::Middle]);
     if (mouse_moved || mouse_clicked) && gamepad_state.active {
         gamepad_state.active = false;
-        if let Ok(mut window) = windows.get_single_mut() {
-            window.cursor_options.visible = true;
+        if let Ok(mut cursor) = cursor_query.single_mut() {
+            cursor.visible = true;
         }
     }
 
@@ -266,7 +266,7 @@ pub fn handle_camera_input(
     }
 
     // Check if pointer is over UI
-    let ctx = contexts.ctx_mut();
+    let ctx = contexts.ctx_mut().expect("egui context");
     let pointer_over_ui = ctx.is_pointer_over_area() || ctx.is_using_pointer();
     let wants_keyboard = ctx.wants_keyboard_input();
 
@@ -419,7 +419,7 @@ pub fn handle_gamepad_voxel_actions(
     };
 
     // Check if UI is being interacted with
-    let ctx = contexts.ctx_mut();
+    let ctx = contexts.ctx_mut().expect("egui context");
     let _pointer_over_ui = ctx.is_pointer_over_area() || ctx.is_using_pointer();
 
     // Determine if primary or secondary action is triggered
@@ -567,7 +567,7 @@ pub fn handle_gamepad_tool_cycling(
     }
 
     // Check if UI wants keyboard input
-    let ctx = contexts.ctx_mut();
+    let ctx = contexts.ctx_mut().expect("egui context");
     let wants_keyboard = ctx.wants_keyboard_input();
 
     let mut next_pressed = false;

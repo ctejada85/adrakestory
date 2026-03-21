@@ -13,20 +13,20 @@ use bevy::prelude::*;
 use bevy_egui::EguiContexts;
 
 /// Event to request an undo operation
-#[derive(Event)]
+#[derive(Message)]
 pub struct UndoEvent;
 
 /// Event to request a redo operation
-#[derive(Event)]
+#[derive(Message)]
 pub struct RedoEvent;
 
 /// Bundle of event writers for shortcut-triggered actions
 #[derive(SystemParam)]
 pub struct ShortcutEvents<'w> {
-    pub save: EventWriter<'w, SaveMapEvent>,
-    pub save_as: EventWriter<'w, SaveMapAsEvent>,
-    pub undo: EventWriter<'w, UndoEvent>,
-    pub redo: EventWriter<'w, RedoEvent>,
+    pub save: MessageWriter<'w, SaveMapEvent>,
+    pub save_as: MessageWriter<'w, SaveMapAsEvent>,
+    pub undo: MessageWriter<'w, UndoEvent>,
+    pub redo: MessageWriter<'w, RedoEvent>,
 }
 
 /// System to handle global keyboard shortcuts for the editor
@@ -46,7 +46,7 @@ pub fn handle_global_shortcuts(
     mut events: ShortcutEvents,
 ) {
     // Don't handle shortcuts if egui wants keyboard input (text fields, etc.)
-    if contexts.ctx_mut().wants_keyboard_input() {
+    if contexts.ctx_mut().expect("egui context").wants_keyboard_input() {
         return;
     }
 
@@ -63,11 +63,11 @@ pub fn handle_global_shortcuts(
     if keyboard.just_pressed(KeyCode::KeyS) {
         if shift_pressed {
             // Ctrl+Shift+S: Save As
-            events.save_as.send(SaveMapAsEvent);
+            events.save_as.write(SaveMapAsEvent);
             info!("Save As triggered via Ctrl+Shift+S");
         } else {
             // Ctrl+S: Save
-            events.save.send(SaveMapEvent);
+            events.save.write(SaveMapEvent);
             info!("Save triggered via Ctrl+S");
         }
     }
@@ -98,29 +98,29 @@ pub fn handle_global_shortcuts(
     if keyboard.just_pressed(KeyCode::KeyZ) {
         if shift_pressed {
             // Ctrl+Shift+Z: Redo
-            events.redo.send(RedoEvent);
+            events.redo.write(RedoEvent);
             info!("Redo triggered via Ctrl+Shift+Z");
         } else {
             // Ctrl+Z: Undo
-            events.undo.send(UndoEvent);
+            events.undo.write(UndoEvent);
             info!("Undo triggered via Ctrl+Z");
         }
     }
 
     // Ctrl+Y: Redo (alternative)
     if keyboard.just_pressed(KeyCode::KeyY) && !shift_pressed {
-        events.redo.send(RedoEvent);
+        events.redo.write(RedoEvent);
         info!("Redo triggered via Ctrl+Y");
     }
 }
 
 /// System to handle undo events and apply undo operations
 pub fn handle_undo(
-    mut undo_events: EventReader<UndoEvent>,
+    mut undo_events: MessageReader<UndoEvent>,
     mut editor_state: ResMut<EditorState>,
     mut history: ResMut<EditorHistory>,
-    mut render_events: EventWriter<RenderMapEvent>,
-    mut map_changed_events: EventWriter<MapDataChangedEvent>,
+    mut render_events: MessageWriter<RenderMapEvent>,
+    mut map_changed_events: MessageWriter<MapDataChangedEvent>,
 ) {
     for _event in undo_events.read() {
         if let Some(action) = history.undo() {
@@ -129,8 +129,8 @@ pub fn handle_undo(
             editor_state.mark_modified();
 
             // Trigger re-render
-            render_events.send(RenderMapEvent);
-            map_changed_events.send(MapDataChangedEvent);
+            render_events.write(RenderMapEvent);
+            map_changed_events.write(MapDataChangedEvent);
 
             info!("Undo: {}", action.description());
         } else {
@@ -141,11 +141,11 @@ pub fn handle_undo(
 
 /// System to handle redo events and apply redo operations
 pub fn handle_redo(
-    mut redo_events: EventReader<RedoEvent>,
+    mut redo_events: MessageReader<RedoEvent>,
     mut editor_state: ResMut<EditorState>,
     mut history: ResMut<EditorHistory>,
-    mut render_events: EventWriter<RenderMapEvent>,
-    mut map_changed_events: EventWriter<MapDataChangedEvent>,
+    mut render_events: MessageWriter<RenderMapEvent>,
+    mut map_changed_events: MessageWriter<MapDataChangedEvent>,
 ) {
     for _event in redo_events.read() {
         if let Some(action) = history.redo() {
@@ -154,8 +154,8 @@ pub fn handle_redo(
             editor_state.mark_modified();
 
             // Trigger re-render
-            render_events.send(RenderMapEvent);
-            map_changed_events.send(MapDataChangedEvent);
+            render_events.write(RenderMapEvent);
+            map_changed_events.write(MapDataChangedEvent);
 
             info!("Redo: {}", action.description());
         } else {

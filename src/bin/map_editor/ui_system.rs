@@ -17,22 +17,22 @@ use bevy_egui::EguiContexts;
 /// Bundle of event writers for save operations
 #[derive(bevy::ecs::system::SystemParam)]
 pub struct SaveEvents<'w> {
-    pub save: EventWriter<'w, SaveMapEvent>,
-    pub save_as: EventWriter<'w, SaveMapAsEvent>,
+    pub save: MessageWriter<'w, SaveMapEvent>,
+    pub save_as: MessageWriter<'w, SaveMapAsEvent>,
 }
 
 /// Bundle of event writers for UI operations
 #[derive(bevy::ecs::system::SystemParam)]
 pub struct UIEventWriters<'w> {
-    pub map_changed: EventWriter<'w, MapDataChangedEvent>,
-    pub selection: EventWriter<'w, tools::UpdateSelectionHighlights>,
-    pub render: EventWriter<'w, RenderMapEvent>,
-    pub exit: EventWriter<'w, AppExitEvent>,
-    pub open_recent: EventWriter<'w, OpenRecentFileEvent>,
-    pub play: EventWriter<'w, PlayMapEvent>,
-    pub stop: EventWriter<'w, StopGameEvent>,
-    pub undo: EventWriter<'w, UndoEvent>,
-    pub redo: EventWriter<'w, RedoEvent>,
+    pub map_changed: MessageWriter<'w, MapDataChangedEvent>,
+    pub selection: MessageWriter<'w, tools::UpdateSelectionHighlights>,
+    pub render: MessageWriter<'w, RenderMapEvent>,
+    pub exit: MessageWriter<'w, AppExitEvent>,
+    pub open_recent: MessageWriter<'w, OpenRecentFileEvent>,
+    pub play: MessageWriter<'w, PlayMapEvent>,
+    pub stop: MessageWriter<'w, StopGameEvent>,
+    pub undo: MessageWriter<'w, UndoEvent>,
+    pub redo: MessageWriter<'w, RedoEvent>,
 }
 
 /// Bundle of UI-related resources
@@ -65,7 +65,7 @@ pub fn render_ui(
     mut save_events: SaveEvents,
     mut ui_events: UIEventWriters,
 ) {
-    let ctx = contexts.ctx_mut();
+    let ctx = contexts.ctx_mut().expect("egui context");
 
     // Render toolbar
     ui::render_toolbar(

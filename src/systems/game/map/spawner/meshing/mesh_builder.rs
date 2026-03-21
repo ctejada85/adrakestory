@@ -2,8 +2,8 @@
 
 use super::{Face, SUB_VOXEL_SIZE};
 use bevy::prelude::*;
-use bevy::render::mesh::{Indices, PrimitiveTopology, VertexAttributeValues};
-use bevy::render::render_asset::RenderAssetUsages;
+use bevy::mesh::{Indices, PrimitiveTopology, VertexAttributeValues};
+use bevy::asset::RenderAssetUsages;
 
 /// Builder for constructing chunk meshes from multiple cubes.
 /// Combines all sub-voxels in a chunk into a single mesh with vertex colors.

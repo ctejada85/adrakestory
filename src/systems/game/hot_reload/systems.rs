@@ -7,10 +7,10 @@ use bevy::prelude::*;
 /// System to poll for file changes and trigger reload events
 pub fn poll_hot_reload(
     mut hot_reload: ResMut<HotReloadState>,
-    mut reload_events: EventWriter<MapReloadEvent>,
+    mut reload_events: MessageWriter<MapReloadEvent>,
 ) {
     if let Some(path) = hot_reload.poll_changes() {
-        reload_events.send(MapReloadEvent { path });
+        reload_events.write(MapReloadEvent { path });
     }
 }
 
@@ -19,7 +19,7 @@ pub fn poll_hot_reload(
 pub fn handle_reload_hotkey(
     keyboard: Res<ButtonInput<KeyCode>>,
     hot_reload: Res<HotReloadState>,
-    mut reload_events: EventWriter<MapReloadEvent>,
+    mut reload_events: MessageWriter<MapReloadEvent>,
 ) {
     // F5 or Ctrl+R triggers manual reload
     let f5_pressed = keyboard.just_pressed(KeyCode::F5);
@@ -31,7 +31,7 @@ pub fn handle_reload_hotkey(
         if let Some(path) = hot_reload.watched_path() {
             let key = if f5_pressed { "F5" } else { "Ctrl+R" };
             info!("Manual reload triggered via {}", key);
-            reload_events.send(MapReloadEvent { path: path.clone() });
+            reload_events.write(MapReloadEvent { path: path.clone() });
         } else {
             info!("Reload hotkey pressed but no map is being watched for hot reload");
         }
@@ -43,7 +43,7 @@ pub fn handle_reload_hotkey(
 pub fn handle_hot_reload_toggle(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut hot_reload: ResMut<HotReloadState>,
-    mut reloaded_events: EventWriter<MapReloadedEvent>,
+    mut reloaded_events: MessageWriter<MapReloadedEvent>,
 ) {
     let ctrl_h_pressed = (keyboard.pressed(KeyCode::ControlLeft)
         || keyboard.pressed(KeyCode::ControlRight))
@@ -59,7 +59,7 @@ pub fn handle_hot_reload_toggle(
         info!("Hot reload {}", status);
 
         // Show notification
-        reloaded_events.send(MapReloadedEvent {
+        reloaded_events.write(MapReloadedEvent {
             success: true,
             message: format!("Hot reload {}", status),
         });

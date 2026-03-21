@@ -29,7 +29,7 @@ pub fn handle_voxel_removal(
     }
 
     // Check if pointer is over any UI area
-    let ctx = contexts.ctx_mut();
+    let ctx = contexts.ctx_mut().expect("egui context");
     let pointer_over_ui = ctx.is_pointer_over_area() || ctx.is_using_pointer();
     let ui_wants_keyboard = ctx.wants_keyboard_input();
 
@@ -63,7 +63,7 @@ pub fn handle_voxel_removal(
         drag_state.last_grid_pos = Some(grid_pos);
 
         // Record the screen position where the drag started
-        if let Ok(window) = window_query.get_single() {
+        if let Ok(window) = window_query.single() {
             drag_state.drag_start_screen_pos = window.cursor_position();
         }
 
@@ -103,7 +103,7 @@ pub fn handle_voxel_drag_removal(
     }
 
     // Check if pointer is over any UI area
-    let ctx = contexts.ctx_mut();
+    let ctx = contexts.ctx_mut().expect("egui context");
     if ctx.is_pointer_over_area() || ctx.is_using_pointer() {
         return;
     }
@@ -112,7 +112,7 @@ pub fn handle_voxel_drag_removal(
     // This prevents false drag triggers when grid_pos changes due to geometry changes
     // (e.g., after removing a voxel, the cursor now points at the voxel behind it)
     if let (Some(start_pos), Ok(window)) =
-        (drag_state.drag_start_screen_pos, window_query.get_single())
+        (drag_state.drag_start_screen_pos, window_query.single())
     {
         if let Some(current_pos) = window.cursor_position() {
             let distance = (current_pos - start_pos).length();

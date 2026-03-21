@@ -48,8 +48,8 @@ pub struct ReloadDespawnQueries<'w, 's> {
 /// Despawns existing map entities, loads new map data, and triggers respawn
 pub fn handle_map_reload(
     mut commands: Commands,
-    mut reload_events: EventReader<MapReloadEvent>,
-    mut reloaded_events: EventWriter<MapReloadedEvent>,
+    mut reload_events: MessageReader<MapReloadEvent>,
+    mut reloaded_events: MessageWriter<MapReloadedEvent>,
     mut progress: ResMut<MapLoadProgress>,
     state_queries: ReloadStateQueries,
     despawn_queries: ReloadDespawnQueries,
@@ -60,7 +60,7 @@ pub fn handle_map_reload(
         // Store player position and rotation before despawning
         let player_state = state_queries
             .player
-            .get_single()
+            .single()
             .ok()
             .map(|(t, p)| (t.translation, p.target_rotation, p.current_rotation));
         info!("Hot reload: saving player state {:?}", player_state);
@@ -68,7 +68,7 @@ pub fn handle_map_reload(
         // Store camera state before despawning
         let camera_state = state_queries
             .camera
-            .get_single()
+            .single()
             .ok()
             .map(|(t, c)| (*t, c.target_position));
         info!(
@@ -91,22 +91,22 @@ pub fn handle_map_reload(
 
                 // Despawn all existing map entities
                 for entity in despawn_queries.chunks.iter() {
-                    commands.entity(entity).despawn_recursive();
+                    commands.entity(entity).despawn();
                 }
                 for entity in despawn_queries.players.iter() {
-                    commands.entity(entity).despawn_recursive();
+                    commands.entity(entity).despawn();
                 }
                 for entity in despawn_queries.npcs.iter() {
-                    commands.entity(entity).despawn_recursive();
+                    commands.entity(entity).despawn();
                 }
                 for entity in despawn_queries.subvoxels.iter() {
-                    commands.entity(entity).despawn_recursive();
+                    commands.entity(entity).despawn();
                 }
                 for entity in despawn_queries.directional_lights.iter() {
-                    commands.entity(entity).despawn_recursive();
+                    commands.entity(entity).despawn();
                 }
                 for entity in despawn_queries.cameras.iter() {
-                    commands.entity(entity).despawn_recursive();
+                    commands.entity(entity).despawn();
                 }
 
                 info!(
@@ -143,7 +143,7 @@ pub fn handle_map_reload(
                     camera_target_position,
                 });
 
-                reloaded_events.send(MapReloadedEvent {
+                reloaded_events.write(MapReloadedEvent {
                     success: true,
                     message: "Map reloaded successfully".to_string(),
                 });
@@ -152,7 +152,7 @@ pub fn handle_map_reload(
             }
             Err(e) => {
                 warn!("Hot reload failed: {}", e);
-                reloaded_events.send(MapReloadedEvent {
+                reloaded_events.write(MapReloadedEvent {
                     success: false,
                     message: format!("Reload failed: {}", e),
                 });
@@ -170,7 +170,7 @@ pub fn restore_player_position(
     mut camera_query: Query<(&mut Transform, &mut GameCamera), Without<Player>>,
 ) {
     if let Some(pending) = pending_state {
-        if let Ok((mut transform, mut player)) = player_query.get_single_mut() {
+        if let Ok((mut transform, mut player)) = player_query.single_mut() {
             // Restore position
             if let Some(saved_pos) = pending.position {
                 info!("Hot reload: restoring player position to {:?}", saved_pos);
@@ -187,7 +187,7 @@ pub fn restore_player_position(
         }
 
         // Restore camera state
-        if let Ok((mut cam_transform, mut game_camera)) = camera_query.get_single_mut() {
+        if let Ok((mut cam_transform, mut game_camera)) = camera_query.single_mut() {
             if let Some(saved_transform) = pending.camera_transform {
                 info!(
                     "Hot reload: restoring camera position to {:?}",

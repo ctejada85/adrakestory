@@ -16,7 +16,7 @@ pub struct ReloadNotification {
 /// Spawns a text notification that fades out over time
 pub fn show_reload_notification(
     mut commands: Commands,
-    mut reloaded_events: EventReader<MapReloadedEvent>,
+    mut reloaded_events: MessageReader<MapReloadedEvent>,
     time: Res<Time>,
 ) {
     for event in reloaded_events.read() {

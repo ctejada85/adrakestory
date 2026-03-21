@@ -175,7 +175,7 @@ pub fn keyboard_navigation(
     settings: Res<GamepadSettings>,
     mut selected: ResMut<SelectedPauseMenuIndex>,
     mut next_state: ResMut<NextState<GameState>>,
-    mut exit: EventWriter<AppExit>,
+    mut exit: MessageWriter<AppExit>,
 ) {
     // Get gamepad input
     let (gp_up, gp_down, gp_select, _gp_back) =
@@ -205,7 +205,7 @@ pub fn keyboard_navigation(
             }
             2 => {
                 // Quit
-                exit.send(AppExit::Success);
+                exit.write(AppExit::Success);
             }
             _ => {}
         }
@@ -267,7 +267,7 @@ pub fn pause_menu_button_interaction(
     >,
     mut selected: ResMut<SelectedPauseMenuIndex>,
     mut next_state: ResMut<NextState<GameState>>,
-    mut exit: EventWriter<AppExit>,
+    mut exit: MessageWriter<AppExit>,
 ) {
     for (interaction, mut color, is_resume, is_settings, is_quit) in &mut interaction_query {
         match *interaction {
@@ -279,7 +279,7 @@ pub fn pause_menu_button_interaction(
                     commands.insert_resource(SettingsOrigin::Paused);
                     next_state.set(GameState::Settings);
                 } else if is_quit.is_some() {
-                    exit.send(AppExit::Success);
+                    exit.write(AppExit::Success);
                 }
             }
             Interaction::Hovered => {
@@ -302,7 +302,7 @@ pub fn pause_menu_button_interaction(
 
 /// Scales text elements based on window size to maintain proportions
 pub fn scale_text_on_resize(
-    mut resize_events: EventReader<WindowResized>,
+    mut resize_events: MessageReader<WindowResized>,
     mut text_query: Query<(&ScalableText, &mut TextFont)>,
 ) {
     for event in resize_events.read() {
@@ -317,7 +317,7 @@ pub fn scale_text_on_resize(
 /// Cleans up the pause menu UI
 pub fn cleanup_pause_menu(mut commands: Commands, root_query: Query<Entity, With<PauseMenuRoot>>) {
     for entity in &root_query {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
     commands.remove_resource::<SelectedPauseMenuIndex>();
 }

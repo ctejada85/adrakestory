@@ -49,7 +49,7 @@ pub fn move_player(
     let Some(spatial_grid) = spatial_grid else {
         return;
     };
-    if let Ok((mut player, mut transform)) = player_query.get_single_mut() {
+    if let Ok((mut player, mut transform)) = player_query.single_mut() {
         // Clamp delta time to prevent physics issues when window regains focus
         let delta = time.delta_secs().min(0.1);
 

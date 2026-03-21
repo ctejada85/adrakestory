@@ -1,7 +1,7 @@
 //! Cursor indicator for voxel placement.
 
 use bevy::prelude::*;
-use bevy::render::mesh::{Indices, PrimitiveTopology};
+use bevy::mesh::{Indices, PrimitiveTopology};
 
 /// Component for the cursor indicator
 #[derive(Component)]

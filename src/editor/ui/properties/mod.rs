@@ -30,11 +30,11 @@ use bevy_egui::egui;
 /// Bundle of event writers for transform operations
 #[derive(bevy::ecs::system::SystemParam)]
 pub struct TransformEvents<'w> {
-    pub delete: EventWriter<'w, DeleteSelectedVoxels>,
-    pub move_start: EventWriter<'w, StartMoveOperation>,
-    pub rotate_start: EventWriter<'w, StartRotateOperation>,
-    pub confirm: EventWriter<'w, ConfirmTransform>,
-    pub cancel: EventWriter<'w, CancelTransform>,
+    pub delete: MessageWriter<'w, DeleteSelectedVoxels>,
+    pub move_start: MessageWriter<'w, StartMoveOperation>,
+    pub rotate_start: MessageWriter<'w, StartRotateOperation>,
+    pub confirm: MessageWriter<'w, ConfirmTransform>,
+    pub cancel: MessageWriter<'w, CancelTransform>,
 }
 
 /// Render the right-side properties panel

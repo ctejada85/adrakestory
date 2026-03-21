@@ -7,10 +7,10 @@ use super::super::super::occlusion::{OcclusionMaterial, ShadowQuality};
 use super::super::super::resources::SpatialGrid;
 use super::meshing::{ChunkMeshBuilder, GreedyMesher, OccupancyGrid, VoxelMaterialPalette};
 use super::{ChunkLOD, Face, VoxelChunk, CHUNK_SIZE, LOD_LEVELS, SUB_VOXEL_COUNT, SUB_VOXEL_SIZE};
-use bevy::pbr::NotShadowCaster;
+use bevy::light::NotShadowCaster;
 use bevy::prelude::*;
 use bevy::math::Vec3A;
-use bevy::render::primitives::Aabb;
+use bevy::camera::primitives::Aabb;
 use std::collections::{HashMap, HashSet};
 
 /// Enum to hold either material type for chunk rendering

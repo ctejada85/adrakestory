@@ -22,7 +22,7 @@ use crate::systems::game::map::spawner::{
 };
 use bevy::math::Vec3A;
 use bevy::prelude::*;
-use bevy::render::primitives::Aabb;
+use bevy::camera::primitives::Aabb;
 use std::collections::HashMap;
 
 /// Marker component for chunk entities spawned by the editor
@@ -51,14 +51,14 @@ pub struct MapRenderState {
 pub struct EditorChunkMaterial(pub Handle<StandardMaterial>);
 
 /// Event sent when the map should be re-rendered
-#[derive(Event)]
+#[derive(Message)]
 pub struct RenderMapEvent;
 
 /// System to detect when the map has changed and needs re-rendering
 pub fn detect_map_changes(
     editor_state: Res<EditorState>,
     mut render_state: ResMut<MapRenderState>,
-    mut render_events: EventWriter<RenderMapEvent>,
+    mut render_events: MessageWriter<RenderMapEvent>,
 ) {
     let current_voxel_count = editor_state.current_map.world.voxels.len();
     let current_entity_count = editor_state.current_map.entities.len();
@@ -70,7 +70,7 @@ pub fn detect_map_changes(
         render_state.needs_render = true;
         render_state.last_voxel_count = current_voxel_count;
         render_state.last_entity_count = current_entity_count;
-        render_events.send(RenderMapEvent);
+        render_events.write(RenderMapEvent);
         info!(
             "Map changed, triggering re-render ({} voxels, {} entities)",
             current_voxel_count, current_entity_count
@@ -110,7 +110,7 @@ fn calculate_sub_voxel_pos(x: i32, y: i32, z: i32, sub_x: i32, sub_y: i32, sub_z
 /// - Greedy meshing (Tier 5)
 pub fn render_map_system(
     mut commands: Commands,
-    mut render_events: EventReader<RenderMapEvent>,
+    mut render_events: MessageReader<RenderMapEvent>,
     editor_state: Res<EditorState>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -279,14 +279,14 @@ pub fn render_map_system(
 }
 
 /// Event sent when entities should be re-rendered
-#[derive(Event)]
+#[derive(Message)]
 pub struct RenderEntitiesEvent;
 
 /// System to render entity markers in the viewport
 pub fn render_entities_system(
     mut commands: Commands,
-    mut render_events: EventReader<RenderMapEvent>,
-    mut selection_events: EventReader<UpdateSelectionHighlights>,
+    mut render_events: MessageReader<RenderMapEvent>,
+    mut selection_events: MessageReader<UpdateSelectionHighlights>,
     editor_state: Res<EditorState>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -301,7 +301,7 @@ pub fn render_entities_system(
 
     // Despawn existing entity markers
     for entity in existing_markers.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 
     info!(
