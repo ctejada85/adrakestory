@@ -11,9 +11,10 @@ pub struct SettingRow {
     pub id: SettingId,
 }
 
-/// Identifies which OcclusionConfig field a row controls.
+/// Identifies which config field a settings row controls.
 #[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SettingId {
+    // OcclusionConfig fields
     Enabled,
     Technique,
     Mode,
@@ -25,6 +26,9 @@ pub enum SettingId {
     FalloffSoftness,
     InteriorHeight,
     RegionUpdateInterval,
+    // VsyncConfig fields
+    VsyncEnabled,
+    VsyncMultiplier,
 }
 
 /// Marks the text node that displays the current value of a setting row.

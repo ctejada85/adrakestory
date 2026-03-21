@@ -1,9 +1,11 @@
 use super::components::{BackButton, SettingId, SettingRow, SettingValueDisplay, SettingsMenuRoot};
 use super::resources::{SelectedSettingsIndex, SettingsOrigin};
+use super::vsync::VsyncConfig;
 use crate::states::GameState;
 use crate::systems::game::gamepad::{get_menu_gamepad_input, ActiveGamepad, GamepadSettings};
 use crate::systems::game::occlusion::{OcclusionConfig, OcclusionMode, ShadowQuality, TransparencyTechnique};
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 const NORMAL_ROW: Color = Color::srgba(0.15, 0.15, 0.15, 0.0);
 const SELECTED_ROW: Color = Color::srgba(1.0, 0.8, 0.2, 0.2);
@@ -24,9 +26,12 @@ const ALL_SETTINGS: &[(SettingId, &str)] = &[
     (SettingId::FalloffSoftness, "Falloff Softness"),
     (SettingId::InteriorHeight, "Interior Height"),
     (SettingId::RegionUpdateInterval, "Region Update Rate"),
+    // Display settings
+    (SettingId::VsyncEnabled, "VSync"),
+    (SettingId::VsyncMultiplier, "VSync Multiplier"),
 ];
 
-fn format_value(id: SettingId, config: &OcclusionConfig) -> String {
+fn format_value(id: SettingId, config: &OcclusionConfig, vsync: &VsyncConfig) -> String {
     match id {
         SettingId::Enabled => bool_label(config.enabled),
         SettingId::Technique => match config.technique {
@@ -52,6 +57,8 @@ fn format_value(id: SettingId, config: &OcclusionConfig) -> String {
         SettingId::FalloffSoftness => format!("{:.2}", config.falloff_softness),
         SettingId::InteriorHeight => format!("{:.1}", config.interior_height_threshold),
         SettingId::RegionUpdateInterval => format!("{}", config.region_update_interval),
+        SettingId::VsyncEnabled => bool_label(vsync.vsync_enabled),
+        SettingId::VsyncMultiplier => format!("{:.2}×", vsync.vsync_multiplier),
     }
 }
 
@@ -63,8 +70,8 @@ fn bool_label(v: bool) -> String {
     }
 }
 
-/// Adjust OcclusionConfig field by delta (-1 = previous/decrease, +1 = next/increase).
-fn adjust_value(id: SettingId, config: &mut OcclusionConfig, delta: i32) {
+/// Adjust OcclusionConfig or VsyncConfig field by delta (-1 = previous/decrease, +1 = next/increase).
+fn adjust_value(id: SettingId, config: &mut OcclusionConfig, vsync: &mut VsyncConfig, delta: i32) {
     match id {
         SettingId::Enabled => config.enabled = !config.enabled,
         SettingId::Technique => {
@@ -124,6 +131,21 @@ fn adjust_value(id: SettingId, config: &mut OcclusionConfig, delta: i32) {
                 (config.region_update_interval as i32 + delta * 10).clamp(10, 120) as u32;
             config.region_update_interval = new_val;
         }
+        SettingId::VsyncEnabled => {
+            vsync.vsync_enabled = !vsync.vsync_enabled;
+            vsync.dirty = true;
+        }
+        SettingId::VsyncMultiplier => {
+            // Cycle through discrete steps: 0.25 → 0.5 → 1.0.
+            const STEPS: &[f32] = &[0.25, 0.5, 1.0];
+            let cur = STEPS
+                .iter()
+                .position(|&s| (s - vsync.vsync_multiplier).abs() < f32::EPSILON)
+                .unwrap_or(STEPS.len() - 1);
+            vsync.vsync_multiplier =
+                STEPS[(cur as i32 + delta).rem_euclid(STEPS.len() as i32) as usize];
+            vsync.dirty = true;
+        }
     }
 }
 
@@ -136,7 +158,7 @@ fn round1(v: f32) -> f32 {
 }
 
 /// Spawns the settings screen UI.
-pub fn setup_settings_menu(mut commands: Commands, config: Res<OcclusionConfig>) {
+pub fn setup_settings_menu(mut commands: Commands, config: Res<OcclusionConfig>, vsync: Res<VsyncConfig>) {
     commands.insert_resource(SelectedSettingsIndex::default());
 
     commands
@@ -182,11 +204,11 @@ pub fn setup_settings_menu(mut commands: Commands, config: Res<OcclusionConfig>)
                 ))
                 .with_children(|parent| {
                     for (i, &(id, label)) in ALL_SETTINGS.iter().enumerate() {
-                        let value_text = format_value(id, &config);
+                        let value_text = format_value(id, &config, &vsync);
                         spawn_setting_row(parent, i, id, label, &value_text);
                     }
 
-                    // Back button (index 11)
+                    // Back button (index = ALL_SETTINGS.len())
                     parent
                         .spawn((
                             Button,
@@ -302,6 +324,7 @@ pub fn settings_input(
     origin: Res<SettingsOrigin>,
     mut selected: ResMut<SelectedSettingsIndex>,
     mut config: ResMut<OcclusionConfig>,
+    mut vsync: ResMut<VsyncConfig>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     let (gp_up, gp_down, gp_select, gp_back) =
@@ -321,20 +344,20 @@ pub fn settings_input(
     if selected.index < ALL_SETTINGS.len() {
         let (id, _) = ALL_SETTINGS[selected.index];
         if keyboard.just_pressed(KeyCode::ArrowLeft) {
-            adjust_value(id, &mut config, -1);
+            adjust_value(id, &mut config, &mut vsync, -1);
         }
         if keyboard.just_pressed(KeyCode::ArrowRight) {
-            adjust_value(id, &mut config, 1);
+            adjust_value(id, &mut config, &mut vsync, 1);
         }
     }
 
-    // Enter / A button on Back (index 11) or on a toggle (cycle it)
+    // Enter / A button on Back (last index) or on a toggle (cycle it)
     if keyboard.just_pressed(KeyCode::Enter) || gp_select {
         if selected.index == ALL_SETTINGS.len() {
             go_back(&origin, &mut next_state);
         } else {
             let (id, _) = ALL_SETTINGS[selected.index];
-            adjust_value(id, &mut config, 1);
+            adjust_value(id, &mut config, &mut vsync, 1);
         }
     }
 
@@ -355,6 +378,7 @@ fn go_back(origin: &SettingsOrigin, next_state: &mut NextState<GameState>) {
 pub fn update_settings_visual(
     selected: Res<SelectedSettingsIndex>,
     config: Res<OcclusionConfig>,
+    vsync: Res<VsyncConfig>,
     mut row_query: Query<(&SettingRow, &mut BackgroundColor), Without<SettingValueDisplay>>,
     mut value_query: Query<(&SettingRow, &mut Text), With<SettingValueDisplay>>,
     mut back_query: Query<
@@ -372,9 +396,9 @@ pub fn update_settings_visual(
     }
 
     // Update value display text if config changed
-    if config.is_changed() || selected.is_changed() {
+    if config.is_changed() || vsync.is_changed() || selected.is_changed() {
         for (row, mut text) in &mut value_query {
-            **text = format_value(row.id, &config);
+            **text = format_value(row.id, &config, &vsync);
         }
     }
 
@@ -407,26 +431,52 @@ pub fn settings_back_button(
     }
 }
 
-/// Loads OcclusionConfig from settings.ron on startup.
-pub fn load_settings(mut config: ResMut<OcclusionConfig>) {
+/// Combined serialization struct for `settings.ron`.
+///
+/// Uses `#[serde(flatten)]` so `OcclusionConfig` fields remain at the top level,
+/// preserving backward compatibility with existing save files.
+#[derive(Serialize, Deserialize, Default)]
+struct AppSettings {
+    #[serde(flatten)]
+    occlusion: OcclusionConfig,
+    #[serde(default)]
+    vsync_enabled: bool,
+    #[serde(default = "default_vsync_multiplier_for_settings")]
+    vsync_multiplier: f32,
+}
+
+fn default_vsync_multiplier_for_settings() -> f32 {
+    1.0
+}
+
+/// Loads `OcclusionConfig` and `VsyncConfig` from `settings.ron` on startup.
+pub fn load_settings(mut config: ResMut<OcclusionConfig>, mut vsync: ResMut<VsyncConfig>) {
     match std::fs::read_to_string("settings.ron") {
-        Ok(contents) => match ron::from_str::<OcclusionConfig>(&contents) {
+        Ok(contents) => match ron::from_str::<AppSettings>(&contents) {
             Ok(loaded) => {
-                *config = loaded;
+                *config = loaded.occlusion;
+                vsync.vsync_enabled = loaded.vsync_enabled;
+                vsync.vsync_multiplier = loaded.vsync_multiplier;
+                vsync.dirty = true; // Apply loaded values on first frame.
                 info!("[Settings] Loaded settings from settings.ron");
             }
             Err(e) => warn!("[Settings] Failed to parse settings.ron: {e}; using defaults"),
         },
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            // File not found is expected on first run -- use defaults silently
+            // File not found is expected on first run -- use defaults silently.
         }
         Err(e) => warn!("[Settings] Could not read settings.ron: {e}"),
     }
 }
 
-/// Saves OcclusionConfig to settings.ron when leaving the settings screen.
-pub fn save_settings(config: Res<OcclusionConfig>) {
-    match ron::to_string(config.as_ref()) {
+/// Saves `OcclusionConfig` and `VsyncConfig` to `settings.ron` when leaving the settings screen.
+pub fn save_settings(config: Res<OcclusionConfig>, vsync: Res<VsyncConfig>) {
+    let all = AppSettings {
+        occlusion: config.clone(),
+        vsync_enabled: vsync.vsync_enabled,
+        vsync_multiplier: vsync.vsync_multiplier,
+    };
+    match ron::to_string(&all) {
         Ok(contents) => {
             if let Err(e) = std::fs::write("settings.ron", contents) {
                 warn!("[Settings] Failed to write settings.ron: {e}");

@@ -700,6 +700,29 @@ Shadow rendering quality is controlled by `OcclusionConfig.shadow_quality: Shado
 
 **Rule**: All shadow quality changes must go through `OcclusionConfig.shadow_quality`. Never hard-code `shadows_enabled: true` or a specific `CascadeShadowConfigBuilder` — always call `shadow_params_for_quality()`.
 
+### VSync and Frame Pacing
+
+Display settings are managed by `VsyncConfig` (`src/systems/settings/vsync.rs`), a separate resource from `OcclusionConfig`. Both are serialized to the same `settings.ron` via `AppSettings` (a combined serde struct using `#[serde(flatten)]`).
+
+**Key types:**
+
+| Type | Kind | Purpose |
+|------|------|---------|
+| `VsyncConfig` | `Resource` + Serialize | `vsync_enabled: bool`, `vsync_multiplier: f32`, `dirty: bool` (skip) |
+| `MonitorInfo` | `Resource` (runtime only) | Cached `refresh_hz: f32`; populated by `detect_monitor_refresh_system` |
+| `FrameLimiterState` | `Local<T>` in `apply_vsync_system` | Tracks `last_frame_end` + `target_frame_time` for sleep-based pacing |
+
+**Systems:**
+
+- `detect_monitor_refresh_system` — runs each `Update` frame until the `Monitor` entity's `refresh_rate_millihertz` is read; sets `VsyncConfig.dirty = true` to trigger reapplication with the correct Hz.
+- `apply_vsync_system` — runs in the `Last` schedule; applies sleep-based frame pacing, then (when `dirty`) mutates `Window.present_mode` (`Fifo` or `AutoNoVsync`) and configures `FrameLimiterState.target_frame_time`.
+
+**Frame cap logic:** when `vsync_enabled = true` and `vsync_multiplier < 1.0`, the target frame time is `1.0 / (refresh_hz × multiplier)`. At `multiplier = 1.0` or VSync off, no software cap is applied.
+
+**Multiplier steps (UI):** `0.25×`, `0.5×`, `1.0×`. Stored as `f32`, clamped to `[0.25, 4.0]`.
+
+**Dirty-flag rule:** `VsyncConfig.dirty` must be set to `true` whenever `vsync_enabled` or `vsync_multiplier` changes. `apply_vsync_system` clears it after applying. This prevents per-frame `Window` mutation (guardrail §1 equivalent for display settings).
+
 ### Sub-Voxel Rendering
 
 ### Build Profiles

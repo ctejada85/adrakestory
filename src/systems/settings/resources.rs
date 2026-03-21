@@ -19,7 +19,7 @@ impl Default for SelectedSettingsIndex {
     fn default() -> Self {
         Self {
             index: 0,
-            total: 12, // 11 settings + 1 Back button
+            total: 14, // 13 settings + 1 Back button
         }
     }
 }
