@@ -214,6 +214,17 @@ pub struct OcclusionConfig {
     pub shadow_quality: ShadowQuality,
     /// Update frequency for region detection (frames between updates)
     pub region_update_interval: u32,
+    /// Quantization grid step for uniform position updates (world units).
+    /// Positions are rounded to this grid before comparison, reducing the
+    /// frequency of material mutations (and thus render re-extraction).
+    /// Higher values reduce GPU work but may cause visible stepping in
+    /// the occlusion fade. Default: 0.25.
+    #[serde(default = "default_quantization_step")]
+    pub uniform_quantization_step: f32,
+}
+
+fn default_quantization_step() -> f32 {
+    0.25
 }
 
 impl Default for OcclusionConfig {
@@ -232,6 +243,7 @@ impl Default for OcclusionConfig {
             interior_height_threshold: 8.0, // Max ceiling height to trigger interior mode
             shadow_quality: ShadowQuality::Low,
             region_update_interval: 60, // Update every 60 frames (~1 time/sec at 60fps)
+            uniform_quantization_step: 0.25,
         }
     }
 }
@@ -324,6 +336,23 @@ fn assemble_uniforms(s: &StaticOcclusionUniforms, d: &DynamicOcclusionUniforms) 
     }
 }
 
+/// Quantize a position to a grid to reduce material mutation frequency.
+///
+/// Returns the position rounded to the nearest `step` on each axis.
+/// When `step` is 0 or negative, returns the position unchanged.
+#[inline]
+fn quantize_position(pos: Vec3, step: f32) -> Vec3 {
+    if step <= 0.0 {
+        return pos;
+    }
+    let inv = 1.0 / step;
+    Vec3::new(
+        (pos.x * inv).round() * step,
+        (pos.y * inv).round() * step,
+        (pos.z * inv).round() * step,
+    )
+}
+
 /// System to update occlusion material uniforms with fine-grained change detection.
 ///
 /// Uses two private sub-struct caches — [`StaticOcclusionUniforms`] for config-driven
@@ -383,9 +412,15 @@ pub fn update_occlusion_uniforms(
             .as_ref()
             .map(|t| t.translation)
             .unwrap_or(Vec3::ZERO);
+        // Quantize positions to reduce material mutation frequency.
+        // Small movements within a grid cell produce identical uniform values,
+        // avoiding unnecessary Bevy change-detection triggers on the shared material.
+        let quant_step = config.uniform_quantization_step;
+        let quantized_player = quantize_position(player_pos, quant_step);
+        let quantized_camera = quantize_position(camera_pos, quant_step);
         Some(DynamicOcclusionUniforms::new(
-            player_pos,
-            camera_pos,
+            quantized_player,
+            quantized_camera,
             interior_state.as_deref(),
         ))
     } else {
@@ -411,29 +446,40 @@ pub fn update_occlusion_uniforms(
         .map_or(false, |n| dynamic_cache.as_ref() != Some(n));
 
     if static_dirty || dynamic_dirty {
-        if let Some(material) = materials.get_mut(&material_handle.0) {
-            material.extension.occlusion_uniforms = assemble_uniforms(&s, &d);
-            if static_dirty {
-                material.base.alpha_mode = match config.technique {
-                    // Mask(0.001): sets MAY_DISCARD so the depth prepass runs our custom
-                    // fragment shader. The threshold never fires (base_color.a is always 1.0),
-                    // so visual behaviour is identical to Opaque but depth prepass is correct.
-                    TransparencyTechnique::Dithered => AlphaMode::Mask(0.001),
-                    TransparencyTechnique::AlphaBlend => AlphaMode::AlphaToCoverage,
-                };
+        let new_uniforms = assemble_uniforms(&s, &d);
+        // Read-only check: only call get_mut() (which fires Bevy change detection
+        // and triggers render re-extraction for ALL chunks sharing this material)
+        // when the GPU-visible uniform data actually differs.
+        let needs_write = materials
+            .get(&material_handle.0)
+            .map_or(true, |mat| mat.extension.occlusion_uniforms != new_uniforms);
+
+        if needs_write {
+            if let Some(material) = materials.get_mut(&material_handle.0) {
+                material.extension.occlusion_uniforms = new_uniforms;
+                if static_dirty {
+                    material.base.alpha_mode = match config.technique {
+                        // Mask(0.001): sets MAY_DISCARD so the depth prepass runs our custom
+                        // fragment shader. The threshold never fires (base_color.a is always 1.0),
+                        // so visual behaviour is identical to Opaque but depth prepass is correct.
+                        TransparencyTechnique::Dithered => AlphaMode::Mask(0.001),
+                        TransparencyTechnique::AlphaBlend => AlphaMode::AlphaToCoverage,
+                    };
+                }
+            } else {
+                *frame_counter += 1;
+                if (*frame_counter).is_multiple_of(60) {
+                    warn!("[Occlusion] Material asset not found in Assets<OcclusionMaterial>");
+                }
+                return;
             }
-            if let Some(new) = new_static {
-                *static_cache = Some(new);
-            }
-            if let Some(new) = new_dynamic {
-                *dynamic_cache = Some(new);
-            }
-        } else {
-            *frame_counter += 1;
-            if (*frame_counter).is_multiple_of(60) {
-                warn!("[Occlusion] Material asset not found in Assets<OcclusionMaterial>");
-            }
-            return;
+        }
+        // Update caches unconditionally so next frame's dirty check is accurate
+        if let Some(new) = new_static {
+            *static_cache = Some(new);
+        }
+        if let Some(new) = new_dynamic {
+            *dynamic_cache = Some(new);
         }
     }
 

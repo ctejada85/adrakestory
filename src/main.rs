@@ -1,5 +1,5 @@
 use crate::diagnostics::FrameProfilerPlugin;
-use bevy::{prelude::*, window::WindowMode};
+use bevy::{prelude::*, window::{PresentMode, WindowMode}};
 use std::path::PathBuf;
 
 mod diagnostics;
@@ -128,6 +128,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 mode: WindowMode::BorderlessFullscreen(MonitorSelection::Current),
+                present_mode: PresentMode::AutoNoVsync,
                 ..default()
             }),
             ..default()

@@ -204,3 +204,57 @@ use super::*;
         };
         assert_eq!(alpha_mode, AlphaMode::AlphaToCoverage);
     }
+
+    // ── Quantize position ────────────────────────────────────────────────────
+
+    #[test]
+    fn quantize_position_rounds_to_grid() {
+        let pos = Vec3::new(1.1, 2.6, -0.3);
+        let result = quantize_position(pos, 0.25);
+        assert_eq!(result, Vec3::new(1.0, 2.5, -0.25));
+    }
+
+    #[test]
+    fn quantize_position_exact_grid_values_unchanged() {
+        let pos = Vec3::new(0.5, 1.0, -2.25);
+        let result = quantize_position(pos, 0.25);
+        assert_eq!(result, pos);
+    }
+
+    #[test]
+    fn quantize_position_zero_step_returns_original() {
+        let pos = Vec3::new(1.123, 4.567, 8.9);
+        assert_eq!(quantize_position(pos, 0.0), pos);
+    }
+
+    #[test]
+    fn quantize_position_negative_step_returns_original() {
+        let pos = Vec3::new(1.123, 4.567, 8.9);
+        assert_eq!(quantize_position(pos, -1.0), pos);
+    }
+
+    #[test]
+    fn quantize_position_origin() {
+        assert_eq!(quantize_position(Vec3::ZERO, 0.25), Vec3::ZERO);
+    }
+
+    #[test]
+    fn quantize_position_sub_step_movement_unchanged() {
+        // Movements smaller than half-step should not change the quantized value
+        let base = Vec3::new(1.0, 2.0, 3.0);
+        let moved = Vec3::new(1.1, 2.05, 3.12);
+        assert_eq!(quantize_position(base, 0.25), quantize_position(moved, 0.25));
+    }
+
+    #[test]
+    fn quantize_position_large_step() {
+        let pos = Vec3::new(3.7, -1.2, 6.1);
+        let result = quantize_position(pos, 1.0);
+        assert_eq!(result, Vec3::new(4.0, -1.0, 6.0));
+    }
+
+    #[test]
+    fn default_config_has_quantization_step() {
+        let config = OcclusionConfig::default();
+        assert_eq!(config.uniform_quantization_step, 0.25);
+    }

@@ -212,7 +212,8 @@ impl Plugin for FrameProfilerPlugin {
         #[cfg(debug_assertions)]
         app.insert_resource(FrameProfiler::new())
             .add_systems(First, frame_begin)
-            .add_systems(Last, frame_end);
+            .add_systems(Last, frame_end)
+            .add_systems(PostUpdate, profile_post_update);
     }
 }
 
@@ -227,6 +228,12 @@ fn frame_begin(profiler: Res<FrameProfiler>) {
 /// Records the CPU time spent between `First` and `Last` this frame.
 fn frame_end(profiler: Res<FrameProfiler>) {
     profiler.on_frame_end();
+}
+
+/// Runs in `PostUpdate` to measure Bevy's built-in overhead (transform propagation,
+/// visibility culling, render extraction, pipelined sync).
+fn profile_post_update(profiler: Option<Res<FrameProfiler>>) {
+    crate::profile_scope!(profiler, "post_update");
 }
 
 // ---------------------------------------------------------------------------
