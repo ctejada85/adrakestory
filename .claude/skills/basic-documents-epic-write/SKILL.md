@@ -99,6 +99,18 @@ Use the template in [`assets/epic-template.md`](assets/epic-template.md).
 - The epic story sentence describes the sum of all child stories
 - Dependencies & Risks are actionable (owner or mitigation noted)
 
+### Step 6: Validate referenced components against the codebase
+
+Before finalising, check that factual claims in the epic are accurate:
+
+- **File paths and module names** in tasks — confirm they exist in the repo
+- **Struct / system / API names** — search for each one to verify spelling and existence
+- **Version numbers** — confirm in `Cargo.toml` or equivalent
+- **Dependency status** — confirm "Done" dependencies are actually merged
+- **"Currently X"** descriptions — read the relevant code to verify current behavior
+
+Correct inaccuracies in place. Add a note in the commit or PR body listing what was verified ✅ and what was corrected ❌.
+
 ## File locations
 
 | File | Purpose |

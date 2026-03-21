@@ -153,6 +153,32 @@ Before finalizing:
 6. Add a companion link in the requirements and product vision canvas documents
 7. **Scan for redundancy** — search for key terms (component names, mechanism names) and verify each concept is explained in one canonical location with references elsewhere. If the same mechanism is described in 3+ sections, consolidate to one and reference from the others
 
+### Step 7: Validate claims against the codebase
+
+After the document is written, do a focused codebase validation pass. The architecture document must be accurate at the time of writing — errors discovered during implementation are expensive.
+
+**Validation checklist:**
+
+| Claim type | How to verify |
+|------------|---------------|
+| Import paths (e.g., `bevy_pbr::prepass_io::VertexOutput`) | Search the codebase — does the path exist? |
+| Shader binding locations (`@group(X) @binding(Y)`) | Read the actual `.wgsl` file and Rust bind group definitions |
+| File paths in Appendix C | Confirm each file exists with `glob` or `view` |
+| Struct / component field names | Read the Rust source — are field names and types correct? |
+| API patterns (e.g., `MaterialPlugin` field names) | Check `Cargo.toml` version and actual usage in code |
+| "Currently does X" statements in §1 | Read the code path and confirm the described behavior |
+| Version numbers | Verify in `Cargo.toml`, lock file, or dependency manifest |
+| Binding conflicts | If adding a new uniform binding, confirm the slot isn't already used |
+| Mermaid diagram accuracy | Every node/class in a diagram should correspond to a real entity |
+
+**For each inaccuracy found:**
+
+1. Correct the document in place
+2. Add a row to the changelog noting what was corrected and which file confirmed the truth
+3. If a binding conflict or missing type is discovered, update the relevant appendix and flag as an open question if the fix is non-trivial
+
+**Output:** Add a `v[N]` row to the changelog summarising the validation pass (e.g., "v2 — codebase validation: confirmed binding locations, corrected import path X → Y").
+
 ## Document structure conventions
 
 ### Changelog table

@@ -155,6 +155,29 @@ Before finalizing:
 5. If a product vision canvas exists, verify alignment between requirements and features listed there
 6. Add a footer with creation date and source reference
 
+### Step 9: Validate against the codebase
+
+After the document is written, read the actual code to confirm factual claims. This prevents the document from drifting from reality before implementation begins.
+
+**What to verify:**
+
+| Claim type | What to check |
+|------------|---------------|
+| File/module names | Do the files mentioned in assumptions or scope actually exist? |
+| Component or system names | Are the Rust struct/system names used in the requirements correct? |
+| Version numbers | Do `Cargo.toml` or config files confirm the versions stated? |
+| "Currently X" statements | Read the relevant code to confirm the current behaviour matches what the doc says |
+| Out-of-scope items | Confirm the claimed current behaviour exists (you can only exclude something that exists) |
+| Dependency status | Are dependencies listed as "Done" actually merged/complete in the repo? |
+
+**For each inaccuracy found:**
+
+1. Correct the requirement or assumption in place
+2. Add a note in the changelog (or at the top of the doc if no changelog) identifying what was corrected and why
+3. If a correction changes the scope or phasing, update phase scoping accordingly
+
+**Output:** A brief validation summary comment at the bottom of the draft (or in the PR/commit body) listing what was verified ✅, what was corrected ❌, and any items that could not be verified ⚠️.
+
 ## Key instructions
 
 - **Attribute requirements to sources** — note who stated or requested each requirement when possible

@@ -70,6 +70,17 @@ Use the template in [`assets/userstory-template.md`](assets/userstory-template.m
 - No open questions remain unaddressed (either resolved inline or listed as blockers)
 - The story sentence names a real persona
 
+### Step 4: Validate referenced components against the codebase
+
+When the story references specific files, systems, structs, or APIs, do a quick verification pass:
+
+- **File paths** — confirm that referenced files exist in the repo
+- **Struct / component names** — search for any Rust type names used in the description or tasks
+- **API calls or system names** — verify spelling and confirm the entity exists
+- **"Currently does X"** in the description — read the code to confirm current behavior matches
+
+For each inaccuracy: correct in place and note in the commit message what was verified.
+
 ## File locations
 
 | File | Purpose |
