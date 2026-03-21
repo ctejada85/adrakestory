@@ -1,16 +1,45 @@
-# Architecture — Upgrade Bevy 0.15 → 0.18
+# Bevy 0.15 → 0.18 Migration — Architecture Reference
 
 **Date:** 2026-03-21
-**Status:** Draft
-**Feature:** `upgrade-bevy-0-18`
+**Repo:** `adrakestory` (local/GitHub)
+**Runtime:** Bevy 0.15.3 → 0.18.1 (Rust game engine, ECS/WGPU)
+**Purpose:** Migrate the A Drake's Story game and map editor from Bevy 0.15.3 to Bevy 0.18.1, including bevy_egui 0.31 → 0.39 and a prepass shader fix that unblocks directional-light shadow casting through occlusion materials.
 
 ---
 
 ## Changelog
 
-| Version | Date | Summary |
-|---------|------|---------|
-| v1 | 2026-03-21 | Initial draft |
+| Version | Date | Author | Summary |
+|---------|------|--------|---------|
+| **v1** | **2026-03-21** | **Developer** | **Initial draft** |
+
+---
+
+## Table of Contents
+
+1. Current Architecture
+   - 1.1 Solution Structure
+   - 1.2 Pipeline Overview
+   - 1.3 Pipeline Steps — Detail
+   - 1.4 Extension Architecture
+   - 1.5 Rendering Pass Routing
+   - 1.6 Data Flow
+2. Target Architecture — Bevy 0.18 Migration
+   - 2.1 Design Principles
+   - 2.2 New Components
+   - 2.3 Modified Components
+   - 2.4 Pipeline Flow
+   - 2.5 Internal Flow — Prepass Shader Change
+   - 2.6 Class Diagram
+   - 2.7 Sequence Diagram — Happy Path
+   - 2.8 Error / Breaking Change Flow
+   - 2.9 Configuration
+   - 2.10 Phase Boundaries
+3. Appendices
+   - Appendix A — Data Schema (Dependency Versions)
+   - Appendix B — Open Questions & Decisions
+   - Appendix C — Key File Locations
+   - Appendix D — Code Templates
 
 ---
 
@@ -22,7 +51,38 @@ The game runs on Bevy 0.15.3 with bevy_egui 0.31. Two binaries share a common li
 - `src/bin/map_editor/main.rs` — standalone map editor binary
 - `src/lib.rs` — shared code (systems, components, occlusion, map format)
 
-Key rendering path:
+### 1.1 Solution Structure
+
+```mermaid
+graph TB
+    subgraph "adrakestory"
+        BIN_GAME["adrakestory binary<br/><i>src/main.rs</i>"]
+        BIN_EDITOR["map_editor binary<br/><i>src/bin/map_editor/main.rs</i>"]
+        LIB["src/lib.rs<br/><i>shared library</i>"]
+    end
+    BIN_GAME --> LIB
+    BIN_EDITOR --> LIB
+    subgraph "External Crates"
+        BEVY["bevy 0.15.3"]
+        EGUI["bevy_egui 0.31"]
+    end
+    LIB --> BEVY
+    BIN_EDITOR --> EGUI
+    EGUI --> BEVY
+```
+
+### 1.2 Pipeline Overview
+
+```mermaid
+flowchart LR
+    A["1. CPU<br/>Map Spawn"] --> B["2. Depth<br/>Prepass"]
+    B --> C["3. Shadow<br/>Map Pass"]
+    C --> D["4. Main<br/>Forward Pass"]
+    D --> E["5. Post<br/>Process"]
+    E --> F["Framebuffer"]
+```
+
+Key rendering path (Bevy 0.15):
 
 ```
 DefaultPlugins (Bevy 0.15)
@@ -32,6 +92,287 @@ DefaultPlugins (Bevy 0.15)
             ├─ prepass: occlusion_material_prepass.wgsl
             └─ deferred: occlusion_material.wgsl (PREPASS_PIPELINE)
 ```
+
+### 1.3 Pipeline Steps — Detail
+
+| # | Step | File | Purpose |
+|---|------|------|---------|
+| 1 | CPU Map Spawn | `spawner/mod.rs`, `spawner/chunks.rs` | Load RON map, build chunk meshes, assign `OcclusionMaterial` handles |
+| 2 | Depth Prepass | `occlusion_material_prepass.wgsl` | Writes depth buffer; occlusion discards fire here (player camera only — bug in 0.15) |
+| 3 | Shadow Map Pass | `occlusion_material_prepass.wgsl` | Directional light shadow map; shares prepass shader — discards incorrectly fire here too (bug) |
+| 4 | Main Forward Pass | `occlusion_material.wgsl` | PBR shading + dithered transparency for occluded geometry |
+| 5 | Post Process | Bevy built-in | Bloom, tonemapping (not customised) |
+
+### 1.4 Extension Architecture
+
+```mermaid
+classDiagram
+    class MaterialExtension {
+        <<trait>>
+        +fragment_shader() ShaderRef
+        +prepass_fragment_shader() ShaderRef
+        +deferred_fragment_shader() ShaderRef
+    }
+    class OcclusionExtension {
+        +occlusion_uniforms: OcclusionUniforms
+    }
+    class StandardMaterial {
+        +base_color: Color
+        +alpha_mode: AlphaMode
+    }
+    class OcclusionMaterial {
+        <<type alias>>
+        ExtendedMaterial~StandardMaterial, OcclusionExtension~
+    }
+    MaterialExtension <|.. OcclusionExtension
+    OcclusionMaterial --> StandardMaterial
+    OcclusionMaterial --> OcclusionExtension
+```
+
+`OcclusionExtension` is defined in `src/systems/game/occlusion/mod.rs`. The `#[uniform(100)]` binding places `OcclusionUniforms` at `@group(2) @binding(100)` in all shader stages.
+
+### 1.5 Rendering Pass Routing
+
+Bevy 0.15 routes a mesh through render phases based on its material and render pipeline flags:
+
+| Phase | Camera / View | Shader invoked | Notes |
+|-------|--------------|----------------|-------|
+| Depth prepass | Player `Camera3d` | `occlusion_material_prepass.wgsl` | `perspective` projection |
+| Shadow map | `DirectionalLight` shadow view | `occlusion_material_prepass.wgsl` | `orthographic` projection — discards incorrectly fire |
+| Main forward | Player `Camera3d` | `occlusion_material.wgsl` | Full PBR + dither |
+
+The shadow-map bug: the prepass shader runs for both the player camera depth pass and the shadow-map pass but has no way to distinguish them. Discards fire in both passes, punching holes in the shadow map.
+
+### 1.6 Data Flow
+
+```
+CPU (Rust)
+  ├─ OcclusionUniforms written each frame via update_occlusion_material()
+  └─ Chunk meshes uploaded once at spawn
+
+GPU Pass 1 — Depth Prepass (player camera, perspective)
+  └─ occlusion_material_prepass.wgsl → depth buffer written, occluded pixels discarded
+
+GPU Pass 2 — Shadow Map (directional light, orthographic)
+  └─ occlusion_material_prepass.wgsl → [BUG] occluded pixels also discarded here
+
+GPU Pass 3 — Main Forward Pass
+  └─ occlusion_material.wgsl → PBR + dither → colour attachment
+
+GPU Pass 4 — Post Process
+  └─ Bevy tonemapping / bloom → final framebuffer → display
+```
+
+---
+
+## 2. Target Architecture — Bevy 0.18 Migration
+
+### 2.1 Design Principles
+
+1. **Compile-error-driven** — bump versions, let the compiler enumerate every breaking change; fix in order.
+2. **Minimal surface area** — prefer re-exported paths (`bevy::prelude`, `bevy::pbr`) over direct sub-crate imports.
+3. **Shader-version-agnostic fix** — use `view.projection[3][3]` (ortho vs. perspective math) rather than Bevy-specific shader defines like `DEPTH_CLAMP_ORTHO` that change between versions.
+4. **No behavioural regressions** — occlusion transparency, shadow casting, editor undo/redo, hot reload must all work identically after migration.
+5. **Phase-by-phase** — each phase leaves the codebase in a compilable state before the next begins.
+
+### 2.2 New Components
+
+| Component / Type | Crate | Purpose | Introduced in |
+|-----------------|-------|---------|---------------|
+| `RenderTarget` (standalone) | `bevy::render` | Camera render target is now a separate required ECS component instead of a field on `Camera` | Bevy 0.17 → 0.18 |
+| `uuid_handle!` macro | `bevy` | Replaces `weak_handle!` for typed asset handles | Bevy 0.16 → 0.17 |
+| `bevy::camera` module | `bevy_camera` | Re-export path for `Camera3d`, `Camera2d` | Bevy 0.16 → 0.17 |
+| `bevy::light` module | `bevy_light` | Re-export path for `DirectionalLight`, `AmbientLight`, `NotShadowCaster` | Bevy 0.16 → 0.17 |
+
+### 2.3 Modified Components
+
+| Component / API | 0.15 form | 0.18 form | Impact |
+|----------------|-----------|-----------|--------|
+| `MaterialPlugin` fields | `prepass_enabled`, `shadows_enabled` struct fields | Methods on `Material`/`MaterialExtension` trait | Medium — verify current default usage compiles |
+| `Camera.target` | Field on `Camera` struct | Removed; `RenderTarget` is a required component | Medium — affects camera spawn sites |
+| `Handle::Weak` | `Handle::Weak(id)` | `Handle::Uuid(id)` | Low — audit only |
+| `weak_handle!` macro | `weak_handle!(uuid)` | `uuid_handle!(uuid)` | Low — audit only |
+| `#[require(A(closure))]` | Closure syntax | `#[require(A = expr)]` | Low — audit derives |
+| `DEPTH_CLAMP_ORTHO` | Shader define in prepass | Renamed/removed | **Critical** — prepass shader must not reference it |
+
+### 2.4 Pipeline Flow
+
+```mermaid
+flowchart LR
+    A["1. CPU Map Spawn<br/><i>unchanged</i>"] --> B["2. Depth Prepass<br/><i>shader changed</i>"]
+    B --> C["3. Shadow Map Pass<br/><i>shader changed — bug fixed</i>"]
+    C --> D["4. Main Forward Pass<br/><i>import paths verified</i>"]
+    D --> E["5. Post Process<br/><i>unchanged</i>"]
+    E --> F["Framebuffer"]
+```
+
+Changed steps:
+- **Step 2 & 3** — `occlusion_material_prepass.wgsl` gains `view` uniform import and projection check; `DEPTH_CLAMP_ORTHO` reference removed.
+- **Step 4** — `occlusion_material.wgsl` import paths verified/updated for `bevy_pbr` 0.18 module layout.
+
+### 2.5 Internal Flow — Prepass Shader Change
+
+```mermaid
+flowchart TD
+    FRAG["fragment() called"] --> READ["Read view.projection[3][3]"]
+    READ --> CHECK{"projection[3][3] >= 0.5?"}
+    CHECK -- "Yes: orthographic<br/>(shadow map pass)" --> SKIP["Skip all discards<br/>Write depth normally"]
+    CHECK -- "No: perspective<br/>(depth prepass)" --> REGION{"mode == RegionBased<br/>or Hybrid?"}
+    REGION -- Yes --> RCHECK{"Fragment inside<br/>occlusion region?"}
+    RCHECK -- Yes --> DISCARD["discard"]
+    RCHECK -- No --> HEIGHT{"mode == ShaderBased<br/>or Hybrid?"}
+    REGION -- No --> HEIGHT
+    HEIGHT -- Yes --> HCHECK{"Fragment above player<br/>within xz radius?"}
+    HCHECK -- Yes --> DISCARD
+    HCHECK -- No --> DONE["Write depth"]
+    HEIGHT -- No --> DONE
+```
+
+### 2.6 Class Diagram
+
+```mermaid
+classDiagram
+    class MaterialExtension {
+        <<trait>>
+        +fragment_shader() ShaderRef
+        +prepass_fragment_shader() ShaderRef
+        +deferred_fragment_shader() ShaderRef
+    }
+    class OcclusionExtension {
+        +occlusion_uniforms: OcclusionUniforms
+        +prepass_fragment_shader() ShaderRef
+    }
+    class StandardMaterial {
+        +base_color: Color
+        +alpha_mode: AlphaMode
+    }
+    class OcclusionMaterial {
+        <<type alias>>
+        ExtendedMaterial~StandardMaterial, OcclusionExtension~
+    }
+    class MaterialPlugin {
+        +add(app: App)
+    }
+    MaterialExtension <|.. OcclusionExtension
+    OcclusionMaterial --> StandardMaterial
+    OcclusionMaterial --> OcclusionExtension
+    MaterialPlugin --> OcclusionMaterial
+```
+
+`OcclusionExtension` is unchanged in structure; only the shader it references changes.
+
+### 2.7 Sequence Diagram — Happy Path
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant Cargo
+    participant Compiler as rustc
+    participant Game
+    participant Editor
+
+    Dev->>Cargo: bump bevy 0.15 → 0.18, bevy_egui 0.31 → 0.39
+    Cargo->>Compiler: cargo build
+    Compiler-->>Dev: compile errors (breaking changes list)
+    Dev->>Dev: Phase 2 — fix Rust import paths
+    Dev->>Dev: Phase 3 — update WGSL shaders
+    Dev->>Dev: Phase 4 — fix bevy_egui API
+    Dev->>Compiler: cargo build
+    Compiler-->>Dev: zero errors
+    Dev->>Game: cargo run --release
+    Game-->>Dev: intro → title → map loads
+    Dev->>Dev: Walk into building — ceiling invisible ✅
+    Dev->>Dev: Inside room — floor has directional shadow ✅
+    Dev->>Editor: cargo run --bin map_editor --release
+    Editor-->>Dev: all tools work ✅
+    Dev->>Compiler: cargo test
+    Compiler-->>Dev: all tests pass ✅
+```
+
+### 2.8 Error / Breaking Change Flow
+
+Compile errors from the version bump act as the migration checklist:
+
+```
+cargo build (after version bump)
+  │
+  ├─ E[unresolved import] bevy::render::...
+  │     └─ Fix: update to bevy::camera / bevy::light / bevy::mesh as appropriate
+  │
+  ├─ E[no field `target` on `Camera`]
+  │     └─ Fix: spawn RenderTarget as separate component (Section 2.3 / Phase 2.2)
+  │
+  ├─ E[no field `prepass_enabled` on `MaterialPlugin`]
+  │     └─ Fix: verify default() still works; if not, implement trait method (Phase 2.3)
+  │
+  ├─ E[shader import not found: DEPTH_CLAMP_ORTHO]
+  │     └─ Fix: replace with projection[3][3] check (Phase 3.2)
+  │
+  ├─ E[unresolved import bevy_pbr::...]
+  │     └─ Fix: search 0.18 source for new path (Phase 3.1)
+  │
+  └─ E[bevy_egui API changes]
+        └─ Fix: consult bevy_egui CHANGELOG 0.31→0.39 (Phase 4)
+```
+
+### 2.9 Configuration
+
+**`Cargo.toml` changes (Phase 1):**
+
+```toml
+# Before
+bevy = { version = "0.15", features = ["bevy_gltf"] }
+bevy_egui = "0.31"
+
+# After
+bevy = { version = "0.18", features = ["bevy_gltf"] }
+bevy_egui = "0.39"
+```
+
+**Target prepass shader (`assets/shaders/occlusion_material_prepass.wgsl`):**
+
+```wgsl
+#import bevy_pbr::prepass_io::VertexOutput
+#import bevy_render::view::View
+
+@group(0) @binding(0) var<uniform> view: View;
+@group(2) @binding(100) var<uniform> occlusion: OcclusionUniforms;
+
+@fragment
+fn fragment(in: VertexOutput) {
+    let world_pos = in.world_position.xyz;
+
+    // projection[3][3] == 1.0 → orthographic (shadow map pass) → skip discards
+    // projection[3][3] == 0.0 → perspective (depth prepass)    → apply discards
+    let is_shadow_pass = view.projection[3][3] >= 0.5;
+
+    if !is_shadow_pass {
+        if occlusion.mode == 2u || occlusion.mode == 3u {
+            let rel = world_pos - occlusion.region_min;
+            let size = occlusion.region_max - occlusion.region_min;
+            if all(rel >= vec3<f32>(0.0)) && all(rel <= size) { discard; }
+        }
+        if (occlusion.mode == 1u || occlusion.mode == 3u) && occlusion.technique == 0u {
+            if world_pos.y > occlusion.player_position.y + occlusion.height_threshold {
+                let xz_offset = world_pos.xz - occlusion.player_position.xz;
+                let xz_dist_sq = dot(xz_offset, xz_offset);
+                let xz_margin = occlusion.occlusion_radius * 1.2;
+                if xz_dist_sq <= xz_margin * xz_margin { discard; }
+            }
+        }
+    }
+}
+```
+
+### 2.10 Phase Boundaries
+
+| Phase | Name | Completion Criteria | Risk |
+|-------|------|---------------------|------|
+| 1 | Dependency Update | `Cargo.toml` bumped; `cargo build` produces compile errors (not panics) | Low |
+| 2 | Rust Code Migration | `cargo build` succeeds; no import errors; camera spawns compile | Medium |
+| 3 | WGSL Shader Migration | Shaders compile; no WGPU validation errors at runtime | High |
+| 4 | bevy_egui Migration | Map editor starts; all editor tools functional | Medium |
+| 5 | Validation | All test cases in validation table pass; no performance regression | Low |
 
 ---
 
@@ -308,7 +649,39 @@ Run the map editor and exercise all tools. Consult `https://github.com/mvlabat/b
 
 ---
 
-## 5. Key File Inventory
+## Appendix A — Data Schema (Dependency Versions)
+
+| Dependency | Version (0.15 baseline) | Version (0.18 target) | Notes |
+|------------|------------------------|-----------------------|-------|
+| `bevy` | `0.15.3` | `0.18.1` | Core engine |
+| `bevy_egui` | `0.31` | `0.39` | Editor UI |
+| `bevy_pbr` (transitive) | bundled with bevy 0.15 | bundled with bevy 0.18 | Shader paths may change |
+| `bevy_render` (transitive) | bundled with bevy 0.15 | bundled with bevy 0.18 | Crate reorganised in 0.17 |
+| Rust toolchain | stable (nightly not required) | stable | Verify MSRV in bevy 0.18 release notes |
+
+---
+
+## Appendix B — Open Questions & Decisions
+
+### Resolved
+
+| # | Question | Decision |
+|---|----------|----------|
+| B-1 | How to detect shadow pass vs. depth prepass in WGSL without Bevy-version-specific defines? | Use `view.projection[3][3]`: orthographic (≥ 0.5) = shadow pass, perspective (≈ 0.0) = depth prepass. Version-agnostic pure math. |
+| B-2 | Should `OcclusionMaterial` registration use field syntax or `default()`? | Current code uses `MaterialPlugin::<OcclusionMaterial>::default()`. Fields were removed in 0.18; default() is correct. |
+
+### Open
+
+| # | Question | Owner | Status |
+|---|----------|-------|--------|
+| B-3 | Do `DirectionalLight.illuminance` and `DirectionalLight.shadows_enabled` still exist by the same names in 0.18? | Developer | Verify at compile time |
+| B-4 | Does `CascadeShadowConfigBuilder` retain `num_cascades` and `maximum_distance` field names in 0.18? | Developer | Verify at compile time |
+| B-5 | Does bevy_egui 0.39 change `EguiContexts` system parameter signature? | Developer | Consult CHANGELOG |
+| B-6 | Are point/spot light shadow passes a concern if `NotShadowCaster` is not set? | Developer | Low risk — currently disabled in maps; document for future |
+
+---
+
+## Appendix C — Key File Locations
 
 | File | Migration work | Risk |
 |------|---------------|------|
@@ -326,10 +699,83 @@ Run the map editor and exercise all tools. Consult `https://github.com/mvlabat/b
 
 ---
 
-## 6. Appendix — Migration Guide References
+## Appendix D — Code Templates
+
+### D.1 Cargo.toml
+
+```toml
+# After migration
+bevy = { version = "0.18", features = ["bevy_gltf"] }
+bevy_egui = "0.39"
+```
+
+### D.2 Prepass Shader (full template)
+
+```wgsl
+#import bevy_pbr::prepass_io::VertexOutput
+#import bevy_render::view::View
+
+struct OcclusionUniforms {
+    player_position: vec3<f32>,
+    mode: u32,
+    region_min: vec3<f32>,
+    technique: u32,
+    region_max: vec3<f32>,
+    height_threshold: f32,
+    occlusion_radius: f32,
+    _pad0: f32,
+    _pad1: f32,
+    _pad2: f32,
+}
+
+@group(0) @binding(0) var<uniform> view: View;
+@group(2) @binding(100) var<uniform> occlusion: OcclusionUniforms;
+
+@fragment
+fn fragment(in: VertexOutput) {
+    let world_pos = in.world_position.xyz;
+    let is_shadow_pass = view.projection[3][3] >= 0.5;
+
+    if !is_shadow_pass {
+        if occlusion.mode == 2u || occlusion.mode == 3u {
+            let rel = world_pos - occlusion.region_min;
+            let size = occlusion.region_max - occlusion.region_min;
+            if all(rel >= vec3<f32>(0.0)) && all(rel <= size) { discard; }
+        }
+        if (occlusion.mode == 1u || occlusion.mode == 3u) && occlusion.technique == 0u {
+            if world_pos.y > occlusion.player_position.y + occlusion.height_threshold {
+                let xz_offset = world_pos.xz - occlusion.player_position.xz;
+                let xz_dist_sq = dot(xz_offset, xz_offset);
+                let xz_margin = occlusion.occlusion_radius * 1.2;
+                if xz_dist_sq <= xz_margin * xz_margin { discard; }
+            }
+        }
+    }
+}
+```
+
+### D.3 Camera Spawn — RenderTarget (0.18)
+
+```rust
+// Default window target (no RenderTarget component needed):
+commands.spawn((Camera3d::default(), Camera::default()));
+
+// Custom render target (e.g., render to texture):
+commands.spawn((
+    Camera3d::default(),
+    RenderTarget::Image(handle),
+));
+```
+
+### D.4 Migration Guide References
 
 - Bevy 0.15 → 0.16: `https://bevyengine.org/learn/migration-guides/0-15-to-0-16/`
 - Bevy 0.16 → 0.17: `https://bevyengine.org/learn/migration-guides/0-16-to-0-17/`
 - Bevy 0.17 → 0.18: `https://bevyengine.org/learn/migration-guides/0-17-to-0-18/`
 - bevy_egui CHANGELOG: `https://github.com/mvlabat/bevy_egui/blob/main/CHANGELOG.md`
 - Shadow casting fix: `docs/bugs/fix-occlusion-shadow-casting/references/architecture.md`
+
+---
+
+*Created: 2026-03-21*
+*Companion documents: `docs/features/upgrade-bevy-0-18/requirements.md` · `docs/bugs/fix-occlusion-shadow-casting/references/architecture.md`*

@@ -12,6 +12,8 @@ description: Creates user story ticket files with a structured format including 
 - User needs a structured breakdown of work with acceptance criteria and tasks
 - User asks to add a `ticket.md` to a feature or bug folder
 
+> **Multiple stories?** If the work spans several independent implementable units, use the `basic-documents-epic-write` skill instead. An epic groups multiple child stories under a shared goal and adds Epic Acceptance Criteria, a Dependencies & Risks table, and a child story index.
+
 ## Workflow
 
 ```
