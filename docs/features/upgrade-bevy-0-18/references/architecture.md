@@ -12,6 +12,7 @@
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
 | **v1** | **2026-03-21** | **Developer** | **Initial draft** |
+| v2 | 2026-03-21 | Developer | Codebase validation pass — corrected `RenderTarget` (not used in 0.15 code, no migration needed); corrected `DEPTH_CLAMP_ORTHO` (not present in any shader, no removal needed); confirmed `weak_from_u128()` not used; confirmed `NotShadowCaster` also imported in `occlusion/mod.rs` |
 
 ---
 
@@ -179,21 +180,22 @@ GPU Pass 4 — Post Process
 
 | Component / Type | Crate | Purpose | Introduced in |
 |-----------------|-------|---------|---------------|
-| `RenderTarget` (standalone) | `bevy::render` | Camera render target is now a separate required ECS component instead of a field on `Camera` | Bevy 0.17 → 0.18 |
-| `uuid_handle!` macro | `bevy` | Replaces `weak_handle!` for typed asset handles | Bevy 0.16 → 0.17 |
 | `bevy::camera` module | `bevy_camera` | Re-export path for `Camera3d`, `Camera2d` | Bevy 0.16 → 0.17 |
 | `bevy::light` module | `bevy_light` | Re-export path for `DirectionalLight`, `AmbientLight`, `NotShadowCaster` | Bevy 0.16 → 0.17 |
+
+> **Note (codebase validation):** `RenderTarget` as a standalone required component was listed here in v1. Codebase review confirmed that `src/systems/game/map/spawner/mod.rs` and `src/bin/map_editor/setup.rs` already use `Camera3d::default()` — the pattern that is forward-compatible with 0.18. No camera spawn changes are required.
 
 ### 2.3 Modified Components
 
 | Component / API | 0.15 form | 0.18 form | Impact |
 |----------------|-----------|-----------|--------|
-| `MaterialPlugin` fields | `prepass_enabled`, `shadows_enabled` struct fields | Methods on `Material`/`MaterialExtension` trait | Medium — verify current default usage compiles |
-| `Camera.target` | Field on `Camera` struct | Removed; `RenderTarget` is a required component | Medium — affects camera spawn sites |
+| `MaterialPlugin` fields | `prepass_enabled`, `shadows_enabled` struct fields | Methods on `Material`/`MaterialExtension` trait | Medium — verify current `.default()` usage compiles |
 | `Handle::Weak` | `Handle::Weak(id)` | `Handle::Uuid(id)` | Low — audit only |
-| `weak_handle!` macro | `weak_handle!(uuid)` | `uuid_handle!(uuid)` | Low — audit only |
+| `Camera.target` field | N/A — not used in this codebase | N/A | **None** — code already uses `Camera3d::default()` (verified) |
+| `weak_handle!` / `weak_from_u128()` | N/A — not used in this codebase | N/A | **None** — not present in codebase (verified) |
+| `DEPTH_CLAMP_ORTHO` | N/A — not present in any `.wgsl` file | N/A | **None** — not in codebase (verified); shadow fix uses `view.projection[3][3]` |
+| `NotShadowCaster` import path | `bevy::pbr::NotShadowCaster` | Verify path in 0.18 | Low — used in 3 files: `shadow_quality.rs`, `chunks.rs`, `occlusion/mod.rs` |
 | `#[require(A(closure))]` | Closure syntax | `#[require(A = expr)]` | Low — audit derives |
-| `DEPTH_CLAMP_ORTHO` | Shader define in prepass | Renamed/removed | **Critical** — prepass shader must not reference it |
 
 ### 2.4 Pipeline Flow
 
@@ -207,7 +209,7 @@ flowchart LR
 ```
 
 Changed steps:
-- **Step 2 & 3** — `occlusion_material_prepass.wgsl` gains `view` uniform import and projection check; `DEPTH_CLAMP_ORTHO` reference removed.
+- **Step 2 & 3** — `occlusion_material_prepass.wgsl` gains `view` uniform import and projection check; no existing define references need removal (verified: `DEPTH_CLAMP_ORTHO` is not present in the current shader).
 - **Step 4** — `occlusion_material.wgsl` import paths verified/updated for `bevy_pbr` 0.18 module layout.
 
 ### 2.5 Internal Flow — Prepass Shader Change

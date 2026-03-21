@@ -46,14 +46,14 @@ The upgrade also resolves an open bug: the occlusion shadow-casting fix (`docs/b
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| FR-3.2.1 | All camera spawning code must remain compatible. `Camera3d`, `Camera2d` component patterns are already in use; verify no new required components. `Camera { target: ... }` → `RenderTarget` is now a separate component (0.17→0.18 breaking change); update all camera spawns. | Phase 1 |
+| FR-3.2.1 | All camera spawning code must remain compatible. `Camera3d::default()` and `Camera2d` are already in use and are forward-compatible with 0.18 (verified: no `Camera { target: ... }` pattern exists in the codebase). Verify no new required camera components are introduced by 0.18. | Phase 1 |
 | FR-3.2.2 | All `StandardMaterial` usages must compile and render correctly. Field names (`base_color`, `metallic`, `roughness`, `alpha_mode`, etc.) must be verified against 0.18. `AlphaMode::Mask(0.001)` must still function as expected for the occlusion material. `AlphaMode::AlphaToCoverage` must still be supported. | Phase 1 |
 | FR-3.2.3 | The `ExtendedMaterial` / `MaterialExtension` API must be verified and updated. `OcclusionMaterial = ExtendedMaterial<StandardMaterial, OcclusionExtension>` must remain valid. `impl MaterialExtension for OcclusionExtension` must implement all required methods for 0.18. Shader bind group indices (currently group 2, binding 100) must be verified. | Phase 1 |
 | FR-3.2.4 | `MaterialPlugin::<OcclusionMaterial>` registration must use 0.18 API. `enable_prepass` and `enable_shadows` are now `Material`/`MaterialExtension` methods, not `MaterialPlugin` fields (0.17→0.18 change). If `MaterialPlugin` fields were in use, convert to trait methods. | Phase 1 |
 | FR-3.2.5 | All light types must render correctly. `DirectionalLight`, `AmbientLight` field names must be verified (`illuminance`, `brightness`, `shadows_enabled`, etc.). `CascadeShadowConfigBuilder` API must be verified (currently used in 4 locations). `NotShadowCaster` component must still be available (types moved to `bevy_light` in 0.16→0.17; import via `bevy::pbr` or `bevy::light`). | Phase 1 |
 | FR-3.2.6 | All import paths must be updated for the `bevy_render` reorganization (0.16→0.17). Camera types moved to `bevy_camera` (accessible via `bevy::camera`). Light types moved to `bevy_light` (accessible via `bevy::light` or `bevy::pbr`). `NotShadowCaster`, `NotShadowReceiver` moved to `bevy_light`. Mesh types moved to `bevy_mesh` (accessible via `bevy::mesh`). All affected imports must be updated to compile. | Phase 1 |
 | FR-3.2.7 | `Mesh::new(topology, usage)` API must be verified; update if signature changed. | Phase 1 |
-| FR-3.2.8 | `Handle::weak_from_u128()` is deprecated in 0.16. Replace any usages with the `weak_handle!` macro. | Phase 1 |
+| FR-3.2.8 | `Handle::weak_from_u128()` deprecation: verified not present in this codebase — no migration action required. If any new code is added during migration, use the `weak_handle!` macro instead. | Phase 1 |
 
 ---
 
@@ -62,7 +62,7 @@ The upgrade also resolves an open bug: the occlusion shadow-casting fix (`docs/b
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | FR-3.3.1 | `occlusion_material.wgsl` must compile without errors in Bevy 0.18. All `#import bevy_pbr::...` paths must exist in 0.18 (`pbr_fragment`, `pbr_functions`, `prepass_io`, `forward_io`, `pbr_deferred_functions`). `VertexOutput` and `FragmentOutput` struct layouts must be verified. Update any renamed or moved shader imports. | Phase 1 |
-| FR-3.3.2 | `occlusion_material_prepass.wgsl` must compile and implement the shadow fix. `#import bevy_pbr::prepass_io::VertexOutput` must still be valid. `#import bevy_render::view::View` must be added. The shadow-pass detection guard (view projection matrix check) from `docs/bugs/fix-occlusion-shadow-casting/references/architecture.md` Option B must be implemented. The old `DEPTH_CLAMP_ORTHO` define (renamed to `UNCLIPPED_DEPTH_ORTHO_EMULATION` in 0.18) must be removed. | Phase 1 |
+| FR-3.3.2 | `occlusion_material_prepass.wgsl` must compile and implement the shadow fix. `#import bevy_pbr::prepass_io::VertexOutput` must still be valid. `#import bevy_render::view::View` must be added. The shadow-pass detection guard (view projection matrix check) from `docs/bugs/fix-occlusion-shadow-casting/references/architecture.md` Option B must be implemented. Note: `DEPTH_CLAMP_ORTHO` is **not present** in the current shader (verified) — no removal needed. | Phase 1 |
 | FR-3.3.3 | Shader behavior must be functionally identical to the current 0.15 behavior for all non-shadow cases. | Phase 1 |
 
 ---
@@ -177,7 +177,7 @@ The upgrade also resolves an open bug: the occlusion shadow-casting fix (`docs/b
 | Type | Example Verification Scenario | Complexity |
 |------|-------------------------------|------------|
 | Dependency | Run `cargo build --release` after updating `Cargo.toml`; confirm zero errors and zero deprecation warnings | Low |
-| Rust Code — Camera | Spawn game with `Camera3d` + `Camera2d`; verify no panics about missing required components or `RenderTarget` | Medium |
+| Rust Code — Camera | Spawn game with `Camera3d` + `Camera2d`; verify no panics about missing required components (code already uses forward-compatible patterns) | Medium |
 | Rust Code — Materials | Load a map with occlusion voxels; verify `AlphaMode::Mask` and `AlphaToCoverage` render correctly | Medium |
 | Rust Code — Imports | Confirm `NotShadowCaster`, `DirectionalLight`, `Mesh` compile via their 0.18 import paths | Low |
 | WGSL Shader | Launch game with occlusion material; verify no shader compilation errors in logs and ceiling voxels are transparent | High |

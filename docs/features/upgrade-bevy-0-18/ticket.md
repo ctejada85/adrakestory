@@ -8,7 +8,7 @@
 
 ## Overview
 
-The project currently runs Bevy 0.15.3. Bevy 0.18.1 is the current stable release. Three intermediate versions introduced breaking changes in import paths, camera spawn, material trait API, and the `bevy_egui` crate. The upgrade also resolves an open shadow-casting bug: the `DEPTH_CLAMP_ORTHO` define used in `occlusion_material_prepass.wgsl` was renamed in 0.18. This epic migrates the game, map editor, and custom shaders in four phased stories and validates the result.
+The project currently runs Bevy 0.15.3. Bevy 0.18.1 is the current stable release. Three intermediate versions introduced breaking changes in import paths, material trait API, and the `bevy_egui` crate. The upgrade also implements the occlusion shadow-casting fix: the prepass shader currently has unconditional discards that must be guarded with the view projection matrix check (Option B). This epic migrates the game, map editor, and custom shaders in four phased stories and validates the result.
 
 ---
 
@@ -77,7 +77,7 @@ Apply the breaking changes identified in Story 1 to `src/`. Three sets of change
 ### Non-Functional Requirements
 
 - No new `unsafe` blocks introduced.
-- If `Handle::weak_from_u128()` was removed, replace with `weak_handle!` macro.
+- `weak_from_u128()` / `weak_handle!`: verified not present in the codebase — no action needed for existing code.
 - Changes limited to `src/` and `Cargo.toml` — no editor files.
 
 ### Tasks
@@ -87,7 +87,7 @@ Apply the breaking changes identified in Story 1 to `src/`. Three sets of change
 3. Update camera spawn in `spawner/mod.rs` and `setup.rs` for the `RenderTarget` component.
 4. Verify `DirectionalLight`, `AmbientLight`, `CascadeShadowConfigBuilder` field names; fix any renames.
 5. Migrate `MaterialPlugin::<OcclusionMaterial>` to the `Material` trait method pattern.
-6. Replace any `Handle::weak_from_u128()` calls with `weak_handle!` macro if needed.
+6. `weak_from_u128()` / `weak_handle!`: verified not used — no action needed.
 7. Run `cargo build --bin adrakestory` — must be error-free.
 8. Run `cargo test` — all tests must pass.
 
@@ -99,7 +99,7 @@ As a developer, I want the occlusion shaders to compile on Bevy 0.18 and the sha
 
 ### Description
 
-Verify all `bevy_pbr::` import paths in `occlusion_material.wgsl`. In `occlusion_material_prepass.wgsl`, remove the `DEPTH_CLAMP_ORTHO` reference (renamed in 0.18) and implement the version-agnostic shadow fix: wrap both discard blocks in a `view.projection[3][3]` orthographic check (Option B from `docs/bugs/fix-occlusion-shadow-casting/references/architecture.md`).
+Verify all `bevy_pbr::` import paths in `occlusion_material.wgsl`. In `occlusion_material_prepass.wgsl`, implement the version-agnostic shadow fix: wrap both discard blocks in a `view.projection[3][3]` orthographic check (Option B from `docs/bugs/fix-occlusion-shadow-casting/references/architecture.md`). Note: `DEPTH_CLAMP_ORTHO` is not present in the current shader — no removal needed.
 
 ### Acceptance Criteria
 
@@ -107,7 +107,7 @@ Verify all `bevy_pbr::` import paths in `occlusion_material.wgsl`. In `occlusion
 2. At runtime, `occlusion_material.wgsl` compiles with no Bevy shader error logs.
 3. With occlusion active, ceiling voxels are invisible to the camera but cast a visible directional shadow on the floor.
 4. Occlusion discard (height-based and region-based) still works correctly for the player camera.
-5. No reference to `DEPTH_CLAMP_ORTHO` or `UNCLIPPED_DEPTH_ORTHO` remains in any shader.
+5. No stray `DEPTH_CLAMP_ORTHO` or `UNCLIPPED_DEPTH_ORTHO` references added during migration (neither exists in the current shader — do not introduce them).
 
 ### Non-Functional Requirements
 
@@ -119,7 +119,7 @@ Verify all `bevy_pbr::` import paths in `occlusion_material.wgsl`. In `occlusion
 1. Audit `occlusion_material.wgsl` for any `bevy_pbr::` import paths that moved in 0.17–0.18.
 2. In `occlusion_material_prepass.wgsl`: add `#import bevy_render::view::View` and `@group(0) @binding(0) var<uniform> view: View;`.
 3. Add `let is_shadow_pass = view.projection[3][3] >= 0.5;` and wrap both discard blocks in `if !is_shadow_pass { }`.
-4. Remove any `DEPTH_CLAMP_ORTHO` or `UNCLIPPED_DEPTH_ORTHO` references.
+4. Add shadow fix imports and guard (see architecture doc) — no existing define references need removal.
 5. Run game in a map with directional light; verify floor shadow from ceiling voxels appears.
 6. Verify occlusion still hides ceiling voxels from the camera.
 

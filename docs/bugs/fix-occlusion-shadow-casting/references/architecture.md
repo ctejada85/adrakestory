@@ -12,6 +12,7 @@
 |---------|------|--------|---------|
 | v1 | 2026-03-21 | Developer | Initial draft — Option A (`DEPTH_CLAMP_ORTHO` guard) selected |
 | v2 | 2026-03-21 | Developer | Option B (view projection check) promoted to chosen approach; Option A superseded — `DEPTH_CLAMP_ORTHO` renamed in Bevy 0.18 |
+| **v3** | **2026-03-21** | **Developer** | **Codebase validation pass — confirmed fix not yet applied; corrected `XZ_MARGIN_FACTOR` (1.2 → 2.0); updated `in_interior_region` to match actual shader (epsilon guard, `region_max.w` activation flag); expanded Appendix A with all `OcclusionUniforms` fields** |
 
 ---
 
@@ -124,7 +125,8 @@ if occlusion.mode == 2u || occlusion.mode == 3u {
     if in_interior_region(world_pos) { discard; }
 }
 
-// Block 2 — height-based (mode 1 or 3, dithered)
+// Block 2 — height-based (mode 1 or 3, technique 0 = shader-based discard)
+// technique == 0u means ShaderBased discard; technique == 1u means Alpha/Dither.
 if (occlusion.mode == 1u || occlusion.mode == 3u) && occlusion.technique == 0u {
     if world_pos.y > occlusion.player_position.y + occlusion.height_threshold {
         ...
@@ -133,7 +135,22 @@ if (occlusion.mode == 1u || occlusion.mode == 3u) && occlusion.technique == 0u {
 }
 ```
 
-Both blocks fire during the directional shadow map pass, removing discarded voxels from the shadow map.
+`in_interior_region()` uses a 0.01-unit epsilon inset on all sides to avoid edge artifacts, and checks `region_max.w` (stored as float) as an activation flag before testing bounds:
+
+```wgsl
+fn in_interior_region(world_pos: vec3<f32>) -> bool {
+    if occlusion.region_max.w < 0.5 { return false; }  // w = 0.0 means region not active
+    let epsilon = 0.01;
+    return world_pos.x > occlusion.region_min.x + epsilon &&
+           world_pos.x < occlusion.region_max.x - epsilon &&
+           world_pos.y > occlusion.region_min.y + epsilon &&
+           // NOTE: No upper-Y bound — intentional, preserves tall geometry above the region.
+           world_pos.z > occlusion.region_min.z + epsilon &&
+           world_pos.z < occlusion.region_max.z - epsilon;
+}
+```
+
+Both discard blocks fire during the directional shadow map pass, removing discarded voxels from the shadow map.
 
 ### 1.6 Data Flow
 
@@ -198,16 +215,17 @@ fn fragment(in: VertexOutput) {
 
     if !is_shadow_pass {
         if occlusion.mode == 2u || occlusion.mode == 3u {
-            let rel = world_pos - occlusion.region_min;
-            let size = occlusion.region_max - occlusion.region_min;
-            if all(rel >= vec3<f32>(0.0)) && all(rel <= size) { discard; }
+            if in_interior_region(world_pos) { discard; }
+            // in_interior_region: checks region_max.w activation flag, applies 0.01 epsilon
+            // inset on X/Z axes, no upper Y bound (preserves tall geometry above the AABB).
         }
 
         if (occlusion.mode == 1u || occlusion.mode == 3u) && occlusion.technique == 0u {
             if world_pos.y > occlusion.player_position.y + occlusion.height_threshold {
                 let xz_offset = world_pos.xz - occlusion.player_position.xz;
                 let xz_dist_sq = dot(xz_offset, xz_offset);
-                let xz_margin = occlusion.occlusion_radius * 1.2;
+                // XZ_MARGIN_FACTOR = 2.0 (const in shader — more conservative than initial design)
+                let xz_margin = occlusion.occlusion_radius * XZ_MARGIN_FACTOR;
                 if xz_dist_sq <= xz_margin * xz_margin { discard; }
             }
         }
@@ -257,16 +275,22 @@ sequenceDiagram
 | `view` | `@group(0) @binding(0)` | `View` (Bevy built-in) | View/projection matrices, viewport, etc. |
 | `occlusion` | `@group(2) @binding(100)` | `OcclusionUniforms` | Mode, player position, thresholds, region AABB |
 
-`OcclusionUniforms` fields used in the prepass shader:
+`OcclusionUniforms` full Rust struct (all fields uploaded to GPU each frame):
 
-| Field | Type | Use |
-|-------|------|-----|
-| `mode` | `u32` | 0=None, 1=Height, 2=Region, 3=Both |
-| `player_position` | `vec4<f32>` | World position of player (y = height threshold baseline) |
-| `height_threshold` | `f32` | Y offset above player to start discarding |
-| `occlusion_radius` | `f32` | XZ radius of occlusion cone |
-| `technique` | `u32` | 0=Discard, 1=Dither |
-| `region_min` / `region_max` | `vec4<f32>` | Interior AABB for region-based discard |
+| Field | Rust Type | Shader use | Notes |
+|-------|-----------|-----------|-------|
+| `player_position` | `Vec3` + `_padding1: f32` | `vec3<f32>` (prepass + main) | Height baseline for discard |
+| `camera_position` | `Vec3` + `_padding2: f32` | `vec3<f32>` (main pass only) | Not used in prepass shader |
+| `min_alpha` | `f32` | `f32` (main pass only) | Minimum alpha for dither fade |
+| `occlusion_radius` | `f32` | `f32` (prepass) | XZ cone radius |
+| `height_threshold` | `f32` | `f32` (prepass) | Y offset above player |
+| `falloff_softness` | `f32` | `f32` (main pass only) | Alpha fade at discard edge |
+| `technique` | `u32` | `u32` (prepass) | 0 = ShaderBased discard, 1 = AlphaBlend/Dither |
+| `mode` | `u32` | `u32` (prepass + main) | 0=None, 1=ShaderBased, 2=RegionBased, 3=Hybrid |
+| `region_min` | `Vec4` | `vec4<f32>` (prepass) | Interior AABB min corner |
+| `region_max` | `Vec4` | `vec4<f32>` (prepass) | AABB max corner; **`.w` component = activation flag** (0.0 = inactive, 1.0 = active) |
+
+The prepass shader defines its own `OcclusionUniforms` struct with a subset of these fields. The layout must stay byte-compatible with the Rust struct.
 
 ---
 
