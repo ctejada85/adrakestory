@@ -109,7 +109,21 @@ pub fn target_frame_time(refresh_hz: f32, vsync_enabled: bool, multiplier: f32) 
     }
 }
 
-/// Clamps `vsync_multiplier` to `[0.25, 4.0]`, logging a warning if clamped.
+/// Selects the GPU present mode for the given VSync configuration.
+///
+/// - VSync enabled, multiplier ≤ 1.0 → `Fifo` (GPU-synced, tear-free at native Hz)
+/// - VSync enabled, multiplier > 1.0 → `AutoNoVsync` (software cap only; `Fifo` would
+///   hard-clamp at the native refresh rate regardless of the multiplier)
+/// - VSync disabled → `AutoNoVsync`
+pub fn select_present_mode(vsync_enabled: bool, multiplier: f32) -> PresentMode {
+    if vsync_enabled && multiplier <= 1.0 {
+        PresentMode::Fifo
+    } else {
+        PresentMode::AutoNoVsync
+    }
+}
+
+/// Clamps `vsync_multiplier` to `[0.25, 16.0]`, logging a warning if clamped.
 pub fn clamp_multiplier(value: f32) -> f32 {
     const MIN: f32 = 0.25;
     const MAX: f32 = 16.0;
@@ -170,6 +184,14 @@ pub fn apply_vsync_system(
     mut window_query: Query<&mut Window, With<PrimaryWindow>>,
     mut limiter: Local<FrameLimiterState>,
 ) {
+    // Defensively clear the limiter whenever VSync is disabled, regardless of the
+    // dirty flag. This prevents any residual Some(target)/Some(deadline) state from
+    // surviving a settings change and capping fps when VSync is off.
+    if !vsync_config.vsync_enabled {
+        limiter.target_frame_time = None;
+        limiter.next_frame_deadline = None;
+    }
+
     // Software frame cap with self-correcting absolute deadlines.
     // Advancing the deadline from the PREVIOUS deadline (not from actual wakeup)
     // means any sleep overshoot is compensated: the next sleep is automatically
@@ -192,12 +214,10 @@ pub fn apply_vsync_system(
     vsync_config.vsync_multiplier = clamp_multiplier(vsync_config.vsync_multiplier);
 
     // Update Window present mode.
+    // multiplier > 1.0 uses AutoNoVsync: Fifo would hard-cap at the native refresh
+    // rate, preventing any frame rate above the monitor Hz regardless of multiplier.
     if let Ok(mut window) = window_query.single_mut() {
-        let present_mode = if vsync_config.vsync_enabled {
-            PresentMode::Fifo
-        } else {
-            PresentMode::AutoNoVsync
-        };
+        let present_mode = select_present_mode(vsync_config.vsync_enabled, vsync_config.vsync_multiplier);
         if window.present_mode != present_mode {
             window.present_mode = present_mode;
         }
@@ -229,6 +249,34 @@ pub fn apply_vsync_system(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // --- Present mode selection ---
+
+    #[test]
+    fn select_present_mode_vsync_off_is_auto_no_vsync() {
+        assert_eq!(select_present_mode(false, 1.0), PresentMode::AutoNoVsync);
+        assert_eq!(select_present_mode(false, 0.5), PresentMode::AutoNoVsync);
+        assert_eq!(select_present_mode(false, 2.0), PresentMode::AutoNoVsync);
+    }
+
+    #[test]
+    fn select_present_mode_vsync_on_multiplier_one_is_fifo() {
+        assert_eq!(select_present_mode(true, 1.0), PresentMode::Fifo);
+    }
+
+    #[test]
+    fn select_present_mode_vsync_on_sub_one_multiplier_is_fifo() {
+        // 0.5× = 60 fps on 120 Hz — Fifo at 120 Hz doesn't interfere with sub-Hz cap.
+        assert_eq!(select_present_mode(true, 0.5), PresentMode::Fifo);
+        assert_eq!(select_present_mode(true, 0.25), PresentMode::Fifo);
+    }
+
+    #[test]
+    fn select_present_mode_vsync_on_above_one_multiplier_is_auto_no_vsync() {
+        // Fifo would hard-cap at native Hz; use AutoNoVsync so software cap can run above it.
+        assert_eq!(select_present_mode(true, 2.0), PresentMode::AutoNoVsync);
+        assert_eq!(select_present_mode(true, 16.0), PresentMode::AutoNoVsync);
+    }
 
     // --- VsyncConfig defaults ---
 
