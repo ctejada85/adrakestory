@@ -73,9 +73,13 @@ pub struct FrameLimiterState {
 
 /// Computes the target frame time for a given refresh rate and multiplier.
 ///
-/// Returns `None` when no software cap is needed (multiplier ≥ 1.0 or VSync off).
+/// Returns `None` when VSync is disabled (no software cap applied).
+/// For any multiplier when VSync is enabled, the cap is `refresh_hz × multiplier`:
+/// - `< 1.0` reduces fps below refresh rate (e.g., 0.5× = 30 fps on 60 Hz)
+/// - `= 1.0` caps at native refresh rate
+/// - `> 1.0` caps above refresh rate (e.g., 2× = 120 fps on 60 Hz)
 pub fn target_frame_time(refresh_hz: f32, vsync_enabled: bool, multiplier: f32) -> Option<Duration> {
-    if vsync_enabled && multiplier < 1.0 && multiplier > 0.0 {
+    if vsync_enabled && multiplier > 0.0 {
         let target_fps = refresh_hz * multiplier;
         Some(Duration::from_secs_f32(1.0 / target_fps))
     } else {
@@ -86,7 +90,7 @@ pub fn target_frame_time(refresh_hz: f32, vsync_enabled: bool, multiplier: f32) 
 /// Clamps `vsync_multiplier` to `[0.25, 4.0]`, logging a warning if clamped.
 pub fn clamp_multiplier(value: f32) -> f32 {
     const MIN: f32 = 0.25;
-    const MAX: f32 = 4.0;
+    const MAX: f32 = 16.0;
     let clamped = value.clamp(MIN, MAX);
     if (clamped - value).abs() > f32::EPSILON {
         warn!(
@@ -220,15 +224,16 @@ mod tests {
     }
 
     #[test]
-    fn clamp_multiplier_above_max_snaps_to_4() {
-        assert!((clamp_multiplier(5.0) - 4.0).abs() < f32::EPSILON);
+    fn clamp_multiplier_above_max_snaps_to_16() {
+        assert!((clamp_multiplier(20.0) - 16.0).abs() < f32::EPSILON);
     }
 
     #[test]
     fn clamp_multiplier_in_range_unchanged() {
         assert!((clamp_multiplier(0.5) - 0.5).abs() < f32::EPSILON);
         assert!((clamp_multiplier(1.0) - 1.0).abs() < f32::EPSILON);
-        assert!((clamp_multiplier(2.0) - 2.0).abs() < f32::EPSILON);
+        assert!((clamp_multiplier(8.0) - 8.0).abs() < f32::EPSILON);
+        assert!((clamp_multiplier(16.0) - 16.0).abs() < f32::EPSILON);
     }
 
     // --- Target frame time calculation ---
@@ -248,15 +253,35 @@ mod tests {
     }
 
     #[test]
-    fn target_frame_time_native_rate_returns_none() {
-        // multiplier = 1.0 → no software cap needed.
-        assert!(target_frame_time(60.0, true, 1.0).is_none());
+    fn target_frame_time_native_rate_returns_some() {
+        // multiplier = 1.0 → cap at refresh rate.
+        let ft = target_frame_time(60.0, true, 1.0).expect("should return Some");
+        let expected = Duration::from_secs_f32(1.0 / 60.0);
+        assert!((ft.as_secs_f32() - expected.as_secs_f32()).abs() < 0.0001);
+    }
+
+    #[test]
+    fn target_frame_time_double_rate_on_60hz() {
+        // multiplier = 2.0 → cap at 120 fps.
+        let ft = target_frame_time(60.0, true, 2.0).expect("should return Some");
+        let expected = Duration::from_secs_f32(1.0 / 120.0);
+        assert!((ft.as_secs_f32() - expected.as_secs_f32()).abs() < 0.0001);
+    }
+
+    #[test]
+    fn target_frame_time_16x_on_60hz() {
+        // multiplier = 16.0 → cap at 960 fps.
+        let ft = target_frame_time(60.0, true, 16.0).expect("should return Some");
+        let expected = Duration::from_secs_f32(1.0 / 960.0);
+        assert!((ft.as_secs_f32() - expected.as_secs_f32()).abs() < 0.0001);
     }
 
     #[test]
     fn target_frame_time_vsync_off_returns_none() {
-        // Software cap disabled when VSync is off.
+        // No software cap when VSync is disabled.
         assert!(target_frame_time(60.0, false, 0.5).is_none());
+        assert!(target_frame_time(60.0, false, 1.0).is_none());
+        assert!(target_frame_time(60.0, false, 2.0).is_none());
     }
 
     #[test]

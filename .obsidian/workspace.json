@@ -4,21 +4,17 @@
     "type": "split",
     "children": [
       {
-        "id": "0b3651cc92d6cfde",
+        "id": "7bbddcaf3ff1e309",
         "type": "tabs",
         "children": [
           {
-            "id": "512c5a17a5f69715",
+            "id": "5216d37f01834e1d",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "docs/features/upgrade-bevy-0-18/ticket.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "ticket"
+              "title": "New tab"
             }
           }
         ]
@@ -94,7 +90,6 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "docs/features/upgrade-bevy-0-18/ticket.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +99,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Backlinks for ticket"
+              "title": "Backlinks"
             }
           },
           {
@@ -113,12 +108,11 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "docs/features/upgrade-bevy-0-18/ticket.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links from ticket"
+              "title": "Outgoing links"
             }
           },
           {
@@ -142,13 +136,12 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "docs/features/upgrade-bevy-0-18/ticket.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of ticket"
+              "title": "Outline"
             }
           }
         ]
@@ -168,23 +161,31 @@
       "command-palette:Open command palette": false
     }
   },
-  "active": "512c5a17a5f69715",
+  "active": "5216d37f01834e1d",
   "lastOpenFiles": [
-    "target/debug/deps/libwgpu-15ecd997f251c74e.rmeta",
-    "target/debug/deps/skrifa-c3a612aed49a3d83.skrifa.e3a6f25fe66fa84b-cgu.04.rcgu.o",
-    "target/debug/deps/naga_oil-c321f1f524b9e686.naga_oil.933ad890553f3c8e-cgu.03.rcgu.o",
-    "target/debug/deps/wgpu-15ecd997f251c74e.d",
-    "target/debug/deps/naga_oil-c321f1f524b9e686.naga_oil.933ad890553f3c8e-cgu.02.rcgu.o",
-    "target/debug/deps/wgpu_hal-24921ec0d458c4ba.wgpu_hal.2a6261cb4d7e6022-cgu.02.rcgu.o",
-    "target/debug/deps/libbevy_encase_derive-5d43df4d51a65826.dylib",
-    "target/debug/deps/skrifa-c3a612aed49a3d83.skrifa.e3a6f25fe66fa84b-cgu.00.rcgu.o",
-    "target/debug/deps/gltf-75c108d176320000.gltf.cab221bc5f7e1d7b-cgu.00.rcgu.o",
-    "target/debug/deps/naga_oil-c321f1f524b9e686.naga_oil.933ad890553f3c8e-cgu.08.rcgu.o",
-    "target/debug/deps/libswash-a5c2e9b454489c16.rmeta",
+    "target/benchmarks/profile_1774123392.csv",
+    "target/benchmarks/profile_1774123364.csv",
+    "target/debug/incremental/adrakestory-1wok5gba1sfxa/s-hgvgz5byjm-0dyhfhd-4ugghdcf5y21eee604bg9gsn9/work-products.bin",
+    "target/debug/incremental/adrakestory-1wok5gba1sfxa/s-hgvgz5byjm-0dyhfhd-4ugghdcf5y21eee604bg9gsn9/thin-lto-past-keys.bin",
+    "target/debug/incremental/adrakestory-1wok5gba1sfxa/s-hgvgz5byjm-0dyhfhd-4ugghdcf5y21eee604bg9gsn9/query-cache.bin",
+    "target/debug/incremental/adrakestory-1wok5gba1sfxa/s-hgvgz5byjm-0dyhfhd-4ugghdcf5y21eee604bg9gsn9/f31jyg5zaeumcy07i69bfj8aj.pre-lto.bc",
+    "target/debug/incremental/adrakestory-1wok5gba1sfxa/s-hgvgz5byjm-0dyhfhd-4ugghdcf5y21eee604bg9gsn9/f31jyg5zaeumcy07i69bfj8aj.o",
+    "target/debug/incremental/adrakestory-1wok5gba1sfxa/s-hgvgz5byjm-0dyhfhd-4ugghdcf5y21eee604bg9gsn9/f27qamq6dsx78o4us5dercv2l.pre-lto.bc",
+    "target/debug/incremental/adrakestory-1wok5gba1sfxa/s-hgvgz5byjm-0dyhfhd-4ugghdcf5y21eee604bg9gsn9/f27qamq6dsx78o4us5dercv2l.o",
+    "target/debug/incremental/adrakestory-1wok5gba1sfxa/s-hgvgz5byjm-0dyhfhd-4ugghdcf5y21eee604bg9gsn9/eyku45d5fisgqd9pkwrkwwhhr.pre-lto.bc",
+    "target/debug/incremental/adrakestory-1wok5gba1sfxa/s-hgvgz5byjm-0dyhfhd-4ugghdcf5y21eee604bg9gsn9/exr64kwrm8ljvlf4o93rgxstb.pre-lto.bc",
+    "docs/features/vsync-configuration/ticket.md",
+    "docs/features/vsync-configuration/references/architecture.md",
+    "docs/features/vsync-configuration/references/requirements.md",
+    "docs/investigations/2026-03-21-1921-voxel-shadow-casting-broken.md",
+    "docs/features/upgrade-bevy-0-18/ticket.md",
+    "docs/investigations/2026-03-21-1048-windows-frame-drop-spikes.md",
+    "docs/bugs/fix-movement-frame-drops/references/requirements.md",
+    "docs/bugs/fix-movement-frame-drops/references/architecture.md",
+    "docs/bugs/fix-movement-frame-drops/ticket.md",
     "docs/features/upgrade-bevy-0-18/references/requirements.md",
     "docs/features/upgrade-bevy-0-18/references/architecture.md",
     "docs/bugs/fix-occlusion-shadow-casting/references/architecture.md",
-    "docs/features/upgrade-bevy-0-18/ticket.md",
     "docs/bugs/fix-occlusion-shadow-casting/references/requirements.md"
   ]
 }

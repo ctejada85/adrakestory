@@ -58,7 +58,14 @@ fn format_value(id: SettingId, config: &OcclusionConfig, vsync: &VsyncConfig) ->
         SettingId::InteriorHeight => format!("{:.1}", config.interior_height_threshold),
         SettingId::RegionUpdateInterval => format!("{}", config.region_update_interval),
         SettingId::VsyncEnabled => bool_label(vsync.vsync_enabled),
-        SettingId::VsyncMultiplier => format!("{:.2}×", vsync.vsync_multiplier),
+        SettingId::VsyncMultiplier => {
+            // Show whole-number multipliers without a decimal (e.g. "2×" not "2.00×").
+            if vsync.vsync_multiplier.fract() == 0.0 {
+                format!("{}×", vsync.vsync_multiplier as u32)
+            } else {
+                format!("{:.2}×", vsync.vsync_multiplier)
+            }
+        }
     }
 }
 
@@ -136,8 +143,11 @@ fn adjust_value(id: SettingId, config: &mut OcclusionConfig, vsync: &mut VsyncCo
             vsync.dirty = true;
         }
         SettingId::VsyncMultiplier => {
-            // Cycle through discrete steps: 0.25 → 0.5 → 1.0.
-            const STEPS: &[f32] = &[0.25, 0.5, 1.0];
+            // Cycle through discrete steps: 0.25 → 0.5 → 1.0 → 2 → 3 → … → 16.
+            const STEPS: &[f32] = &[
+                0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0,
+                9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
+            ];
             let cur = STEPS
                 .iter()
                 .position(|&s| (s - vsync.vsync_multiplier).abs() < f32::EPSILON)
