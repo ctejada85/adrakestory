@@ -541,6 +541,36 @@ fn handle_message(mut messages: MessageReader<CustomMessage>) {
 
 Note: `#[derive(Message)]` and `app.add_message::<T>()` replace the old `#[derive(Event)]` / `app.add_event::<T>()`. The `Event` trait is now reserved for the observer/trigger pattern only.
 
+### Single-Entity Query Pattern (Bevy 0.15+)
+
+When a system is guaranteed to have exactly one entity matching a query (e.g. the player, the primary camera, the primary window), use the `Single<>` system parameter instead of `Query::single()` / `single_mut()`. This is the idiomatic Bevy 0.15+ approach used throughout this codebase.
+
+```rust
+// Old — panics at runtime if count != 1
+fn move_player(mut query: Query<(&mut Player, &mut Transform)>) {
+    if let Ok((mut player, mut transform)) = query.single_mut() {
+        // ...
+    }
+}
+
+// New — enforced at schedule-build time; cleaner signature
+fn move_player(mut player: Single<(&mut Player, &mut Transform)>) {
+    let (ref mut p, ref mut t) = *player;
+    // ...
+}
+```
+
+Use `Option<Single<>>` when the entity may legitimately be absent (e.g. during hot-reload gaps, or for optional gameplay entities like the flashlight):
+
+```rust
+fn update_flashlight(flashlight: Option<Single<&mut SpotLight, With<Flashlight>>>) {
+    let Some(mut light) = flashlight else { return };
+    // ...
+}
+```
+
+**Rule**: Never use `Query::single()` or `Query::single_mut()` for player, camera, or window queries. Use `Single<>` or `Option<Single<>>` instead. Existing `Query<>` params are appropriate only when the count is unknown or can be zero/many.
+
 ### Component Pattern
 
 Data-oriented design with components:
@@ -605,14 +635,21 @@ let nearby = spatial_grid.query_cell(position);
 
 ### Conditional GPU Uniform Updates
 
-The occlusion system (`systems/game/occlusion/`) uses a **two-level cache** to prevent unconditional GPU re-uploads:
+The occlusion system (`systems/game/occlusion/`) uses a **three-level cache** to prevent unconditional GPU re-uploads:
 
-- Bevy's `Assets::get_mut()` stamps the asset as `Changed` even before any write occurs, causing the render world to re-prepare GPU bind groups every frame.
-- The fix splits `OcclusionUniforms` into two private `Copy + PartialEq` sub-structs:
-  - `StaticOcclusionUniforms` — config-driven fields; cached in `Local<Option<StaticOcclusionUniforms>>`
-  - `DynamicOcclusionUniforms` — positional fields (player/camera transform, interior region); cached in `Local<Option<DynamicOcclusionUniforms>>`
-- `get_mut()` is only called when at least one sub-struct cache differs from the newly computed value.
-- Bevy `Ref<Transform>` queries and `is_changed()` gates skip sub-struct recomputation independently: a camera move does not recompute static config fields and vice versa.
+**Level 1 — Position quantization:** before computing any uniforms, player and camera world positions are snapped to a configurable grid via `quantize_position()`. The step size is `OcclusionConfig.uniform_quantization_step` (default `0.25` units). Sub-step movement produces identical quantized values, so the downstream cache comparison always passes — eliminating ~85–95% of `get_mut()` calls during normal movement.
+
+**Level 2 — Sub-struct equality cache:** `OcclusionUniforms` is split into two private `Copy + PartialEq` sub-structs:
+- `StaticOcclusionUniforms` — config-driven fields; cached in `Local<Option<StaticOcclusionUniforms>>`
+- `DynamicOcclusionUniforms` — positional fields (quantized player/camera position, interior region); cached in `Local<Option<DynamicOcclusionUniforms>>`
+
+`get_mut()` is only called when at least one sub-struct cache differs from the newly computed value.
+
+**Level 3 — Read-before-write guard:** a read-only `materials.get()` comparison runs before any `get_mut()` call as a second layer of protection against Bevy change detection stamping assets dirty unnecessarily.
+
+Bevy `Ref<Transform>` queries and `is_changed()` gates skip sub-struct recomputation independently: a camera move does not recompute static config fields and vice versa.
+
+**Why `get_mut()` is expensive here:** ALL voxel chunks share a single `OcclusionMaterialHandle`. Any `get_mut()` call stamps the shared asset `Changed`, causing Bevy's render world to re-extract and re-prepare GPU bind groups for all 100–200 chunk entities simultaneously — producing 13–18 ms frame spikes on movement-heavy frames (see `docs/investigations/2026-03-21-1048-windows-frame-drop-spikes.md`).
 
 **Transparency technique and `AlphaMode`:**
 
@@ -710,18 +747,54 @@ Display settings are managed by `VsyncConfig` (`src/systems/settings/vsync.rs`),
 |------|------|---------|
 | `VsyncConfig` | `Resource` + Serialize | `vsync_enabled: bool`, `vsync_multiplier: f32`, `dirty: bool` (skip) |
 | `MonitorInfo` | `Resource` (runtime only) | Cached `refresh_hz: f32`; populated by `detect_monitor_refresh_system` |
-| `FrameLimiterState` | `Local<T>` in `apply_vsync_system` | Tracks `last_frame_end` + `target_frame_time` for sleep-based pacing |
+| `FrameLimiterState` | `Local<T>` in `apply_vsync_system` | Tracks `next_frame_deadline` + `target_frame_time` for self-correcting sleep-based pacing |
 
 **Systems:**
 
 - `detect_monitor_refresh_system` — runs each `Update` frame until the `Monitor` entity's `refresh_rate_millihertz` is read; sets `VsyncConfig.dirty = true` to trigger reapplication with the correct Hz.
-- `apply_vsync_system` — runs in the `Last` schedule; applies sleep-based frame pacing, then (when `dirty`) mutates `Window.present_mode` (`Fifo` or `AutoNoVsync`) and configures `FrameLimiterState.target_frame_time`.
+- `apply_vsync_system` — runs in the `First` schedule; applies sleep-based frame pacing at the start of each frame, then (when `dirty`) mutates `Window.present_mode` and configures `FrameLimiterState.target_frame_time`.
 
-**Frame cap logic:** when `vsync_enabled = true` and `vsync_multiplier < 1.0`, the target frame time is `1.0 / (refresh_hz × multiplier)`. At `multiplier = 1.0` or VSync off, no software cap is applied.
+**Frame cap logic:**
 
-**Multiplier steps (UI):** `0.25×`, `0.5×`, `1.0×`. Stored as `f32`, clamped to `[0.25, 4.0]`.
+- When `vsync_enabled = true` and `vsync_multiplier <= 1.0`: `present_mode = Fifo`; target frame time is `1.0 / (refresh_hz × multiplier)`. Hardware VSync caps at the native refresh rate.
+- When `vsync_enabled = true` and `vsync_multiplier > 1.0`: `present_mode = AutoNoVsync`; software cap drives fps above native Hz (e.g. 2× = 120 fps on 60 Hz monitor). `Fifo` cannot be used here as it hard-caps at the monitor refresh rate.
+- When `vsync_enabled = false`: `present_mode = AutoNoVsync`; no software cap is applied.
+
+**Self-correcting deadline algorithm:** `FrameLimiterState` advances `next_frame_deadline` by exactly `target_frame_time` each frame instead of recording `last_frame_end` after the sleep. Sleep overshoots in frame N shorten the sleep in frame N+1, preventing drift accumulation. `precise_sleep()` uses an OS sleep for the bulk of the wait and a spin-wait for the final 2 ms to overcome macOS/Windows scheduler wakeup latency. `next_frame_deadline` is reset on settings changes to prevent burst catch-up after a stall.
+
+**Multiplier steps (UI):** `0.25×`, `0.5×`, `1.0×`, `2×`–`16×` (integer steps). Stored as `f32`, clamped to `[0.25, 16.0]`.
 
 **Dirty-flag rule:** `VsyncConfig.dirty` must be set to `true` whenever `vsync_enabled` or `vsync_multiplier` changes. `apply_vsync_system` clears it after applying. This prevents per-frame `Window` mutation (guardrail §1 equivalent for display settings).
+
+### Settings File (`settings.ron`)
+
+All persistent settings are written to and read from `settings.ron` in the working directory. The file is deserialized into the `AppSettings` struct which uses `#[serde(flatten)]` to combine two config resources into one file:
+
+```rust
+#[derive(Serialize, Deserialize)]
+pub struct AppSettings {
+    #[serde(flatten)]
+    pub occlusion: OcclusionConfig,
+    #[serde(flatten)]
+    pub vsync: VsyncConfig,
+}
+```
+
+**Fields and defaults:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `vsync_enabled` | `bool` | `false` | Enable hardware VSync + software frame cap |
+| `vsync_multiplier` | `f32` | `1.0` | Frame rate target as a multiple of the monitor refresh rate; clamped to `[0.25, 16.0]` |
+| `occlusion_mode` | `OcclusionMode` | `Hybrid` | Interior occlusion algorithm (`None`, `ShaderBased`, `RegionBased`, `Hybrid`) |
+| `transparency_technique` | `TransparencyTechnique` | `Dithered` | Voxel transparency method (`Dithered`, `AlphaBlend`) |
+| `shadow_quality` | `ShadowQuality` | `Low` | Directional light shadow cascade quality (`Off`, `Low`, `High`) |
+| `uniform_quantization_step` | `f32` | `0.25` | Position grid step for occlusion uniform quantization (smaller = more updates, larger = fewer) |
+
+**Rules:**
+- Missing fields fall back to `Default` values — do not remove fields from `AppSettings` without a serde default.
+- `dirty: bool` on `VsyncConfig` is tagged `#[serde(skip)]` and must never be written to disk.
+- Both configs share the same flat namespace — field names must be unique across `OcclusionConfig` and `VsyncConfig`.
 
 ### Sub-Voxel Rendering
 

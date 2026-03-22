@@ -93,6 +93,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports batch operations (multiple actions as one undo step)
   - Works via keyboard shortcuts (`Ctrl+Z`/`Ctrl+Y`) and menu buttons
 
+- **VSync Toggle and Frame Rate Multiplier**: Added in-game VSync and frame rate control
+  - Toggle VSync on/off via the settings menu
+  - Frame rate multiplier steps: `0.25×`, `0.5×`, `1.0×`, `2×`–`16×` (integer steps)
+  - `VsyncConfig` resource persisted in `settings.ron` alongside `OcclusionConfig`
+  - Self-correcting deadline algorithm (`precise_sleep` + spin-wait) prevents drift accumulation
+  - `apply_vsync_system` runs in the `First` schedule for accurate elapsed-time measurement
+
+- **Flashlight off by default**: The player flashlight now spawns disabled; can be toggled at runtime
+
 ### Changed
 - **Engine Upgrade: Bevy 0.15 → 0.18**: Migrated the entire project from Bevy 0.15 to Bevy 0.18
   - Updated all Bevy API calls to match 0.18 breaking changes
@@ -111,8 +120,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Debug collision box (toggle with 'C' key) now displays cylinder shape
   - Fixed corner-landing exploit where players could land on voxel corners
 
+- **Bevy 0.18 API Modernization**: Replaced `Query::single()` / `single_mut()` with `Single<>` / `Option<Single<>>` system parameters across ~30 call sites in game and editor systems
+
 ### Fixed
-- **Voxels Not Casting Shadows**: Fixed silent prepass pipeline failure that suppressed all voxel shadow casting
+- **Occlusion Material Mutation Frame Spikes** (Windows): Eliminated 13–18 ms frame spikes during movement caused by shared `OcclusionMaterialHandle` triggering render re-extraction for all 100–200 chunk entities
+  - Added `quantize_position()` to snap player/camera positions to a 0.25-unit grid before uniform computation, reducing `get_mut()` calls by ~85–95%
+  - Added read-only `materials.get()` comparison before `get_mut()` as a second guard against unnecessary change detection
+
+- **AlphaBlend Technique — Character Invisible Behind Transparent Voxels**: Prepass height-discard was previously gated on `technique == Dithered`; the `AlphaBlend` technique never discarded above-floor voxels in the prepass, causing them to write depth and block the character's fragments in the main pass
+  - Fix: removed the technique guard — the prepass now always discards regardless of transparency technique
+
+- **VSync Frame Rate Deficit**: Sleep-based frame limiter was recording `last_frame_end` after the sleep, causing Bevy's rendering overhead (~2 ms) to count as already-elapsed time every frame — resulting in ~97 fps instead of 120 fps at 2×
+  - Fix: moved `apply_vsync_system` to the `First` schedule and replaced `last_frame_end` with a self-correcting `next_frame_deadline` that advances by exactly `target_frame_time` each frame
+
+- **VSync Cap Persists When Disabled**: Frame limiter continued capping frame rate after VSync was toggled off because the cap was only cleared when the `dirty` flag was set
+  - Fix: added a defensive clear that zeroes `target_frame_time` and `next_frame_deadline` at the start of every frame when `vsync_enabled = false`
+
+- **Fifo Present Mode Blocks Above-Native Multipliers**: `Fifo` hard-caps at the monitor refresh rate, preventing 2×–16× multipliers from exceeding native Hz
+  - Fix: `select_present_mode()` now uses `AutoNoVsync` when multiplier > 1.0, regardless of VSync toggle state Fixed silent prepass pipeline failure that suppressed all voxel shadow casting
   - Root cause: `view.projection[3][3]` in `occlusion_material_prepass.wgsl` — `projection` was renamed to `clip_from_view` in Bevy 0.18's `View` WGSL struct
   - When the prepass pipeline fails to compile, Bevy silently skips shadow rendering for all affected entities
   - Fix: updated field access to `view.clip_from_view[3][3]` per Bevy 0.18 naming

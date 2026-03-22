@@ -108,7 +108,7 @@ flowchart TD
 | Technique | AlphaMode | Prepass | Main pass | Notes |
 |-----------|-----------|---------|-----------|-------|
 | **Dithered** *(default)* | `Mask(0.001)` | Binary height discard | Bayer 4×4 ordered dither | No MSAA cost; `MAY_DISCARD` enables prepass fragment shader |
-| **AlphaBlend** | `AlphaToCoverage` | No discard | Sets `base_color.a`; hardware MSAA blends | Smooth edges; slight MSAA cost |
+| **AlphaBlend** | `AlphaToCoverage` | Binary height discard (same as Dithered) | Sets `base_color.a`; hardware MSAA blends | Smooth edges; slight MSAA cost |
 
 ## Shader Files
 
@@ -120,6 +120,7 @@ flowchart TD
 ## Key Design Decisions
 
 - **Depth prepass uses binary discard, not dither.** Dithered discard in the prepass would write depth for ~50 % of above-player fragments, blocking the player in a checker pattern. The prepass discards everything above `player_y + height_threshold` within XZ radius.
+- **Prepass height-discard is technique-agnostic.** The discard runs regardless of whether `Dithered` or `AlphaBlend` is selected. Previously it was gated on `technique == Dithered`; that guard was removed because without the prepass discard, the `AlphaBlend` technique wrote depth for above-floor voxels, blocking the character's fragments in the main pass via depth testing and leaving only the clear color visible.
 - **`AlphaMode::Mask(0.001)` instead of `Opaque`.** `Opaque` doesn't set `MeshPipelineKey::MAY_DISCARD`, so Bevy skips the fragment stage in the depth prepass entirely — the custom prepass shader would never run.
 - **Main pass re-writes depth for over-discarded fragments.** Voxels at the edge of the XZ zone that the prepass discarded conservatively will pass the `GreaterEqual` test against the cleared far-plane depth (0.0 in reverse-Z) and write their own depth correctly.
 - **Shadow pass detection uses `view.clip_from_view[3][3]`.** The prepass shader runs for both the camera depth prepass and directional light shadow map passes. To skip height-discard during shadow rendering, the shader checks `view.clip_from_view[3][3] >= 0.5`: orthographic projection (shadow map) yields `[3][3] = 1.0`; perspective projection (camera) yields `[3][3] = 0.0`. In Bevy 0.18 the field was renamed from `view.projection` to `view.clip_from_view` — using the old name silently breaks the prepass pipeline and suppresses all shadow casting.
