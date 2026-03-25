@@ -1,6 +1,6 @@
 //! Sub-voxel patterns for voxel geometry.
 
-use super::rotation::RotationState;
+use super::rotation::{apply_orientation_matrix, OrientationMatrix};
 use crate::systems::game::map::geometry::SubVoxelGeometry;
 use serde::{Deserialize, Serialize};
 
@@ -97,23 +97,22 @@ impl SubVoxelPattern {
         SubVoxelGeometry::fence_with_connections(neighbors.0, neighbors.1, neighbors.2, neighbors.3)
     }
 
-    /// Get the geometry representation of this pattern with rotation applied.
-    ///
-    /// This applies the rotation state to the base pattern geometry.
+    /// Get the geometry representation of this pattern with an orientation matrix applied.
     ///
     /// # Arguments
-    /// * `rotation_state` - Optional rotation state to apply
+    /// * `orientation` - Optional reference to a 3×3 orientation matrix from `MapData::orientations`.
+    ///   `None` means identity (no rotation).
     ///
     /// # Returns
-    /// The geometry with rotation applied, or base geometry if no rotation state.
+    /// The geometry with the orientation applied, or base geometry for `None`.
     pub fn geometry_with_rotation(
         &self,
-        rotation_state: Option<RotationState>,
+        orientation: Option<&OrientationMatrix>,
     ) -> SubVoxelGeometry {
         let base_geometry = self.geometry();
 
-        if let Some(rotation) = rotation_state {
-            base_geometry.rotate(rotation.axis, rotation.angle)
+        if let Some(matrix) = orientation {
+            apply_orientation_matrix(base_geometry, matrix)
         } else {
             base_geometry
         }

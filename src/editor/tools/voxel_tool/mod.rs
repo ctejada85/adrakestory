@@ -85,6 +85,7 @@ pub(crate) fn try_place_voxel(
         pos: grid_pos,
         voxel_type,
         pattern: Some(pattern),
+        rotation: None,
         rotation_state: None,
     };
 

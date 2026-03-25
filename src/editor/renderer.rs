@@ -20,9 +20,9 @@ use crate::systems::game::map::spawner::{
     ChunkMeshBuilder, Face, GreedyMesher, OccupancyGrid, VoxelMaterialPalette, CHUNK_SIZE,
     SUB_VOXEL_COUNT, SUB_VOXEL_SIZE,
 };
+use bevy::camera::primitives::Aabb;
 use bevy::math::Vec3A;
 use bevy::prelude::*;
-use bevy::camera::primitives::Aabb;
 use std::collections::HashMap;
 
 /// Marker component for chunk entities spawned by the editor
@@ -178,7 +178,10 @@ pub fn render_map_system(
             );
             pattern.fence_geometry_with_neighbors(neighbors)
         } else {
-            pattern.geometry_with_rotation(voxel_data.rotation_state)
+            let orientation = voxel_data
+                .rotation
+                .and_then(|i| editor_state.current_map.orientations.get(i));
+            pattern.geometry_with_rotation(orientation)
         };
 
         for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {

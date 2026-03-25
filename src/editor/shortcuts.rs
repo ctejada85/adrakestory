@@ -46,7 +46,11 @@ pub fn handle_global_shortcuts(
     mut events: ShortcutEvents,
 ) {
     // Don't handle shortcuts if egui wants keyboard input (text fields, etc.)
-    if contexts.ctx_mut().expect("egui context").wants_keyboard_input() {
+    if contexts
+        .ctx_mut()
+        .expect("egui context")
+        .wants_keyboard_input()
+    {
         return;
     }
 
@@ -255,6 +259,7 @@ mod tests {
                 pos: (1, 2, 3),
                 voxel_type: VoxelType::Grass,
                 pattern: Some(SubVoxelPattern::Full),
+                rotation: None,
                 rotation_state: None,
             },
         };
@@ -271,6 +276,7 @@ mod tests {
             pos: (1, 2, 3),
             voxel_type: VoxelType::Grass,
             pattern: Some(SubVoxelPattern::Full),
+            rotation: None,
             rotation_state: None,
         });
 
@@ -280,6 +286,7 @@ mod tests {
                 pos: (1, 2, 3),
                 voxel_type: VoxelType::Grass,
                 pattern: Some(SubVoxelPattern::Full),
+                rotation: None,
                 rotation_state: None,
             },
         };
@@ -299,6 +306,7 @@ mod tests {
                 pos: (1, 2, 3),
                 voxel_type: VoxelType::Grass,
                 pattern: Some(SubVoxelPattern::Full),
+                rotation: None,
                 rotation_state: None,
             },
         };

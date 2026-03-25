@@ -86,6 +86,7 @@ pub fn handle_voxel_placement(
             pos: grid_pos,
             voxel_type,
             pattern: Some(pattern),
+            rotation: None,
             rotation_state: None,
         };
 

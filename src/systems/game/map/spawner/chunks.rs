@@ -1,16 +1,16 @@
 //! Chunk-based voxel spawning with greedy meshing.
 
-use super::super::format::{MapData, SubVoxelPattern};
-use super::super::loader::{LoadProgress, MapLoadProgress};
 use super::super::super::components::SubVoxel;
 use super::super::super::occlusion::{OcclusionMaterial, ShadowQuality};
 use super::super::super::resources::SpatialGrid;
+use super::super::format::{MapData, SubVoxelPattern};
+use super::super::loader::{LoadProgress, MapLoadProgress};
 use super::meshing::{ChunkMeshBuilder, GreedyMesher, OccupancyGrid, VoxelMaterialPalette};
 use super::{ChunkLOD, Face, VoxelChunk, CHUNK_SIZE, LOD_LEVELS, SUB_VOXEL_COUNT, SUB_VOXEL_SIZE};
-use bevy::light::NotShadowCaster;
-use bevy::prelude::*;
-use bevy::math::Vec3A;
 use bevy::camera::primitives::Aabb;
+use bevy::light::NotShadowCaster;
+use bevy::math::Vec3A;
+use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 /// Enum to hold either material type for chunk rendering
@@ -97,7 +97,6 @@ pub fn spawn_voxels_chunked(
 
         // Spawn parent voxel marker
 
-
         // Determine which pattern to use
         let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
 
@@ -111,7 +110,8 @@ pub fn spawn_voxels_chunked(
             );
             pattern.fence_geometry_with_neighbors(neighbors)
         } else {
-            pattern.geometry_with_rotation(voxel_data.rotation_state)
+            let orientation = voxel_data.rotation.and_then(|i| map.orientations.get(i));
+            pattern.geometry_with_rotation(orientation)
         };
 
         // Add each sub-voxel to occupancy grid and collect data
@@ -168,8 +168,8 @@ pub fn spawn_voxels_chunked(
         ];
         for face in faces {
             // Always render top faces (PosY) to handle interior occlusion
-            let should_render = face == Face::PosY
-                || !occupancy.has_neighbor(x, y, z, sub_x, sub_y, sub_z, face);
+            let should_render =
+                face == Face::PosY || !occupancy.has_neighbor(x, y, z, sub_x, sub_y, sub_z, face);
             if should_render {
                 mesher.add_face(global_x, global_y, global_z, face, color_index, color);
             }

@@ -142,13 +142,15 @@ pub fn render_rotation_preview(
             .any(|v| v.pos == new_pos && !original_positions.contains(&v.pos));
 
         // Get the rotated geometry for preview
-        use crate::systems::game::map::format::{RotationState, SubVoxelPattern};
+        use crate::systems::game::map::format::{
+            apply_orientation_matrix, axis_angle_to_matrix, SubVoxelPattern,
+        };
         let pattern = voxel.pattern.unwrap_or(SubVoxelPattern::Full);
-        let rotation_state = Some(RotationState::new(
+        let rotation_matrix = axis_angle_to_matrix(
             active_transform.rotation_axis,
             active_transform.rotation_angle,
-        ));
-        let geometry = pattern.geometry_with_rotation(rotation_state);
+        );
+        let geometry = apply_orientation_matrix(pattern.geometry(), &rotation_matrix);
 
         // Create material based on validity
         let material = materials.add(StandardMaterial {

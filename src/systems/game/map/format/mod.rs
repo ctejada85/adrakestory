@@ -14,7 +14,11 @@ pub use entities::{EntityData, EntityType};
 pub use lighting::LightingData;
 pub use metadata::MapMetadata;
 pub use patterns::SubVoxelPattern;
-pub use rotation::RotationState;
+pub use rotation::{
+    apply_orientation_matrix, axis_angle_to_matrix, find_or_insert_orientation,
+    is_valid_rotation_matrix, migrate_legacy_rotations, multiply_matrices, OrientationMatrix,
+    IDENTITY,
+};
 pub use world::{VoxelData, WorldData};
 
 use serde::{Deserialize, Serialize};
@@ -33,6 +37,14 @@ pub struct MapData {
     pub lighting: LightingData,
     /// Camera configuration
     pub camera: CameraData,
+    /// Orientation matrices used by voxels in this map.
+    ///
+    /// Each entry is a 3×3 integer rotation matrix. Voxels reference an entry
+    /// by index via `VoxelData::rotation: Option<usize>`. An empty list is valid
+    /// for maps with no rotated voxels. The identity orientation is not stored
+    /// here — `rotation: None` always means identity.
+    #[serde(default)]
+    pub orientations: Vec<OrientationMatrix>,
     /// Custom properties for extensibility
     #[serde(default)]
     pub custom_properties: HashMap<String, String>,
@@ -59,6 +71,7 @@ impl MapData {
             entities: vec![],
             lighting: LightingData::default(),
             camera: CameraData::default(),
+            orientations: Vec::new(),
             custom_properties: HashMap::new(),
         }
     }

@@ -70,7 +70,7 @@ impl EditorCamera {
         let direction = (target - position).normalize();
         let yaw = direction.x.atan2(direction.z);
         let pitch = (-direction.y).asin().clamp(-1.5, 1.5);
-        
+
         Self {
             position,
             yaw,
@@ -90,7 +90,8 @@ impl EditorCamera {
             -self.yaw.sin() * self.pitch.cos(),
             -self.pitch.sin(),
             -self.yaw.cos() * self.pitch.cos(),
-        ).normalize()
+        )
+        .normalize()
     }
 
     /// Get the right direction vector
@@ -107,7 +108,7 @@ impl EditorCamera {
     pub fn apply_look(&mut self, delta: Vec2) {
         self.yaw -= delta.x * self.look_sensitivity;
         self.pitch += delta.y * self.look_sensitivity;
-        
+
         // Clamp pitch to avoid flipping
         self.pitch = self.pitch.clamp(-1.5, 1.5);
     }
@@ -132,9 +133,9 @@ impl EditorCamera {
         self.yaw = direction.x.atan2(direction.z);
         self.pitch = (-direction.y).asin().clamp(-1.5, 1.5);
     }
-    
+
     // Legacy compatibility methods (used by some existing code)
-    
+
     /// Get rotation as Vec2 (yaw, pitch) - for compatibility
     pub fn rotation(&self) -> Vec2 {
         Vec2::new(self.yaw, self.pitch)
@@ -142,12 +143,10 @@ impl EditorCamera {
 }
 
 /// System to update camera transform from EditorCamera state
-pub fn update_editor_camera(
-    mut query: Query<(&EditorCamera, &mut Transform), With<Camera3d>>,
-) {
+pub fn update_editor_camera(mut query: Query<(&EditorCamera, &mut Transform), With<Camera3d>>) {
     for (editor_cam, mut transform) in query.iter_mut() {
         transform.translation = editor_cam.position;
-        
+
         // Calculate look direction from yaw and pitch
         let forward = editor_cam.forward();
         let target = editor_cam.position + forward;
@@ -180,12 +179,24 @@ pub fn handle_camera_input(
     // Check if any gamepad has significant input
     let mut gamepad_has_input = false;
     for gamepad in gamepads.iter() {
-        let left_x = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftStickX).unwrap_or(0.0);
-        let left_y = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftStickY).unwrap_or(0.0);
-        let right_x = gamepad.get(bevy::input::gamepad::GamepadAxis::RightStickX).unwrap_or(0.0);
-        let right_y = gamepad.get(bevy::input::gamepad::GamepadAxis::RightStickY).unwrap_or(0.0);
-        
-        if left_x.abs() > 0.15 || left_y.abs() > 0.15 || right_x.abs() > 0.15 || right_y.abs() > 0.15 {
+        let left_x = gamepad
+            .get(bevy::input::gamepad::GamepadAxis::LeftStickX)
+            .unwrap_or(0.0);
+        let left_y = gamepad
+            .get(bevy::input::gamepad::GamepadAxis::LeftStickY)
+            .unwrap_or(0.0);
+        let right_x = gamepad
+            .get(bevy::input::gamepad::GamepadAxis::RightStickX)
+            .unwrap_or(0.0);
+        let right_y = gamepad
+            .get(bevy::input::gamepad::GamepadAxis::RightStickY)
+            .unwrap_or(0.0);
+
+        if left_x.abs() > 0.15
+            || left_y.abs() > 0.15
+            || right_x.abs() > 0.15
+            || right_y.abs() > 0.15
+        {
             gamepad_has_input = true;
             break;
         }
@@ -199,7 +210,8 @@ pub fn handle_camera_input(
 
     // Switch back to mouse/keyboard mode if mouse input detected
     let mouse_moved = mouse_motion.len() > 0;
-    let mouse_clicked = mouse_button.any_just_pressed([MouseButton::Left, MouseButton::Right, MouseButton::Middle]);
+    let mouse_clicked =
+        mouse_button.any_just_pressed([MouseButton::Left, MouseButton::Right, MouseButton::Middle]);
     if (mouse_moved || mouse_clicked) && gamepad_state.active {
         gamepad_state.active = false;
         cursor.visible = true;
@@ -209,22 +221,25 @@ pub fn handle_camera_input(
     {
         let camera_pos = camera.position;
         let forward = camera.forward();
-        
+
         let ray = Ray3d {
             origin: camera_pos,
             direction: Dir3::new(forward).unwrap_or(Dir3::NEG_Z),
         };
-        
+
         // Raycast against voxels to find what we're looking at
-        if let Some((voxel_pos, hit_info)) = 
-            crate::editor::cursor::raycasting::find_closest_voxel_intersection_with_face(&editor_state, &ray) 
+        if let Some((voxel_pos, hit_info)) =
+            crate::editor::cursor::raycasting::find_closest_voxel_intersection_with_face(
+                &editor_state,
+                &ray,
+            )
         {
             let placement_pos = (
                 voxel_pos.0 + hit_info.face_normal.x as i32,
                 voxel_pos.1 + hit_info.face_normal.y as i32,
                 voxel_pos.2 + hit_info.face_normal.z as i32,
             );
-            
+
             gamepad_state.action_position = Some(Vec3::new(
                 placement_pos.0 as f32,
                 placement_pos.1 as f32,
@@ -232,17 +247,12 @@ pub fn handle_camera_input(
             ));
             gamepad_state.action_grid_pos = Some(placement_pos);
             gamepad_state.target_voxel_pos = Some(voxel_pos);
-        } else if let Some(ground_pos) = crate::editor::cursor::raycasting::intersect_ground_plane(&ray) {
-            let grid_pos = (
-                ground_pos.x.round() as i32,
-                0,
-                ground_pos.z.round() as i32,
-            );
-            gamepad_state.action_position = Some(Vec3::new(
-                grid_pos.0 as f32,
-                0.0,
-                grid_pos.2 as f32,
-            ));
+        } else if let Some(ground_pos) =
+            crate::editor::cursor::raycasting::intersect_ground_plane(&ray)
+        {
+            let grid_pos = (ground_pos.x.round() as i32, 0, ground_pos.z.round() as i32);
+            gamepad_state.action_position =
+                Some(Vec3::new(grid_pos.0 as f32, 0.0, grid_pos.2 as f32));
             gamepad_state.action_grid_pos = Some(grid_pos);
             gamepad_state.target_voxel_pos = None;
         } else {
@@ -265,7 +275,7 @@ pub fn handle_camera_input(
     // === WASD Movement (keyboard) ===
     if !wants_keyboard {
         let mut movement = Vec3::ZERO;
-        
+
         // Forward/backward
         if keyboard.pressed(KeyCode::KeyW) {
             movement += camera.forward_horizontal();
@@ -273,7 +283,7 @@ pub fn handle_camera_input(
         if keyboard.pressed(KeyCode::KeyS) {
             movement -= camera.forward_horizontal();
         }
-        
+
         // Strafe left/right
         if keyboard.pressed(KeyCode::KeyA) {
             movement -= camera.right();
@@ -281,7 +291,7 @@ pub fn handle_camera_input(
         if keyboard.pressed(KeyCode::KeyD) {
             movement += camera.right();
         }
-        
+
         // Up/down (Space/Ctrl)
         if keyboard.pressed(KeyCode::Space) {
             movement.y += 1.0;
@@ -289,7 +299,7 @@ pub fn handle_camera_input(
         if keyboard.pressed(KeyCode::ControlLeft) || keyboard.pressed(KeyCode::ControlRight) {
             movement.y -= 1.0;
         }
-        
+
         // Apply movement
         if movement.length_squared() > 0.0 {
             movement = movement.normalize() * camera.move_speed * dt;
@@ -327,31 +337,39 @@ pub fn handle_camera_input(
 
     for gamepad in gamepads.iter() {
         // Right stick for looking
-        let right_x = gamepad.get(bevy::input::gamepad::GamepadAxis::RightStickX).unwrap_or(0.0);
-        let right_y = gamepad.get(bevy::input::gamepad::GamepadAxis::RightStickY).unwrap_or(0.0);
+        let right_x = gamepad
+            .get(bevy::input::gamepad::GamepadAxis::RightStickX)
+            .unwrap_or(0.0);
+        let right_y = gamepad
+            .get(bevy::input::gamepad::GamepadAxis::RightStickY)
+            .unwrap_or(0.0);
         let right_stick = Vec2::new(right_x, right_y);
-        
+
         if right_stick.length() > deadzone {
             let scaled = (right_stick.length() - deadzone) / (1.0 - deadzone);
             let look_input = right_stick.normalize() * scaled;
-            
+
             camera.yaw -= look_input.x * look_speed * dt;
             camera.pitch -= look_input.y * look_speed * dt;
             camera.pitch = camera.pitch.clamp(-1.5, 1.5);
         }
 
         // Left stick for flying movement
-        let left_x = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftStickX).unwrap_or(0.0);
-        let left_y = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftStickY).unwrap_or(0.0);
+        let left_x = gamepad
+            .get(bevy::input::gamepad::GamepadAxis::LeftStickX)
+            .unwrap_or(0.0);
+        let left_y = gamepad
+            .get(bevy::input::gamepad::GamepadAxis::LeftStickY)
+            .unwrap_or(0.0);
         let left_stick = Vec2::new(left_x, left_y);
-        
+
         if left_stick.length() > deadzone {
             let scaled = (left_stick.length() - deadzone) / (1.0 - deadzone);
             let move_input = left_stick.normalize() * scaled;
-            
+
             let forward = camera.forward_horizontal();
             let right = camera.right();
-            
+
             let movement = (forward * move_input.y + right * move_input.x) * move_speed * dt;
             camera.move_by(movement);
         }
@@ -420,11 +438,15 @@ pub fn handle_gamepad_voxel_actions(
 
     // Gamepad triggers only - mouse is handled by tool systems
     for gamepad in gamepads.iter() {
-        let rt_axis = gamepad.get(bevy::input::gamepad::GamepadAxis::RightZ).unwrap_or(0.0);
-        let lt_axis = gamepad.get(bevy::input::gamepad::GamepadAxis::LeftZ).unwrap_or(0.0);
+        let rt_axis = gamepad
+            .get(bevy::input::gamepad::GamepadAxis::RightZ)
+            .unwrap_or(0.0);
+        let lt_axis = gamepad
+            .get(bevy::input::gamepad::GamepadAxis::LeftZ)
+            .unwrap_or(0.0);
         let rt_button = gamepad.pressed(bevy::input::gamepad::GamepadButton::RightTrigger2);
         let lt_button = gamepad.pressed(bevy::input::gamepad::GamepadButton::LeftTrigger2);
-        
+
         if rt_axis > 0.5 || rt_button {
             primary_action = true;
         }
@@ -436,7 +458,10 @@ pub fn handle_gamepad_voxel_actions(
     // Primary action = execute main action of current tool
     if primary_action {
         match editor_state.active_tool.clone() {
-            crate::editor::state::EditorTool::VoxelPlace { voxel_type, pattern } => {
+            crate::editor::state::EditorTool::VoxelPlace {
+                voxel_type,
+                pattern,
+            } => {
                 let exists = editor_state
                     .current_map
                     .world
@@ -449,10 +474,15 @@ pub fn handle_gamepad_voxel_actions(
                         pos: grid_pos,
                         voxel_type,
                         pattern: Some(pattern),
+                        rotation: None,
                         rotation_state: None,
                     };
 
-                    editor_state.current_map.world.voxels.push(voxel_data.clone());
+                    editor_state
+                        .current_map
+                        .world
+                        .voxels
+                        .push(voxel_data.clone());
                     editor_state.mark_modified();
 
                     history.push(crate::editor::history::EditorAction::PlaceVoxel {
@@ -465,7 +495,7 @@ pub fn handle_gamepad_voxel_actions(
             }
             crate::editor::state::EditorTool::VoxelRemove => {
                 let remove_pos = gamepad_state.target_voxel_pos.unwrap_or(grid_pos);
-                
+
                 if let Some(idx) = editor_state
                     .current_map
                     .world
@@ -486,10 +516,14 @@ pub fn handle_gamepad_voxel_actions(
             }
             crate::editor::state::EditorTool::EntityPlace { entity_type } => {
                 use crate::systems::game::map::format::EntityData;
-                
+
                 let entity_data = EntityData {
                     entity_type,
-                    position: (grid_pos.0 as f32 + 0.5, grid_pos.1 as f32, grid_pos.2 as f32 + 0.5),
+                    position: (
+                        grid_pos.0 as f32 + 0.5,
+                        grid_pos.1 as f32,
+                        grid_pos.2 as f32 + 0.5,
+                    ),
                     properties: std::collections::HashMap::new(),
                 };
 
@@ -522,7 +556,7 @@ pub fn handle_gamepad_voxel_actions(
     // Secondary action = always remove voxel
     if secondary_action {
         let remove_pos = gamepad_state.target_voxel_pos.unwrap_or(grid_pos);
-        
+
         if let Some(idx) = editor_state
             .current_map
             .world
@@ -592,7 +626,7 @@ pub fn handle_gamepad_tool_cycling(
     match &mut editor_state.active_tool {
         crate::editor::state::EditorTool::VoxelPlace { pattern, .. } => {
             use crate::systems::game::map::format::SubVoxelPattern;
-            
+
             const PATTERNS: [SubVoxelPattern; 10] = [
                 SubVoxelPattern::Full,
                 SubVoxelPattern::PlatformXZ,
@@ -617,7 +651,7 @@ pub fn handle_gamepad_tool_cycling(
         }
         crate::editor::state::EditorTool::EntityPlace { entity_type } => {
             use crate::systems::game::map::format::EntityType;
-            
+
             const ENTITIES: [EntityType; 6] = [
                 EntityType::PlayerSpawn,
                 EntityType::Npc,

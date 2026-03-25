@@ -1,7 +1,7 @@
 //! World and voxel data structures.
 
 use super::patterns::SubVoxelPattern;
-use super::rotation::RotationState;
+use super::rotation::LegacyRotationState;
 use crate::systems::game::components::VoxelType;
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +28,17 @@ pub struct VoxelData {
     /// Optional sub-voxel pattern
     #[serde(default)]
     pub pattern: Option<SubVoxelPattern>,
-    /// Optional rotation state for the voxel's geometry
+    /// Index into `MapData::orientations` for this voxel's orientation.
+    ///
+    /// `None` means identity (no rotation applied).
     #[serde(default)]
-    pub rotation_state: Option<RotationState>,
+    pub rotation: Option<usize>,
+    /// Legacy backward-compat field for old map files that use
+    /// `rotation_state: Some((axis: Y, angle: 1))` syntax.
+    ///
+    /// The loader calls `migrate_legacy_rotations()` to convert this into
+    /// a `rotation` index before any game or editor code sees it.
+    /// This field is never written on save; it will not appear in new files.
+    #[serde(default)]
+    pub rotation_state: Option<LegacyRotationState>,
 }

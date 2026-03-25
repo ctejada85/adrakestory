@@ -206,7 +206,11 @@ pub fn handle_controller_hotbar(
 
     if cycled {
         edit_mode.hotbar_cooldown = 0.1;
-        info!("Hotbar slot: {} - {}", edit_mode.hotbar_slot + 1, edit_mode.current_item().name());
+        info!(
+            "Hotbar slot: {} - {}",
+            edit_mode.hotbar_slot + 1,
+            edit_mode.current_item().name()
+        );
     }
 }
 
@@ -379,10 +383,15 @@ pub fn handle_controller_editing(
                             pos,
                             voxel_type: *voxel_type,
                             pattern: Some(*pattern),
+                            rotation: None,
                             rotation_state: None,
                         };
 
-                        editor_state.current_map.world.voxels.push(voxel_data.clone());
+                        editor_state
+                            .current_map
+                            .world
+                            .voxels
+                            .push(voxel_data.clone());
                         editor_state.mark_modified();
                         render_state.needs_render = true;
 
@@ -443,10 +452,7 @@ pub fn handle_controller_editing(
                 editor_state.mark_modified();
                 render_state.needs_render = true;
 
-                history.push(EditorAction::RemoveVoxel {
-                    pos,
-                    data: removed,
-                });
+                history.push(EditorAction::RemoveVoxel { pos, data: removed });
                 edit_mode.action_cooldown = 0.15;
 
                 info!("Removed voxel at {:?}", pos);

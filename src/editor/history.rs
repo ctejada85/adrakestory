@@ -239,6 +239,7 @@ mod tests {
                 pos: (0, 0, 0),
                 voxel_type: VoxelType::Grass,
                 pattern: Some(SubVoxelPattern::Full),
+                rotation: None,
                 rotation_state: None,
             },
         };
@@ -263,6 +264,7 @@ mod tests {
                 pos: (0, 0, 0),
                 voxel_type: VoxelType::Grass,
                 pattern: Some(SubVoxelPattern::Full),
+                rotation: None,
                 rotation_state: None,
             },
         };
@@ -286,6 +288,7 @@ mod tests {
                 pos: (0, 0, 0),
                 voxel_type: VoxelType::Grass,
                 pattern: Some(SubVoxelPattern::Full),
+                rotation: None,
                 rotation_state: None,
             },
         };
@@ -296,6 +299,7 @@ mod tests {
                 pos: (1, 0, 0),
                 voxel_type: VoxelType::Dirt,
                 pattern: Some(SubVoxelPattern::Full),
+                rotation: None,
                 rotation_state: None,
             },
         };

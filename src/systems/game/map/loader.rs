@@ -1,6 +1,7 @@
 //! Map loading functionality with progress tracking.
 
 use super::error::{MapLoadError, MapResult};
+use super::format::migrate_legacy_rotations;
 use super::format::MapData;
 use super::validation::validate_map;
 use bevy::prelude::*;
@@ -138,7 +139,9 @@ impl MapLoader {
 
         // Stage 2: Parse RON data (20-40%)
         progress.update(LoadProgress::ParsingData(0.0));
-        let map: MapData = ron::from_str(&content)?;
+        let mut map: MapData = ron::from_str(&content)?;
+        // Migrate legacy rotation_state fields to the new orientation matrix system
+        migrate_legacy_rotations(&mut map.orientations, &mut map.world.voxels);
         progress.update(LoadProgress::ParsingData(1.0));
 
         // Stage 3: Validate map (40-60%)
@@ -155,7 +158,8 @@ impl MapLoader {
     #[allow(dead_code)]
     pub fn load_simple(path: impl AsRef<Path>) -> MapResult<MapData> {
         let content = fs::read_to_string(path.as_ref())?;
-        let map: MapData = ron::from_str(&content)?;
+        let mut map: MapData = ron::from_str(&content)?;
+        migrate_legacy_rotations(&mut map.orientations, &mut map.world.voxels);
         validate_map(&map)?;
         Ok(map)
     }
@@ -214,9 +218,18 @@ mod tests {
         assert!(approx_eq(LoadProgress::Started.percentage(), 0.0));
         assert!(approx_eq(LoadProgress::LoadingFile(0.5).percentage(), 0.1));
         assert!(approx_eq(LoadProgress::ParsingData(0.5).percentage(), 0.3));
-        assert!(approx_eq(LoadProgress::ValidatingMap(0.5).percentage(), 0.5));
-        assert!(approx_eq(LoadProgress::SpawningVoxels(0.5).percentage(), 0.75));
-        assert!(approx_eq(LoadProgress::SpawningEntities(0.5).percentage(), 0.925));
+        assert!(approx_eq(
+            LoadProgress::ValidatingMap(0.5).percentage(),
+            0.5
+        ));
+        assert!(approx_eq(
+            LoadProgress::SpawningVoxels(0.5).percentage(),
+            0.75
+        ));
+        assert!(approx_eq(
+            LoadProgress::SpawningEntities(0.5).percentage(),
+            0.925
+        ));
         assert!(approx_eq(LoadProgress::Finalizing(0.5).percentage(), 0.975));
         assert!(approx_eq(LoadProgress::Complete.percentage(), 1.0));
     }

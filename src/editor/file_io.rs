@@ -307,6 +307,7 @@ mod tests {
             pos: (x, y, z),
             voxel_type: VoxelType::Grass,
             pattern: Some(SubVoxelPattern::Full),
+            rotation: None,
             rotation_state: None,
         }
     }
@@ -330,6 +331,7 @@ mod tests {
             lighting: LightingData::default(),
             camera: CameraData::default(),
             custom_properties: HashMap::new(),
+            orientations: vec![],
         }
     }
 

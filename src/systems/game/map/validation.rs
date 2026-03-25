@@ -1,7 +1,7 @@
 //! Map validation logic.
 
 use super::error::{MapLoadError, MapResult};
-use super::format::MapData;
+use super::format::{is_valid_rotation_matrix, MapData};
 
 /// Validates a loaded map for correctness and consistency.
 pub fn validate_map(map: &MapData) -> MapResult<()> {
@@ -10,6 +10,9 @@ pub fn validate_map(map: &MapData) -> MapResult<()> {
 
     // Validate voxel positions
     validate_voxel_positions(map)?;
+
+    // Validate orientation matrices and voxel rotation indices
+    validate_orientations(map)?;
 
     // Validate metadata
     validate_metadata(map)?;
@@ -47,6 +50,35 @@ fn validate_voxel_positions(map: &MapData) -> MapResult<()> {
 
         if x < 0 || x >= world.width || y < 0 || y >= world.height || z < 0 || z >= world.depth {
             return Err(MapLoadError::InvalidVoxelPosition(x, y, z));
+        }
+    }
+
+    Ok(())
+}
+
+/// Validates orientation matrices and voxel rotation index references.
+fn validate_orientations(map: &MapData) -> MapResult<()> {
+    // Validate each matrix in the orientations list
+    for (i, matrix) in map.orientations.iter().enumerate() {
+        if !is_valid_rotation_matrix(matrix) {
+            return Err(MapLoadError::ValidationError(format!(
+                "orientations[{}] is not a valid 90°-grid rotation matrix: {:?}",
+                i, matrix
+            )));
+        }
+    }
+
+    // Validate each voxel's rotation index is within bounds
+    for voxel in &map.world.voxels {
+        if let Some(index) = voxel.rotation {
+            if index >= map.orientations.len() {
+                return Err(MapLoadError::ValidationError(format!(
+                    "Voxel at {:?} has rotation index {} but orientations list has only {} entries",
+                    voxel.pos,
+                    index,
+                    map.orientations.len()
+                )));
+            }
         }
     }
 
@@ -167,6 +199,7 @@ mod tests {
             pos: (100, 0, 0), // Outside bounds
             voxel_type: crate::systems::game::components::VoxelType::Stone,
             pattern: None,
+            rotation: None,
             rotation_state: None,
         });
         assert!(validate_map(&map).is_err());

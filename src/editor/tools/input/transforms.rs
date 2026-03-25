@@ -5,7 +5,9 @@ use crate::editor::renderer::RenderMapEvent;
 use crate::editor::state::EditorState;
 use crate::editor::tools::selection_tool::TransformPreview;
 use crate::editor::tools::{ActiveTransform, TransformMode, UpdateSelectionHighlights};
-use crate::systems::game::map::format::{RotationState, VoxelData};
+use crate::systems::game::map::format::{
+    axis_angle_to_matrix, find_or_insert_orientation, multiply_matrices, VoxelData, IDENTITY,
+};
 use crate::systems::game::map::geometry::RotationAxis;
 use bevy::prelude::*;
 
@@ -233,20 +235,20 @@ pub fn confirm_rotate_internal(
         {
             map_voxel.pos = new_pos;
 
-            // Update or create rotation state for the voxel
-            let new_rotation_state = if let Some(existing_rotation) = map_voxel.rotation_state {
-                existing_rotation.compose(
-                    active_transform.rotation_axis,
-                    active_transform.rotation_angle,
-                )
-            } else {
-                RotationState::new(
-                    active_transform.rotation_axis,
-                    active_transform.rotation_angle,
-                )
-            };
-
-            map_voxel.rotation_state = Some(new_rotation_state);
+            // Compose the current orientation matrix with the new single-axis rotation.
+            let current_matrix = map_voxel
+                .rotation
+                .and_then(|i| editor_state.current_map.orientations.get(i))
+                .copied()
+                .unwrap_or(IDENTITY);
+            let new_single = axis_angle_to_matrix(
+                active_transform.rotation_axis,
+                active_transform.rotation_angle,
+            );
+            let composed = multiply_matrices(&new_single, &current_matrix);
+            let new_index =
+                find_or_insert_orientation(&mut editor_state.current_map.orientations, composed);
+            map_voxel.rotation = Some(new_index);
 
             rotated_voxels.push((old_pos, new_pos));
         }
@@ -272,19 +274,15 @@ pub fn confirm_rotate_internal(
                         .unwrap()
                         .clone();
 
-                    // Update rotation state for the new voxel
-                    let new_rotation_state =
-                        Some(if let Some(existing_rotation) = voxel_data.rotation_state {
-                            existing_rotation.compose(
-                                active_transform.rotation_axis,
-                                active_transform.rotation_angle,
-                            )
-                        } else {
-                            RotationState::new(
-                                active_transform.rotation_axis,
-                                active_transform.rotation_angle,
-                            )
-                        });
+                    // Compute new rotation index for the history record.
+                    // Re-uses the already-updated map voxel's rotation index.
+                    let new_rotation = editor_state
+                        .current_map
+                        .world
+                        .voxels
+                        .iter()
+                        .find(|v| v.pos == *new_pos)
+                        .and_then(|v| v.rotation);
 
                     // Create a remove and place action pair
                     EditorAction::Batch {
@@ -298,7 +296,7 @@ pub fn confirm_rotate_internal(
                                 pos: *new_pos,
                                 data: VoxelData {
                                     pos: *new_pos,
-                                    rotation_state: new_rotation_state,
+                                    rotation: new_rotation,
                                     ..voxel_data
                                 },
                             },
