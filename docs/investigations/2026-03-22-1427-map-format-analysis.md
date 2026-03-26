@@ -4,6 +4,14 @@
 **Status:** Complete
 **Component:** Map format / Serialisation / Validation
 
+## Resolution Log
+
+| Finding | Ticket | Status | Date |
+|---------|--------|--------|------|
+| 1 — Multi-axis rotation silently broken | `docs/bugs/map-format-multi-axis-rotation/` | **Fixed** — `RotationState` replaced with `orientations: Vec<OrientationMatrix>` + `rotation: Option<usize>` per voxel. Commit `eda90e3`. | 2026-03-26 |
+| 2 — Staircase double-rotation | `docs/bugs/staircase-double-rotation/` | **Tracked** — bug report, requirements, and architecture written. Not yet implemented. | 2026-03-26 |
+| 3–9 | — | Not yet tracked. | — |
+
 ## Summary
 
 Review of the RON map format (version 1.0.0) used by A Drake's Story. The
@@ -25,43 +33,57 @@ voxel positions are not detected, silently corrupting meshes.
 
 ## Findings
 
-### Finding 1 — Multi-axis rotation silently broken (p1 High)
+### Finding 1 — Multi-axis rotation silently broken (p1 High) ✅ Fixed
 
-**File:** `src/systems/game/map/format/rotation.rs:27–37`
+**File:** `src/systems/game/map/format/rotation.rs` (pre-fix)
 
-`RotationState::compose()` only adds angles when both rotations share the same
-axis. For different axes it silently discards the earlier rotation and stores
+> **Resolved 2026-03-26 — commit `eda90e3`.** `RotationState` has been replaced with a
+> top-level `orientations: Vec<OrientationMatrix>` list on `MapData`. Each voxel now
+> stores a `rotation: Option<usize>` index. `multiply_matrices()` composes rotations
+> correctly. Legacy `rotation_state` fields are auto-migrated on load. See
+> `docs/bugs/map-format-multi-axis-rotation/` for the full ticket and architecture.
+
+`RotationState::compose()` only added angles when both rotations shared the same
+axis. For different axes it silently discarded the earlier rotation and stored
 only the new one:
 
 ```rust
-// rotation.rs:34
+// rotation.rs:34 (pre-fix)
 // "For simplicity, we'll store the most recent rotation"
 Self::new(axis, angle)
 ```
 
-A map author who rotates a voxel first around X then around Y will only see
+A map author who rotated a voxel first around X then around Y would only see
 the Y rotation persisted to the file. Multi-axis orientations — diagonal
-staircases, tilted platforms, any non-cardinal angle — cannot be represented or
-round-tripped. There is no error, no warning, and no documentation of the
+staircases, tilted platforms, any non-cardinal angle — could not be represented or
+round-tripped. There was no error, no warning, and no documentation of the
 limitation.
 
 ---
 
-### Finding 2 — Staircase variants and `rotation_state` stack unexpectedly (p2 Medium)
+### Finding 2 — Staircase variants and `rotation` stack unexpectedly (p2 Medium)
 
 **File:** `src/systems/game/map/format/patterns.rs:64–75`
 
+> **Tracked 2026-03-26.** Bug report and implementation ticket written at
+> `docs/bugs/staircase-double-rotation/`. Not yet implemented.
+>
+> Note: the field name in the file is now `rotation: Option<usize>` (orientation
+> matrix index) following the Finding 1 fix. The double-rotation defect applies
+> equally to the new system.
+
 `StaircaseNegX`, `StaircaseZ`, `StaircaseNegZ` are pre-baked rotations of
-`StaircaseX` computed inside `SubVoxelPattern::geometry()`. If a `rotation_state`
-is also present on the voxel, `geometry_with_rotation()` applies it on top of
-the already-rotated geometry. Writing:
+`StaircaseX` computed inside `SubVoxelPattern::geometry()`. If a `rotation`
+orientation matrix is also present on the voxel, `geometry_with_rotation()`
+applies it on top of the already-rotated geometry. Writing:
 
 ```ron
-pattern: Some(StaircaseZ), rotation_state: Some((axis: Y, angle: 1))
+pattern: Some(StaircaseZ), rotation: Some(1)   // orientation index 1 = Y+90°
 ```
 
-produces the geometry of `StaircaseNegX` with no warning. The spec documents
-neither the pre-baked rotations nor their interaction with `rotation_state`.
+produces the geometry of `StaircaseNegX` (two Y rotations composed) with no
+warning. The spec documents neither the pre-baked rotations nor their interaction
+with the orientation matrix.
 
 ---
 
@@ -165,45 +187,49 @@ the same map will silently collide on key names.
 
 ## Root Cause Summary
 
-| # | Finding | Location | Priority | Impact |
-|---|---------|----------|----------|--------|
-| 1 | Multi-axis rotation silently discards first rotation | `rotation.rs:27–37` | p1 | Cannot represent non-cardinal voxel orientations |
-| 2 | Staircase variant + rotation_state produces double rotation | `patterns.rs:64–75` | p2 | Unexpected geometry, no warning |
-| 3 | Fence ignores rotation_state at runtime | `spawner/chunks.rs:104–115` | p2 | Author intent silently lost |
-| 4 | Duplicate voxel positions not detected | `validation.rs:42–53` | p2 | Silent mesh corruption |
-| 5 | Entity properties untyped, parse failures silent | `entities.rs:14–15` | p2 | Invalid config produces wrong runtime state |
-| 6 | Only 4 material types; VoxelType in components.rs | `components.rs:44–50` | p3 | Limited palette; format/ECS coupling |
-| 7 | Pillar geometry is floating cube, not a column | geometry patterns | p3 | Misleading name, unexpected collision gaps |
-| 8 | Camera stored as static snapshot | `camera.rs` | p3 | No dynamic camera properties expressible in format |
-| 9 | custom_properties has no namespace | `format/mod.rs` | p3 | Key collisions possible across systems |
+| # | Finding | Location | Priority | Impact | Status |
+|---|---------|----------|----------|--------|--------|
+| 1 | Multi-axis rotation silently discards first rotation | `rotation.rs` (pre-fix) | p1 | Cannot represent non-cardinal voxel orientations | **Fixed** `eda90e3` |
+| 2 | Staircase variant + rotation produces double rotation | `patterns.rs:64–75` | p2 | Unexpected geometry, no warning | **Tracked** — see `docs/bugs/staircase-double-rotation/` |
+| 3 | Fence ignores rotation at runtime | `spawner/chunks.rs:104–115` | p2 | Author intent silently lost | Open |
+| 4 | Duplicate voxel positions not detected | `validation.rs:42–53` | p2 | Silent mesh corruption | Open |
+| 5 | Entity properties untyped, parse failures silent | `entities.rs:14–15` | p2 | Invalid config produces wrong runtime state | Open |
+| 6 | Only 4 material types; VoxelType in components.rs | `components.rs:44–50` | p3 | Limited palette; format/ECS coupling | Open |
+| 7 | Pillar geometry is floating cube, not a column | geometry patterns | p3 | Misleading name, unexpected collision gaps | Open |
+| 8 | Camera stored as static snapshot | `camera.rs` | p3 | No dynamic camera properties expressible in format | Open |
+| 9 | custom_properties has no namespace | `format/mod.rs` | p3 | Key collisions possible across systems | Open |
 
 ---
 
 ## Recommended Fixes
 
-### Fix 1 — Replace RotationState with a 24-orientation index (Finding 1)
+### Fix 1 — Replace RotationState with a 24-orientation index (Finding 1) ✅ Done
 
 All 90° grid orientations form a group of exactly 24 distinct rotations.
 Replace the single-axis `{axis, angle}` struct with a compact orientation index
 (0–23). This covers every valid 90°-grid orientation without ambiguity and is
 more compact to store.
 
-```ron
-// Proposed
-rotation: 7   // orientation index 0-23
-```
-
-Alternatively, keep the field shape but store a sequence of axis/angle pairs:
-
-```ron
-rotations: [(axis: Y, angle: 1), (axis: X, angle: 1)]
-```
-
-The index approach is simpler; the sequence approach is more readable.
+**Implemented** (commit `eda90e3`): a top-level `orientations: Vec<OrientationMatrix>`
+list is stored in `MapData`; voxels reference entries by `rotation: Option<usize>` index.
+`multiply_matrices()` handles correct multi-axis composition in the editor. Legacy
+`rotation_state` fields are auto-migrated on load.
 
 ---
 
-### Fix 2 — Detect and reject duplicate voxel positions in validation (Finding 4)
+### Fix 2 — Canonicalise staircase direction via orientation matrix only (Finding 2)
+
+The four staircase directional variants (`StaircaseX`, `StaircaseNegX`,
+`StaircaseZ`, `StaircaseNegZ`) should all map to the same base geometry
+(`StaircaseX`). The direction should be expressed entirely via the voxel's
+`rotation` orientation matrix, not baked into the pattern variant name. This
+eliminates the double-rotation defect.
+
+See `docs/bugs/staircase-double-rotation/ticket.md` for the full fix plan.
+
+---
+
+### Fix 3 — Detect and reject duplicate voxel positions in validation (Finding 4)
 
 Low cost, immediate reliability benefit:
 
@@ -221,7 +247,7 @@ for voxel in &world.voxels {
 
 ---
 
-### Fix 3 — Typed entity properties via Serde enum adjacency (Finding 5)
+### Fix 4 — Typed entity properties via Serde enum adjacency (Finding 5)
 
 Replace `HashMap<String, String>` with a typed per-variant configuration
 struct:
@@ -244,15 +270,15 @@ version, then remove it.
 
 ---
 
-### Fix 4 — Document and validate Fence + rotation_state (Finding 3)
+### Fix 5 — Document and validate Fence + rotation (Finding 3)
 
-Minimum viable fix: emit `warn!()` during validation when `rotation_state` is
+Minimum viable fix: emit `warn!()` during validation when `rotation` is
 `Some(...)` on a `Fence` voxel. Update `map-format-spec.md` to document the
 exception. Optionally strip the field during editor save to prevent confusion.
 
 ---
 
-### Fix 5 — Move VoxelType into the format module (Finding 6)
+### Fix 6 — Move VoxelType into the format module (Finding 6)
 
 Move `VoxelType` (with its `Serialize`/`Deserialize` derives) from
 `src/systems/game/components.rs` into `src/systems/game/map/format/` and
@@ -265,6 +291,8 @@ the ECS component can use or wrap them.
 
 - `docs/api/map-format-spec.md` — normative format specification
 - `docs/api/map-format-analysis.md` — extended analysis with full pros/cons and improvement proposals
+- `docs/bugs/map-format-multi-axis-rotation/` — Finding 1 ticket (fixed)
+- `docs/bugs/staircase-double-rotation/` — Finding 2 ticket
 - `src/systems/game/map/format/` — all format type definitions
 - `src/systems/game/map/validation.rs` — validation implementation
 - `src/systems/game/map/spawner/chunks.rs` — chunk/fence spawning logic
