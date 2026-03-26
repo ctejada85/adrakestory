@@ -51,7 +51,7 @@ reason.
 
 More concretely, a level designer who selects `StaircaseZ` in the editor and
 then rotates it +90° around Y gets different geometry than they would get by
-selecting `StaircaseX` and rotating it +180° around Y — even though the
+selecting `Staircase` and rotating it +180° around Y — even though the
 visual result should be identical and predictable from the rotation alone.
 
 ---
@@ -59,12 +59,12 @@ visual result should be identical and predictable from the rotation alone.
 ## Expected Behavior
 
 The orientation matrix stored on the voxel should express the **total**
-orientation of the pattern relative to the canonical `StaircaseX` geometry. The
+orientation of the pattern relative to the canonical `Staircase` geometry. The
 pattern variant name should carry no hidden geometric meaning beyond identifying
 which base shape to use.
 
 Given `pattern: Some(StaircaseZ)` and `rotation: Some(i)` where `orientations[i]`
-is Y+90°, the spawner should produce geometry identical to `StaircaseX` rotated
+is Y+90°, the spawner should produce geometry identical to `Staircase` rotated
 by the composition of `StaircaseZ`'s implicit Y+90° pre-bake and the explicit
 Y+90° matrix — or alternatively the variant should be normalised and the
 pre-bake absorbed into the explicit matrix.
@@ -85,11 +85,12 @@ system now provides a proper, general orientation mechanism. The baked
 rotations in `geometry()` interact with the external orientation matrix in an
 undocumented and surprising way.
 
-The fix is to normalise all directional staircase variants to `StaircaseX` in
-the map file and absorb the implicit pre-bake into the voxel's explicit
-orientation matrix. The three directional variants become aliases (for
-backward-compatible loading) that are immediately normalised to
-`(pattern: StaircaseX, rotation: <Y-rotation-index>)` on load.
+The fix is to normalise all directional staircase variants to `Staircase` (the
+single canonical variant, renamed from `StaircaseX`) in the map file and absorb
+the implicit pre-bake into the voxel's explicit orientation matrix. The three
+directional variants become aliases (for backward-compatible loading) that are
+immediately normalised to `(pattern: Staircase, rotation: <Y-rotation-index>)`
+on load. The old `StaircaseX` name is kept as a `#[serde(alias)]` on `Staircase`.
 
 ---
 
@@ -111,7 +112,7 @@ SubVoxelPattern::StaircaseZ.geometry_with_rotation(
     Some(&axis_angle_to_matrix(RotationAxis::Y, 1))
 )
 // is identical to:
-SubVoxelPattern::StaircaseX.geometry_with_rotation(
+SubVoxelPattern::Staircase.geometry_with_rotation(
     Some(&axis_angle_to_matrix(RotationAxis::Y, 2))
 )
 ```
@@ -140,10 +141,10 @@ SubVoxelPattern::StaircaseX.geometry_with_rotation(
 
    | Loaded pattern | Implicit pre-bake | New pattern | New orientation |
    |----------------|------------------|-------------|----------------|
-   | `StaircaseNegX` | Y+180° | `StaircaseX` | compose(Y+180°, existing) |
-   | `StaircaseZ`    | Y+90°  | `StaircaseX` | compose(Y+90°, existing) |
-   | `StaircaseNegZ` | Y+270° | `StaircaseX` | compose(Y+270°, existing) |
-   | `StaircaseX`    | —      | unchanged   | unchanged |
+   | `StaircaseNegX` | Y+180° | `Staircase` | compose(Y+180°, existing) |
+   | `StaircaseZ`    | Y+90°  | `Staircase` | compose(Y+90°, existing) |
+   | `StaircaseNegZ` | Y+270° | `Staircase` | compose(Y+270°, existing) |
+   | `Staircase`     | —      | unchanged   | unchanged |
 
 2. Mark `StaircaseNegX`, `StaircaseZ`, `StaircaseNegZ` as `#[serde(alias)]`
    entries that deserialise to `StaircaseX` (or keep them as variants during

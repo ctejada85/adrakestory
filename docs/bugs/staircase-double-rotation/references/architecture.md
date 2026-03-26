@@ -12,6 +12,7 @@
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
 | v1 | 2026-03-26 | Investigation | Initial draft — current architecture, bug mechanism, proposed normalisation pass |
+| **v2** | **2026-03-26** | **Investigation** | **Q1 resolved: single `Staircase` variant (renamed from `StaircaseX`), old names as serde aliases. Q2 resolved: editor UI removes directional variants in Phase 1.** |
 
 ---
 
@@ -88,7 +89,7 @@ Step C is the hidden pre-bake inside `geometry()`. Step D–E is the explicit or
 **File:** `src/systems/game/map/format/patterns.rs:63–75`
 
 ```rust
-Self::StaircaseX => SubVoxelGeometry::staircase_x(),
+Self::StaircaseX => SubVoxelGeometry::staircase_x(),  // ← to be renamed Staircase
 Self::StaircaseNegX => {
     // Staircase rotated 180° around Y
     SubVoxelGeometry::staircase_x().rotate(RotationAxis::Y, 2)
@@ -105,7 +106,7 @@ Self::StaircaseNegZ => {
 
 | Variant | Pre-bake in `geometry()` | Matrix equivalent |
 |---------|--------------------------|-------------------|
-| `StaircaseX` | none | identity |
+| `StaircaseX` (→ `Staircase`) | none | identity |
 | `StaircaseNegX` | `rotate(Y, 2)` | `axis_angle_to_matrix(Y, 2)` = `[[-1,0,0],[0,1,0],[0,0,-1]]` |
 | `StaircaseZ` | `rotate(Y, 1)` | `axis_angle_to_matrix(Y, 1)` = `[[0,0,1],[0,1,0],[-1,0,0]]` |
 | `StaircaseNegZ` | `rotate(Y, 3)` | `axis_angle_to_matrix(Y, 3)` = `[[0,0,-1],[0,1,0],[1,0,0]]` |
@@ -158,11 +159,12 @@ The double rotation is silent: the file, the editor, and the spawner give no ind
 
 ### 2.1 Design Principles
 
-1. **Pattern name = shape identity only** — `StaircaseX` names the base shape; orientation is expressed entirely through the `rotation` field and the `orientations` matrix list.
-2. **Normalise at load, not at runtime** — the normalisation pass runs once in the loader, not per-frame or per-spawn. After normalisation, `geometry()` is always called on `StaircaseX` for staircase voxels; the Y-axis variants are never encountered by the spawner.
-3. **Pre-bake code is preserved** — `geometry()` for `StaircaseNegX`, `StaircaseZ`, `StaircaseNegZ` is not removed. It continues to produce the correct base geometry if called, but after normalisation it will not be called for loaded voxels.
-4. **Backward compatibility via serde + normalisation** — the three directional variant names continue to deserialise correctly. The normalisation pass converts them before any geometry is evaluated.
-5. **Reuse existing helpers** — `axis_angle_to_matrix()`, `multiply_matrices()`, and `find_or_insert_orientation()` in `rotation.rs` are all already available; no new types are required.
+1. **Pattern name = shape identity only** — `Staircase` names the base shape; orientation is expressed entirely through the `rotation` field and the `orientations` matrix list.
+2. **Normalise at load, not at runtime** — the normalisation pass runs once in the loader, not per-frame or per-spawn. After normalisation, `geometry()` is always called on `Staircase` for staircase voxels; the Y-axis variants are never encountered by the spawner or any editor code.
+3. **Pre-bake code is preserved** — `geometry()` for `StaircaseNegX`, `StaircaseZ`, `StaircaseNegZ` is not removed. It continues to produce correct geometry if called, but after normalisation it will not be called for loaded voxels.
+4. **Backward compatibility via serde aliases + normalisation** — the three directional variant names and the old `StaircaseX` name continue to deserialise correctly via `#[serde(alias)]` attributes. The normalisation pass converts directional variants before any geometry is evaluated. `StaircaseX` maps directly to `Staircase` at the serde layer (no pre-bake, no normalisation needed).
+5. **Editor exposes only `Staircase`** — the pattern picker removes directional variants. Facing direction is controlled exclusively via the Y-axis rotation tool.
+6. **Reuse existing helpers** — `axis_angle_to_matrix()`, `multiply_matrices()`, and `find_or_insert_orientation()` in `rotation.rs` are all already available; no new types are required.
 
 ### 2.2 Normalisation Pass — Location in Loader Pipeline
 
@@ -192,18 +194,18 @@ parse RON → migrate_legacy_rotations() → normalise_staircase_variants() → 
 ### 2.3 Normalisation Logic
 
 ```rust
-/// Normalise all staircase directional variants to StaircaseX.
+/// Normalise all staircase directional variants to Staircase.
 ///
 /// Absorbs the hidden pre-bake rotation of StaircaseNegX / StaircaseZ / StaircaseNegZ
 /// into the voxel's explicit orientation matrix.  After this pass, all staircase
-/// voxels use `pattern: Some(StaircaseX)` and carry the full orientation in `rotation`.
+/// voxels use `pattern: Some(Staircase)` and carry the full orientation in `rotation`.
 ///
 /// Must be called after `migrate_legacy_rotations()` and before `validate_map()`.
 pub fn normalise_staircase_variants(
     orientations: &mut Vec<OrientationMatrix>,
     voxels: &mut [VoxelData],
 ) {
-    use SubVoxelPattern::{StaircaseNegX, StaircaseNegZ, StaircaseX, StaircaseZ};
+    use SubVoxelPattern::{Staircase, StaircaseNegX, StaircaseNegZ, StaircaseZ};
 
     for voxel in voxels.iter_mut() {
         let prebake_angle = match voxel.pattern {
@@ -224,7 +226,7 @@ pub fn normalise_staircase_variants(
         };
 
         let index = find_or_insert_orientation(orientations, composed);
-        voxel.pattern = Some(StaircaseX);
+        voxel.pattern = Some(Staircase);
         voxel.rotation = Some(index);
     }
 }
@@ -246,15 +248,17 @@ pub fn normalise_staircase_variants(
 |-----------|------|--------|
 | `MapLoader::load_from_file()` | `src/systems/game/map/loader.rs:144` | Add `normalise_staircase_variants()` call after `migrate_legacy_rotations()` |
 | `MapLoader::load_simple()` | `src/systems/game/map/loader.rs:162` | Same addition |
-| `SubVoxelPattern::StaircaseNegX` | `src/systems/game/map/format/patterns.rs:29` | Add doc comment: backward-compat alias, normalised to `StaircaseX` on load |
+| `SubVoxelPattern::StaircaseX` | `src/systems/game/map/format/patterns.rs:27` | Rename to `Staircase`; add `#[serde(alias = "StaircaseX")]` |
+| `SubVoxelPattern::StaircaseNegX` | `src/systems/game/map/format/patterns.rs:29` | Add doc comment: backward-compat alias, normalised to `Staircase` on load, never written on save |
 | `SubVoxelPattern::StaircaseZ` | `src/systems/game/map/format/patterns.rs:31` | Same |
 | `SubVoxelPattern::StaircaseNegZ` | `src/systems/game/map/format/patterns.rs:33` | Same |
-| `docs/api/map-format-spec.md` | `docs/api/map-format-spec.md` | Document that directional staircase variants are normalised on load; canonical form is `StaircaseX` + rotation |
+| Map editor pattern picker | `src/editor/` (relevant UI file) | Remove `StaircaseNegX`, `StaircaseZ`, `StaircaseNegZ` from selectable options; expose only `Staircase` |
+| `docs/api/map-format-spec.md` | `docs/api/map-format-spec.md` | Document `Staircase` as canonical variant; document directional variants + `StaircaseX` as load-only aliases |
 
 **Not changed:**
 
 - `SubVoxelPattern::geometry()` — pre-bake code at `patterns.rs:64–75` is preserved.
-- `SubVoxelPattern::geometry_with_rotation()` — no changes needed; after normalisation only `StaircaseX` is passed here for staircase voxels.
+- `SubVoxelPattern::geometry_with_rotation()` — no changes needed; after normalisation only `Staircase` is passed here for staircase voxels.
 - `SubVoxelGeometry::rotate()` / `rotate_point()` — untouched.
 - `apply_orientation_matrix()` — untouched.
 - `axis_angle_to_matrix()`, `multiply_matrices()`, `find_or_insert_orientation()` — reused without modification.
@@ -266,11 +270,11 @@ flowchart LR
     A["RON file\npattern: Some(StaircaseZ)\nrotation: None"]
     B["VoxelData after parse\npattern=StaircaseZ, rotation=None"]
     C["migrate_legacy_rotations()\n— no-op (no rotation_state)"]
-    D["normalise_staircase_variants()\nY+90° pre-bake absorbed\npattern=StaircaseX, rotation=Some(idx_y90)"]
+    D["normalise_staircase_variants()\nY+90° pre-bake absorbed\npattern=Staircase, rotation=Some(idx_y90)"]
     E["validate_map()\n— idx_y90 in bounds ✓"]
-    F["Spawner\nStaircaseX.geometry_with_rotation(orientations[idx_y90])"]
+    F["Spawner\nStaircase.geometry_with_rotation(orientations[idx_y90])"]
     G["apply_orientation_matrix(M_y90)\n→ rotate(Y,1) once"]
-    H["Bit array [u64;8]\nY+90° geometry (StaircaseZ) ✓"]
+    H["Bit array [u64;8]\nY+90° geometry ✓"]
 
     A --> B --> C --> D --> E --> F --> G --> H
 ```
@@ -280,8 +284,8 @@ For a voxel with an existing non-None rotation:
 ```mermaid
 flowchart LR
     A["RON file\npattern: Some(StaircaseZ)\nrotation: Some(0)\norientations[0]=M_y90"]
-    B["normalise_staircase_variants()\nM_final = multiply(M_y90, M_y90_prebake)\n= M_y180\npattern=StaircaseX, rotation=Some(idx_y180)"]
-    C["Spawner\nStaircaseX.geometry_with_rotation(M_y180)"]
+    B["normalise_staircase_variants()\nM_final = multiply(M_y90, M_y90_prebake)\n= M_y180\npattern=Staircase, rotation=Some(idx_y180)"]
+    C["Spawner\nStaircase.geometry_with_rotation(M_y180)"]
     D["rotate(Y,1).rotate(Y,1) = rotate(Y,2)"]
     E["Y+180° geometry (StaircaseNegX) ✓\nnow intentional, not accidental"]
 
@@ -305,7 +309,7 @@ classDiagram
 
     class SubVoxelPattern {
         <<enum>>
-        StaircaseX
+        Staircase   ← canonical (renamed from StaircaseX)
         StaircaseNegX  ← compat alias, normalised on load
         StaircaseZ     ← compat alias, normalised on load
         StaircaseNegZ  ← compat alias, normalised on load
@@ -352,10 +356,10 @@ sequenceDiagram
     NormPass->>Orientations: orientations[0] = M_y90
     NormPass->>NormPass: composed = multiply_matrices(M_y90, M_y90_prebake) = M_y180
     NormPass->>Orientations: find_or_insert(M_y180) → idx_y180
-    NormPass->>NormPass: voxel.pattern = StaircaseX, voxel.rotation = Some(idx_y180)
+    NormPass->>NormPass: voxel.pattern = Staircase, voxel.rotation = Some(idx_y180)
     Loader->>Loader: validate_map() — idx_y180 in bounds ✓
     Loader->>Spawner: LoadedMapData { map }
-    Spawner->>SVG: StaircaseX.geometry_with_rotation(Some(&M_y180))
+    Spawner->>SVG: Staircase.geometry_with_rotation(Some(&M_y180))
     SVG->>SVG: staircase_x().rotate(Y,1).rotate(Y,1)  [Y+180°]
     SVG-->>Spawner: Y+180° geometry
     Note over Spawner: Intentional Y+180° — no hidden compound
@@ -365,12 +369,12 @@ sequenceDiagram
 
 | Scenario | Before fix | After fix | Result |
 |----------|-----------|-----------|--------|
-| `StaircaseZ, rotation: None` | Y+90° geometry (correct by luck) | normalised to `StaircaseX + M_y90`, spawner applies Y+90° | Identical geometry ✓ |
-| `StaircaseZ, rotation: Some(i)` with M_y90 | Y+180° geometry (double rotation bug) | normalised to `StaircaseX + M_y180`, spawner applies Y+180° | Same (buggy) geometry, but now intentional and consistent ✓ |
-| `StaircaseX, rotation: None` | StaircaseX geometry (correct) | unchanged by pass | Identical ✓ |
-| `StaircaseX, rotation: Some(i)` | Applies matrix once (correct) | unchanged by pass | Identical ✓ |
+| `StaircaseZ, rotation: None` | Y+90° geometry (correct by luck) | normalised to `Staircase + M_y90`, spawner applies Y+90° | Identical geometry ✓ |
+| `StaircaseZ, rotation: Some(i)` with M_y90 | Y+180° geometry (double rotation bug) | normalised to `Staircase + M_y180`, spawner applies Y+180° | Same (buggy) geometry, but now intentional and consistent ✓ |
+| `StaircaseX, rotation: None` | StaircaseX geometry (correct) | deserialises to `Staircase` via alias; unchanged by normalisation pass | Identical ✓ |
+| `Staircase, rotation: Some(i)` | Applies matrix once (correct) | unchanged by pass | Identical ✓ |
 
-Note: The `StaircaseZ + M_y90` case produces Y+180° both before and after the fix. The fix does not change the rendered output of existing maps — it removes the surprising hidden compound and makes it explicit. Future maps authored after the fix will not encounter the double-rotation surprise because the editor will only write `StaircaseX`.
+Note: The `StaircaseZ + M_y90` case produces Y+180° both before and after the fix. The fix does not change the rendered output of existing maps — it removes the surprising hidden compound and makes it explicit. Future maps authored after the fix will not encounter the double-rotation surprise because the editor only exposes `Staircase`.
 
 ### 2.9 Phase Boundaries
 
@@ -378,20 +382,23 @@ Note: The `StaircaseZ + M_y90` case produces Y+180° both before and after the f
 |------------|-------|-------|
 | `normalise_staircase_variants()` pass in loader | Phase 1 | Core fix |
 | Call sites added in `load_from_file()` and `load_simple()` | Phase 1 | Required |
+| `StaircaseX` renamed to `Staircase`; old name as serde alias | Phase 1 | Required |
 | Doc comments on directional variants in `patterns.rs` | Phase 1 | Required |
 | `map-format-spec.md` update | Phase 1 | Required |
 | Unit tests for all normalisation cases | Phase 1 | Required |
-| Editor prevents selection of directional variants in picker | Phase 2 | UI change only |
+| Editor pattern picker: remove directional variants, expose only `Staircase` | Phase 1 | Required — no in-memory directional variants post-load |
+| Editor properties panel shows facing direction from orientation matrix | Phase 2 | UI enhancement |
 | Remove `StaircaseNegX`/`StaircaseZ`/`StaircaseNegZ` enum variants | Future | Breaking — only after all known maps migrated |
 
 **MVP boundary:**
 
-- ✅ All staircase directional variants normalised to `StaircaseX` on load
+- ✅ All staircase directional variants normalised to `Staircase` on load
+- ✅ `StaircaseX` renamed to `Staircase`; backward compat via serde alias
 - ✅ Composed orientation matrix absorbs the pre-bake exactly once
-- ✅ Backward compat: old map files with directional variants load correctly
-- ✅ On save, only `StaircaseX` is written
-- ❌ No editor UI changes in Phase 1
-- ❌ Enum variants not removed in Phase 1
+- ✅ Backward compat: old map files with directional variants and `StaircaseX` load correctly
+- ✅ On save, only `Staircase` is written
+- ✅ Editor exposes only `Staircase` in pattern picker
+- ❌ Enum variants for directional aliases not removed in Phase 1
 
 ---
 
@@ -441,18 +448,19 @@ All three directional variants, with and without an existing orientation:
 | `None` | `[[0,0,-1],[0,1,0],[1,0,0]]` | identity | `[[0,0,-1],[0,1,0],[1,0,0]]` = Y+270° | `Some(idx_y270)` |
 | `Some(i)` → M_y90 | `[[0,0,-1],[0,1,0],[1,0,0]]` | `[[0,0,1],[0,1,0],[-1,0,0]]` | identity | `None` (or `Some(idx_identity)` if desired) |
 
-> The last row is notable: `StaircaseNegZ` with a Y+90° orientation normalises to identity (`StaircaseX, rotation: None`). This is geometrically correct: Y+270° followed by Y+90° = Y+360° = identity. The implementation should handle this by checking if the composed matrix equals `IDENTITY` and setting `rotation = None` rather than inserting an identity entry. This is an edge case to cover in unit tests.
+> The last row is notable: `StaircaseNegZ` with a Y+90° orientation normalises to identity (`Staircase, rotation: None`). This is geometrically correct: Y+270° followed by Y+90° = Y+360° = identity. The normalisation pass must check `composed == IDENTITY` and set `rotation = None` rather than inserting an identity entry (resolved in Appendix C Q3).
 
 ---
 
 ## Appendix C — Open Questions & Decisions
 
-### Open
+### Resolved
 
-| # | Question | Owner |
-|---|----------|-------|
-| 1 | Should `StaircaseNegX`/`StaircaseZ`/`StaircaseNegZ` be kept as full `SubVoxelPattern` enum variants (with `#[serde(rename)]` or `#[serde(alias)]`) so the loader normalises them, or should they map directly to `StaircaseX` at the serde layer? The loader-normalisation approach is simpler (variants remain in the enum; pattern inspect is trivial). The serde-alias approach would require injecting the pre-bake from outside serde, which is awkward. See `requirements.md` Q1. | Team |
-| 2 | When the composed matrix equals `IDENTITY` (e.g., `StaircaseNegZ + M_y90`), should the normalisation set `voxel.rotation = None` (clean, no index needed) or `voxel.rotation = Some(idx_identity)` (consistent but wastes an entry)? The `None` = identity contract is already established by `FR-2.2.2` in the multi-axis-rotation requirements. | Implementer |
+| # | Question | Resolution |
+|---|----------|------------|
+| 1 | Should directional variants be kept as full enum variants or collapsed to a single variant via serde aliases? | **Single canonical variant**, renamed `Staircase` (from `StaircaseX`). Directional variants remain as full enum variants so the normalisation pass can inspect `voxel.pattern`. Old `StaircaseX` name kept as `#[serde(alias = "StaircaseX")]` on `Staircase`. Directional variant names remain as deserialisation aliases. |
+| 2 | Should the editor hide directional variants in Phase 1 or Phase 2? | **Phase 1.** Normalisation runs on load so no in-memory state ever contains a directional variant; the editor pattern picker exposes only `Staircase`. |
+| 3 | When the composed matrix equals `IDENTITY` (e.g., `StaircaseNegZ + M_y90`), should normalisation set `voxel.rotation = None` or `Some(idx_identity)`? | **`None`.** The `None` = identity contract is established by FR-2.2.2 in the multi-axis-rotation requirements. The normalisation pass must check `composed == IDENTITY` and set `rotation = None` rather than inserting an identity entry. |
 
 ---
 
