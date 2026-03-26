@@ -80,16 +80,7 @@ fn render_voxel_place_options(
                 .selectable_value(pattern, SubVoxelPattern::PlatformXZ, "▬ Platform")
                 .changed();
             changed |= ui
-                .selectable_value(pattern, SubVoxelPattern::StaircaseX, "⌐ Stairs +X")
-                .changed();
-            changed |= ui
-                .selectable_value(pattern, SubVoxelPattern::StaircaseNegX, "⌐ Stairs -X")
-                .changed();
-            changed |= ui
-                .selectable_value(pattern, SubVoxelPattern::StaircaseZ, "⌐ Stairs +Z")
-                .changed();
-            changed |= ui
-                .selectable_value(pattern, SubVoxelPattern::StaircaseNegZ, "⌐ Stairs -Z")
+                .selectable_value(pattern, SubVoxelPattern::Staircase, "⌐ Stairs")
                 .changed();
             changed |= ui
                 .selectable_value(pattern, SubVoxelPattern::Pillar, "│ Pillar")
@@ -200,7 +191,7 @@ pub fn pattern_short_name(pattern: &SubVoxelPattern) -> &'static str {
         SubVoxelPattern::PlatformXZ => "Platform",
         SubVoxelPattern::PlatformXY => "Wall Z",
         SubVoxelPattern::PlatformYZ => "Wall X",
-        SubVoxelPattern::StaircaseX => "Stairs +X",
+        SubVoxelPattern::Staircase => "Stairs",
         SubVoxelPattern::StaircaseNegX => "Stairs -X",
         SubVoxelPattern::StaircaseZ => "Stairs +Z",
         SubVoxelPattern::StaircaseNegZ => "Stairs -Z",

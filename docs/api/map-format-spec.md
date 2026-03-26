@@ -158,28 +158,38 @@ voxel_type: Stone
 | `PlatformXZ` | 8×1×8 (64) | Horizontal platform on XZ plane |
 | `PlatformXY` | 8×8×1 (64) | Vertical wall on XY plane (facing Z) |
 | `PlatformYZ` | 1×8×8 (64) | Vertical wall on YZ plane (facing X) |
-| `StaircaseX` | Variable (288) | Stairs ascending in +X direction |
-| `StaircaseNegX` | Variable (288) | Stairs ascending in -X direction |
-| `StaircaseZ` | Variable (288) | Stairs ascending in +Z direction |
-| `StaircaseNegZ` | Variable (288) | Stairs ascending in -Z direction |
+| `Staircase` | Variable (288) | Canonical staircase — stairs in the +X direction; facing direction set via `rotation` field |
 | `Pillar` | 2×2×2 (8) | Centered cube (symmetric) |
+| `Fence` | Variable | Fence post with neighbor-aware connection rails |
 
-**RON Syntax:**
+**Load-only aliases** (backward compatibility — accepted on load, never written on save):
+
+| Alias | Canonical form after normalisation | Notes |
+|-------|------------------------------------|-------|
+| `StaircaseX` | `Staircase, rotation: None` | Old name before rename (v1.0); normalised at load via `#[serde(alias)]` — no pre-bake, no matrix change |
+| `StaircaseNegX` | `Staircase` + Y+180° absorbed into `rotation` | Normalised by `normalise_staircase_variants()` pass |
+| `StaircaseZ` | `Staircase` + Y+90° absorbed into `rotation` | Normalised by `normalise_staircase_variants()` pass |
+| `StaircaseNegZ` | `Staircase` + Y+270° absorbed into `rotation` | Normalised by `normalise_staircase_variants()` pass |
+
+**RON Syntax (canonical — new maps):**
 ```ron
 pattern: Some(Full)
 pattern: Some(PlatformXZ)
 pattern: Some(PlatformXY)
 pattern: Some(PlatformYZ)
-pattern: Some(StaircaseX)
-pattern: Some(StaircaseNegX)
-pattern: Some(StaircaseZ)
-pattern: Some(StaircaseNegZ)
+pattern: Some(Staircase)
 pattern: Some(Pillar)
+pattern: Some(Fence)
 pattern: None  // Defaults to Full
+```
 
-// Backward compatibility (deprecated but supported)
-pattern: Some(Platform)    // Maps to PlatformXZ
-pattern: Some(Staircase)   // Maps to StaircaseX
+**RON Syntax (backward-compat aliases — accepted on load only):**
+```ron
+pattern: Some(Platform)      // Maps to PlatformXZ
+pattern: Some(StaircaseX)    // Maps to Staircase (old name, no geometry change)
+pattern: Some(StaircaseNegX) // Normalised to Staircase + Y+180° orientation
+pattern: Some(StaircaseZ)    // Normalised to Staircase + Y+90°  orientation
+pattern: Some(StaircaseNegZ) // Normalised to Staircase + Y+270° orientation
 ```
 
 **Pattern Details:**
@@ -244,7 +254,7 @@ axis: Z
 (
     pos: (1, 0, 1),
     voxel_type: Stone,
-    pattern: Some(StaircaseX),
+    pattern: Some(Staircase),
     rotation_state: Some((axis: Y, angle: 1)),  // Rotate stairs 90° to face Z
 )
 ```
@@ -256,16 +266,16 @@ axis: Z
 - Wall on YZ plane, facing X direction
 
 **StaircaseX**: Progressive height in +X (288 sub-voxels)
-- Each step in X has progressively more height in Y
+- **Deprecated name.** Deserialises as `Staircase` via `#[serde(alias)]`. No geometry change.
 
 **StaircaseNegX**: Progressive height in -X (288 sub-voxels)
-- Reverse of StaircaseX
+- **Load-only alias.** Normalised to `Staircase` + Y+180° orientation matrix on load.
 
 **StaircaseZ**: Progressive height in +Z (288 sub-voxels)
-- Each step in Z has progressively more height in Y
+- **Load-only alias.** Normalised to `Staircase` + Y+90° orientation matrix on load.
 
 **StaircaseNegZ**: Progressive height in -Z (288 sub-voxels)
-- Reverse of StaircaseZ
+- **Load-only alias.** Normalised to `Staircase` + Y+270° orientation matrix on load.
 
 **Pillar**: Centered 2×2×2 cube (8 sub-voxels)
 - Small centered cube, not a full-height column

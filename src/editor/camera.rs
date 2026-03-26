@@ -627,15 +627,12 @@ pub fn handle_gamepad_tool_cycling(
         crate::editor::state::EditorTool::VoxelPlace { pattern, .. } => {
             use crate::systems::game::map::format::SubVoxelPattern;
 
-            const PATTERNS: [SubVoxelPattern; 10] = [
+            const PATTERNS: [SubVoxelPattern; 7] = [
                 SubVoxelPattern::Full,
                 SubVoxelPattern::PlatformXZ,
                 SubVoxelPattern::PlatformXY,
                 SubVoxelPattern::PlatformYZ,
-                SubVoxelPattern::StaircaseX,
-                SubVoxelPattern::StaircaseNegX,
-                SubVoxelPattern::StaircaseZ,
-                SubVoxelPattern::StaircaseNegZ,
+                SubVoxelPattern::Staircase,
                 SubVoxelPattern::Pillar,
                 SubVoxelPattern::Fence,
             ];
@@ -855,21 +852,18 @@ mod tests {
     fn test_pattern_cycling_array_coverage() {
         use crate::systems::game::map::format::SubVoxelPattern;
 
-        const PATTERNS: [SubVoxelPattern; 10] = [
+        const PATTERNS: [SubVoxelPattern; 7] = [
             SubVoxelPattern::Full,
             SubVoxelPattern::PlatformXZ,
             SubVoxelPattern::PlatformXY,
             SubVoxelPattern::PlatformYZ,
-            SubVoxelPattern::StaircaseX,
-            SubVoxelPattern::StaircaseNegX,
-            SubVoxelPattern::StaircaseZ,
-            SubVoxelPattern::StaircaseNegZ,
+            SubVoxelPattern::Staircase,
             SubVoxelPattern::Pillar,
             SubVoxelPattern::Fence,
         ];
 
         // Test forward cycling wraps correctly
-        let current = 9;
+        let current = 6;
         let next = (current + 1) % PATTERNS.len();
         assert_eq!(next, 0);
         assert_eq!(PATTERNS[next], SubVoxelPattern::Full);
@@ -877,7 +871,7 @@ mod tests {
         // Test backward cycling wraps correctly
         let current = 0;
         let prev = (current + PATTERNS.len() - 1) % PATTERNS.len();
-        assert_eq!(prev, 9);
+        assert_eq!(prev, 6);
         assert_eq!(PATTERNS[prev], SubVoxelPattern::Fence);
     }
 
@@ -911,15 +905,12 @@ mod tests {
     fn test_pattern_cycling_finds_current() {
         use crate::systems::game::map::format::SubVoxelPattern;
 
-        const PATTERNS: [SubVoxelPattern; 10] = [
+        const PATTERNS: [SubVoxelPattern; 7] = [
             SubVoxelPattern::Full,
             SubVoxelPattern::PlatformXZ,
             SubVoxelPattern::PlatformXY,
             SubVoxelPattern::PlatformYZ,
-            SubVoxelPattern::StaircaseX,
-            SubVoxelPattern::StaircaseNegX,
-            SubVoxelPattern::StaircaseZ,
-            SubVoxelPattern::StaircaseNegZ,
+            SubVoxelPattern::Staircase,
             SubVoxelPattern::Pillar,
             SubVoxelPattern::Fence,
         ];

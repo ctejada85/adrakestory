@@ -2,6 +2,7 @@
 
 use super::error::{MapLoadError, MapResult};
 use super::format::migrate_legacy_rotations;
+use super::format::normalise_staircase_variants;
 use super::format::MapData;
 use super::validation::validate_map;
 use bevy::prelude::*;
@@ -142,6 +143,8 @@ impl MapLoader {
         let mut map: MapData = ron::from_str(&content)?;
         // Migrate legacy rotation_state fields to the new orientation matrix system
         migrate_legacy_rotations(&mut map.orientations, &mut map.world.voxels);
+        // Normalise directional staircase variants to Staircase + composed orientation matrix
+        normalise_staircase_variants(&mut map.orientations, &mut map.world.voxels);
         progress.update(LoadProgress::ParsingData(1.0));
 
         // Stage 3: Validate map (40-60%)
@@ -160,6 +163,7 @@ impl MapLoader {
         let content = fs::read_to_string(path.as_ref())?;
         let mut map: MapData = ron::from_str(&content)?;
         migrate_legacy_rotations(&mut map.orientations, &mut map.world.voxels);
+        normalise_staircase_variants(&mut map.orientations, &mut map.world.voxels);
         validate_map(&map)?;
         Ok(map)
     }

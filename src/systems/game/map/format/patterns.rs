@@ -22,14 +22,30 @@ pub enum SubVoxelPattern {
     PlatformYZ,
 
     // Staircase variants (progressive height in different directions)
-    /// Stairs ascending in +X direction (default)
-    #[serde(alias = "Staircase")] // For backward compatibility
-    StaircaseX,
-    /// Stairs ascending in -X direction
+    /// Canonical staircase: stairs ascending in the +X direction.
+    ///
+    /// This is the single canonical staircase variant. Facing direction is controlled
+    /// via the voxel's `rotation` field. Deserialises from the old `"StaircaseX"` name
+    /// via a `#[serde(alias)]` for backward compatibility.
+    #[serde(alias = "StaircaseX")] // Old name before rename — kept for backward compat
+    Staircase,
+    /// Backward-compat alias for `Staircase` with an implicit Y+180° pre-bake.
+    ///
+    /// **Load-time alias only.** This variant is never written on save.
+    /// The map loader's `normalise_staircase_variants()` pass converts it to
+    /// `Staircase` with the Y+180° rotation absorbed into the voxel's orientation matrix.
     StaircaseNegX,
-    /// Stairs ascending in +Z direction
+    /// Backward-compat alias for `Staircase` with an implicit Y+90° pre-bake.
+    ///
+    /// **Load-time alias only.** This variant is never written on save.
+    /// The map loader's `normalise_staircase_variants()` pass converts it to
+    /// `Staircase` with the Y+90° rotation absorbed into the voxel's orientation matrix.
     StaircaseZ,
-    /// Stairs ascending in -Z direction
+    /// Backward-compat alias for `Staircase` with an implicit Y+270° pre-bake.
+    ///
+    /// **Load-time alias only.** This variant is never written on save.
+    /// The map loader's `normalise_staircase_variants()` pass converts it to
+    /// `Staircase` with the Y+270° rotation absorbed into the voxel's orientation matrix.
     StaircaseNegZ,
 
     /// Small 2x2x2 centered column (symmetric, no orientation)
@@ -60,17 +76,17 @@ impl SubVoxelPattern {
                 SubVoxelGeometry::platform_horizontal()
                     .rotate(crate::editor::tools::RotationAxis::Z, 1)
             }
-            Self::StaircaseX => SubVoxelGeometry::staircase_x(),
+            Self::Staircase => SubVoxelGeometry::staircase_x(),
             Self::StaircaseNegX => {
-                // Staircase rotated 180° around Y
+                // Staircase rotated 180° around Y (pre-bake preserved for legacy geometry calls)
                 SubVoxelGeometry::staircase_x().rotate(crate::editor::tools::RotationAxis::Y, 2)
             }
             Self::StaircaseZ => {
-                // Staircase rotated 90° around Y
+                // Staircase rotated 90° around Y (pre-bake preserved for legacy geometry calls)
                 SubVoxelGeometry::staircase_x().rotate(crate::editor::tools::RotationAxis::Y, 1)
             }
             Self::StaircaseNegZ => {
-                // Staircase rotated 270° around Y
+                // Staircase rotated 270° around Y (pre-bake preserved for legacy geometry calls)
                 SubVoxelGeometry::staircase_x().rotate(crate::editor::tools::RotationAxis::Y, 3)
             }
             Self::Pillar => SubVoxelGeometry::pillar(),
@@ -158,12 +174,12 @@ mod tests {
 
     #[test]
     fn test_staircase_patterns_have_same_count() {
-        let staircase_x = SubVoxelPattern::StaircaseX.geometry();
+        let staircase = SubVoxelPattern::Staircase.geometry();
         let staircase_neg_x = SubVoxelPattern::StaircaseNegX.geometry();
         let staircase_z = SubVoxelPattern::StaircaseZ.geometry();
         let staircase_neg_z = SubVoxelPattern::StaircaseNegZ.geometry();
 
-        let count_x: usize = staircase_x.occupied_positions().count();
+        let count_x: usize = staircase.occupied_positions().count();
         let count_neg_x: usize = staircase_neg_x.occupied_positions().count();
         let count_z: usize = staircase_z.occupied_positions().count();
         let count_neg_z: usize = staircase_neg_z.occupied_positions().count();
@@ -183,7 +199,7 @@ mod tests {
     fn test_is_fence_returns_false_for_non_fence() {
         assert!(!SubVoxelPattern::Full.is_fence());
         assert!(!SubVoxelPattern::Pillar.is_fence());
-        assert!(!SubVoxelPattern::StaircaseX.is_fence());
+        assert!(!SubVoxelPattern::Staircase.is_fence());
         assert!(!SubVoxelPattern::PlatformXZ.is_fence());
     }
 
@@ -215,10 +231,18 @@ mod tests {
 
     #[test]
     fn test_ron_deserialization_staircase_alias() {
-        // Test backward compatibility alias
+        // "Staircase" was the old alias name — now it IS the canonical name
         let ron_str = "Staircase";
         let pattern: SubVoxelPattern = ron::from_str(ron_str).unwrap();
-        assert_eq!(pattern, SubVoxelPattern::StaircaseX);
+        assert_eq!(pattern, SubVoxelPattern::Staircase);
+    }
+
+    #[test]
+    fn test_ron_deserialization_staircase_x_alias() {
+        // "StaircaseX" is now the backward-compat alias for the renamed canonical variant
+        let ron_str = "StaircaseX";
+        let pattern: SubVoxelPattern = ron::from_str(ron_str).unwrap();
+        assert_eq!(pattern, SubVoxelPattern::Staircase);
     }
 
     #[test]
@@ -227,7 +251,7 @@ mod tests {
             SubVoxelPattern::Full,
             SubVoxelPattern::Pillar,
             SubVoxelPattern::PlatformXZ,
-            SubVoxelPattern::StaircaseX,
+            SubVoxelPattern::Staircase,
             SubVoxelPattern::Fence,
         ];
 
@@ -236,5 +260,12 @@ mod tests {
             let deserialized: SubVoxelPattern = ron::from_str(&serialized).unwrap();
             assert_eq!(pattern, deserialized);
         }
+    }
+
+    #[test]
+    fn test_staircase_serializes_as_staircase_not_staircase_x() {
+        // After rename, Staircase must serialise as "Staircase", not "StaircaseX".
+        let serialized = ron::to_string(&SubVoxelPattern::Staircase).unwrap();
+        assert_eq!(serialized, "Staircase");
     }
 }

@@ -49,7 +49,7 @@ impl HotbarItem {
                     SubVoxelPattern::PlatformXZ => " Platform",
                     SubVoxelPattern::PlatformXY => " Wall-Z",
                     SubVoxelPattern::PlatformYZ => " Wall-X",
-                    SubVoxelPattern::StaircaseX => " Stairs+X",
+                    SubVoxelPattern::Staircase => " Stairs",
                     SubVoxelPattern::StaircaseNegX => " Stairs-X",
                     SubVoxelPattern::StaircaseZ => " Stairs+Z",
                     SubVoxelPattern::StaircaseNegZ => " Stairs-Z",
@@ -225,7 +225,7 @@ impl PaletteCategory {
                 },
                 HotbarItem::Voxel {
                     voxel_type: VoxelType::Stone,
-                    pattern: SubVoxelPattern::StaircaseX,
+                    pattern: SubVoxelPattern::Staircase,
                 },
                 HotbarItem::Voxel {
                     voxel_type: VoxelType::Stone,
@@ -294,7 +294,7 @@ pub fn default_hotbar() -> [HotbarItem; 9] {
         },
         HotbarItem::Voxel {
             voxel_type: VoxelType::Grass,
-            pattern: SubVoxelPattern::StaircaseX,
+            pattern: SubVoxelPattern::Staircase,
         },
         HotbarItem::Voxel {
             voxel_type: VoxelType::Stone,
@@ -359,9 +359,9 @@ mod tests {
 
         let stairs = HotbarItem::Voxel {
             voxel_type: VoxelType::Stone,
-            pattern: SubVoxelPattern::StaircaseX,
+            pattern: SubVoxelPattern::Staircase,
         };
-        assert_eq!(stairs.name(), "Stone Stairs+X");
+        assert_eq!(stairs.name(), "Stone Stairs");
     }
 
     #[test]

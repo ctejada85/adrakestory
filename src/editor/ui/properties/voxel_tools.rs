@@ -44,10 +44,7 @@ pub fn render_voxel_place_content(
                 );
                 ui.selectable_value(pattern, SubVoxelPattern::PlatformXY, "▐ Wall (Z-axis)");
                 ui.selectable_value(pattern, SubVoxelPattern::PlatformYZ, "▌ Wall (X-axis)");
-                ui.selectable_value(pattern, SubVoxelPattern::StaircaseX, "⟋ Staircase (+X)");
-                ui.selectable_value(pattern, SubVoxelPattern::StaircaseNegX, "⟍ Staircase (-X)");
-                ui.selectable_value(pattern, SubVoxelPattern::StaircaseZ, "⟋ Staircase (+Z)");
-                ui.selectable_value(pattern, SubVoxelPattern::StaircaseNegZ, "⟍ Staircase (-Z)");
+                ui.selectable_value(pattern, SubVoxelPattern::Staircase, "⟋ Staircase");
                 ui.selectable_value(pattern, SubVoxelPattern::Pillar, "│ Pillar");
                 ui.selectable_value(pattern, SubVoxelPattern::Fence, "┼ Fence");
             });
@@ -119,8 +116,8 @@ fn render_pattern_preview(ui: &mut egui::Ui, pattern: &SubVoxelPattern) {
                 painter.rect_filled(cell_rect, 1.0, c);
             }
         }
-        SubVoxelPattern::StaircaseX | SubVoxelPattern::StaircaseZ => {
-            // Ascending stairs
+        SubVoxelPattern::Staircase => {
+            // Canonical staircase — ascending stairs (same visual as the old StaircaseX)
             for i in 0..4 {
                 let c = if i % 2 == 0 { color } else { dark };
                 let cell_rect = egui::Rect::from_min_size(
@@ -130,7 +127,9 @@ fn render_pattern_preview(ui: &mut egui::Ui, pattern: &SubVoxelPattern) {
                 painter.rect_filled(cell_rect, 1.0, c);
             }
         }
-        SubVoxelPattern::StaircaseNegX | SubVoxelPattern::StaircaseNegZ => {
+        SubVoxelPattern::StaircaseZ
+        | SubVoxelPattern::StaircaseNegX
+        | SubVoxelPattern::StaircaseNegZ => {
             // Descending stairs
             for i in 0..4 {
                 let c = if i % 2 == 0 { color } else { dark };
@@ -224,10 +223,12 @@ pub fn get_pattern_name(pattern: &SubVoxelPattern) -> &'static str {
         SubVoxelPattern::PlatformXZ => "▬ Platform",
         SubVoxelPattern::PlatformXY => "▐ Wall (Z)",
         SubVoxelPattern::PlatformYZ => "▌ Wall (X)",
-        SubVoxelPattern::StaircaseX => "⟋ Stairs (+X)",
-        SubVoxelPattern::StaircaseNegX => "⟍ Stairs (-X)",
-        SubVoxelPattern::StaircaseZ => "⟋ Stairs (+Z)",
-        SubVoxelPattern::StaircaseNegZ => "⟍ Stairs (-Z)",
+        SubVoxelPattern::Staircase => "⟋ Staircase",
+        // Directional variants are backward-compat aliases normalised on load;
+        // they should never appear at runtime, but are handled for safety.
+        SubVoxelPattern::StaircaseNegX => "⟍ Staircase (-X) [legacy]",
+        SubVoxelPattern::StaircaseZ => "⟋ Staircase (+Z) [legacy]",
+        SubVoxelPattern::StaircaseNegZ => "⟍ Staircase (-Z) [legacy]",
         SubVoxelPattern::Pillar => "│ Pillar",
         SubVoxelPattern::Fence => "┼ Fence",
     }

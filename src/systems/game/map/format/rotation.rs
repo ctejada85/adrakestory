@@ -224,8 +224,65 @@ pub fn migrate_legacy_rotations(
 }
 
 // ---------------------------------------------------------------------------
-// Tests
+// Staircase normalisation
 // ---------------------------------------------------------------------------
+
+/// Normalise all staircase directional variants to `Staircase`.
+///
+/// Three staircase variants (`StaircaseNegX`, `StaircaseZ`, `StaircaseNegZ`) bake a
+/// Y-axis rotation into `SubVoxelPattern::geometry()`. When a voxel also carries an
+/// explicit orientation matrix the two rotations compound silently, producing wrong
+/// geometry. This pass absorbs the hidden pre-bake into the voxel's explicit
+/// orientation matrix so that only one rotation is ever applied at spawn time.
+///
+/// **Call order:** after `migrate_legacy_rotations()`, before `validate_map()`.
+///
+/// **Algorithm (per voxel with a directional variant):**
+/// 1. Look up the pre-bake matrix for the variant (Y+90°, Y+180°, or Y+270°).
+/// 2. Retrieve the voxel's current orientation (`None` = identity).
+/// 3. Compose: `M_final = multiply_matrices(M_existing, M_prebake)`.
+/// 4. If `M_final == IDENTITY`, set `voxel.rotation = None`; otherwise
+///    call `find_or_insert_orientation` and set `voxel.rotation = Some(index)`.
+/// 5. Set `voxel.pattern = Some(Staircase)`.
+///
+/// Voxels with `pattern: Some(Staircase)` or any non-staircase pattern are
+/// unchanged.
+pub fn normalise_staircase_variants(
+    orientations: &mut Vec<OrientationMatrix>,
+    voxels: &mut [super::world::VoxelData],
+) {
+    use super::patterns::SubVoxelPattern::{Staircase, StaircaseNegX, StaircaseNegZ, StaircaseZ};
+
+    for voxel in voxels.iter_mut() {
+        // Pre-bake angle in 90° increments for each directional variant.
+        let prebake_angle = match voxel.pattern {
+            Some(StaircaseNegX) => 2, // Y+180°
+            Some(StaircaseZ) => 1,    // Y+90°
+            Some(StaircaseNegZ) => 3, // Y+270°
+            _ => continue,
+        };
+
+        // Pre-bake is the inner (first-applied) rotation.
+        let prebake = axis_angle_to_matrix(RotationAxis::Y, prebake_angle);
+
+        // Compose: M_final = M_existing × M_prebake.
+        // When there is no existing rotation, M_existing is identity so M_final = M_prebake.
+        let composed = match voxel.rotation {
+            None => prebake,
+            Some(i) => multiply_matrices(&orientations[i], &prebake),
+        };
+
+        // Identity edge case: composed == IDENTITY → set rotation: None (no entry needed).
+        if composed == IDENTITY {
+            voxel.rotation = None;
+        } else {
+            let index = find_or_insert_orientation(orientations, composed);
+            voxel.rotation = Some(index);
+        }
+
+        voxel.pattern = Some(Staircase);
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -298,7 +355,7 @@ mod tests {
     fn test_apply_matches_rotate_single_axis() {
         use crate::systems::game::map::format::patterns::SubVoxelPattern;
 
-        let base = SubVoxelPattern::StaircaseX.geometry();
+        let base = SubVoxelPattern::Staircase.geometry();
 
         for axis in [RotationAxis::X, RotationAxis::Y, RotationAxis::Z] {
             for angle in 1..=3 {
@@ -324,7 +381,7 @@ mod tests {
     fn test_apply_identity_is_noop() {
         use crate::systems::game::map::format::patterns::SubVoxelPattern;
 
-        let base = SubVoxelPattern::StaircaseX.geometry();
+        let base = SubVoxelPattern::Staircase.geometry();
         let result = apply_orientation_matrix(base.clone(), &IDENTITY);
         let base_positions: std::collections::BTreeSet<_> = base.occupied_positions().collect();
         let result_positions: std::collections::BTreeSet<_> = result.occupied_positions().collect();
@@ -335,7 +392,7 @@ mod tests {
     fn test_apply_multi_axis_composition() {
         use crate::systems::game::map::format::patterns::SubVoxelPattern;
 
-        let base = SubVoxelPattern::StaircaseX.geometry();
+        let base = SubVoxelPattern::Staircase.geometry();
 
         // Apply Y+90 then X+90 via rotate()
         let via_rotate = base
@@ -511,5 +568,228 @@ mod tests {
             "duplicate matrix must not be added twice"
         );
         assert_eq!(voxels[0].rotation, voxels[1].rotation);
+    }
+
+    // --- normalise_staircase_variants ---
+
+    /// Helper: build a minimal VoxelData for normalisation tests.
+    fn staircase_voxel(
+        pattern: super::super::patterns::SubVoxelPattern,
+        rotation: Option<usize>,
+    ) -> super::super::world::VoxelData {
+        use crate::systems::game::components::VoxelType;
+        super::super::world::VoxelData {
+            pos: (0, 0, 0),
+            voxel_type: VoxelType::Stone,
+            pattern: Some(pattern),
+            rotation,
+            rotation_state: None,
+        }
+    }
+
+    #[test]
+    fn normalise_staircase_neg_x_rotation_none_absorbs_y180() {
+        use super::super::patterns::SubVoxelPattern;
+
+        let mut orientations: Vec<OrientationMatrix> = Vec::new();
+        let mut voxels = vec![staircase_voxel(SubVoxelPattern::StaircaseNegX, None)];
+
+        normalise_staircase_variants(&mut orientations, &mut voxels);
+
+        assert_eq!(
+            voxels[0].pattern,
+            Some(SubVoxelPattern::Staircase),
+            "pattern must be normalised to Staircase"
+        );
+        let idx = voxels[0]
+            .rotation
+            .expect("rotation must be Some after normalisation");
+        assert_eq!(
+            orientations[idx],
+            axis_angle_to_matrix(RotationAxis::Y, 2),
+            "absorbed matrix must be Y+180°"
+        );
+    }
+
+    #[test]
+    fn normalise_staircase_z_rotation_none_absorbs_y90() {
+        use super::super::patterns::SubVoxelPattern;
+
+        let mut orientations: Vec<OrientationMatrix> = Vec::new();
+        let mut voxels = vec![staircase_voxel(SubVoxelPattern::StaircaseZ, None)];
+
+        normalise_staircase_variants(&mut orientations, &mut voxels);
+
+        assert_eq!(voxels[0].pattern, Some(SubVoxelPattern::Staircase));
+        let idx = voxels[0].rotation.expect("rotation must be set");
+        assert_eq!(
+            orientations[idx],
+            axis_angle_to_matrix(RotationAxis::Y, 1),
+            "absorbed matrix must be Y+90°"
+        );
+    }
+
+    #[test]
+    fn normalise_staircase_neg_z_rotation_none_absorbs_y270() {
+        use super::super::patterns::SubVoxelPattern;
+
+        let mut orientations: Vec<OrientationMatrix> = Vec::new();
+        let mut voxels = vec![staircase_voxel(SubVoxelPattern::StaircaseNegZ, None)];
+
+        normalise_staircase_variants(&mut orientations, &mut voxels);
+
+        assert_eq!(voxels[0].pattern, Some(SubVoxelPattern::Staircase));
+        let idx = voxels[0].rotation.expect("rotation must be set");
+        assert_eq!(
+            orientations[idx],
+            axis_angle_to_matrix(RotationAxis::Y, 3),
+            "absorbed matrix must be Y+270°"
+        );
+    }
+
+    #[test]
+    fn normalise_staircase_z_with_existing_y90_composes_to_y180() {
+        use super::super::patterns::SubVoxelPattern;
+
+        // Pre-populate orientations with M_y90 at index 0
+        let m_y90 = axis_angle_to_matrix(RotationAxis::Y, 1);
+        let mut orientations: Vec<OrientationMatrix> = vec![m_y90];
+        // StaircaseZ pre-bake = Y+90°; existing = Y+90°; composed = Y+180°
+        let mut voxels = vec![staircase_voxel(SubVoxelPattern::StaircaseZ, Some(0))];
+
+        normalise_staircase_variants(&mut orientations, &mut voxels);
+
+        assert_eq!(voxels[0].pattern, Some(SubVoxelPattern::Staircase));
+        let idx = voxels[0]
+            .rotation
+            .expect("composed Y+180° must produce a non-None rotation");
+        assert_eq!(
+            orientations[idx],
+            axis_angle_to_matrix(RotationAxis::Y, 2),
+            "composed matrix must be Y+180°"
+        );
+    }
+
+    #[test]
+    fn normalise_staircase_neg_z_plus_y90_equals_identity_sets_rotation_none() {
+        use super::super::patterns::SubVoxelPattern;
+
+        // StaircaseNegZ pre-bake = Y+270°; existing orientation = Y+90°
+        // composed = Y+90° × Y+270° = Y+360° = IDENTITY → rotation: None
+        let m_y90 = axis_angle_to_matrix(RotationAxis::Y, 1);
+        let mut orientations: Vec<OrientationMatrix> = vec![m_y90];
+        let mut voxels = vec![staircase_voxel(SubVoxelPattern::StaircaseNegZ, Some(0))];
+
+        normalise_staircase_variants(&mut orientations, &mut voxels);
+
+        assert_eq!(voxels[0].pattern, Some(SubVoxelPattern::Staircase));
+        assert_eq!(
+            voxels[0].rotation, None,
+            "composed == IDENTITY must set rotation: None"
+        );
+    }
+
+    #[test]
+    fn normalise_canonical_staircase_is_unchanged() {
+        use super::super::patterns::SubVoxelPattern;
+
+        let m_y90 = axis_angle_to_matrix(RotationAxis::Y, 1);
+        let mut orientations: Vec<OrientationMatrix> = vec![m_y90];
+        let mut voxels = vec![staircase_voxel(SubVoxelPattern::Staircase, Some(0))];
+
+        normalise_staircase_variants(&mut orientations, &mut voxels);
+
+        // Pattern and rotation must be unchanged
+        assert_eq!(voxels[0].pattern, Some(SubVoxelPattern::Staircase));
+        assert_eq!(voxels[0].rotation, Some(0));
+        assert_eq!(
+            orientations.len(),
+            1,
+            "no new orientation must be appended for canonical Staircase"
+        );
+    }
+
+    #[test]
+    fn normalise_non_staircase_pattern_is_unchanged() {
+        use super::super::patterns::SubVoxelPattern;
+        use super::super::world::VoxelData;
+        use crate::systems::game::components::VoxelType;
+
+        let mut orientations: Vec<OrientationMatrix> = Vec::new();
+        let mut voxels = vec![VoxelData {
+            pos: (0, 0, 0),
+            voxel_type: VoxelType::Stone,
+            pattern: Some(SubVoxelPattern::Full),
+            rotation: None,
+            rotation_state: None,
+        }];
+
+        normalise_staircase_variants(&mut orientations, &mut voxels);
+
+        assert_eq!(voxels[0].pattern, Some(SubVoxelPattern::Full));
+        assert_eq!(voxels[0].rotation, None);
+        assert!(
+            orientations.is_empty(),
+            "no orientations should be added for non-staircase"
+        );
+    }
+
+    #[test]
+    fn normalise_deduplicates_identical_composed_matrices() {
+        use super::super::patterns::SubVoxelPattern;
+
+        let mut orientations: Vec<OrientationMatrix> = Vec::new();
+        // Two voxels with the same directional variant and no prior rotation
+        // should share the same orientation index after normalisation.
+        let mut voxels = vec![
+            staircase_voxel(SubVoxelPattern::StaircaseZ, None),
+            staircase_voxel(SubVoxelPattern::StaircaseZ, None),
+        ];
+
+        normalise_staircase_variants(&mut orientations, &mut voxels);
+
+        assert_eq!(
+            orientations.len(),
+            1,
+            "identical composed matrices must be deduplicated"
+        );
+        assert_eq!(
+            voxels[0].rotation, voxels[1].rotation,
+            "both voxels must reference the same orientation index"
+        );
+    }
+
+    #[test]
+    fn normalise_round_trip_geometry_identical_to_legacy_pre_bake() {
+        use super::super::patterns::SubVoxelPattern;
+        use crate::systems::game::map::geometry::RotationAxis as GeoAxis;
+
+        // The geometry produced by normalised Staircase + composed matrix
+        // must be bit-for-bit identical to SubVoxelGeometry::staircase_x().rotate(Y, 1)
+        // (the old StaircaseZ.geometry() pre-bake path).
+
+        // --- Legacy path (what the bug used to produce for rotation: None) ---
+        let legacy_geom = SubVoxelPattern::StaircaseZ.geometry();
+
+        // --- Normalised path ---
+        let mut orientations: Vec<OrientationMatrix> = Vec::new();
+        let mut voxels = vec![staircase_voxel(SubVoxelPattern::StaircaseZ, None)];
+        normalise_staircase_variants(&mut orientations, &mut voxels);
+
+        let orientation = voxels[0].rotation.map(|i| &orientations[i]);
+        let normalised_geom = SubVoxelPattern::Staircase.geometry_with_rotation(orientation);
+
+        let legacy_positions: std::collections::BTreeSet<_> =
+            legacy_geom.occupied_positions().collect();
+        let normalised_positions: std::collections::BTreeSet<_> =
+            normalised_geom.occupied_positions().collect();
+
+        assert_eq!(
+            legacy_positions, normalised_positions,
+            "normalised geometry must match old StaircaseZ.geometry() pre-bake"
+        );
+
+        // The unused import suppression — GeoAxis is imported above for clarity
+        let _ = GeoAxis::Y;
     }
 }

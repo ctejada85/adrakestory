@@ -16,8 +16,8 @@ pub use metadata::MapMetadata;
 pub use patterns::SubVoxelPattern;
 pub use rotation::{
     apply_orientation_matrix, axis_angle_to_matrix, find_or_insert_orientation,
-    is_valid_rotation_matrix, migrate_legacy_rotations, multiply_matrices, OrientationMatrix,
-    IDENTITY,
+    is_valid_rotation_matrix, migrate_legacy_rotations, multiply_matrices,
+    normalise_staircase_variants, OrientationMatrix, IDENTITY,
 };
 pub use world::{VoxelData, WorldData};
 

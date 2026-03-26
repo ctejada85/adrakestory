@@ -204,7 +204,7 @@ fn create_default_voxels() -> Vec<VoxelData> {
         VoxelData {
             pos: (2, 1, 1),
             voxel_type: VoxelType::Stone,
-            pattern: Some(SubVoxelPattern::StaircaseX),
+            pattern: Some(SubVoxelPattern::Staircase),
             rotation: None,
             rotation_state: None,
         },
