@@ -110,19 +110,8 @@ SubVoxelPattern::Fence.fence_geometry_with_neighbors((true, false, false, false)
 
 ## Suggested Fix
 
-There are two viable approaches; the minimum-viable fix is Option A.
-
-### Option A — Warn and document (minimum viable)
-
-1. In `validate_map()` (or in the spawner), emit `warn!()` when a `Fence` voxel
-   has `rotation: Some(_)`.
-2. Update `docs/api/map-format-spec.md` to document the exception.
-3. In the editor, strip `rotation` from `Fence` voxels on save.
-
-### Option B — Apply rotation to fence geometry (full fix)
-
-Update `fence_geometry_with_neighbors()` (or the spawner branch) to apply the
-orientation matrix to the neighbour-generated geometry:
+Update the spawner branch in `chunks.rs:104–115` to apply the orientation matrix
+to the neighbour-generated geometry:
 
 ```rust
 let geometry = if pattern.is_fence() {
@@ -141,10 +130,10 @@ let geometry = if pattern.is_fence() {
 };
 ```
 
-Option B requires validating that the collision bounds (`SubVoxel.bounds`) and the
-`SpatialGrid` insertion remain consistent with the rotated geometry. The neighbour
-detection logic queries axis-aligned positions — rotating a fence would require
-deciding whether neighbour detection should also rotate or remain axis-aligned.
+Neighbour detection remains world-axis-aligned — the four adjacent positions
+queried do not rotate with the fence geometry. Collision bounds (`SubVoxel.bounds`)
+and the `SpatialGrid` insertion must use the rotated AABB derived from the rotated
+geometry.
 
 See `ticket.md` for the full acceptance criteria and task breakdown.
 
