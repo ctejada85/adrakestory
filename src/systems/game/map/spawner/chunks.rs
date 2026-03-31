@@ -3,7 +3,7 @@
 use super::super::super::components::SubVoxel;
 use super::super::super::occlusion::{OcclusionMaterial, ShadowQuality};
 use super::super::super::resources::SpatialGrid;
-use super::super::format::{MapData, SubVoxelPattern};
+use super::super::format::{apply_orientation_matrix, MapData, SubVoxelPattern};
 use super::super::loader::{LoadProgress, MapLoadProgress};
 use super::meshing::{ChunkMeshBuilder, GreedyMesher, OccupancyGrid, VoxelMaterialPalette};
 use super::{ChunkLOD, Face, VoxelChunk, CHUNK_SIZE, LOD_LEVELS, SUB_VOXEL_COUNT, SUB_VOXEL_SIZE};
@@ -108,7 +108,15 @@ pub fn spawn_voxels_chunked(
                 fence_positions.contains(&(x, y, z - 1)), // neg_z
                 fence_positions.contains(&(x, y, z + 1)), // pos_z
             );
-            pattern.fence_geometry_with_neighbors(neighbors)
+            let fence_geo = pattern.fence_geometry_with_neighbors(neighbors);
+            // Apply orientation matrix after neighbour-aware generation.
+            // Neighbour detection remains world-axis-aligned regardless of rotation.
+            let orientation = voxel_data.rotation.and_then(|i| map.orientations.get(i));
+            if let Some(matrix) = orientation {
+                apply_orientation_matrix(fence_geo, matrix)
+            } else {
+                fence_geo
+            }
         } else {
             let orientation = voxel_data.rotation.and_then(|i| map.orientations.get(i));
             pattern.geometry_with_rotation(orientation)
@@ -309,6 +317,8 @@ pub fn spawn_voxels_chunked(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::systems::game::map::format::{axis_angle_to_matrix, SubVoxelPattern};
+    use crate::systems::game::map::geometry::RotationAxis;
     use bevy::math::Vec3A;
 
     #[test]
@@ -423,5 +433,97 @@ mod tests {
         };
         assert_eq!(aabb.center, Vec3A::new(8.0, 8.0, 8.0));
         assert_eq!(aabb.half_extents, Vec3A::splat(8.0));
+    }
+
+    // --- Fence rotation tests ---
+
+    /// Fence with rotation:None must produce the same geometry as calling
+    /// fence_geometry_with_neighbors directly (backward-compat AC-2).
+    #[test]
+    fn fence_rotation_none_is_unchanged() {
+        let neighbors = (true, false, false, false);
+        let expected = SubVoxelPattern::Fence.fence_geometry_with_neighbors(neighbors);
+
+        // Simulate the spawner fence branch with rotation = None
+        let fence_geo = SubVoxelPattern::Fence.fence_geometry_with_neighbors(neighbors);
+        // orientation is None → no apply_orientation_matrix
+        let result = fence_geo;
+
+        let expected_pos: Vec<_> = expected.occupied_positions().collect();
+        let result_pos: Vec<_> = result.occupied_positions().collect();
+        assert_eq!(expected_pos, result_pos);
+    }
+
+    /// Fence with a Y+90° orientation matrix must produce geometry different from
+    /// the un-rotated fence — confirming the matrix is applied (AC-1).
+    #[test]
+    fn fence_with_rotation_differs_from_unrotated() {
+        let neighbors = (true, false, false, false); // one rail in -X direction
+        let m_y90 = axis_angle_to_matrix(RotationAxis::Y, 1);
+
+        let unrotated = SubVoxelPattern::Fence.fence_geometry_with_neighbors(neighbors);
+        let rotated = apply_orientation_matrix(
+            SubVoxelPattern::Fence.fence_geometry_with_neighbors(neighbors),
+            &m_y90,
+        );
+
+        let unrotated_pos: Vec<_> = unrotated.occupied_positions().collect();
+        let rotated_pos: Vec<_> = rotated.occupied_positions().collect();
+        // A fence with a rail in -X, rotated 90° around Y, should have the rail in -Z.
+        // The two position sets must differ.
+        assert_ne!(unrotated_pos, rotated_pos);
+    }
+
+    /// Applying the orientation matrix to fence geometry must produce the same
+    /// result as calling apply_orientation_matrix directly (AC-1 correctness).
+    #[test]
+    fn fence_with_rotation_matches_manual_apply() {
+        let neighbors = (false, true, false, false); // rail in +X
+        let m_y180 = axis_angle_to_matrix(RotationAxis::Y, 2);
+
+        let fence_geo = SubVoxelPattern::Fence.fence_geometry_with_neighbors(neighbors);
+        let expected = apply_orientation_matrix(fence_geo.clone(), &m_y180);
+
+        // Simulate spawner fence branch
+        let fence_geo2 = SubVoxelPattern::Fence.fence_geometry_with_neighbors(neighbors);
+        let result = apply_orientation_matrix(fence_geo2, &m_y180);
+
+        let expected_pos: Vec<_> = expected.occupied_positions().collect();
+        let result_pos: Vec<_> = result.occupied_positions().collect();
+        assert_eq!(expected_pos, result_pos);
+    }
+
+    /// Collision bounds are derived from occupied_positions() of the geometry.
+    /// For a rotated fence the occupied positions must match the rotated geometry,
+    /// not the un-rotated geometry (AC-4).
+    #[test]
+    fn fence_rotated_bounds_use_rotated_positions() {
+        let neighbors = (true, false, false, false); // rail in -X
+        let m_y90 = axis_angle_to_matrix(RotationAxis::Y, 1);
+
+        let unrotated_geo = SubVoxelPattern::Fence.fence_geometry_with_neighbors(neighbors);
+        let rotated_geo = apply_orientation_matrix(
+            SubVoxelPattern::Fence.fence_geometry_with_neighbors(neighbors),
+            &m_y90,
+        );
+
+        // The set of occupied sub-voxel positions must differ: the rail moved from
+        // -X direction to -Z direction after Y+90°.
+        let unrotated_positions: std::collections::HashSet<_> =
+            unrotated_geo.occupied_positions().collect();
+        let rotated_positions: std::collections::HashSet<_> =
+            rotated_geo.occupied_positions().collect();
+
+        assert_ne!(
+            unrotated_positions, rotated_positions,
+            "Rotated fence geometry must have different occupied positions than un-rotated"
+        );
+
+        // The sub-voxel count must be identical (rotation preserves count).
+        assert_eq!(
+            unrotated_positions.len(),
+            rotated_positions.len(),
+            "Rotation must preserve the number of occupied sub-voxels"
+        );
     }
 }

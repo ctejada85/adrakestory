@@ -160,7 +160,7 @@ voxel_type: Stone
 | `PlatformYZ` | 1×8×8 (64) | Vertical wall on YZ plane (facing X) |
 | `Staircase` | Variable (288) | Canonical staircase — stairs in the +X direction; facing direction set via `rotation` field |
 | `Pillar` | 2×2×2 (8) | Centered cube (symmetric) |
-| `Fence` | Variable | Fence post with neighbor-aware connection rails |
+| `Fence` | Variable | Fence post with neighbor-aware connection rails; `rotation` fully supported |
 
 **Load-only aliases** (backward compatibility — accepted on load, never written on save):
 
@@ -279,6 +279,22 @@ axis: Z
 
 **Pillar**: Centered 2×2×2 cube (8 sub-voxels)
 - Small centered cube, not a full-height column
+
+**Fence**: Neighbor-aware fence post with connection rails
+- Generates a post and extends rails toward any adjacent fence voxels (checked in world-aligned ±X and ±Z directions).
+- The `rotation` field is **fully supported**: the orientation matrix is applied to the generated geometry after neighbor detection.
+- Neighbor detection always uses world-axis-aligned positions — rotating the fence post does not change which adjacent cells are queried for connectivity.
+- A fence with `rotation: None` behaves identically to the pre-rotation-system behavior.
+
+**Example — rotated fence:**
+```ron
+(
+    pos: (3, 0, 5),
+    voxel_type: Stone,
+    pattern: Some(Fence),
+    rotation: Some(0),  // orientations[0] applied after neighbor geometry is generated
+)
+```
 
 ### EntityData
 
