@@ -178,11 +178,15 @@ pub fn render_map_system(
                 .and_then(|i| editor_state.current_map.orientations.get(i));
 
             // World-axis neighbour directions paired with their neighbour positions.
-            let world_dirs: [([i32; 3], (i32, i32, i32)); 4] = [
+            // Includes Y neighbours so that rotated fences (e.g. oriented as wall panels)
+            // can connect to fences stacked above or below them.
+            let world_dirs: [([i32; 3], (i32, i32, i32)); 6] = [
                 ([-1, 0, 0], (x - 1, y, z)), // world −X
                 ([1, 0, 0], (x + 1, y, z)),  // world +X
                 ([0, 0, -1], (x, y, z - 1)), // world −Z
                 ([0, 0, 1], (x, y, z + 1)),  // world +Z
+                ([0, -1, 0], (x, y - 1, z)), // world −Y
+                ([0, 1, 0], (x, y + 1, z)),  // world +Y
             ];
 
             // Map each world direction into the fence's local frame (Mᵀ × d).
@@ -199,7 +203,7 @@ pub fn render_map_system(
                         [1, 0, 0] => local_pos_x = true,
                         [0, 0, -1] => local_neg_z = true,
                         [0, 0, 1] => local_pos_z = true,
-                        _ => {} // non-horizontal direction, ignore
+                        _ => {} // diagonal or unexpected direction, ignore
                     }
                 }
             }

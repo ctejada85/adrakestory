@@ -3,7 +3,8 @@
 use super::{ActiveTransform, TransformMode, TransformPreview};
 use crate::editor::state::EditorState;
 use crate::systems::game::map::format::{
-    apply_orientation_matrix, axis_angle_to_matrix, world_dir_to_local, SubVoxelPattern,
+    apply_orientation_matrix, axis_angle_to_matrix, multiply_matrices, world_dir_to_local,
+    SubVoxelPattern, IDENTITY,
 };
 use crate::systems::game::map::geometry::RotationAxis;
 use bevy::prelude::*;
@@ -155,26 +156,34 @@ fn spawn_rotation_previews(
             .any(|v| v.pos == new_pos && !original_positions.contains(&v.pos));
 
         let pattern = voxel.pattern.unwrap_or(SubVoxelPattern::Full);
-        let rotation_matrix = axis_angle_to_matrix(
+        let delta_matrix = axis_angle_to_matrix(
             active_transform.rotation_axis,
             active_transform.rotation_angle,
         );
 
-        // For fence patterns, generate neighbour-aware geometry first, then rotate it.
+        // Existing orientation of this voxel (before the preview rotation).
+        let existing_orientation = voxel
+            .rotation
+            .and_then(|i| editor_state.current_map.orientations.get(i));
+
+        // Compose delta × existing so the preview shows the final rotated result.
+        let composed_matrix =
+            multiply_matrices(&delta_matrix, existing_orientation.unwrap_or(&IDENTITY));
+
+        // For fence patterns, generate neighbour-aware geometry first in local space,
+        // then rotate it to the final composed orientation.
         // Neighbour booleans must be in the fence's LOCAL frame (using its existing orientation),
-        // and the preview delta rotation is applied on top.
+        // since the voxel's world position hasn't changed during the preview.
         let base_geometry = if pattern.is_fence() {
             let (x, y, z) = voxel.pos;
-            // Existing orientation of this voxel (before the preview rotation).
-            let existing_orientation = voxel
-                .rotation
-                .and_then(|i| editor_state.current_map.orientations.get(i));
 
-            let world_dirs: [([i32; 3], (i32, i32, i32)); 4] = [
+            let world_dirs: [([i32; 3], (i32, i32, i32)); 6] = [
                 ([-1, 0, 0], (x - 1, y, z)),
                 ([1, 0, 0], (x + 1, y, z)),
                 ([0, 0, -1], (x, y, z - 1)),
                 ([0, 0, 1], (x, y, z + 1)),
+                ([0, -1, 0], (x, y - 1, z)),
+                ([0, 1, 0], (x, y + 1, z)),
             ];
 
             let mut local_neg_x = false;
@@ -203,7 +212,7 @@ fn spawn_rotation_previews(
         } else {
             pattern.geometry()
         };
-        let geometry = apply_orientation_matrix(base_geometry, &rotation_matrix);
+        let geometry = apply_orientation_matrix(base_geometry, &composed_matrix);
 
         let material = materials.add(StandardMaterial {
             base_color: if is_valid {
