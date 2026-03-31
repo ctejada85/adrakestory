@@ -220,6 +220,7 @@ src/
 │   │   │   └── operations.rs
 │   │   ├── selection_tool/ # Selection tool
 │   │   │   ├── mod.rs
+│   │   │   ├── preview.rs  # Unified transform/rotation preview (single system)
 │   │   │   ├── selection.rs
 │   │   │   ├── movement.rs
 │   │   │   └── rotation.rs
@@ -251,7 +252,21 @@ src/
 └── components/             # Shared components
 ```
 
-### System Categories
+### Editor Tools: TransformPreview Lifecycle
+
+`render_transform_preview` (`src/editor/tools/selection_tool/preview.rs`) is the **sole system** that owns the full `TransformPreview` entity lifecycle. It handles all three transform modes in a single `match`:
+
+| Mode | Behavior |
+|------|----------|
+| `TransformMode::None` | Despawns all `TransformPreview` entities and returns. |
+| `TransformMode::Move` | Despawns existing previews, then spawns coarse 1-voxel cube previews at the offset destination. |
+| `TransformMode::Rotate` | Despawns existing previews, then spawns sub-voxel geometry previews at the rotated destination. |
+
+The single cleanup loop runs **before** any spawning on every changed frame. This eliminates the double-despawn bug that existed when a separate `render_rotation_preview` system also iterated `With<TransformPreview>` in the same frame.
+
+**Rule**: Never add a second system that queries `With<TransformPreview>` and calls `despawn()`. All `TransformPreview` entity creation and destruction must stay inside `render_transform_preview`.
+
+
 
 **1. Game Systems** (`systems/game/`)
 - Core gameplay logic
@@ -937,5 +952,5 @@ pub fn player_movement_system(/* ... */) {
 
 ---
 
-**Architecture Version:** 2.4.0
-**Last Updated:** 2026-03-16
+**Architecture Version:** 2.5.0
+**Last Updated:** 2026-03-31

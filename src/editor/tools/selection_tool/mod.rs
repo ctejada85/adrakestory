@@ -10,7 +10,7 @@ mod preview;
 mod selection;
 
 pub use highlights::render_selection_highlights;
-pub use preview::{render_rotation_preview, render_transform_preview, rotate_position};
+pub use preview::{render_transform_preview, rotate_position};
 pub use selection::{handle_drag_selection, handle_selection};
 
 use crate::editor::camera::EditorCamera;

@@ -14,7 +14,6 @@ pub use input::{handle_keyboard_input, handle_transformation_operations, EditorI
 pub use selection_tool::{
     handle_drag_selection,
     handle_selection,
-    render_rotation_preview,
     render_selection_highlights,
     render_transform_preview,
     ActiveTransform,

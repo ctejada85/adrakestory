@@ -47,7 +47,10 @@ fn main() {
             close_when_requested: false, // Don't auto-close, we'll handle it
             ..default()
         }))
-        .add_plugins(EguiPlugin { enable_multipass_for_primary_context: false, ..default() })
+        .add_plugins(EguiPlugin {
+            enable_multipass_for_primary_context: false,
+            ..default()
+        })
         .init_resource::<EditorState>()
         .init_resource::<CursorState>()
         .init_resource::<EditorHistory>()
@@ -112,10 +115,7 @@ fn main() {
         )
         .add_systems(Update, file_handlers::handle_open_recent_file)
         // Global keyboard shortcuts (Ctrl+S, Ctrl+Z, etc.) - must run after render_ui
-        .add_systems(
-            Update,
-            handle_global_shortcuts.after(ui_system::render_ui),
-        )
+        .add_systems(Update, handle_global_shortcuts.after(ui_system::render_ui))
         .add_systems(Update, handle_undo.after(handle_global_shortcuts))
         .add_systems(Update, handle_redo.after(handle_global_shortcuts))
         // Keyboard handling systems - must run after render_ui for correct egui state
@@ -134,24 +134,42 @@ fn main() {
         .add_systems(Update, renderer::detect_map_changes)
         .add_systems(Update, renderer::render_map_system)
         .add_systems(Update, renderer::render_entities_system)
-        .add_systems(Update, camera::handle_camera_input.after(ui_system::render_ui))
+        .add_systems(
+            Update,
+            camera::handle_camera_input.after(ui_system::render_ui),
+        )
         .add_systems(Update, camera::update_editor_camera)
-        .add_systems(Update, camera::handle_gamepad_voxel_actions.after(camera::handle_camera_input))
-        .add_systems(Update, camera::handle_gamepad_tool_cycling.after(camera::handle_camera_input))
+        .add_systems(
+            Update,
+            camera::handle_gamepad_voxel_actions.after(camera::handle_camera_input),
+        )
+        .add_systems(
+            Update,
+            camera::handle_gamepad_tool_cycling.after(camera::handle_camera_input),
+        )
         .add_systems(Update, grid::update_infinite_grid)
         .add_systems(Update, grid::update_grid_visibility)
         .add_systems(Update, grid::update_cursor_indicator)
-        .add_systems(Update, tools::handle_voxel_placement.after(ui_system::render_ui))
+        .add_systems(
+            Update,
+            tools::handle_voxel_placement.after(ui_system::render_ui),
+        )
         .add_systems(
             Update,
             tools::handle_voxel_drag_placement.after(tools::handle_voxel_placement),
         )
-        .add_systems(Update, tools::handle_voxel_removal.after(ui_system::render_ui))
+        .add_systems(
+            Update,
+            tools::handle_voxel_removal.after(ui_system::render_ui),
+        )
         .add_systems(
             Update,
             tools::handle_voxel_drag_removal.after(tools::handle_voxel_removal),
         )
-        .add_systems(Update, tools::handle_entity_placement.after(ui_system::render_ui))
+        .add_systems(
+            Update,
+            tools::handle_entity_placement.after(ui_system::render_ui),
+        )
         .add_systems(Update, tools::handle_selection.after(ui_system::render_ui))
         .add_systems(
             Update,
@@ -168,6 +186,5 @@ fn main() {
         // Keep rendering systems
         .add_systems(Update, tools::render_selection_highlights)
         .add_systems(Update, tools::render_transform_preview)
-        .add_systems(Update, tools::render_rotation_preview)
         .run();
 }
