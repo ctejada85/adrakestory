@@ -3,7 +3,9 @@
 use super::super::super::components::SubVoxel;
 use super::super::super::occlusion::{OcclusionMaterial, ShadowQuality};
 use super::super::super::resources::SpatialGrid;
-use super::super::format::{apply_orientation_matrix, MapData, SubVoxelPattern};
+use super::super::format::{
+    apply_orientation_matrix, world_dir_to_local, MapData, SubVoxelPattern,
+};
 use super::super::loader::{LoadProgress, MapLoadProgress};
 use super::meshing::{ChunkMeshBuilder, GreedyMesher, OccupancyGrid, VoxelMaterialPalette};
 use super::{ChunkLOD, Face, VoxelChunk, CHUNK_SIZE, LOD_LEVELS, SUB_VOXEL_COUNT, SUB_VOXEL_SIZE};
@@ -102,16 +104,43 @@ pub fn spawn_voxels_chunked(
 
         // For fence patterns, check neighbors and generate context-aware geometry
         let geometry = if pattern.is_fence() {
-            let neighbors = (
-                fence_positions.contains(&(x - 1, y, z)), // neg_x
-                fence_positions.contains(&(x + 1, y, z)), // pos_x
-                fence_positions.contains(&(x, y, z - 1)), // neg_z
-                fence_positions.contains(&(x, y, z + 1)), // pos_z
-            );
-            let fence_geo = pattern.fence_geometry_with_neighbors(neighbors);
-            // Apply orientation matrix after neighbour-aware generation.
-            // Neighbour detection remains world-axis-aligned regardless of rotation.
+            // Look up this voxel's orientation once; used for both neighbour mapping and geometry.
             let orientation = voxel_data.rotation.and_then(|i| map.orientations.get(i));
+
+            // World-axis neighbour directions paired with their neighbour positions.
+            let world_dirs: [([i32; 3], (i32, i32, i32)); 4] = [
+                ([-1, 0, 0], (x - 1, y, z)), // world −X
+                ([1, 0, 0], (x + 1, y, z)),  // world +X
+                ([0, 0, -1], (x, y, z - 1)), // world −Z
+                ([0, 0, 1], (x, y, z + 1)),  // world +Z
+            ];
+
+            // Map each world direction into the fence's local frame (Mᵀ × d).
+            // fence_geometry_with_neighbors expects (neg_x, pos_x, neg_z, pos_z) in LOCAL space.
+            let mut local_neg_x = false;
+            let mut local_pos_x = false;
+            let mut local_neg_z = false;
+            let mut local_pos_z = false;
+
+            for (world_dir, neighbor_pos) in &world_dirs {
+                if fence_positions.contains(neighbor_pos) {
+                    match world_dir_to_local(orientation, *world_dir) {
+                        [-1, 0, 0] => local_neg_x = true,
+                        [1, 0, 0] => local_pos_x = true,
+                        [0, 0, -1] => local_neg_z = true,
+                        [0, 0, 1] => local_pos_z = true,
+                        _ => {} // non-horizontal direction, ignore
+                    }
+                }
+            }
+
+            let fence_geo = pattern.fence_geometry_with_neighbors((
+                local_neg_x,
+                local_pos_x,
+                local_neg_z,
+                local_pos_z,
+            ));
+            // Rotate the locally-correct geometry into world space.
             if let Some(matrix) = orientation {
                 apply_orientation_matrix(fence_geo, matrix)
             } else {
@@ -317,7 +346,9 @@ pub fn spawn_voxels_chunked(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::systems::game::map::format::{axis_angle_to_matrix, SubVoxelPattern};
+    use crate::systems::game::map::format::{
+        axis_angle_to_matrix, world_dir_to_local, SubVoxelPattern,
+    };
     use crate::systems::game::map::geometry::RotationAxis;
     use bevy::math::Vec3A;
 
@@ -524,6 +555,42 @@ mod tests {
             unrotated_positions.len(),
             rotated_positions.len(),
             "Rotation must preserve the number of occupied sub-voxels"
+        );
+    }
+
+    /// A fence rotated Y+90° with a world +X neighbor should connect in its local +Z direction.
+    /// After applying the Y+90° orientation matrix the rail appears in the world +X direction,
+    /// correctly meeting the neighbor.
+    ///
+    /// Y+90°: local X → world −Z, local Z → world +X.
+    /// Inverse: world +X → local +Z. So a world +X neighbor triggers local pos_z = true.
+    #[test]
+    fn fence_y90_connects_to_world_x_neighbor() {
+        let m_y90 = axis_angle_to_matrix(RotationAxis::Y, 1);
+
+        // World +X neighbor exists. Map to local frame via Mᵀ.
+        let local_dir = world_dir_to_local(Some(&m_y90), [1, 0, 0]);
+        // Y+90°: Mᵀ × [1,0,0] = [0,0,1] (local +Z)
+        assert_eq!(
+            local_dir,
+            [0, 0, 1],
+            "world +X must map to local +Z for Y+90°"
+        );
+
+        // Build fence geometry with that local connection (pos_z = true).
+        let fence_geo =
+            SubVoxelPattern::Fence.fence_geometry_with_neighbors((false, false, false, true)); // pos_z
+
+        // Rotate the local geometry into world space (local +Z → world +X).
+        let world_geo = apply_orientation_matrix(fence_geo, &m_y90);
+
+        // The rail should now extend in the world +X direction (sub_x > 4).
+        let has_rail_in_pos_x = world_geo
+            .occupied_positions()
+            .any(|(sx, _sy, sz)| sx > 4 && sz >= 3 && sz <= 4);
+        assert!(
+            has_rail_in_pos_x,
+            "after Y+90°, the local +Z rail must appear in the world +X half (sub_x > 4)"
         );
     }
 }

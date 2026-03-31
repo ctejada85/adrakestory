@@ -3,7 +3,7 @@
 use super::{ActiveTransform, TransformMode, TransformPreview};
 use crate::editor::state::EditorState;
 use crate::systems::game::map::format::{
-    apply_orientation_matrix, axis_angle_to_matrix, SubVoxelPattern,
+    apply_orientation_matrix, axis_angle_to_matrix, world_dir_to_local, SubVoxelPattern,
 };
 use crate::systems::game::map::geometry::RotationAxis;
 use bevy::prelude::*;
@@ -126,6 +126,16 @@ fn spawn_rotation_previews(
         .map(|v| v.pos)
         .collect();
 
+    // Build fence neighbour set for context-aware geometry (same logic as renderer/spawner).
+    let fence_positions: std::collections::HashSet<(i32, i32, i32)> = editor_state
+        .current_map
+        .world
+        .voxels
+        .iter()
+        .filter(|v| v.pattern.map_or(false, |p| p.is_fence()))
+        .map(|v| v.pos)
+        .collect();
+
     const SUB_VOXEL_SIZE: f32 = 1.0 / 8.0;
     let sub_voxel_mesh = meshes.add(Cuboid::new(SUB_VOXEL_SIZE, SUB_VOXEL_SIZE, SUB_VOXEL_SIZE));
 
@@ -149,7 +159,51 @@ fn spawn_rotation_previews(
             active_transform.rotation_axis,
             active_transform.rotation_angle,
         );
-        let geometry = apply_orientation_matrix(pattern.geometry(), &rotation_matrix);
+
+        // For fence patterns, generate neighbour-aware geometry first, then rotate it.
+        // Neighbour booleans must be in the fence's LOCAL frame (using its existing orientation),
+        // and the preview delta rotation is applied on top.
+        let base_geometry = if pattern.is_fence() {
+            let (x, y, z) = voxel.pos;
+            // Existing orientation of this voxel (before the preview rotation).
+            let existing_orientation = voxel
+                .rotation
+                .and_then(|i| editor_state.current_map.orientations.get(i));
+
+            let world_dirs: [([i32; 3], (i32, i32, i32)); 4] = [
+                ([-1, 0, 0], (x - 1, y, z)),
+                ([1, 0, 0], (x + 1, y, z)),
+                ([0, 0, -1], (x, y, z - 1)),
+                ([0, 0, 1], (x, y, z + 1)),
+            ];
+
+            let mut local_neg_x = false;
+            let mut local_pos_x = false;
+            let mut local_neg_z = false;
+            let mut local_pos_z = false;
+
+            for (world_dir, neighbor_pos) in &world_dirs {
+                if fence_positions.contains(neighbor_pos) {
+                    match world_dir_to_local(existing_orientation, *world_dir) {
+                        [-1, 0, 0] => local_neg_x = true,
+                        [1, 0, 0] => local_pos_x = true,
+                        [0, 0, -1] => local_neg_z = true,
+                        [0, 0, 1] => local_pos_z = true,
+                        _ => {}
+                    }
+                }
+            }
+
+            pattern.fence_geometry_with_neighbors((
+                local_neg_x,
+                local_pos_x,
+                local_neg_z,
+                local_pos_z,
+            ))
+        } else {
+            pattern.geometry()
+        };
+        let geometry = apply_orientation_matrix(base_geometry, &rotation_matrix);
 
         let material = materials.add(StandardMaterial {
             base_color: if is_valid {

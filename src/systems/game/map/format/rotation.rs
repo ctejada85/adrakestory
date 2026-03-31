@@ -154,6 +154,26 @@ pub fn find_or_insert_orientation(
     }
 }
 
+/// Map a world-space direction into the local frame of a voxel with the given orientation.
+///
+/// `OrientationMatrix` rows store where local X/Y/Z map **to** in world space
+/// (`M × local = world`), so the inverse is the transpose (`Mᵀ × world = local`).
+///
+/// `dir` is a unit direction vector with integer components (e.g. `[1,0,0]` for +X).
+/// Returns the corresponding direction in the voxel's local coordinate frame.
+///
+/// If `orientation` is `None` (identity), the direction is returned unchanged.
+pub fn world_dir_to_local(orientation: Option<&OrientationMatrix>, dir: [i32; 3]) -> [i32; 3] {
+    match orientation {
+        None => dir,
+        Some(m) => [
+            m[0][0] * dir[0] + m[1][0] * dir[1] + m[2][0] * dir[2],
+            m[0][1] * dir[0] + m[1][1] * dir[1] + m[2][1] * dir[2],
+            m[0][2] * dir[0] + m[1][2] * dir[1] + m[2][2] * dir[2],
+        ],
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Validation helpers
 // ---------------------------------------------------------------------------
@@ -791,5 +811,45 @@ mod tests {
 
         // The unused import suppression — GeoAxis is imported above for clarity
         let _ = GeoAxis::Y;
+    }
+
+    // --- world_dir_to_local tests ---
+
+    #[test]
+    fn world_dir_to_local_identity_returns_dir_unchanged() {
+        assert_eq!(world_dir_to_local(None, [1, 0, 0]), [1, 0, 0]);
+        assert_eq!(world_dir_to_local(None, [-1, 0, 0]), [-1, 0, 0]);
+        assert_eq!(world_dir_to_local(None, [0, 0, 1]), [0, 0, 1]);
+        assert_eq!(world_dir_to_local(None, [0, 0, -1]), [0, 0, -1]);
+    }
+
+    #[test]
+    fn world_dir_to_local_y90_maps_world_x_to_local_neg_z() {
+        // Y+90°: local X → world −Z, local Z → world +X
+        // Inverse (Mᵀ): world +X → local +Z, world −X → local −Z,
+        //               world +Z → local −X, world −Z → local +X
+        let m = axis_angle_to_matrix(RotationAxis::Y, 1);
+        assert_eq!(world_dir_to_local(Some(&m), [1, 0, 0]), [0, 0, 1]);
+        assert_eq!(world_dir_to_local(Some(&m), [-1, 0, 0]), [0, 0, -1]);
+        assert_eq!(world_dir_to_local(Some(&m), [0, 0, 1]), [-1, 0, 0]);
+        assert_eq!(world_dir_to_local(Some(&m), [0, 0, -1]), [1, 0, 0]);
+    }
+
+    #[test]
+    fn world_dir_to_local_y180_maps_x_to_neg_x() {
+        // Y+180°: local X → world −X, local Z → world −Z
+        // Inverse: world +X → local −X, world +Z → local −Z
+        let m = axis_angle_to_matrix(RotationAxis::Y, 2);
+        assert_eq!(world_dir_to_local(Some(&m), [1, 0, 0]), [-1, 0, 0]);
+        assert_eq!(world_dir_to_local(Some(&m), [0, 0, 1]), [0, 0, -1]);
+    }
+
+    #[test]
+    fn world_dir_to_local_y270_maps_world_x_to_local_z() {
+        // Y+270° (= Y−90°): local X → world +Z, local Z → world −X
+        // Inverse: world +X → local −Z, world +Z → local +X
+        let m = axis_angle_to_matrix(RotationAxis::Y, 3);
+        assert_eq!(world_dir_to_local(Some(&m), [1, 0, 0]), [0, 0, -1]);
+        assert_eq!(world_dir_to_local(Some(&m), [0, 0, 1]), [1, 0, 0]);
     }
 }

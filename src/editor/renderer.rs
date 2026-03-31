@@ -15,7 +15,9 @@
 
 use crate::editor::state::EditorState;
 use crate::editor::tools::UpdateSelectionHighlights;
-use crate::systems::game::map::format::{EntityType, SubVoxelPattern};
+use crate::systems::game::map::format::{
+    apply_orientation_matrix, world_dir_to_local, EntityType, SubVoxelPattern,
+};
 use crate::systems::game::map::spawner::{
     ChunkMeshBuilder, Face, GreedyMesher, OccupancyGrid, VoxelMaterialPalette, CHUNK_SIZE,
     SUB_VOXEL_COUNT, SUB_VOXEL_SIZE,
@@ -170,13 +172,50 @@ pub fn render_map_system(
 
         // For fence patterns, check neighbors and generate context-aware geometry
         let geometry = if pattern.is_fence() {
-            let neighbors = (
-                fence_positions.contains(&(x - 1, y, z)), // neg_x
-                fence_positions.contains(&(x + 1, y, z)), // pos_x
-                fence_positions.contains(&(x, y, z - 1)), // neg_z
-                fence_positions.contains(&(x, y, z + 1)), // pos_z
-            );
-            pattern.fence_geometry_with_neighbors(neighbors)
+            // Look up this voxel's orientation once; used for both neighbour mapping and geometry.
+            let orientation = voxel_data
+                .rotation
+                .and_then(|i| editor_state.current_map.orientations.get(i));
+
+            // World-axis neighbour directions paired with their neighbour positions.
+            let world_dirs: [([i32; 3], (i32, i32, i32)); 4] = [
+                ([-1, 0, 0], (x - 1, y, z)), // world −X
+                ([1, 0, 0], (x + 1, y, z)),  // world +X
+                ([0, 0, -1], (x, y, z - 1)), // world −Z
+                ([0, 0, 1], (x, y, z + 1)),  // world +Z
+            ];
+
+            // Map each world direction into the fence's local frame (Mᵀ × d).
+            // fence_geometry_with_neighbors expects (neg_x, pos_x, neg_z, pos_z) in LOCAL space.
+            let mut local_neg_x = false;
+            let mut local_pos_x = false;
+            let mut local_neg_z = false;
+            let mut local_pos_z = false;
+
+            for (world_dir, neighbor_pos) in &world_dirs {
+                if fence_positions.contains(neighbor_pos) {
+                    match world_dir_to_local(orientation, *world_dir) {
+                        [-1, 0, 0] => local_neg_x = true,
+                        [1, 0, 0] => local_pos_x = true,
+                        [0, 0, -1] => local_neg_z = true,
+                        [0, 0, 1] => local_pos_z = true,
+                        _ => {} // non-horizontal direction, ignore
+                    }
+                }
+            }
+
+            let fence_geo = pattern.fence_geometry_with_neighbors((
+                local_neg_x,
+                local_pos_x,
+                local_neg_z,
+                local_pos_z,
+            ));
+            // Rotate the locally-correct geometry into world space.
+            if let Some(matrix) = orientation {
+                apply_orientation_matrix(fence_geo, matrix)
+            } else {
+                fence_geo
+            }
         } else {
             let orientation = voxel_data
                 .rotation

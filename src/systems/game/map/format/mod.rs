@@ -17,7 +17,7 @@ pub use patterns::SubVoxelPattern;
 pub use rotation::{
     apply_orientation_matrix, axis_angle_to_matrix, find_or_insert_orientation,
     is_valid_rotation_matrix, migrate_legacy_rotations, multiply_matrices,
-    normalise_staircase_variants, OrientationMatrix, IDENTITY,
+    normalise_staircase_variants, world_dir_to_local, OrientationMatrix, IDENTITY,
 };
 pub use world::{VoxelData, WorldData};
 
