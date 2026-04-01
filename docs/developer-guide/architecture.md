@@ -180,6 +180,7 @@ src/
 │   │       │   ├── metadata.rs
 │   │       │   ├── patterns.rs
 │   │       │   ├── rotation.rs
+│   │       │   ├── voxel_type.rs
 │   │       │   └── world.rs
 │   │       ├── geometry/   # Sub-voxel geometry
 │   │       │   ├── mod.rs
@@ -198,7 +199,7 @@ src/
 │   │       │   │   └── palette.rs
 │   │       │   ├── entities.rs
 │   │       │   ├── chunks.rs
-│   │       │   └── systems.rs
+│   │       │   └── shadow_quality.rs
 │   │       ├── validation.rs  # Map validation
 │   │       └── error.rs    # Error types
 │   ├── intro_animation/    # Intro screen
@@ -462,9 +463,9 @@ pub struct GameInitialized(pub bool);
   - `voxel_type.rs` defines `VoxelType` — re-exported via `format/mod.rs` and `components.rs`
 - `loader.rs`: File I/O and parsing
 - `spawner/`: Entity instantiation (split into modules)
-  - `mod.rs`: Constants, types, main system
+  - `mod.rs`: Constants, types, main spawn system, Face enum, LOD update system
   - `meshing/`: Mesh generation (`occupancy.rs`, `greedy_mesher.rs`, `mesh_builder.rs`, `palette.rs`)
-  - `entities.rs`, `chunks.rs`, `systems.rs`
+  - `entities.rs`, `chunks.rs`, `shadow_quality.rs`
 - `geometry/`: Sub-voxel geometry calculations
   - `types.rs`, `patterns.rs`, `rotation.rs`, `utils.rs`
 - `validation.rs`: Map validation
