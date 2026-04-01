@@ -48,8 +48,18 @@ pub enum SubVoxelPattern {
     /// `Staircase` with the Y+270° rotation absorbed into the voxel's orientation matrix.
     StaircaseNegZ,
 
-    /// Small 2x2x2 centered column (symmetric, no orientation)
+    /// Full-height 2×8×2 column (pillar).
+    ///
+    /// Spans the full voxel height — 32 sub-voxels at x∈{3,4}, z∈{3,4}.
+    /// Stacking vertically produces zero gap between adjacent cells.
+    #[serde(alias = "Pillar")] // Old name before rename — kept for backward compat
     Pillar,
+
+    /// Small 2×2×2 centred cube (symmetric, no orientation).
+    ///
+    /// Occupies sub-voxels (3,3,3)–(4,4,4): 8 sub-voxels centred in the voxel cell.
+    /// This carries the geometry that was previously (and incorrectly) named `Pillar`.
+    CenterCube,
 
     /// Fence pattern along X axis (posts at ends with horizontal rails)
     #[serde(alias = "FenceX")]
@@ -89,7 +99,8 @@ impl SubVoxelPattern {
                 // Staircase rotated 270° around Y (pre-bake preserved for legacy geometry calls)
                 SubVoxelGeometry::staircase_x().rotate(crate::editor::tools::RotationAxis::Y, 3)
             }
-            Self::Pillar => SubVoxelGeometry::pillar(),
+            Self::Pillar => SubVoxelGeometry::column_2x2(),
+            Self::CenterCube => SubVoxelGeometry::center_cube(),
             Self::Fence => SubVoxelGeometry::fence_post(), // Default to just a post
         }
     }
@@ -153,11 +164,55 @@ mod tests {
     }
 
     #[test]
-    fn test_pillar_pattern_has_8_positions() {
-        let geometry = SubVoxelPattern::Pillar.geometry();
+    fn test_center_cube_pattern_has_8_positions() {
+        let geometry = SubVoxelPattern::CenterCube.geometry();
         let positions: Vec<_> = geometry.occupied_positions().collect();
         // 2x2x2 = 8 sub-voxels
         assert_eq!(positions.len(), 8);
+    }
+
+    #[test]
+    fn test_pillar_column_has_32_positions() {
+        let geometry = SubVoxelPattern::Pillar.geometry();
+        let positions: Vec<_> = geometry.occupied_positions().collect();
+        // 2x8x2 = 32 sub-voxels
+        assert_eq!(positions.len(), 32);
+    }
+
+    #[test]
+    fn test_pillar_column_spans_full_height() {
+        let geometry = SubVoxelPattern::Pillar.geometry();
+        let positions: Vec<_> = geometry.occupied_positions().collect();
+        // Must contain sub-voxels at both y=0 and y=7 (full height, no gap when stacking)
+        let has_y0 = positions.iter().any(|(_, y, _)| *y == 0);
+        let has_y7 = positions.iter().any(|(_, y, _)| *y == 7);
+        assert!(has_y0, "Pillar must reach y=0");
+        assert!(has_y7, "Pillar must reach y=7");
+        // All occupied positions must be in x∈{3,4}, z∈{3,4}
+        for (x, _, z) in &positions {
+            assert!(*x == 3 || *x == 4, "x must be 3 or 4, got {x}");
+            assert!(*z == 3 || *z == 4, "z must be 3 or 4, got {z}");
+        }
+    }
+
+    #[test]
+    fn test_center_cube_is_centered() {
+        let geometry = SubVoxelPattern::CenterCube.geometry();
+        let positions: Vec<_> = geometry.occupied_positions().collect();
+        // All positions must be in x∈{3,4}, y∈{3,4}, z∈{3,4}
+        for (x, y, z) in &positions {
+            assert!(*x == 3 || *x == 4);
+            assert!(*y == 3 || *y == 4);
+            assert!(*z == 3 || *z == 4);
+        }
+    }
+
+    #[test]
+    fn test_ron_deserialization_pillar_alias() {
+        // "Pillar" was the old name — it now deserialises as the new Pillar (column) via alias
+        let ron_str = "Pillar";
+        let pattern: SubVoxelPattern = ron::from_str(ron_str).unwrap();
+        assert_eq!(pattern, SubVoxelPattern::Pillar);
     }
 
     #[test]
@@ -199,6 +254,7 @@ mod tests {
     fn test_is_fence_returns_false_for_non_fence() {
         assert!(!SubVoxelPattern::Full.is_fence());
         assert!(!SubVoxelPattern::Pillar.is_fence());
+        assert!(!SubVoxelPattern::CenterCube.is_fence());
         assert!(!SubVoxelPattern::Staircase.is_fence());
         assert!(!SubVoxelPattern::PlatformXZ.is_fence());
     }
@@ -250,6 +306,7 @@ mod tests {
         let patterns = [
             SubVoxelPattern::Full,
             SubVoxelPattern::Pillar,
+            SubVoxelPattern::CenterCube,
             SubVoxelPattern::PlatformXZ,
             SubVoxelPattern::Staircase,
             SubVoxelPattern::Fence,

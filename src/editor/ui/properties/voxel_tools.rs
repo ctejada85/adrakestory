@@ -46,6 +46,7 @@ pub fn render_voxel_place_content(
                 ui.selectable_value(pattern, SubVoxelPattern::PlatformYZ, "▌ Wall (X-axis)");
                 ui.selectable_value(pattern, SubVoxelPattern::Staircase, "⟋ Staircase");
                 ui.selectable_value(pattern, SubVoxelPattern::Pillar, "│ Pillar");
+                ui.selectable_value(pattern, SubVoxelPattern::CenterCube, "■ Center Cube");
                 ui.selectable_value(pattern, SubVoxelPattern::Fence, "┼ Fence");
             });
 
@@ -141,7 +142,7 @@ fn render_pattern_preview(ui: &mut egui::Ui, pattern: &SubVoxelPattern) {
             }
         }
         SubVoxelPattern::Pillar => {
-            // Vertical pillar in center
+            // Full-height column in center (2 wide, full height)
             for y in 0..4 {
                 let c = if y % 2 == 0 { color } else { dark };
                 let cell_rect = egui::Rect::from_min_size(
@@ -150,6 +151,14 @@ fn render_pattern_preview(ui: &mut egui::Ui, pattern: &SubVoxelPattern) {
                 );
                 painter.rect_filled(cell_rect, 1.0, c);
             }
+        }
+        SubVoxelPattern::CenterCube => {
+            // Small centred square (2×2 at centre of preview)
+            let cube_rect = egui::Rect::from_min_size(
+                rect.min + egui::vec2(1.25 * cell, 1.25 * cell),
+                egui::vec2(1.5 * cell, 1.5 * cell),
+            );
+            painter.rect_filled(cube_rect, 2.0, color);
         }
         SubVoxelPattern::Fence => {
             // Fence pattern: center post with rails extending in all 4 directions (cross shape)
@@ -230,6 +239,7 @@ pub fn get_pattern_name(pattern: &SubVoxelPattern) -> &'static str {
         SubVoxelPattern::StaircaseZ => "⟋ Staircase (+Z) [legacy]",
         SubVoxelPattern::StaircaseNegZ => "⟍ Staircase (-Z) [legacy]",
         SubVoxelPattern::Pillar => "│ Pillar",
+        SubVoxelPattern::CenterCube => "■ Center Cube",
         SubVoxelPattern::Fence => "┼ Fence",
     }
 }

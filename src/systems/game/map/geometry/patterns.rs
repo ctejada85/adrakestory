@@ -45,14 +45,35 @@ impl SubVoxelGeometry {
         geom
     }
 
-    /// Create a small 2×2×2 centered pillar.
+    /// Create a small 2×2×2 centered cube.
     ///
-    /// The pillar is centered at (3.5, 3.5, 3.5) and occupies
-    /// sub-voxels from (3,3,3) to (4,4,4).
-    pub fn pillar() -> Self {
+    /// The cube is centered at (3.5, 3.5, 3.5) and occupies
+    /// sub-voxels from (3,3,3) to (4,4,4) — 8 sub-voxels total.
+    ///
+    /// This is the geometry previously named `pillar()`. It was renamed to
+    /// accurately describe the shape: a small floating cube, not a column.
+    pub fn center_cube() -> Self {
         let mut geom = Self::new();
         for x in 3..5 {
             for y in 3..5 {
+                for z in 3..5 {
+                    geom.set_occupied(x, y, z);
+                }
+            }
+        }
+        geom
+    }
+
+    /// Create a full-height 2×8×2 column (pillar).
+    ///
+    /// The column is centred at x∈{3,4}, z∈{3,4} and spans all 8 Y layers,
+    /// giving 32 sub-voxels. When stacked vertically, adjacent cells share
+    /// boundary sub-voxels (y=7 of lower cell abuts y=0 of upper cell),
+    /// leaving no collision gap.
+    pub fn column_2x2() -> Self {
+        let mut geom = Self::new();
+        for y in 0..8 {
+            for x in 3..5 {
                 for z in 3..5 {
                     geom.set_occupied(x, y, z);
                 }

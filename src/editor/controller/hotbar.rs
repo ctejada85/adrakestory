@@ -54,6 +54,7 @@ impl HotbarItem {
                     SubVoxelPattern::StaircaseZ => " Stairs+Z",
                     SubVoxelPattern::StaircaseNegZ => " Stairs-Z",
                     SubVoxelPattern::Pillar => " Pillar",
+                    SubVoxelPattern::CenterCube => " CenterCube",
                     SubVoxelPattern::Fence => " Fence",
                 };
                 format!("{}{}", type_name, pattern_name)
@@ -242,6 +243,10 @@ impl PaletteCategory {
                 HotbarItem::Voxel {
                     voxel_type: VoxelType::Stone,
                     pattern: SubVoxelPattern::Pillar,
+                },
+                HotbarItem::Voxel {
+                    voxel_type: VoxelType::Stone,
+                    pattern: SubVoxelPattern::CenterCube,
                 },
                 HotbarItem::Voxel {
                     voxel_type: VoxelType::Stone,

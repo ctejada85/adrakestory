@@ -58,12 +58,24 @@ mod unit_tests {
     }
 
     #[test]
-    fn test_pillar() {
-        let geom = SubVoxelGeometry::pillar();
+    fn test_center_cube() {
+        let geom = SubVoxelGeometry::center_cube();
         assert_eq!(geom.count_occupied(), 8); // 2×2×2
         assert!(geom.is_occupied(3, 3, 3));
         assert!(geom.is_occupied(4, 4, 4));
         assert!(!geom.is_occupied(2, 3, 3));
+    }
+
+    #[test]
+    fn test_column_2x2() {
+        let geom = SubVoxelGeometry::column_2x2();
+        assert_eq!(geom.count_occupied(), 32); // 2×8×2
+                                               // Must span full height
+        assert!(geom.is_occupied(3, 0, 3));
+        assert!(geom.is_occupied(4, 7, 4));
+        // Must not extend outside the 2-wide band
+        assert!(!geom.is_occupied(2, 0, 3));
+        assert!(!geom.is_occupied(5, 0, 3));
     }
 
     #[test]

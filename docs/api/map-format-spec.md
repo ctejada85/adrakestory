@@ -161,17 +161,20 @@ voxel_type: Stone
 | `PlatformXY` | 8×8×1 (64) | Vertical wall on XY plane (facing Z) |
 | `PlatformYZ` | 1×8×8 (64) | Vertical wall on YZ plane (facing X) |
 | `Staircase` | Variable (288) | Canonical staircase — stairs in the +X direction; facing direction set via `rotation` field |
-| `Pillar` | 2×2×2 (8) | Centered cube (symmetric) |
+| `Pillar` | 2×8×2 (32) | Full-height centred column; no gap when stacking vertically |
+| `CenterCube` | 2×2×2 (8) | Small centred cube (symmetric, no orientation) |
 | `Fence` | Variable | Fence post with neighbor-aware connection rails; `rotation` fully supported |
 
 **Load-only aliases** (backward compatibility — accepted on load, never written on save):
 
 | Alias | Canonical form after normalisation | Notes |
 |-------|------------------------------------|-------|
+| `Platform` | `PlatformXZ` | Old name (v1.0); normalised via `#[serde(alias)]` |
 | `StaircaseX` | `Staircase, rotation: None` | Old name before rename (v1.0); normalised at load via `#[serde(alias)]` — no pre-bake, no matrix change |
 | `StaircaseNegX` | `Staircase` + Y+180° absorbed into `rotation` | Normalised by `normalise_staircase_variants()` pass |
 | `StaircaseZ` | `Staircase` + Y+90° absorbed into `rotation` | Normalised by `normalise_staircase_variants()` pass |
 | `StaircaseNegZ` | `Staircase` + Y+270° absorbed into `rotation` | Normalised by `normalise_staircase_variants()` pass |
+| `Pillar` (old) | `Pillar` (new column geometry) | `Pillar` previously described a 2×2×2 cube; from v1.1 it is a full-height 2×8×2 column. Old map files deserialise unchanged via `#[serde(alias)]` on `Pillar`. The 2×2×2 cube geometry is now `CenterCube`. |
 
 **RON Syntax (canonical — new maps):**
 ```ron
@@ -181,6 +184,7 @@ pattern: Some(PlatformXY)
 pattern: Some(PlatformYZ)
 pattern: Some(Staircase)
 pattern: Some(Pillar)
+pattern: Some(CenterCube)
 pattern: Some(Fence)
 pattern: None  // Defaults to Full
 ```
@@ -279,8 +283,13 @@ axis: Z
 **StaircaseNegZ**: Progressive height in -Z (288 sub-voxels)
 - **Load-only alias.** Normalised to `Staircase` + Y+270° orientation matrix on load.
 
-**Pillar**: Centered 2×2×2 cube (8 sub-voxels)
-- Small centered cube, not a full-height column
+**Pillar**: Full-height 2×8×2 column (32 sub-voxels)
+- Centred at x∈{3,4}, z∈{3,4}, spans all 8 Y layers
+- No collision gap when stacking vertically
+
+**CenterCube**: Centred 2×2×2 cube (8 sub-voxels)
+- Occupies sub-voxels (3,3,3)–(4,4,4): centred in the voxel cell
+- Previously (incorrectly) named `Pillar` before v1.1; old map files deserialise unchanged via backward-compat alias
 
 **Fence**: Neighbor-aware fence post with connection rails
 - Generates a post and extends rails toward any adjacent fence voxels (checked in world-aligned ±X and ±Z directions).

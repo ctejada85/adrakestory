@@ -13,8 +13,8 @@
 | 3 — Fence silently ignores rotation | `docs/bugs/fence-rotation-ignored/` | **Fixed** — Spawner applies orientation matrix to fence geometry after world-axis neighbour detection; `world_dir_to_local()` maps neighbours into local frame. `docs/api/map-format-spec.md` updated. Commits `56ca5fa`, `fd80558`, `54b057f`. | 2026-03-26 |
 | 4 — Duplicate voxel positions not detected | `docs/bugs/duplicate-voxel-positions/` | **Fixed** — `validate_voxel_positions()` extended with `HashSet` duplicate check. Commit `9f960d1`. | 2026-03-31 |
 | 5 — Entity properties silent parse failures | `docs/bugs/entity-properties-silent-parse-failure/` | **Fixed** — `validate_entity_properties()` added to `validate_entities()`; validates LightSource and Npc property strings before spawning. Commit pending. | 2026-03-31 |
-| 6 — VoxelType in wrong module | `docs/bugs/voxel-type-wrong-module/` | **Tracked** — ticket, requirements, and architecture written. Implementation pending. | 2026-03-31 |
-| 7 — Pillar geometry / name mismatch | `docs/bugs/pillar-geometry-name-mismatch/` | **Tracked** — ticket, requirements, and architecture written. Implementation pending. | 2026-03-31 |
+| 6 — VoxelType in wrong module | `docs/bugs/voxel-type-wrong-module/` | **Fixed** — `VoxelType` moved to `src/systems/game/map/format/voxel_type.rs`; re-exported via `format/mod.rs` and `components.rs`. `docs/api/map-format-spec.md` and `docs/developer-guide/architecture.md` updated. Commit `aa7dbb8`. | 2026-03-31 |
+| 7 — Pillar geometry / name mismatch | `docs/bugs/pillar-geometry-name-mismatch/` | **Fixed** — `Pillar` repurposed to `column_2x2()` (2×8×2, full height, no stacking gap); old 2×2×2 cube geometry moved to new `CenterCube` variant with `#[serde(alias = "Pillar")]` for backward compat. Editor pickers, hotbar, and pattern cycle updated. `docs/api/map-format-spec.md` updated. | 2026-03-31 |
 | 8–9 | — | Not yet tracked. | — |
 
 ## Summary
@@ -200,8 +200,8 @@ the same map will silently collide on key names.
 | 3 | Fence ignores rotation at runtime | `spawner/chunks.rs:104–115` | p2 | Author intent silently lost | **Fixed** — commits `56ca5fa`, `fd80558`, `54b057f` |
 | 4 | Duplicate voxel positions not detected | `validation.rs:42–53` | p2 | Silent mesh corruption | **Fixed** `9f960d1` |
 | 5 | Entity properties untyped, parse failures silent | `entities.rs:14–15` | p2 | Invalid config produces wrong runtime state | **Fixed** — see `docs/bugs/entity-properties-silent-parse-failure/` |
-| 6 | Only 4 material types; VoxelType in components.rs | `components.rs:44–50` | p3 | Limited palette; format/ECS coupling | Open |
-| 7 | Pillar geometry is floating cube, not a column | geometry patterns | p3 | Misleading name, unexpected collision gaps | Open |
+| 6 | Only 4 material types; VoxelType in components.rs | `components.rs:44–50` | p3 | Limited palette; format/ECS coupling | **Fixed** `aa7dbb8` |
+| 7 | Pillar geometry is floating cube, not a column | geometry patterns | p3 | Misleading name, unexpected collision gaps | **Fixed** — `CenterCube` + new `Pillar` column |
 | 8 | Camera stored as static snapshot | `camera.rs` | p3 | No dynamic camera properties expressible in format | Open |
 | 9 | custom_properties has no namespace | `format/mod.rs` | p3 | Key collisions possible across systems | Open |
 

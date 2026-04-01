@@ -86,6 +86,9 @@ fn render_voxel_place_options(
                 .selectable_value(pattern, SubVoxelPattern::Pillar, "│ Pillar")
                 .changed();
             changed |= ui
+                .selectable_value(pattern, SubVoxelPattern::CenterCube, "■ Center Cube")
+                .changed();
+            changed |= ui
                 .selectable_value(pattern, SubVoxelPattern::PlatformXY, "▐ Wall Z")
                 .changed();
             changed |= ui
@@ -196,6 +199,7 @@ pub fn pattern_short_name(pattern: &SubVoxelPattern) -> &'static str {
         SubVoxelPattern::StaircaseZ => "Stairs +Z",
         SubVoxelPattern::StaircaseNegZ => "Stairs -Z",
         SubVoxelPattern::Pillar => "Pillar",
+        SubVoxelPattern::CenterCube => "CenterCube",
         SubVoxelPattern::Fence => "Fence",
     }
 }
