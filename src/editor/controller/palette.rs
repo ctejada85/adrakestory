@@ -27,7 +27,7 @@ pub fn render_controller_palette(
     egui::Area::new(egui::Id::new("palette_background"))
         .fixed_pos(egui::pos2(0.0, 0.0))
         .show(ctx, |ui| {
-            let screen_rect = ui.ctx().screen_rect();
+            let screen_rect = ui.ctx().content_rect();
             ui.painter().rect_filled(
                 screen_rect,
                 0.0,
@@ -46,12 +46,11 @@ pub fn render_controller_palette(
             ui.horizontal(|ui| {
                 for category in PaletteCategory::all() {
                     let selected = edit_mode.palette_category == *category;
-                    let button = egui::Button::new(category.name())
-                        .fill(if selected {
-                            egui::Color32::from_rgb(60, 100, 180)
-                        } else {
-                            egui::Color32::from_gray(60)
-                        });
+                    let button = egui::Button::new(category.name()).fill(if selected {
+                        egui::Color32::from_rgb(60, 100, 180)
+                    } else {
+                        egui::Color32::from_gray(60)
+                    });
 
                     if ui.add(button).clicked() {
                         // Category switching handled by input system
@@ -81,17 +80,13 @@ pub fn render_controller_palette(
                                 egui::Color32::from_gray(50)
                             })
                             .inner_margin(8.0)
-                            .rounding(4.0);
+                            .corner_radius(4.0);
 
                         frame.show(ui, |ui| {
                             ui.set_min_size(egui::vec2(50.0, 50.0));
 
                             ui.vertical_centered(|ui| {
-                                ui.label(
-                                    egui::RichText::new(item.icon())
-                                        .size(24.0)
-                                        .strong(),
-                                );
+                                ui.label(egui::RichText::new(item.icon()).size(24.0).strong());
                                 ui.small(truncate_name(&item.name(), 8));
                             });
                         });
@@ -124,7 +119,7 @@ pub fn render_controller_palette(
                             egui::Stroke::NONE
                         })
                         .inner_margin(4.0)
-                        .rounding(2.0);
+                        .corner_radius(2.0);
 
                     frame.show(ui, |ui| {
                         ui.set_min_size(egui::vec2(32.0, 32.0));
@@ -162,7 +157,7 @@ pub fn render_controller_hud(
     let ctx = contexts.ctx_mut().expect("egui context");
 
     // Crosshair in center
-    let screen_rect = ctx.screen_rect();
+    let screen_rect = ctx.content_rect();
     let center = screen_rect.center();
 
     egui::Area::new(egui::Id::new("crosshair"))
@@ -194,7 +189,7 @@ pub fn render_controller_hud(
             let frame = egui::Frame::default()
                 .fill(egui::Color32::from_rgba_unmultiplied(30, 30, 30, 200))
                 .inner_margin(8.0)
-                .rounding(4.0);
+                .corner_radius(4.0);
 
             frame.show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -213,15 +208,12 @@ pub fn render_controller_hud(
                                 egui::Stroke::new(1.0, egui::Color32::from_gray(80))
                             })
                             .inner_margin(6.0)
-                            .rounding(2.0);
+                            .corner_radius(2.0);
 
                         slot_frame.show(ui, |ui| {
                             ui.set_min_size(egui::vec2(36.0, 36.0));
                             ui.centered_and_justified(|ui| {
-                                ui.label(
-                                    egui::RichText::new(slot_item.icon())
-                                        .size(20.0),
-                                );
+                                ui.label(egui::RichText::new(slot_item.icon()).size(20.0));
                             });
                         });
                     }
@@ -256,7 +248,7 @@ pub fn render_controller_hud(
             let frame = egui::Frame::default()
                 .fill(egui::Color32::from_rgba_unmultiplied(0, 0, 0, 150))
                 .inner_margin(8.0)
-                .rounding(4.0);
+                .corner_radius(4.0);
 
             frame.show(ui, |ui| {
                 ui.label(
@@ -266,7 +258,10 @@ pub fn render_controller_hud(
                 );
 
                 if let Some(target) = cursor.target_voxel {
-                    ui.label(format!("Target: ({}, {}, {})", target.x, target.y, target.z));
+                    ui.label(format!(
+                        "Target: ({}, {}, {})",
+                        target.x, target.y, target.z
+                    ));
                 }
                 if let Some(place) = cursor.placement_position {
                     ui.label(format!("Place: ({}, {}, {})", place.x, place.y, place.z));

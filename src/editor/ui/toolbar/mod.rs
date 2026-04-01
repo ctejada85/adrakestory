@@ -49,7 +49,7 @@ pub fn render_toolbar(
 ) {
     // Menu bar panel
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-        egui::menu::bar(ui, |ui| {
+        egui::MenuBar::new().ui(ui, |ui| {
             render_file_menu(
                 ui,
                 editor_state,

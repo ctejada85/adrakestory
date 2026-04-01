@@ -53,41 +53,58 @@ pub fn render_outliner_panel(
             ui.horizontal(|ui| {
                 ui.heading("Outliner");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.small_button("🔍").on_hover_text("Filter items").clicked() {
+                    if ui
+                        .small_button("🔍")
+                        .on_hover_text("Filter items")
+                        .clicked()
+                    {
                         // Toggle filter visibility (filter is always shown for simplicity)
                     }
                 });
             });
-            
+
             // Filter/search box
             ui.horizontal(|ui| {
                 ui.label("🔍");
                 ui.add(
                     egui::TextEdit::singleline(&mut outliner_state.filter_text)
                         .hint_text("Filter...")
-                        .desired_width(ui.available_width() - 10.0)
+                        .desired_width(ui.available_width() - 10.0),
                 );
             });
-            
+
             ui.separator();
-            
+
             // Map name header
             let map_name = &editor_state.current_map.metadata.name;
-            ui.label(format!("📁 {}", if map_name.is_empty() { "Untitled" } else { map_name }));
-            
+            ui.label(format!(
+                "📁 {}",
+                if map_name.is_empty() {
+                    "Untitled"
+                } else {
+                    map_name
+                }
+            ));
+
             ui.separator();
-            
+
             // Scrollable content area
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
                     // Voxels section
                     render_voxels_section(ui, editor_state, outliner_state, &mut *selection_events);
-                    
+
                     ui.add_space(8.0);
-                    
+
                     // Entities section
-                    render_entities_section(ui, editor_state, outliner_state, selection_events, render_events);
+                    render_entities_section(
+                        ui,
+                        editor_state,
+                        outliner_state,
+                        selection_events,
+                        render_events,
+                    );
                 });
         });
 
@@ -107,7 +124,7 @@ fn render_voxels_section(
     selection_events: &mut MessageWriter<UpdateSelectionHighlights>,
 ) {
     let voxel_count = editor_state.current_map.world.voxels.len();
-    
+
     // Collapsible header
     let header = egui::CollapsingHeader::new(format!("🧱 Voxels ({})", voxel_count))
         .default_open(outliner_state.voxels_expanded)
@@ -116,7 +133,7 @@ fn render_voxels_section(
                 ui.label("No voxels in map");
                 return;
             }
-            
+
             // Group voxels by type (use BTreeMap for deterministic ordering)
             let mut voxels_by_type: BTreeMap<VoxelType, Vec<(i32, i32, i32)>> = BTreeMap::new();
             for voxel in &editor_state.current_map.world.voxels {
@@ -125,65 +142,79 @@ fn render_voxels_section(
                     .or_default()
                     .push(voxel.pos);
             }
-            
+
             // Filter
             let filter = outliner_state.filter_text.to_lowercase();
-            
+
             // Render each voxel type group
             for (voxel_type, positions) in voxels_by_type.iter() {
                 let type_name = format!("{:?}", voxel_type);
-                
+
                 // Skip if doesn't match filter
                 if !filter.is_empty() && !type_name.to_lowercase().contains(&filter) {
                     continue;
                 }
-                
+
                 let icon = get_voxel_type_icon(voxel_type);
-                let is_expanded = outliner_state.voxel_type_expanded.get(voxel_type).copied().unwrap_or(false);
-                
-                let header_response = egui::CollapsingHeader::new(format!("{} {} ({})", icon, type_name, positions.len()))
-                    .default_open(is_expanded)
-                    .show(ui, |ui| {
-                        // Show all positions in a scrollable area if there are many
-                        let needs_scroll = positions.len() > 50;
-                        let mut show_content = |ui: &mut egui::Ui| {
-                            for pos in positions.iter() {
-                                let is_selected = editor_state.selected_voxels.contains(pos);
-                                
-                                let label = format!("  ({}, {}, {})", pos.0, pos.1, pos.2);
-                                let response = ui.selectable_label(is_selected, label);
-                                
-                                if response.clicked() {
-                                    if is_selected {
-                                        editor_state.selected_voxels.remove(pos);
-                                    } else {
-                                        editor_state.selected_voxels.insert(*pos);
-                                    }
-                                    selection_events.write(UpdateSelectionHighlights);
+                let is_expanded = outliner_state
+                    .voxel_type_expanded
+                    .get(voxel_type)
+                    .copied()
+                    .unwrap_or(false);
+
+                let header_response = egui::CollapsingHeader::new(format!(
+                    "{} {} ({})",
+                    icon,
+                    type_name,
+                    positions.len()
+                ))
+                .default_open(is_expanded)
+                .show(ui, |ui| {
+                    // Show all positions in a scrollable area if there are many
+                    let needs_scroll = positions.len() > 50;
+                    let mut show_content = |ui: &mut egui::Ui| {
+                        for pos in positions.iter() {
+                            let is_selected = editor_state.selected_voxels.contains(pos);
+
+                            let label = format!("  ({}, {}, {})", pos.0, pos.1, pos.2);
+                            let response = ui.selectable_label(is_selected, label);
+
+                            if response.clicked() {
+                                if is_selected {
+                                    editor_state.selected_voxels.remove(pos);
+                                } else {
+                                    editor_state.selected_voxels.insert(*pos);
                                 }
-                                
-                                // Show position on hover
-                                response.on_hover_text(format!("Position: {:?}\nClick to toggle selection", pos));
+                                selection_events.write(UpdateSelectionHighlights);
                             }
-                        };
-                        
-                        if needs_scroll {
-                            // Use a bounded scroll area for large lists
-                            egui::ScrollArea::vertical()
-                                .max_height(200.0)
-                                .id_salt(format!("voxel_scroll_{:?}", voxel_type))
-                                .show(ui, |ui| {
-                                    show_content(ui);
-                                });
-                        } else {
-                            show_content(ui);
+
+                            // Show position on hover
+                            response.on_hover_text(format!(
+                                "Position: {:?}\nClick to toggle selection",
+                                pos
+                            ));
                         }
-                    });
-                
+                    };
+
+                    if needs_scroll {
+                        // Use a bounded scroll area for large lists
+                        egui::ScrollArea::vertical()
+                            .max_height(200.0)
+                            .id_salt(format!("voxel_scroll_{:?}", voxel_type))
+                            .show(ui, |ui| {
+                                show_content(ui);
+                            });
+                    } else {
+                        show_content(ui);
+                    }
+                });
+
                 // Track expansion state
-                outliner_state.voxel_type_expanded.insert(*voxel_type, header_response.body_returned.is_some());
+                outliner_state
+                    .voxel_type_expanded
+                    .insert(*voxel_type, header_response.body_returned.is_some());
             }
-            
+
             // Select all / deselect all buttons
             ui.separator();
             ui.horizontal(|ui| {
@@ -199,7 +230,7 @@ fn render_voxels_section(
                 }
             });
         });
-    
+
     outliner_state.voxels_expanded = header.fully_open();
 }
 
@@ -212,7 +243,7 @@ fn render_entities_section(
     render_events: &mut MessageWriter<RenderMapEvent>,
 ) {
     let entity_count = editor_state.current_map.entities.len();
-    
+
     // Collapsible header
     let header = egui::CollapsingHeader::new(format!("📍 Entities ({})", entity_count))
         .default_open(outliner_state.entities_expanded)
@@ -271,7 +302,7 @@ fn render_entities_section(
                     response.context_menu(|ui| {
                         if ui.button("🗑️ Delete").clicked() {
                             entity_to_delete = Some(index);
-                            ui.close_menu();
+                            ui.close();
                         }
                         // Future: duplicate, rename, etc.
                     });
@@ -303,7 +334,8 @@ fn render_entities_section(
             ui.horizontal(|ui| {
                 if ui.small_button("+ Add").clicked() {
                     // This would ideally open a dropdown, but for now just add a player spawn
-                    ui.memory_mut(|mem| mem.toggle_popup(ui.make_persistent_id("add_entity_popup")));
+                    let popup_id = ui.make_persistent_id("add_entity_popup");
+                    egui::Popup::toggle_id(ui.ctx(), popup_id);
                 }
                 
                 if !editor_state.selected_entities.is_empty() && ui.small_button("Deselect").clicked() {
@@ -312,7 +344,7 @@ fn render_entities_section(
                 }
             });
         });
-    
+
     outliner_state.entities_expanded = header.fully_open();
 }
 

@@ -45,7 +45,7 @@ pub fn render_viewport_overlays(
     let status_bar_height = get_panel_height(ctx, "status_bar", DEFAULT_STATUS_BAR_HEIGHT);
 
     // Calculate viewport bounds (area between side panels)
-    let screen_rect = ctx.screen_rect();
+    let screen_rect = ctx.content_rect();
     let viewport_left = left_panel_width;
     let viewport_right = screen_rect.width() - right_panel_width;
 
@@ -102,10 +102,10 @@ fn render_keyboard_mode_indicator(
         .fixed_pos(pos)
         .pivot(egui::Align2::RIGHT_TOP)
         .show(ctx, |ui| {
-            egui::Frame::none()
+            egui::Frame::new()
                 .fill(egui::Color32::from_rgba_unmultiplied(40, 80, 40, 220))
                 .inner_margin(egui::Margin::same(8))
-                .rounding(4.0)
+                .corner_radius(4.0)
                 .show(ui, |ui| {
                     ui.visuals_mut().override_text_color =
                         Some(egui::Color32::from_rgb(150, 255, 150));
@@ -169,10 +169,10 @@ fn render_selection_tooltip(
         .fixed_pos(pos)
         .pivot(egui::Align2::RIGHT_BOTTOM)
         .show(ctx, |ui| {
-            egui::Frame::none()
+            egui::Frame::new()
                 .fill(egui::Color32::from_rgba_unmultiplied(50, 50, 80, 200))
                 .inner_margin(egui::Margin::same(8))
-                .rounding(4.0)
+                .corner_radius(4.0)
                 .show(ui, |ui| {
                     ui.visuals_mut().override_text_color =
                         Some(egui::Color32::from_rgb(200, 200, 255));
@@ -221,10 +221,10 @@ fn render_transform_overlay(
         .fixed_pos(pos)
         .pivot(egui::Align2::CENTER_BOTTOM)
         .show(ctx, |ui| {
-            egui::Frame::none()
+            egui::Frame::new()
                 .fill(egui::Color32::from_rgba_unmultiplied(80, 80, 40, 230))
                 .inner_margin(egui::Margin::same(12))
-                .rounding(6.0)
+                .corner_radius(6.0)
                 .show(ui, |ui| {
                     ui.visuals_mut().override_text_color =
                         Some(egui::Color32::from_rgb(255, 255, 200));
@@ -299,10 +299,10 @@ fn render_tool_hint(
         .fixed_pos(pos)
         .pivot(egui::Align2::LEFT_BOTTOM)
         .show(ctx, |ui| {
-            egui::Frame::none()
+            egui::Frame::new()
                 .fill(egui::Color32::from_rgba_unmultiplied(40, 40, 40, 180))
                 .inner_margin(egui::Margin::same(6))
-                .rounding(4.0)
+                .corner_radius(4.0)
                 .show(ui, |ui| {
                     ui.visuals_mut().override_text_color =
                         Some(egui::Color32::from_rgb(200, 200, 200));

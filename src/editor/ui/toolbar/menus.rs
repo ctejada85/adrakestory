@@ -27,7 +27,7 @@ pub fn render_file_menu(
             } else {
                 ui_state.new_map_dialog_open = true;
             }
-            ui.close_menu();
+            ui.close();
         }
 
         if ui.button("📁 Open... (Ctrl+O)").clicked() {
@@ -37,7 +37,7 @@ pub fn render_file_menu(
             } else {
                 ui_state.file_dialog_open = true;
             }
-            ui.close_menu();
+            ui.close();
         }
 
         // Recent Files submenu
@@ -57,7 +57,7 @@ pub fn render_file_menu(
                         } else {
                             open_recent_events.write(OpenRecentFileEvent { path: path.clone() });
                         }
-                        ui.close_menu();
+                        ui.close();
                     }
                 }
 
@@ -65,7 +65,7 @@ pub fn render_file_menu(
 
                 if ui.button("🗑 Clear Recent Files").clicked() {
                     recent_files.clear();
-                    ui.close_menu();
+                    ui.close();
                 }
             }
         });
@@ -74,12 +74,12 @@ pub fn render_file_menu(
 
         if ui.button("💾 Save (Ctrl+S)").clicked() {
             save_events.write(SaveMapEvent);
-            ui.close_menu();
+            ui.close();
         }
 
         if ui.button("💾 Save As... (Ctrl+Shift+S)").clicked() {
             save_as_events.write(SaveMapAsEvent);
-            ui.close_menu();
+            ui.close();
         }
 
         ui.separator();
@@ -91,7 +91,7 @@ pub fn render_file_menu(
             } else {
                 info!("Quit clicked");
             }
-            ui.close_menu();
+            ui.close();
         }
     });
 }
@@ -117,7 +117,7 @@ pub fn render_edit_menu(
             if ui.button(undo_text).clicked() {
                 undo_events.write(UndoEvent);
                 info!("Undo clicked");
-                ui.close_menu();
+                ui.close();
             }
         });
 
@@ -131,7 +131,7 @@ pub fn render_edit_menu(
             if ui.button(redo_text).clicked() {
                 redo_events.write(RedoEvent);
                 info!("Redo clicked");
-                ui.close_menu();
+                ui.close();
             }
         });
     });
@@ -172,13 +172,13 @@ pub fn render_run_menu(
         if play_state.is_running {
             if ui.button("⏹ Stop Game          Shift+F5").clicked() {
                 stop_events.write(StopGameEvent);
-                ui.close_menu();
+                ui.close();
             }
             ui.add_enabled(false, egui::Button::new("▶ Play Map                  F5"));
         } else {
             if ui.button("▶ Play Map                  F5").clicked() {
                 play_events.write(PlayMapEvent);
-                ui.close_menu();
+                ui.close();
             }
             ui.add_enabled(false, egui::Button::new("⏹ Stop Game          Shift+F5"));
         }
@@ -245,7 +245,7 @@ pub fn render_tools_menu(
                 save_current_params(editor_state, tool_memory);
                 editor_state.active_tool = EditorTool::Select;
             }
-            ui.close_menu();
+            ui.close();
         }
 
         let is_voxel_place = matches!(editor_state.active_tool, EditorTool::VoxelPlace { .. });
@@ -260,7 +260,7 @@ pub fn render_tools_menu(
                     pattern: tool_memory.voxel_pattern,
                 };
             }
-            ui.close_menu();
+            ui.close();
         }
 
         let is_voxel_remove = matches!(editor_state.active_tool, EditorTool::VoxelRemove);
@@ -272,7 +272,7 @@ pub fn render_tools_menu(
                 save_current_params(editor_state, tool_memory);
                 editor_state.active_tool = EditorTool::VoxelRemove;
             }
-            ui.close_menu();
+            ui.close();
         }
 
         let is_entity_place = matches!(editor_state.active_tool, EditorTool::EntityPlace { .. });
@@ -286,7 +286,7 @@ pub fn render_tools_menu(
                     entity_type: tool_memory.entity_type,
                 };
             }
-            ui.close_menu();
+            ui.close();
         }
 
         let is_camera = matches!(editor_state.active_tool, EditorTool::Camera);
@@ -295,7 +295,7 @@ pub fn render_tools_menu(
                 save_current_params(editor_state, tool_memory);
                 editor_state.active_tool = EditorTool::Camera;
             }
-            ui.close_menu();
+            ui.close();
         }
     });
 }
@@ -305,12 +305,12 @@ pub fn render_help_menu(ui: &mut egui::Ui, ui_state: &mut EditorUIState) {
     ui.menu_button("Help", |ui| {
         if ui.button("⌨️ Keyboard Shortcuts").clicked() {
             ui_state.shortcuts_help_open = true;
-            ui.close_menu();
+            ui.close();
         }
 
         if ui.button("ℹ️ About").clicked() {
             ui_state.about_dialog_open = true;
-            ui.close_menu();
+            ui.close();
         }
     });
 }
