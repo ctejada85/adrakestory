@@ -3,6 +3,10 @@
 Analysis of the RON map format used by A Drake's Story (Version 1.0.0).  
 Covers format structure, pros, cons, and concrete improvement proposals.
 
+> **Resolution status**: Findings 1–8 have been fully implemented. Finding 9 (custom-properties namespace) has been documented (ticket, requirements, architecture) and is tracked in [`docs/bugs/custom-properties-namespace/`](../bugs/custom-properties-namespace/ticket.md). For a complete resolution log see [`docs/investigations/2026-03-22-1427-map-format-analysis.md`](../investigations/2026-03-22-1427-map-format-analysis.md).
+>
+> **Note on Cons sections below**: The cons describe the state of the format *at the time of the investigation*. Most issues cited have since been resolved by Findings 1–8. The cons are preserved as historical context; the investigation log lists the resolution for each one.
+
 ---
 
 ## 1. Format Overview
@@ -24,6 +28,7 @@ Key source locations:
 | Patterns | `src/systems/game/map/format/patterns.rs` |
 | Rotation | `src/systems/game/map/format/rotation.rs` |
 | Entities | `src/systems/game/map/format/entities.rs` |
+| VoxelType | `src/systems/game/map/format/voxel_type.rs` |
 | Validation | `src/systems/game/map/validation.rs` |
 | Spec | `docs/api/map-format-spec.md` |
 
@@ -77,7 +82,7 @@ This means multi-axis rotations cannot be faithfully round-tripped through the f
 The fence spawning path bypasses `geometry_with_rotation` entirely (`spawner/chunks.rs:104–115`). Any `rotation_state` on a `Fence` voxel is parsed, stored in memory, and written back on save — but has zero effect at runtime. The spec does not mention this exception, which will confuse authors trying to orient fences.
 
 ### 3.4 Only four material types
-`VoxelType` (`src/systems/game/components.rs:44–50`) has four variants: `Air`, `Grass`, `Dirt`, `Stone`. Expanding the visual palette requires changing an ECS component, recompiling, and migrating all existing maps if a new variant is inserted anywhere other than the end.
+`VoxelType` (`src/systems/game/map/format/voxel_type.rs`) has four variants: `Air`, `Grass`, `Dirt`, `Stone`. Expanding the visual palette requires changing the format enum, recompiling, and migrating all existing maps if a new variant is inserted anywhere other than the end.
 
 ### 3.5 Entity properties are untyped strings
 All entity configuration is `HashMap<String, String>`. A `LightSource` entity's `intensity`, `range`, `shadows`, and `color` are free-text strings parsed at spawn time with silent fallbacks (`entities.rs:184–242`). Invalid values (wrong types, out-of-range numbers, malformed color strings) fail silently and apply default values. There is no schema, no editor validation, and no error message.
@@ -87,6 +92,8 @@ Two `VoxelData` entries with the same `pos` are both processed. Their sub-voxels
 
 ### 3.7 `VoxelType` is defined in ECS components, not the format module
 `VoxelType` lives in `src/systems/game/components.rs` and is imported by the format module. This creates a coupling between the serialisation layer and the runtime component model. Adding a new material type requires touching `components.rs`, which triggers rebuilds of all systems using the component.
+
+**Status**: Resolved by Finding 5. `VoxelType` now lives in `src/systems/game/map/format/voxel_type.rs` and is re-exported into `components.rs`.
 
 ### 3.8 Pillar geometry does not match its name
 `Pillar` is a 2×2×2 floating cube at the centre of the voxel cell (sub-voxels 3–4 on all axes), not a floor-to-ceiling column. Stacking Pillar voxels creates a visual column with a gap between each segment. The name and shape are mismatched, which leads to unexpected collision behaviour (the gaps have no collision).
@@ -163,10 +170,10 @@ Migration: keep `properties` as a deprecated fallback with a one-version transit
 
 **Problem:** Duplicate `pos` entries silently corrupt the mesh.
 
-**Proposal:** In `validate_map()` or a pre-pass inside `spawn_voxels_chunked`, build a `HashSet<(i32,i32,i32)>` of seen positions and emit `warn!()` (or return `Err`) on the first duplicate.
+**Status**: Implemented by Finding 4. The check below is now active in `validation.rs`.
 
 ```rust
-// validation.rs — add to validate_voxel_positions()
+// validation.rs — part of validate_voxel_positions()
 let mut seen = HashSet::new();
 for voxel in &world.voxels {
     if !seen.insert(voxel.pos) {
