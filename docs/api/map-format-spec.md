@@ -485,7 +485,37 @@ custom_properties: {
 - No type constraints on values
 - Application-specific interpretation
 - Can be empty: `{}`
-- **No namespace convention is currently enforced.** A reserved key-prefix scheme (e.g. `engine:*` for engine-defined properties) is tracked in [`docs/bugs/custom-properties-namespace/`](../bugs/custom-properties-namespace/ticket.md) and is planned for a future version. Until then, avoid keys that start with `engine:` to prevent collision with the forthcoming reserved namespace.
+
+#### Namespace Convention
+
+Keys in `custom_properties` (and `EntityData.properties`) follow a prefix
+convention to prevent collisions between engine-defined and author-defined data:
+
+| Prefix | Owner | Rule |
+|--------|-------|------|
+| `adrakestory:` | Engine | Reserved. Authors must not write keys with this prefix. |
+| *(none)* or any other prefix | Author / tool | Free to use. Engine will never write unprefixed keys. |
+
+**Currently reserved engine keys:** *(none — convention established for future use)*
+
+**Example — valid author keys:**
+```ron
+custom_properties: {
+    "my_game:chapter": "3",
+    "cutscene_tool:intro_played": "true",
+    "score_multiplier": "2",
+}
+```
+
+**Example — invalid (reserved prefix):**
+```ron
+custom_properties: {
+    "adrakestory:spawn_music": "forest_theme",  // ERROR: reserved prefix
+}
+```
+
+The validator will emit a warning (not an error) for unknown `adrakestory:`
+keys to aid debugging. Maps with unknown engine keys still load normally.
 
 ## Validation Rules
 

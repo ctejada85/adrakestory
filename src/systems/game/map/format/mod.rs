@@ -47,7 +47,14 @@ pub struct MapData {
     /// here — `rotation: None` always means identity.
     #[serde(default)]
     pub orientations: Vec<OrientationMatrix>,
-    /// Custom properties for extensibility
+    /// Custom properties for extensibility.
+    ///
+    /// Keys beginning with `adrakestory:` are reserved for engine use and must
+    /// not be written by map authors or third-party tools. Use an unprefixed key
+    /// or your own prefix (e.g. `"mytool:key"`) for author-defined data.
+    ///
+    /// Engine systems that write new `adrakestory:`-prefixed keys must add them
+    /// to `KNOWN_MAP_ENGINE_KEYS` in `validation.rs` before shipping.
     #[serde(default)]
     pub custom_properties: HashMap<String, String>,
 }
@@ -61,7 +68,7 @@ impl MapData {
                 name: "Untitled Map".to_string(),
                 author: "".to_string(),
                 description: "".to_string(),
-                version: "1.0.0".to_string(),
+                version: "1.1.0".to_string(),
                 created: "".to_string(),
             },
             world: WorldData {

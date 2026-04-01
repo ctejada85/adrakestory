@@ -2,6 +2,32 @@
 
 use super::error::{MapLoadError, MapResult};
 use super::format::{is_valid_rotation_matrix, MapData};
+use bevy::log::warn;
+
+/// Prefix reserved for engine-owned keys in `MapData::custom_properties`
+/// and `EntityData::properties`.
+///
+/// Authors must not use this prefix. Engine subsystems that need to store
+/// persistent data in either property map must add their key to
+/// `KNOWN_MAP_ENGINE_KEYS` or `KNOWN_ENTITY_ENGINE_KEYS` below before
+/// writing it to any map file.
+const ENGINE_KEY_PREFIX: &str = "adrakestory:";
+
+/// Engine-owned keys permitted in `MapData::custom_properties`.
+///
+/// Add entries here before introducing a new engine feature that writes
+/// to this map. The validator will warn on unknown `adrakestory:` keys
+/// to catch typos and forward-compat mismatches early.
+const KNOWN_MAP_ENGINE_KEYS: &[&str] = &[
+    // (none yet — convention established for future use)
+];
+
+/// Engine-owned keys permitted in `EntityData::properties`.
+///
+/// Same contract as `KNOWN_MAP_ENGINE_KEYS`.
+const KNOWN_ENTITY_ENGINE_KEYS: &[&str] = &[
+    // (none yet)
+];
 
 /// Validates a loaded map for correctness and consistency.
 pub fn validate_map(map: &MapData) -> MapResult<()> {
@@ -22,6 +48,9 @@ pub fn validate_map(map: &MapData) -> MapResult<()> {
 
     // Validate lighting
     validate_lighting(map)?;
+
+    // Warn on unknown adrakestory:-prefixed keys (soft check, never fails)
+    validate_custom_property_namespaces(map);
 
     Ok(())
 }
@@ -263,6 +292,45 @@ fn validate_lighting(map: &MapData) -> MapResult<()> {
     Ok(())
 }
 
+/// Warns on `adrakestory:`-prefixed keys that are not in the known engine key
+/// lists.
+///
+/// This is a soft check: the function logs a warning but never returns an
+/// error, so maps with unrecognised engine keys still load. This preserves
+/// forward-compatibility when an older engine reads a map written by a newer
+/// engine that introduced new keys.
+fn validate_custom_property_namespaces(map: &MapData) {
+    let map_name = &map.metadata.name;
+
+    // Check MapData::custom_properties
+    for key in map.custom_properties.keys() {
+        if key.starts_with(ENGINE_KEY_PREFIX) && !KNOWN_MAP_ENGINE_KEYS.contains(&key.as_str()) {
+            warn!(
+                "Map '{}': custom_properties key '{}' uses the reserved \
+                 'adrakestory:' prefix but is not a known engine key. \
+                 This key will be ignored.",
+                map_name, key
+            );
+        }
+    }
+
+    // Check EntityData::properties for each entity
+    for entity in &map.entities {
+        for key in entity.properties.keys() {
+            if key.starts_with(ENGINE_KEY_PREFIX)
+                && !KNOWN_ENTITY_ENGINE_KEYS.contains(&key.as_str())
+            {
+                warn!(
+                    "Map '{}': entity {:?} has property key '{}' using the \
+                     reserved 'adrakestory:' prefix but is not a known engine \
+                     key. This key will be ignored.",
+                    map_name, entity.entity_type, key
+                );
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -431,6 +499,59 @@ mod tests {
         let mut map = MapData::default_map();
         map.entities
             .push(make_light_source(vec![("custom_tag", "anything")]));
+        assert!(validate_map(&map).is_ok());
+    }
+
+    // --- Finding 9: custom_properties namespace convention ---
+
+    #[test]
+    fn author_key_without_prefix_is_accepted() {
+        let mut map = MapData::default_map();
+        map.custom_properties
+            .insert("my_tool:scene_id".to_string(), "42".to_string());
+        // validate_custom_property_namespaces is warn-only; validate_map must succeed.
+        assert!(validate_map(&map).is_ok());
+    }
+
+    #[test]
+    fn unknown_engine_key_does_not_cause_error() {
+        let mut map = MapData::default_map();
+        map.custom_properties.insert(
+            "adrakestory:unknown_future_key".to_string(),
+            "value".to_string(),
+        );
+        // Must still return Ok — warn-only.
+        assert!(validate_map(&map).is_ok());
+    }
+
+    #[test]
+    fn entity_author_key_is_accepted() {
+        let mut map = MapData::default_map();
+        // Add to an existing entity (PlayerSpawn) to avoid disrupting required-spawn check.
+        if let Some(entity) = map
+            .entities
+            .iter_mut()
+            .find(|e| matches!(e.entity_type, EntityType::PlayerSpawn))
+        {
+            entity
+                .properties
+                .insert("my_tool:tag".to_string(), "spawn_a".to_string());
+        }
+        assert!(validate_map(&map).is_ok());
+    }
+
+    #[test]
+    fn entity_unknown_engine_key_does_not_cause_error() {
+        let mut map = MapData::default_map();
+        if let Some(entity) = map
+            .entities
+            .iter_mut()
+            .find(|e| matches!(e.entity_type, EntityType::PlayerSpawn))
+        {
+            entity
+                .properties
+                .insert("adrakestory:future_key".to_string(), "x".to_string());
+        }
         assert!(validate_map(&map).is_ok());
     }
 }

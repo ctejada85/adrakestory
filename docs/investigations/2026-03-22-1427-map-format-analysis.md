@@ -16,7 +16,7 @@
 | 6 — VoxelType in wrong module | `docs/bugs/voxel-type-wrong-module/` | **Fixed** — `VoxelType` moved to `src/systems/game/map/format/voxel_type.rs`; re-exported via `format/mod.rs` and `components.rs`. `docs/api/map-format-spec.md` and `docs/developer-guide/architecture.md` updated. Commit `aa7dbb8`. | 2026-03-31 |
 | 7 — Pillar geometry / name mismatch | `docs/bugs/pillar-geometry-name-mismatch/` | **Fixed** — `Pillar` repurposed to `column_2x2()` (2×8×2, full height, no stacking gap); old 2×2×2 cube geometry moved to new `CenterCube` variant with `#[serde(alias = "Pillar")]` for backward compat. Editor pickers, hotbar, and pattern cycle updated. `docs/api/map-format-spec.md` updated. | 2026-03-31 |
 | 8 — Camera static snapshot | `docs/bugs/camera-static-snapshot/` | **Fixed** — `CameraData` gains `follow_speed`, `rotation_speed`, `fov_degrees` (`Option<f32>`, `#[serde(default)]`); `spawn_camera()` reads new fields with fallback defaults; conditional `Projection::Perspective` when `fov_degrees` is `Some`. 6 unit tests. Commit `e5e1d87`. | 2026-03-31 |
-| 9 — custom_properties namespace | `docs/bugs/custom-properties-namespace/` | **Tracked** — ticket, requirements, and architecture docs written. | 2026-03-31 |
+| 9 — custom_properties namespace | `docs/bugs/custom-properties-namespace/` | **Fixed** — `ENGINE_KEY_PREFIX` constant + `KNOWN_MAP_ENGINE_KEYS`/`KNOWN_ENTITY_ENGINE_KEYS` arrays added to `validation.rs`; `validate_custom_property_namespaces()` warns (never rejects) on unknown `adrakestory:` keys; `MapData::custom_properties` and `EntityData::properties` doc-comments updated; `empty_map()` bumped to `"1.1.0"`; `docs/api/map-format-spec.md` Namespace Convention subsection added; 4 unit tests. | 2026-03-31 |
 
 ## Summary
 
