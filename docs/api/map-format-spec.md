@@ -12,7 +12,7 @@ Technical specification for the A Drake's Story map format (Version 1.0.0).
 
 ## Format Overview
 
-Maps are defined in RON format with a root tuple containing six required fields:
+Maps are defined in RON format with a root tuple. Six fields are required; two additional fields are optional (omit to use defaults):
 
 ```ron
 (
@@ -21,6 +21,9 @@ Maps are defined in RON format with a root tuple containing six required fields:
     entities: Vec<EntityData>,
     lighting: LightingData,
     camera: CameraData,
+    // Optional — omit entirely to default to an empty list:
+    orientations: Vec<OrientationMatrix>,
+    // Optional — omit entirely to default to an empty map:
     custom_properties: HashMap<String, String>,
 )
 ```
@@ -109,8 +112,9 @@ This ensures all saved maps are valid and can be loaded without errors.
 struct VoxelData {
     pos: (i32, i32, i32),
     voxel_type: VoxelType,
-    pattern: Option<SubVoxelPattern>,
-    rotation_state: Option<RotationState>,
+    pattern: Option<SubVoxelPattern>,        // #[serde(default)] — None is Full
+    rotation: Option<usize>,                 // #[serde(default)] — index into MapData::orientations
+    rotation_state: Option<LegacyRotationState>, // #[serde(default)] — load-only backward compat
 }
 ```
 
@@ -120,13 +124,50 @@ struct VoxelData {
 |-------|------|----------|-------------|-------------|
 | `pos` | (i32, i32, i32) | Yes | Within world bounds | Grid position |
 | `voxel_type` | VoxelType | Yes | Valid enum variant | Material type |
-| `pattern` | Option<SubVoxelPattern> | No | Valid enum variant or None | Shape pattern |
-| `rotation_state` | Option<RotationState> | No | Valid rotation state | Rotation applied to pattern |
+| `pattern` | Option<SubVoxelPattern> | No | Valid enum variant or None | Shape pattern; defaults to `Full` when absent |
+| `rotation` | Option<usize> | No | Valid index into `MapData::orientations`, or None | Orientation matrix index; None means no rotation |
+| `rotation_state` | Option<LegacyRotationState> | No | Load-only | **Backward compatibility only** — accepted on load, converted to `rotation` internally, never written on save. See [Legacy Rotation](#legacyrotationstate-legacy) section. |
 
 **Position Constraints:**
 - `0 <= pos.0 < width`
 - `0 <= pos.1 < height`
 - `0 <= pos.2 < depth`
+
+### OrientationMatrix
+
+**Type**: `[[i32; 3]; 3]` (type alias)  
+**Required**: No (the `orientations` field on `MapData` defaults to an empty list)  
+**Defined in**: `src/systems/game/map/format/rotation.rs`
+
+An `OrientationMatrix` is a 3×3 integer rotation matrix that describes a rigid orientation in the 90° grid. All entries must be −1, 0, or 1, with exactly one non-zero entry per row and per column (determinant = 1 for proper rotations).
+
+**Identity matrix** (no rotation):
+```ron
+[[1,0,0],[0,1,0],[0,0,1]]
+```
+
+**Example — 90° rotation around the Y axis:**
+```ron
+[[0,0,1],[0,1,0],[-1,0,0]]
+```
+
+**RON Syntax — declaring orientations on a map:**
+```ron
+orientations: [
+    [[1,0,0],[0,1,0],[0,0,1]],   // index 0: identity (no rotation)
+    [[0,0,1],[0,1,0],[-1,0,0]],  // index 1: 90° around Y
+    [[-1,0,0],[0,1,0],[0,0,-1]], // index 2: 180° around Y
+    [[0,0,-1],[0,1,0],[1,0,0]],  // index 3: 270° around Y
+]
+```
+
+A `VoxelData.rotation` value of `Some(1)` means "apply `orientations[1]`". `None` (or absent) means no rotation.
+
+**Constraints:**
+- Each entry ∈ {−1, 0, 1}
+- Exactly one non-zero entry per row and per column
+- Determinant must equal 1 (proper rotation, no reflection)
+- Index in `VoxelData.rotation` must be a valid index into `MapData::orientations`
 
 ### VoxelType
 
@@ -205,63 +246,33 @@ pattern: Some(StaircaseNegZ) // Normalised to Staircase + Y+270° orientation
 **PlatformXZ**: Horizontal slab (8×1×8)
 - Bottom layer only on XZ plane
 
-### RotationState
+### LegacyRotationState (legacy)
 
-**Type**: Struct  
-**Required**: No
+> **This type is load-only backward compatibility.** It is accepted on load and converted to an `OrientationMatrix` internally, but is **never written on save**. New maps must use the `rotation: Option<usize>` field pointing into `MapData::orientations`. Do not use `rotation_state` in new map files.
 
-```rust
-struct RotationState {
-    axis: RotationAxis,
-    angle: i32,
-}
+`LegacyRotationState` was the original rotation representation before Finding 1 replaced it with the orientation-matrix system. It stored a single axis + angle pair. The type remains in the codebase only to allow old map files to continue loading without migration.
+
+**Legacy RON syntax (accepted on load, not written on save):**
+```ron
+// These forms are still accepted but converted internally on load:
+rotation_state: Some((axis: Y, angle: 1))  // Was: 90° around Y axis
+rotation_state: Some((axis: X, angle: 2))  // Was: 180° around X axis
+rotation_state: None                        // Was: no rotation
 ```
 
-**Fields:**
-
-| Field | Type | Required | Constraints | Description |
-|-------|------|----------|-------------|-------------|
-| `axis` | RotationAxis | Yes | Valid enum variant | Axis of rotation |
-| `angle` | i32 | Yes | 0-3 | Rotation angle in 90° increments |
-
-**Angle Values:**
-- `0` = 0° (no rotation)
-- `1` = 90° clockwise
-- `2` = 180°
-- `3` = 270° clockwise (or 90° counter-clockwise)
-
-**RON Syntax:**
+**New equivalent using `rotation`:**
 ```ron
-rotation_state: Some((axis: Y, angle: 1))  // 90° around Y axis
-rotation_state: Some((axis: X, angle: 2))  // 180° around X axis
-rotation_state: None  // No rotation
-```
+// Declare orientation matrices in MapData:
+orientations: [
+    [[0,0,1],[0,1,0],[-1,0,0]],  // index 0: Y+90°
+]
 
-### RotationAxis
-
-**Type**: Enum  
-**Variants:**
-
-| Variant | Description |
-|---------|-------------|
-| `X` | Rotation around the X axis |
-| `Y` | Rotation around the Y axis (default) |
-| `Z` | Rotation around the Z axis |
-
-**RON Syntax:**
-```ron
-axis: X
-axis: Y
-axis: Z
-```
-
-**Usage Example:**
-```ron
+// Then reference by index on each voxel:
 (
     pos: (1, 0, 1),
     voxel_type: Stone,
     pattern: Some(Staircase),
-    rotation_state: Some((axis: Y, angle: 1)),  // Rotate stairs 90° to face Z
+    rotation: Some(0),  // Apply orientations[0] — same as old rotation_state Y/angle:1
 )
 ```
 
@@ -341,16 +352,20 @@ struct EntityData {
 | Variant | Required | Status | Description |
 |---------|----------|--------|-------------|
 | `PlayerSpawn` | At least one | Implemented | Player starting position |
-| `Enemy` | No | Planned | Enemy spawn point |
-| `Item` | No | Planned | Item pickup location |
-| `Trigger` | No | Planned | Event trigger zone |
+| `Npc` | No | Implemented | Non-player character spawn point |
+| `Enemy` | No | Implemented | Enemy spawn point |
+| `Item` | No | Implemented | Item pickup location |
+| `Trigger` | No | Implemented | Event trigger zone |
+| `LightSource` | No | Implemented | Point light with configurable properties |
 
 **RON Syntax:**
 ```ron
 entity_type: PlayerSpawn
+entity_type: Npc
 entity_type: Enemy
 entity_type: Item
 entity_type: Trigger
+entity_type: LightSource
 ```
 
 ### LightingData
@@ -470,6 +485,7 @@ custom_properties: {
 - No type constraints on values
 - Application-specific interpretation
 - Can be empty: `{}`
+- **No namespace convention is currently enforced.** A reserved key-prefix scheme (e.g. `engine:*` for engine-defined properties) is tracked in [`docs/bugs/custom-properties-namespace/`](../bugs/custom-properties-namespace/ticket.md) and is planned for a future version. Until then, avoid keys that start with `engine:` to prevent collision with the forthcoming reserved namespace.
 
 ## Validation Rules
 
@@ -484,6 +500,7 @@ custom_properties: {
    - `0 <= voxel.pos.0 < width`
    - `0 <= voxel.pos.1 < height`
    - `0 <= voxel.pos.2 < depth`
+   - No two voxels may share the same `pos` (duplicate positions cause mesh corruption and are rejected with a validation error)
 
 3. **Player Spawn**
    - At least one `EntityType::PlayerSpawn` required
@@ -495,6 +512,16 @@ custom_properties: {
 5. **Version Format**
    - Must match regex: `^1\.`
    - Examples: "1.0.0", "1.2.3", "1.0.0-beta"
+
+6. **Orientation Matrices** (`validate_orientations`)
+   - Every matrix in `MapData::orientations` must have entries ∈ {−1, 0, 1}
+   - Exactly one non-zero entry per row and per column (pure axis permutation)
+   - Determinant must equal 1 (proper rotation, no reflection)
+   - Every `VoxelData.rotation` index must be a valid index into the `orientations` list
+
+7. **Entity Properties**
+   - `LightSource` entities: `intensity` must parse as a positive `f32`; `range` must parse as a positive `f32`; `color` must be a valid `(r, g, b)` string with each component 0.0–1.0; `shadows` must parse as a `bool`. Invalid values produce a validation warning and fall back to engine defaults.
+   - `Npc` entities: `model` property, if present, must be a non-empty string path. Invalid or missing `model` produces a warning and uses a placeholder mesh.
 
 ### Optional Validations (Warnings)
 
@@ -526,24 +553,23 @@ custom_properties: {
 
 **Supported Features:**
 - Basic voxel types (Air, Grass, Dirt, Stone)
-- Sub-voxel patterns (Full, Platform, Staircase, Pillar)
-- PlayerSpawn entities
+- Sub-voxel patterns: Full, PlatformXZ, PlatformXY, PlatformYZ, Staircase, Pillar (full-height column), CenterCube, Fence
+- All entity types: PlayerSpawn, Npc, Enemy, Item, Trigger, LightSource
+- Orientation-matrix rotation system (`MapData::orientations` + `VoxelData::rotation`)
 - Ambient and directional lighting
-- Camera configuration
+- Camera configuration (with optional `follow_speed`, `rotation_speed`, `fov_degrees`)
 - Custom properties
 
+**Load-only backward compatibility (accepted on load, never written on save):**
+- `rotation_state` field on `VoxelData` (legacy single-axis rotation)
+- Pattern aliases: `Platform` → `PlatformXZ`, `StaircaseX` → `Staircase`, `StaircaseNegX/Z/NegZ` (normalised), `FenceX/Z/Corner` → `Fence`
+
 **Not Supported:**
-- Enemy, Item, Trigger entities (defined but not implemented)
-- Additional voxel types
 - Animated voxels
 - Scripting
+- Area lights or baked lightmaps
 
 ### Future Versions
-
-**Planned for 1.1.0:**
-- Additional entity types
-- More voxel types
-- Animation support
 
 **Planned for 2.0.0:**
 - Breaking changes to format
@@ -619,5 +645,5 @@ See `assets/maps/default.ron` in the repository.
 ---
 
 **Specification Version**: 1.0.0  
-**Last Updated**: 2025-01-10  
+**Last Updated**: 2026-03-31  
 **Status**: Stable
