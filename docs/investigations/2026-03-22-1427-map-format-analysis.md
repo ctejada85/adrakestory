@@ -16,7 +16,7 @@
 | 6 — VoxelType in wrong module | `docs/bugs/voxel-type-wrong-module/` | **Fixed** — `VoxelType` moved to `src/systems/game/map/format/voxel_type.rs`; re-exported via `format/mod.rs` and `components.rs`. `docs/api/map-format-spec.md` and `docs/developer-guide/architecture.md` updated. Commit `aa7dbb8`. | 2026-03-31 |
 | 7 — Pillar geometry / name mismatch | `docs/bugs/pillar-geometry-name-mismatch/` | **Fixed** — `Pillar` repurposed to `column_2x2()` (2×8×2, full height, no stacking gap); old 2×2×2 cube geometry moved to new `CenterCube` variant with `#[serde(alias = "Pillar")]` for backward compat. Editor pickers, hotbar, and pattern cycle updated. `docs/api/map-format-spec.md` updated. | 2026-03-31 |
 | 8 — Camera static snapshot | `docs/bugs/camera-static-snapshot/` | **Fixed** — `CameraData` gains `follow_speed`, `rotation_speed`, `fov_degrees` (`Option<f32>`, `#[serde(default)]`); `spawn_camera()` reads new fields with fallback defaults; conditional `Projection::Perspective` when `fov_degrees` is `Some`. 6 unit tests. Commit `e5e1d87`. | 2026-03-31 |
-| 9 — custom_properties namespace | — | Not yet tracked. | — |
+| 9 — custom_properties namespace | `docs/bugs/custom-properties-namespace/` | **Tracked** — ticket, requirements, and architecture docs written. | 2026-03-31 |
 
 ## Summary
 
@@ -204,7 +204,7 @@ the same map will silently collide on key names.
 | 6 | Only 4 material types; VoxelType in components.rs | `components.rs:44–50` | p3 | Limited palette; format/ECS coupling | **Fixed** `aa7dbb8` |
 | 7 | Pillar geometry is floating cube, not a column | geometry patterns | p3 | Misleading name, unexpected collision gaps | **Fixed** — `CenterCube` + new `Pillar` column |
 | 8 | Camera stored as static snapshot | `camera.rs` | p3 | No dynamic camera properties expressible in format | **Tracked** — `docs/bugs/camera-static-snapshot/` |
-| 9 | custom_properties has no namespace | `format/mod.rs` | p3 | Key collisions possible across systems | Open |
+| 9 | custom_properties has no namespace | `format/mod.rs` | p3 | Key collisions possible across systems | **Tracked** — `docs/bugs/custom-properties-namespace/` |
 
 ---
 
