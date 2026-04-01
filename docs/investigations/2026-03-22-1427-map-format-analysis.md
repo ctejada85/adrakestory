@@ -13,7 +13,8 @@
 | 3 — Fence silently ignores rotation | `docs/bugs/fence-rotation-ignored/` | **Fixed** — Spawner applies orientation matrix to fence geometry after world-axis neighbour detection; `world_dir_to_local()` maps neighbours into local frame. `docs/api/map-format-spec.md` updated. Commits `56ca5fa`, `fd80558`, `54b057f`. | 2026-03-26 |
 | 4 — Duplicate voxel positions not detected | `docs/bugs/duplicate-voxel-positions/` | **Fixed** — `validate_voxel_positions()` extended with `HashSet` duplicate check. Commit `9f960d1`. | 2026-03-31 |
 | 5 — Entity properties silent parse failures | `docs/bugs/entity-properties-silent-parse-failure/` | **Fixed** — `validate_entity_properties()` added to `validate_entities()`; validates LightSource and Npc property strings before spawning. Commit pending. | 2026-03-31 |
-| 6–9 | — | Not yet tracked. | — |
+| 6 — VoxelType in wrong module | `docs/bugs/voxel-type-wrong-module/` | **Tracked** — ticket, requirements, and architecture written. Implementation pending. | 2026-03-31 |
+| 7–9 | — | Not yet tracked. | — |
 
 ## Summary
 
