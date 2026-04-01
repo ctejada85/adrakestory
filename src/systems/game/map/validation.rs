@@ -41,15 +41,27 @@ fn validate_world_dimensions(map: &MapData) -> MapResult<()> {
     Ok(())
 }
 
-/// Validates that all voxel positions are within world bounds.
+/// Validates that all voxel positions are within world bounds and that no two
+/// voxels share the same position.
 fn validate_voxel_positions(map: &MapData) -> MapResult<()> {
     let world = &map.world;
+    let mut seen = std::collections::HashSet::new();
 
     for voxel in &world.voxels {
         let (x, y, z) = voxel.pos;
 
+        // Bounds check first — consistent with all other early-return checks here.
         if x < 0 || x >= world.width || y < 0 || y >= world.height || z < 0 || z >= world.depth {
             return Err(MapLoadError::InvalidVoxelPosition(x, y, z));
+        }
+
+        // Duplicate check — two entries at the same position cause superimposed
+        // geometry in the chunk mesh with no other indication of the problem.
+        if !seen.insert(voxel.pos) {
+            return Err(MapLoadError::ValidationError(format!(
+                "Duplicate voxel position {:?}",
+                voxel.pos
+            )));
         }
     }
 
@@ -209,6 +221,15 @@ mod tests {
     fn test_missing_player_spawn() {
         let mut map = MapData::default_map();
         map.entities.clear();
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn test_duplicate_voxel_position() {
+        let mut map = MapData::default_map();
+        // Clone an existing voxel to create a duplicate at the same position.
+        let duplicate = map.world.voxels[0].clone();
+        map.world.voxels.push(duplicate);
         assert!(validate_map(&map).is_err());
     }
 }

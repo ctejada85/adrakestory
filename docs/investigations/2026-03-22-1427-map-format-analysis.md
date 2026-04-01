@@ -11,7 +11,8 @@
 | 1 — Multi-axis rotation silently broken | `docs/bugs/map-format-multi-axis-rotation/` | **Fixed** — `RotationState` replaced with `orientations: Vec<OrientationMatrix>` + `rotation: Option<usize>` per voxel. Commit `eda90e3`. | 2026-03-26 |
 | 2 — Staircase double-rotation | `docs/bugs/staircase-double-rotation/` | **Fixed** — `normalise_staircase_variants()` loader pass added; `StaircaseX` renamed to `Staircase` with serde alias; directional variants removed from editor picker. Commit `4874885`. | 2026-03-26 |
 | 3 — Fence silently ignores rotation | `docs/bugs/fence-rotation-ignored/` | **Tracked** — bug report, requirements, and architecture written. Not yet implemented. | 2026-03-26 |
-| 4–9 | — | Not yet tracked. | — |
+| 4 — Duplicate voxel positions not detected | `docs/bugs/duplicate-voxel-positions/` | **Tracked** — bug ticket written. Not yet implemented. | 2026-03-31 |
+| 5–9 | — | Not yet tracked. | — |
 
 ## Summary
 
