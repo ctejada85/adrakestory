@@ -49,7 +49,7 @@ The map editor supports Xbox controllers (and other XInput-compatible gamepads) 
 #### RB/LB Cycling Behavior
 | Tool | RB/LB Action |
 |------|--------------|
-| Voxel Place | Cycles through patterns (Full, PlatformXZ, PlatformXY, PlatformYZ, StaircaseX, StaircaseNegX, StaircaseZ, StaircaseNegZ, Pillar, Fence) |
+| Voxel Place | Cycles through patterns (Full, PlatformXZ, PlatformXY, PlatformYZ, Staircase, Pillar, CenterCube, Fence) |
 | Entity Place | Cycles through entity types (PlayerSpawn, Npc, Enemy, Item, Trigger, LightSource) |
 | Other Tools | No action |
 
@@ -267,10 +267,14 @@ When the Voxel Place Tool is active:
 - Air (Empty space)
 
 **Available Patterns:**
-- Full (Solid block)
-- Platform (Flat surface)
-- Staircase (Diagonal steps)
-- Pillar (Vertical column)
+- Full (Solid block — 8×8×8)
+- PlatformXZ (Horizontal flat surface)
+- PlatformXY (Vertical wall facing Z)
+- PlatformYZ (Vertical wall facing X)
+- Staircase (Diagonal steps; use rotation to orient direction)
+- Pillar (Full-height 2×8×2 column)
+- CenterCube (Small centred 2×2×2 cube)
+- Fence (Post with neighbour-aware rails)
 
 ### Voxel Remove Tool (`X`)
 
@@ -297,8 +301,12 @@ When the Entity Tool is active:
 | **Change Type** | Use dropdown in Properties panel |
 
 **Available Entity Types:**
-- PlayerSpawn (Required - where player starts)
-- More types coming soon
+- PlayerSpawn (Required — where player starts)
+- Npc (Non-player character)
+- Enemy (Enemy spawn)
+- Item (Item pickup)
+- Trigger (Event trigger)
+- LightSource (Point light)
 
 ### Select Tool (`V`)
 

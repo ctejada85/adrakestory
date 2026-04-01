@@ -97,9 +97,13 @@ When you launch the map editor, it starts with a **blank canvas** - an empty wor
    - **Stone**: Gray terrain
 3. Choose pattern:
    - **Full**: Solid block
-   - **Platform**: Flat surface
-   - **Staircase**: Diagonal steps
-   - **Pillar**: Vertical column
+   - **PlatformXZ**: Horizontal flat surface
+   - **PlatformXY**: Vertical wall facing Z
+   - **PlatformYZ**: Vertical wall facing X
+   - **Staircase**: Diagonal steps (facing +X; use rotation to orient)
+   - **Pillar**: Full-height 2×8×2 column
+   - **CenterCube**: Small centred 2×2×2 cube
+   - **Fence**: Fence post with neighbour-aware rails
 4. Click in the viewport to place voxels
 5. **Drag to place multiple**: Hold left-click and drag to draw lines of voxels
 
@@ -122,8 +126,12 @@ When you launch the map editor, it starts with a **blank canvas** - an empty wor
 
 1. Select the **Entity Tool** (press `E`)
 2. Choose entity type:
-   - **PlayerSpawn**: Where the player starts
-   - More entity types coming soon
+   - **PlayerSpawn**: Where the player starts (required — at least one per map)
+   - **Npc**: Non-player character spawn point
+   - **Enemy**: Enemy spawn point
+   - **Item**: Item pickup location
+   - **Trigger**: Event trigger zone
+   - **LightSource**: Point light (configure intensity, range, color via Properties panel)
 3. Click in the viewport to place
 
 ### Camera Controls
