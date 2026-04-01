@@ -5,10 +5,7 @@ use crate::systems::game::map::format::MapData;
 use bevy::prelude::*;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{
-    mpsc::channel,
-    Arc, Mutex,
-};
+use std::sync::{mpsc::channel, Arc, Mutex};
 
 use super::events::{FileDialogReceiver, FileSelectedEvent, MapDataChangedEvent};
 

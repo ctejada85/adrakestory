@@ -136,9 +136,13 @@ mod tests {
     fn test_get_entities_in_aabb_single_cell() {
         let mut grid = SpatialGrid::default();
         let entity = Entity::from_raw_u32(1).unwrap();
-        grid.cells.entry(IVec3::new(0, 0, 0)).or_default().push(entity);
+        grid.cells
+            .entry(IVec3::new(0, 0, 0))
+            .or_default()
+            .push(entity);
 
-        let entities = grid.get_entities_in_aabb(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.5, 0.5, 0.5));
+        let entities =
+            grid.get_entities_in_aabb(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.5, 0.5, 0.5));
         assert_eq!(entities.len(), 1);
         assert_eq!(entities[0], entity);
     }
@@ -155,7 +159,8 @@ mod tests {
         grid.cells.entry(IVec3::new(0, 1, 0)).or_default().push(e3);
 
         // Query spanning multiple cells
-        let entities = grid.get_entities_in_aabb(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.5, 1.5, 0.5));
+        let entities =
+            grid.get_entities_in_aabb(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.5, 1.5, 0.5));
         assert_eq!(entities.len(), 3);
     }
 
@@ -163,10 +168,14 @@ mod tests {
     fn test_get_entities_in_aabb_empty_cells() {
         let mut grid = SpatialGrid::default();
         let entity = Entity::from_raw_u32(1).unwrap();
-        grid.cells.entry(IVec3::new(5, 5, 5)).or_default().push(entity);
+        grid.cells
+            .entry(IVec3::new(5, 5, 5))
+            .or_default()
+            .push(entity);
 
         // Query area that doesn't include the entity's cell
-        let entities = grid.get_entities_in_aabb(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0));
+        let entities =
+            grid.get_entities_in_aabb(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0));
         assert!(entities.is_empty());
     }
 
@@ -175,10 +184,14 @@ mod tests {
         let mut grid = SpatialGrid::default();
         let entity = Entity::from_raw_u32(1).unwrap();
         // Entity at exact boundary (1.0, 1.0, 1.0) should be in cell (1, 1, 1)
-        grid.cells.entry(IVec3::new(1, 1, 1)).or_default().push(entity);
+        grid.cells
+            .entry(IVec3::new(1, 1, 1))
+            .or_default()
+            .push(entity);
 
         // Query that includes cell (1, 1, 1)
-        let entities = grid.get_entities_in_aabb(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.5, 1.5, 1.5));
+        let entities =
+            grid.get_entities_in_aabb(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.5, 1.5, 1.5));
         assert_eq!(entities.len(), 1);
     }
 }

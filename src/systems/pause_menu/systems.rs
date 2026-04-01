@@ -167,6 +167,7 @@ pub fn pause_menu_input(
 }
 
 /// Handles keyboard and gamepad navigation for the pause menu
+#[allow(clippy::too_many_arguments)]
 pub fn keyboard_navigation(
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,

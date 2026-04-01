@@ -248,6 +248,7 @@ pub fn spawn_light_source(
 
 /// Parse light intensity from properties with defaults and clamping.
 /// Exposed for testing.
+#[allow(dead_code)]
 pub(crate) fn parse_light_intensity(properties: &HashMap<String, String>) -> f32 {
     properties
         .get("intensity")
@@ -258,6 +259,7 @@ pub(crate) fn parse_light_intensity(properties: &HashMap<String, String>) -> f32
 
 /// Parse light range from properties with defaults and clamping.
 /// Exposed for testing.
+#[allow(dead_code)]
 pub(crate) fn parse_light_range(properties: &HashMap<String, String>) -> f32 {
     properties
         .get("range")
@@ -268,6 +270,7 @@ pub(crate) fn parse_light_range(properties: &HashMap<String, String>) -> f32 {
 
 /// Parse shadows enabled from properties with default.
 /// Exposed for testing.
+#[allow(dead_code)]
 pub(crate) fn parse_shadows_enabled(properties: &HashMap<String, String>) -> bool {
     properties
         .get("shadows")
@@ -277,6 +280,7 @@ pub(crate) fn parse_shadows_enabled(properties: &HashMap<String, String>) -> boo
 
 /// Parse color from properties in "r,g,b" format.
 /// Exposed for testing.
+#[allow(dead_code)]
 pub(crate) fn parse_color(properties: &HashMap<String, String>) -> Option<Color> {
     properties.get("color").and_then(|c| {
         let parts: Vec<f32> = c.split(',').filter_map(|p| p.trim().parse().ok()).collect();
@@ -290,6 +294,7 @@ pub(crate) fn parse_color(properties: &HashMap<String, String>) -> Option<Color>
 
 /// Parse NPC radius from properties with default.
 /// Exposed for testing.
+#[allow(dead_code)]
 pub(crate) fn parse_npc_radius(properties: &HashMap<String, String>) -> f32 {
     properties
         .get("radius")
@@ -299,6 +304,7 @@ pub(crate) fn parse_npc_radius(properties: &HashMap<String, String>) -> f32 {
 
 /// Parse NPC name from properties with default.
 /// Exposed for testing.
+#[allow(dead_code)]
 pub(crate) fn parse_npc_name(properties: &HashMap<String, String>) -> String {
     properties
         .get("name")

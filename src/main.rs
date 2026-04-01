@@ -1,5 +1,8 @@
 use crate::diagnostics::FrameProfilerPlugin;
-use bevy::{prelude::*, window::{PresentMode, WindowMode}};
+use bevy::{
+    prelude::*,
+    window::{PresentMode, WindowMode},
+};
 use std::path::PathBuf;
 
 mod diagnostics;
@@ -95,8 +98,8 @@ use systems::game::map::{
 };
 use systems::game::systems::{
     apply_gravity, apply_npc_collision, apply_physics, follow_player_camera, handle_escape_key,
-    move_player, rotate_camera, rotate_character_model, toggle_collision_box, toggle_flashlight,
-    toggle_fullscreen, update_collision_box, update_flashlight_rotation,
+    move_player, rotate_camera, rotate_character_model, sync_light_sources, toggle_collision_box,
+    toggle_flashlight, toggle_fullscreen, update_collision_box, update_flashlight_rotation,
 };
 use systems::intro_animation::systems::{animate_intro, cleanup_intro, setup_intro};
 use systems::loading_screen::{
@@ -255,6 +258,7 @@ fn main() {
                 rotate_character_model,
                 update_collision_box,
                 update_flashlight_rotation,
+                sync_light_sources,
                 update_chunk_lods,
                 update_cursor_visibility,
                 apply_shadow_quality_system,

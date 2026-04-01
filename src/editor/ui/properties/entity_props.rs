@@ -1,8 +1,8 @@
 //! Entity-specific property editing panels.
 
+use super::entity_tools::get_entity_icon;
 use crate::editor::state::EditorState;
 use crate::systems::game::map::format::EntityType;
-use super::entity_tools::get_entity_icon;
 use bevy_egui::egui;
 
 /// Render properties for a single selected entity
@@ -261,11 +261,8 @@ fn render_light_source_properties(ui: &mut egui::Ui, editor_state: &mut EditorSt
         }
 
         // Color preview
-        let preview_color = egui::Color32::from_rgb(
-            (r * 255.0) as u8,
-            (g * 255.0) as u8,
-            (b * 255.0) as u8,
-        );
+        let preview_color =
+            egui::Color32::from_rgb((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8);
         let (rect, _) = ui.allocate_exact_size(egui::vec2(60.0, 20.0), egui::Sense::hover());
         ui.painter().rect_filled(rect, 2.0, preview_color);
     });

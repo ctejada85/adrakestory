@@ -314,6 +314,7 @@ pub fn handle_controller_palette(
 
 /// System to handle controller editing actions (place/remove).
 /// Note: This system handles gamepad triggers only. Mouse actions are handled by tool systems.
+#[allow(clippy::too_many_arguments)]
 pub fn handle_controller_editing(
     _mode: Res<ControllerCameraMode>,
     gamepads: Query<&Gamepad>,

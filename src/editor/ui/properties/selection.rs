@@ -1,14 +1,18 @@
 //! Selection tool property panels for voxel and entity selection.
 
+use super::entity_props::render_single_entity_properties;
+use super::TransformEvents;
 use crate::editor::state::EditorState;
 use crate::editor::tools::{
     ActiveTransform, CancelTransform, ConfirmTransform, DeleteSelectedVoxels, StartMoveOperation,
     StartRotateOperation, TransformMode,
 };
-use super::entity_props::render_single_entity_properties;
-use super::TransformEvents;
 use bevy_egui::egui;
 use std::collections::HashSet;
+
+/// Bounding box of a selection as (min, max) voxel coordinates, each component optional
+/// when the selection is empty.
+pub type SelectionBounds = (Option<(i32, i32, i32)>, Option<(i32, i32, i32)>);
 
 /// Select tool content
 pub fn render_select_content(
@@ -188,9 +192,7 @@ fn render_entity_selection_content(ui: &mut egui::Ui, editor_state: &mut EditorS
 }
 
 /// Calculate selection bounds for display
-pub fn calculate_selection_bounds(
-    selected: &HashSet<(i32, i32, i32)>,
-) -> (Option<(i32, i32, i32)>, Option<(i32, i32, i32)>) {
+pub fn calculate_selection_bounds(selected: &HashSet<(i32, i32, i32)>) -> SelectionBounds {
     if selected.is_empty() {
         return (None, None);
     }

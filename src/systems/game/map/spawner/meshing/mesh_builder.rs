@@ -1,9 +1,9 @@
 //! Chunk mesh builder for constructing meshes from voxel geometry.
 
 use super::{Face, SUB_VOXEL_SIZE};
-use bevy::prelude::*;
-use bevy::mesh::{Indices, PrimitiveTopology, VertexAttributeValues};
 use bevy::asset::RenderAssetUsages;
+use bevy::mesh::{Indices, PrimitiveTopology, VertexAttributeValues};
+use bevy::prelude::*;
 
 /// Builder for constructing chunk meshes from multiple cubes.
 /// Combines all sub-voxels in a chunk into a single mesh with vertex colors.

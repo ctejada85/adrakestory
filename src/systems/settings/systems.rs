@@ -3,7 +3,9 @@ use super::resources::{SelectedSettingsIndex, SettingsOrigin};
 use super::vsync::VsyncConfig;
 use crate::states::GameState;
 use crate::systems::game::gamepad::{get_menu_gamepad_input, ActiveGamepad, GamepadSettings};
-use crate::systems::game::occlusion::{OcclusionConfig, OcclusionMode, ShadowQuality, TransparencyTechnique};
+use crate::systems::game::occlusion::{
+    OcclusionConfig, OcclusionMode, ShadowQuality, TransparencyTechnique,
+};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -82,8 +84,14 @@ fn adjust_value(id: SettingId, config: &mut OcclusionConfig, vsync: &mut VsyncCo
     match id {
         SettingId::Enabled => config.enabled = !config.enabled,
         SettingId::Technique => {
-            let variants = [TransparencyTechnique::Dithered, TransparencyTechnique::AlphaBlend];
-            let cur = variants.iter().position(|v| *v == config.technique).unwrap_or(0);
+            let variants = [
+                TransparencyTechnique::Dithered,
+                TransparencyTechnique::AlphaBlend,
+            ];
+            let cur = variants
+                .iter()
+                .position(|v| *v == config.technique)
+                .unwrap_or(0);
             config.technique =
                 variants[(cur as i32 + delta).rem_euclid(variants.len() as i32) as usize];
         }
@@ -95,12 +103,10 @@ fn adjust_value(id: SettingId, config: &mut OcclusionConfig, vsync: &mut VsyncCo
                 OcclusionMode::Hybrid,
             ];
             let cur = variants.iter().position(|v| *v == config.mode).unwrap_or(0);
-            config.mode =
-                variants[(cur as i32 + delta).rem_euclid(variants.len() as i32) as usize];
+            config.mode = variants[(cur as i32 + delta).rem_euclid(variants.len() as i32) as usize];
         }
         SettingId::MinAlpha => {
-            config.min_alpha =
-                round2((config.min_alpha + delta as f32 * 0.05).clamp(0.0, 1.0));
+            config.min_alpha = round2((config.min_alpha + delta as f32 * 0.05).clamp(0.0, 1.0));
         }
         SettingId::ShadowQuality => {
             let variants = [
@@ -134,8 +140,7 @@ fn adjust_value(id: SettingId, config: &mut OcclusionConfig, vsync: &mut VsyncCo
                 round1((config.interior_height_threshold + delta as f32).clamp(1.0, 20.0));
         }
         SettingId::RegionUpdateInterval => {
-            let new_val =
-                (config.region_update_interval as i32 + delta * 10).clamp(10, 120) as u32;
+            let new_val = (config.region_update_interval as i32 + delta * 10).clamp(10, 120) as u32;
             config.region_update_interval = new_val;
         }
         SettingId::VsyncEnabled => {
@@ -145,8 +150,8 @@ fn adjust_value(id: SettingId, config: &mut OcclusionConfig, vsync: &mut VsyncCo
         SettingId::VsyncMultiplier => {
             // Cycle through discrete steps: 0.25 → 0.5 → 1.0 → 2 → 3 → … → 16.
             const STEPS: &[f32] = &[
-                0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0,
-                9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
+                0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0,
+                14.0, 15.0, 16.0,
             ];
             let cur = STEPS
                 .iter()
@@ -168,7 +173,11 @@ fn round1(v: f32) -> f32 {
 }
 
 /// Spawns the settings screen UI.
-pub fn setup_settings_menu(mut commands: Commands, config: Res<OcclusionConfig>, vsync: Res<VsyncConfig>) {
+pub fn setup_settings_menu(
+    mut commands: Commands,
+    config: Res<OcclusionConfig>,
+    vsync: Res<VsyncConfig>,
+) {
     commands.insert_resource(SelectedSettingsIndex::default());
 
     commands
@@ -326,6 +335,7 @@ pub fn cleanup_settings_menu(
 }
 
 /// Handles keyboard and gamepad input for the settings screen.
+#[allow(clippy::too_many_arguments)]
 pub fn settings_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     active_gamepad: Res<ActiveGamepad>,
@@ -344,8 +354,7 @@ pub fn settings_input(
     if (keyboard.just_pressed(KeyCode::ArrowUp) || gp_up) && selected.index > 0 {
         selected.index -= 1;
     }
-    if (keyboard.just_pressed(KeyCode::ArrowDown) || gp_down)
-        && selected.index < selected.total - 1
+    if (keyboard.just_pressed(KeyCode::ArrowDown) || gp_down) && selected.index < selected.total - 1
     {
         selected.index += 1;
     }
@@ -385,6 +394,7 @@ fn go_back(origin: &SettingsOrigin, next_state: &mut NextState<GameState>) {
 }
 
 /// Updates the visual appearance of rows (highlight selected) and value display text.
+#[allow(clippy::type_complexity)]
 pub fn update_settings_visual(
     selected: Res<SelectedSettingsIndex>,
     config: Res<OcclusionConfig>,

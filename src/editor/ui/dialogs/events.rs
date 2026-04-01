@@ -2,10 +2,7 @@
 
 use bevy::prelude::*;
 use std::path::PathBuf;
-use std::sync::{
-    mpsc::Receiver,
-    Arc, Mutex,
-};
+use std::sync::{mpsc::Receiver, Arc, Mutex};
 
 /// Event sent when a file is selected from the file dialog
 #[derive(Message)]

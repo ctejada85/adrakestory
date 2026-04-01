@@ -29,16 +29,11 @@ pub struct GreedyMesher {
     /// Faces grouped by direction and then by slice depth
     /// Key: (Face direction, slice depth) -> Vec of (u, v, color_index, color)
     /// where u,v are the 2D coordinates within the slice
+    #[allow(clippy::type_complexity)]
     slices: HashMap<(Face, i32), Vec<(i32, i32, usize, Color)>>,
 }
 
 impl GreedyMesher {
-    pub fn new() -> Self {
-        Self {
-            slices: HashMap::new(),
-        }
-    }
-
     /// Add a visible face to the mesher.
     #[inline]
     pub fn add_face(

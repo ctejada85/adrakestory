@@ -55,11 +55,23 @@ pub fn update_cursor_position(
         let abs_z = forward.z.abs();
 
         if abs_y > abs_x && abs_y > abs_z {
-            cursor_state.hit_face_normal = Some(if forward.y > 0.0 { Vec3::NEG_Y } else { Vec3::Y });
+            cursor_state.hit_face_normal = Some(if forward.y > 0.0 {
+                Vec3::NEG_Y
+            } else {
+                Vec3::Y
+            });
         } else if abs_x > abs_z {
-            cursor_state.hit_face_normal = Some(if forward.x > 0.0 { Vec3::NEG_X } else { Vec3::X });
+            cursor_state.hit_face_normal = Some(if forward.x > 0.0 {
+                Vec3::NEG_X
+            } else {
+                Vec3::X
+            });
         } else {
-            cursor_state.hit_face_normal = Some(if forward.z > 0.0 { Vec3::NEG_Z } else { Vec3::Z });
+            cursor_state.hit_face_normal = Some(if forward.z > 0.0 {
+                Vec3::NEG_Z
+            } else {
+                Vec3::Z
+            });
         }
     } else {
         // Mouse mode: raycast from mouse cursor position

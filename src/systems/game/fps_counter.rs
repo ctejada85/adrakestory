@@ -18,15 +18,9 @@ impl Plugin for FpsCounterPlugin {
 }
 
 /// Resource to track FPS counter visibility state.
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct FpsCounterState {
     pub visible: bool,
-}
-
-impl Default for FpsCounterState {
-    fn default() -> Self {
-        Self { visible: false }
-    }
 }
 
 /// Marker component for the FPS counter text.

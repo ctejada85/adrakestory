@@ -23,7 +23,11 @@ pub fn handle_keyboard_cursor_movement(
     }
 
     // Check if UI wants keyboard input (user is typing in text fields, etc.)
-    if contexts.ctx_mut().expect("egui context").wants_keyboard_input() {
+    if contexts
+        .ctx_mut()
+        .expect("egui context")
+        .wants_keyboard_input()
+    {
         return;
     }
 
@@ -118,7 +122,11 @@ pub fn handle_keyboard_selection(
     }
 
     // Check if UI wants keyboard input (user is typing in text fields, etc.)
-    if contexts.ctx_mut().expect("egui context").wants_keyboard_input() {
+    if contexts
+        .ctx_mut()
+        .expect("egui context")
+        .wants_keyboard_input()
+    {
         return;
     }
 

@@ -10,7 +10,12 @@ pub mod resources;
 mod systems;
 pub mod vsync;
 
+// These re-exports are intentional public API surface for other systems and
+// future UI code that will build on the settings screen components/resources.
+// Nothing in the current codebase imports them yet, but they are stable identifiers.
+#[allow(unused_imports)]
 pub use components::{BackButton, SettingId, SettingRow, SettingValueDisplay, SettingsMenuRoot};
+#[allow(unused_imports)]
 pub use resources::{SelectedSettingsIndex, SettingsOrigin};
 pub use vsync::{MonitorInfo, VsyncConfig};
 
@@ -30,10 +35,7 @@ impl Plugin for SettingsPlugin {
             .init_resource::<VsyncConfig>()
             .init_resource::<MonitorInfo>()
             .add_systems(Startup, load_settings)
-            .add_systems(
-                Update,
-                detect_monitor_refresh_system,
-            )
+            .add_systems(Update, detect_monitor_refresh_system)
             .add_systems(First, apply_vsync_system)
             .add_systems(OnEnter(GameState::Settings), setup_settings_menu)
             .add_systems(

@@ -59,7 +59,9 @@ pub struct GameCamera {
 /// NPCs are static characters that the player can interact with.
 #[derive(Component)]
 pub struct Npc {
-    /// Display name of the NPC
+    /// Display name of the NPC — rendered as a world-space label above the entity.
+    /// See ticket: docs/bugs/npc-display-names/ticket.md
+    #[allow(dead_code)]
     pub name: String,
     /// Collision radius for player collision
     pub radius: f32,

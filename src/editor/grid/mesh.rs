@@ -2,9 +2,9 @@
 
 use super::bounds::calculate_frustum_culled_bounds;
 use super::{EditorGrid, InfiniteGridConfig};
-use bevy::prelude::*;
-use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::camera::primitives::Frustum;
+use bevy::mesh::{Indices, PrimitiveTopology};
+use bevy::prelude::*;
 
 /// Create an infinite grid mesh based on camera position with optional frustum culling
 pub fn create_infinite_grid_mesh(

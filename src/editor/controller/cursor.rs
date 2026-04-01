@@ -65,16 +65,13 @@ impl ControllerCursor {
             hit_info.face_normal.y.round() as i32,
             hit_info.face_normal.z.round() as i32,
         );
-        self.placement_position = Some(IVec3::new(voxel_pos.0, voxel_pos.1, voxel_pos.2) + face_offset);
+        self.placement_position =
+            Some(IVec3::new(voxel_pos.0, voxel_pos.1, voxel_pos.2) + face_offset);
     }
 
     /// Update targeting from ground plane hit.
     pub fn update_from_ground(&mut self, world_pos: Vec3, distance: f32) {
-        let grid_pos = IVec3::new(
-            world_pos.x.floor() as i32,
-            0,
-            world_pos.z.floor() as i32,
-        );
+        let grid_pos = IVec3::new(world_pos.x.floor() as i32, 0, world_pos.z.floor() as i32);
         self.target_voxel = None; // No voxel to remove
         self.placement_position = Some(grid_pos);
         self.hit_face = Some(Vec3::Y);
@@ -190,12 +187,9 @@ fn find_closest_voxel_intersection(
             voxel_pos.2 as f32 + 0.5,
         );
 
-        if let Some(hit_info) = ray_box_intersection_with_face(
-            ray_origin,
-            ray_dir,
-            center,
-            Vec3::splat(1.0),
-        ) {
+        if let Some(hit_info) =
+            ray_box_intersection_with_face(ray_origin, ray_dir, center, Vec3::splat(1.0))
+        {
             if hit_info.distance < closest_distance && hit_info.distance > 0.0 {
                 closest_distance = hit_info.distance;
                 closest_result = Some((voxel_pos, hit_info));
@@ -271,7 +265,11 @@ pub fn render_cursor_highlight(
             Color::srgba(0.5, 0.2, 0.2, 0.5)
         };
 
-        let center = Vec3::new(target.x as f32 + 0.5, target.y as f32 + 0.5, target.z as f32 + 0.5);
+        let center = Vec3::new(
+            target.x as f32 + 0.5,
+            target.y as f32 + 0.5,
+            target.z as f32 + 0.5,
+        );
         gizmos.cube(
             Transform::from_translation(center).with_scale(Vec3::splat(1.02)),
             color,

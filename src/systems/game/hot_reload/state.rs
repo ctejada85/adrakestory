@@ -13,6 +13,7 @@ pub struct HotReloadState {
     /// File watcher instance (wrapped for thread safety)
     watcher: Option<Arc<Mutex<RecommendedWatcher>>>,
     /// Channel receiver for file events (wrapped for thread safety)
+    #[allow(clippy::type_complexity)]
     receiver: Option<Arc<Mutex<Receiver<Result<Event, notify::Error>>>>>,
     /// Path being watched
     watched_path: Option<PathBuf>,

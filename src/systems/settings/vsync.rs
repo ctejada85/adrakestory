@@ -100,7 +100,11 @@ fn precise_sleep(duration: Duration) {
 /// - `< 1.0` reduces fps below refresh rate (e.g., 0.5× = 30 fps on 60 Hz)
 /// - `= 1.0` caps at native refresh rate
 /// - `> 1.0` caps above refresh rate (e.g., 2× = 120 fps on 60 Hz)
-pub fn target_frame_time(refresh_hz: f32, vsync_enabled: bool, multiplier: f32) -> Option<Duration> {
+pub fn target_frame_time(
+    refresh_hz: f32,
+    vsync_enabled: bool,
+    multiplier: f32,
+) -> Option<Duration> {
     if vsync_enabled && multiplier > 0.0 {
         let target_fps = refresh_hz * multiplier;
         Some(Duration::from_secs_f32(1.0 / target_fps))
@@ -197,7 +201,8 @@ pub fn apply_vsync_system(
     // means any sleep overshoot is compensated: the next sleep is automatically
     // shorter by the same amount. Clamp to now to avoid burst catch-up after a
     // long stall (e.g., window minimized, breakpoint).
-    if let (Some(target), Some(deadline)) = (limiter.target_frame_time, limiter.next_frame_deadline) {
+    if let (Some(target), Some(deadline)) = (limiter.target_frame_time, limiter.next_frame_deadline)
+    {
         let now = Instant::now();
         if now < deadline {
             precise_sleep(deadline - now);
@@ -216,14 +221,18 @@ pub fn apply_vsync_system(
     // Update Window present mode.
     // multiplier > 1.0 uses AutoNoVsync: Fifo would hard-cap at the native refresh
     // rate, preventing any frame rate above the monitor Hz regardless of multiplier.
-    let present_mode = select_present_mode(vsync_config.vsync_enabled, vsync_config.vsync_multiplier);
+    let present_mode =
+        select_present_mode(vsync_config.vsync_enabled, vsync_config.vsync_multiplier);
     if window.present_mode != present_mode {
         window.present_mode = present_mode;
     }
 
     // Configure software frame cap.
-    limiter.target_frame_time =
-        target_frame_time(monitor_info.refresh_hz, vsync_config.vsync_enabled, vsync_config.vsync_multiplier);
+    limiter.target_frame_time = target_frame_time(
+        monitor_info.refresh_hz,
+        vsync_config.vsync_enabled,
+        vsync_config.vsync_multiplier,
+    );
 
     // Reset to a fresh deadline so stale past/future deadlines don't cause
     // an immediate burst or a long wait after a settings change.

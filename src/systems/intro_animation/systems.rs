@@ -1,7 +1,7 @@
-use bevy::prelude::*;
-use super::components::{IntroUI, IntroText};
+use super::components::{IntroText, IntroUI};
 use super::resources::{IntroAnimationTimer, IntroPhase};
 use crate::states::GameState;
+use bevy::prelude::*;
 
 pub fn setup_intro(mut commands: Commands) {
     // Insert the animation timer resource
@@ -75,10 +75,7 @@ pub fn animate_intro(
     }
 }
 
-pub fn cleanup_intro(
-    mut commands: Commands,
-    query: Query<Entity, With<IntroUI>>,
-) {
+pub fn cleanup_intro(mut commands: Commands, query: Query<Entity, With<IntroUI>>) {
     for entity in &query {
         commands.entity(entity).despawn();
     }

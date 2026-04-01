@@ -25,6 +25,6 @@ pub use super::camera::{follow_player_camera, rotate_camera};
 
 // Re-export input handling
 pub use super::input::{
-    handle_escape_key, toggle_collision_box, toggle_flashlight, toggle_fullscreen,
-    update_collision_box, update_flashlight_rotation,
+    handle_escape_key, sync_light_sources, toggle_collision_box, toggle_flashlight,
+    toggle_fullscreen, update_collision_box, update_flashlight_rotation,
 };

@@ -53,7 +53,7 @@ pub fn apply_physics(
     spatial_grid: Option<Res<SpatialGrid>>,
     pre_fetched: Res<PreFetchedCollisionEntities>,
     sub_voxel_query: Query<&SubVoxel, Without<Player>>,
-    mut player: Single<(&mut Player, &mut Transform)>,
+    player: Single<(&mut Player, &mut Transform)>,
     profiler: Option<Res<FrameProfiler>>,
 ) {
     profile_scope!(profiler, "apply_physics");
@@ -189,9 +189,9 @@ pub fn apply_physics(
 /// - Prevents the player from walking through NPCs
 pub fn apply_npc_collision(
     npc_query: Query<(&Npc, &Transform), Without<Player>>,
-    mut player: Option<Single<(&Player, &mut Transform)>>,
+    player: Option<Single<(&Player, &mut Transform)>>,
 ) {
-    let Some(mut player) = player else {
+    let Some(player) = player else {
         return;
     };
     let (player, mut player_transform) = player.into_inner();
@@ -232,8 +232,8 @@ pub fn apply_npc_collision(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::components::SubVoxel;
+    use super::*;
     use bevy::ecs::system::SystemState;
 
     // Verify that when the pre-fetched cache covers the physics AABB and contains
@@ -244,7 +244,11 @@ mod tests {
 
         // Ground sub-voxel — in cache ONLY, NOT in SpatialGrid
         let ground_bounds = (Vec3::new(-0.3, 0.4, -0.3), Vec3::new(0.3, 0.5, 0.3));
-        let ground_entity = world.spawn(SubVoxel { bounds: ground_bounds }).id();
+        let ground_entity = world
+            .spawn(SubVoxel {
+                bounds: ground_bounds,
+            })
+            .id();
 
         // Empty spatial grid
         world.insert_resource(SpatialGrid::default());
@@ -300,7 +304,11 @@ mod tests {
 
         // Ground sub-voxel in the GRID (not in cache)
         let ground_bounds = (Vec3::new(-0.3, 0.4, -0.3), Vec3::new(0.3, 0.5, 0.3));
-        let ground_entity = world.spawn(SubVoxel { bounds: ground_bounds }).id();
+        let ground_entity = world
+            .spawn(SubVoxel {
+                bounds: ground_bounds,
+            })
+            .id();
 
         let mut grid = SpatialGrid::default();
         grid.cells
@@ -313,10 +321,8 @@ mod tests {
         world.insert_resource(PreFetchedCollisionEntities::default());
 
         // Verify the fallback path: grid query finds the entity
-        let mut state: SystemState<(
-            Res<SpatialGrid>,
-            Res<PreFetchedCollisionEntities>,
-        )> = SystemState::new(&mut world);
+        let mut state: SystemState<(Res<SpatialGrid>, Res<PreFetchedCollisionEntities>)> =
+            SystemState::new(&mut world);
         let (spatial_grid, pre_fetched) = state.get(&world);
 
         assert!(pre_fetched.bounds.is_none(), "Cache should be empty");

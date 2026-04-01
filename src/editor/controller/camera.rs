@@ -13,19 +13,13 @@ pub struct ControllerModeToggleEvent;
 /// Tracks which camera mode is active.
 /// Note: Always defaults to FirstPerson as all input methods (gamepad, keyboard, mouse)
 /// now work simultaneously without needing mode switching.
-#[derive(Resource, PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(Resource, PartialEq, Eq, Clone, Copy, Debug, Default)]
 pub enum ControllerCameraMode {
     /// Traditional orbit camera (mouse-based) - DEPRECATED, kept for compatibility
     Orbit,
     /// First-person flying camera (all input methods work together)
+    #[default]
     FirstPerson,
-}
-
-impl Default for ControllerCameraMode {
-    fn default() -> Self {
-        // Always start in FirstPerson mode since all inputs work together
-        Self::FirstPerson
-    }
 }
 
 /// Component for the first-person controller camera.

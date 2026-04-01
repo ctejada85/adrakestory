@@ -392,7 +392,10 @@ mod tests {
             .description(),
             "Click to place voxels"
         );
-        assert_eq!(EditorTool::VoxelRemove.description(), "Click to remove voxels");
+        assert_eq!(
+            EditorTool::VoxelRemove.description(),
+            "Click to remove voxels"
+        );
         assert_eq!(
             EditorTool::EntityPlace {
                 entity_type: EntityType::PlayerSpawn

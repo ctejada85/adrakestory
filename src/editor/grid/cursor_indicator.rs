@@ -1,7 +1,7 @@
 //! Cursor indicator for voxel placement.
 
-use bevy::prelude::*;
 use bevy::mesh::{Indices, PrimitiveTopology};
+use bevy::prelude::*;
 
 /// Component for the cursor indicator
 #[derive(Component)]
@@ -96,11 +96,8 @@ pub fn update_cursor_indicator(
             if gp_state.active {
                 if let Some(grid_pos) = gp_state.action_grid_pos {
                     // Show cursor at gamepad action position (voxels are centered at integer coords)
-                    transform.translation = Vec3::new(
-                        grid_pos.0 as f32,
-                        grid_pos.1 as f32,
-                        grid_pos.2 as f32,
-                    );
+                    transform.translation =
+                        Vec3::new(grid_pos.0 as f32, grid_pos.1 as f32, grid_pos.2 as f32);
                     transform.scale = Vec3::splat(1.0);
                     continue;
                 }

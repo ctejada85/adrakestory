@@ -19,7 +19,8 @@ pub struct CollisionResult {
     pub has_collision: bool,
     /// Whether the player can step up onto this obstacle
     pub can_step_up: bool,
-    /// The height to step up (if can_step_up is true)
+    /// The height to step up (if can_step_up is true) — part of unfinished step-up feature.
+    #[allow(dead_code)]
     pub step_up_height: f32,
     /// The new Y position after step-up (center of player cylinder)
     pub new_y: f32,
@@ -263,46 +264,6 @@ pub fn check_sub_voxel_collision(
     CollisionResult::no_collision()
 }
 
-/// Check if a cylinder intersects with an AABB (axis-aligned bounding box).
-///
-/// This is a pure function useful for testing collision logic in isolation.
-///
-/// # Arguments
-/// * `cylinder_center` - Center position of the cylinder (x, y, z)
-/// * `cylinder_radius` - Horizontal radius of the cylinder
-/// * `cylinder_half_height` - Vertical half-height of the cylinder
-/// * `aabb_min` - Minimum corner of the AABB
-/// * `aabb_max` - Maximum corner of the AABB
-///
-/// # Returns
-/// `true` if the cylinder intersects the AABB, `false` otherwise
-pub fn cylinder_aabb_intersects(
-    cylinder_center: Vec3,
-    cylinder_radius: f32,
-    cylinder_half_height: f32,
-    aabb_min: Vec3,
-    aabb_max: Vec3,
-) -> bool {
-    // Check vertical overlap first (cheaper)
-    let cylinder_bottom = cylinder_center.y - cylinder_half_height;
-    let cylinder_top = cylinder_center.y + cylinder_half_height;
-
-    if cylinder_top < aabb_min.y || cylinder_bottom > aabb_max.y {
-        return false;
-    }
-
-    // Find closest point on AABB to cylinder center (horizontal only)
-    let closest_x = cylinder_center.x.clamp(aabb_min.x, aabb_max.x);
-    let closest_z = cylinder_center.z.clamp(aabb_min.z, aabb_max.z);
-
-    // Check horizontal distance
-    let dx = cylinder_center.x - closest_x;
-    let dz = cylinder_center.z - closest_z;
-    let distance_squared = dx * dx + dz * dz;
-
-    distance_squared < cylinder_radius * cylinder_radius
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -331,113 +292,6 @@ mod tests {
         assert!(result.can_step_up);
         assert_eq!(result.step_up_height, 0.125);
         assert_eq!(result.new_y, 1.5);
-    }
-
-    // cylinder_aabb_intersects tests
-    #[test]
-    fn test_cylinder_aabb_no_intersection_above() {
-        // Cylinder is above the AABB
-        let result = cylinder_aabb_intersects(
-            Vec3::new(0.0, 5.0, 0.0),  // cylinder center
-            0.2,                        // radius
-            0.4,                        // half_height
-            Vec3::new(-1.0, 0.0, -1.0), // aabb min
-            Vec3::new(1.0, 1.0, 1.0),   // aabb max
-        );
-        assert!(!result);
-    }
-
-    #[test]
-    fn test_cylinder_aabb_no_intersection_below() {
-        // Cylinder is below the AABB
-        let result = cylinder_aabb_intersects(
-            Vec3::new(0.0, -5.0, 0.0),  // cylinder center
-            0.2,                         // radius
-            0.4,                         // half_height
-            Vec3::new(-1.0, 0.0, -1.0),  // aabb min
-            Vec3::new(1.0, 1.0, 1.0),    // aabb max
-        );
-        assert!(!result);
-    }
-
-    #[test]
-    fn test_cylinder_aabb_no_intersection_horizontal() {
-        // Cylinder is horizontally far from AABB
-        let result = cylinder_aabb_intersects(
-            Vec3::new(5.0, 0.5, 0.0),   // cylinder center
-            0.2,                         // radius
-            0.4,                         // half_height
-            Vec3::new(-1.0, 0.0, -1.0), // aabb min
-            Vec3::new(1.0, 1.0, 1.0),   // aabb max
-        );
-        assert!(!result);
-    }
-
-    #[test]
-    fn test_cylinder_aabb_intersection_center() {
-        // Cylinder center is inside AABB
-        let result = cylinder_aabb_intersects(
-            Vec3::new(0.0, 0.5, 0.0),   // cylinder center
-            0.2,                         // radius
-            0.4,                         // half_height
-            Vec3::new(-1.0, 0.0, -1.0), // aabb min
-            Vec3::new(1.0, 1.0, 1.0),   // aabb max
-        );
-        assert!(result);
-    }
-
-    #[test]
-    fn test_cylinder_aabb_intersection_edge() {
-        // Cylinder edge touches AABB
-        let result = cylinder_aabb_intersects(
-            Vec3::new(1.1, 0.5, 0.0),   // cylinder center just outside
-            0.2,                         // radius extends into AABB
-            0.4,                         // half_height
-            Vec3::new(-1.0, 0.0, -1.0), // aabb min
-            Vec3::new(1.0, 1.0, 1.0),   // aabb max
-        );
-        assert!(result);
-    }
-
-    #[test]
-    fn test_cylinder_aabb_intersection_corner() {
-        // Test corner case - cylinder near corner of AABB
-        let result = cylinder_aabb_intersects(
-            Vec3::new(1.1, 0.5, 1.1),   // cylinder center near corner
-            0.2,                         // radius
-            0.4,                         // half_height
-            Vec3::new(0.0, 0.0, 0.0),   // aabb min
-            Vec3::new(1.0, 1.0, 1.0),   // aabb max
-        );
-        // Distance to corner is sqrt(0.1^2 + 0.1^2) = ~0.141, less than radius 0.2
-        assert!(result);
-    }
-
-    #[test]
-    fn test_cylinder_aabb_no_intersection_corner() {
-        // Cylinder near corner but not touching
-        let result = cylinder_aabb_intersects(
-            Vec3::new(1.3, 0.5, 1.3),   // cylinder center further from corner
-            0.2,                         // radius
-            0.4,                         // half_height
-            Vec3::new(0.0, 0.0, 0.0),   // aabb min
-            Vec3::new(1.0, 1.0, 1.0),   // aabb max
-        );
-        // Distance to corner is sqrt(0.3^2 + 0.3^2) = ~0.424, greater than radius 0.2
-        assert!(!result);
-    }
-
-    #[test]
-    fn test_cylinder_aabb_vertical_touch() {
-        // Cylinder just barely overlaps vertically
-        let result = cylinder_aabb_intersects(
-            Vec3::new(0.0, 1.3, 0.0),   // cylinder center
-            0.2,                         // radius
-            0.4,                         // half_height, bottom at 0.9
-            Vec3::new(-1.0, 0.0, -1.0), // aabb min
-            Vec3::new(1.0, 1.0, 1.0),   // aabb max
-        );
-        assert!(result);
     }
 
     // CollisionParams tests
@@ -474,7 +328,10 @@ mod tests {
 
         // Place entity in the grid cell the player AABB would hit
         let mut grid = SpatialGrid::default();
-        grid.cells.entry(IVec3::new(0, 0, 0)).or_default().push(entity);
+        grid.cells
+            .entry(IVec3::new(0, 0, 0))
+            .or_default()
+            .push(entity);
         world.insert_resource(grid);
 
         let params = CollisionParams {
@@ -513,7 +370,10 @@ mod tests {
         let entity = world.spawn(SubVoxel { bounds }).id();
 
         let mut grid = SpatialGrid::default();
-        grid.cells.entry(IVec3::new(0, 0, 0)).or_default().push(entity);
+        grid.cells
+            .entry(IVec3::new(0, 0, 0))
+            .or_default()
+            .push(entity);
         world.insert_resource(grid);
 
         let params = CollisionParams {

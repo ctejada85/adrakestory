@@ -139,9 +139,10 @@ impl FrameProfiler {
         if prev > 0 {
             let interval_us = (now - prev) / 1000;
             let frame = self.frame.load(Ordering::Relaxed);
-            let _ = self
-                .sender
-                .try_send(ProfileLine(format!("{},frame_interval_us,{}\n", frame, interval_us)));
+            let _ = self.sender.try_send(ProfileLine(format!(
+                "{},frame_interval_us,{}\n",
+                frame, interval_us
+            )));
         }
         now
     }
@@ -191,9 +192,10 @@ impl Drop for ProfileScope {
         let duration_us = self.start.elapsed().as_micros() as u64;
         // Non-blocking try_send: if the channel is full (background thread fell
         // behind) the record is silently dropped rather than stalling the game.
-        let _ = self
-            .sender
-            .try_send(ProfileLine(format!("{},{},{}\n", self.frame, self.label, duration_us)));
+        let _ = self.sender.try_send(ProfileLine(format!(
+            "{},{},{}\n",
+            self.frame, self.label, duration_us
+        )));
     }
 }
 
@@ -255,8 +257,6 @@ fn profile_post_update(profiler: Option<Res<FrameProfiler>>) {
 macro_rules! profile_scope {
     ($profiler:expr, $label:literal) => {
         #[cfg(debug_assertions)]
-        let _profile_scope = $profiler
-            .as_ref()
-            .map(|p| p.scope($label));
+        let _profile_scope = $profiler.as_ref().map(|p| p.scope($label));
     };
 }

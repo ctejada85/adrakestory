@@ -8,9 +8,10 @@ use crate::systems::game::components::VoxelType;
 use crate::systems::game::map::format::{EntityType, SubVoxelPattern};
 
 /// What can be stored in a hotbar slot.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum HotbarItem {
     /// Empty slot
+    #[default]
     Empty,
     /// Voxel with specific type and pattern
     Voxel {
@@ -21,12 +22,6 @@ pub enum HotbarItem {
     Entity { entity_type: EntityType },
     /// Editor tool
     Tool(EditorTool),
-}
-
-impl Default for HotbarItem {
-    fn default() -> Self {
-        Self::Empty
-    }
 }
 
 impl HotbarItem {

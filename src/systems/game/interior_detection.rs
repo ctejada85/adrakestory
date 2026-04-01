@@ -19,10 +19,12 @@ use crate::profile_scope;
 const MAX_REGION_SIZE: usize = 1000;
 
 /// Y tolerance for considering voxels at "same" ceiling level (in voxel units)
+#[allow(dead_code)]
 const CEILING_Y_TOLERANCE: i32 = 0;
 
 /// Minimum distance (in world units) the player must be inside the ceiling region
 /// before occlusion is triggered. This prevents flickering at doorways/edges.
+#[allow(dead_code)]
 const INTERIOR_ENTRY_MARGIN: f32 = 0.4;
 
 /// Represents a detected interior region (ceiling above player).
@@ -33,6 +35,7 @@ pub struct InteriorRegion {
     /// Maximum bounds of the ceiling region (in world coordinates)
     pub max: Vec3,
     /// Y level of the ceiling (voxel Y coordinate)
+    #[allow(dead_code)]
     pub ceiling_y: i32,
     /// Number of voxels in the region
     pub voxel_count: usize,
@@ -40,6 +43,7 @@ pub struct InteriorRegion {
 
 impl InteriorRegion {
     /// Check if a point is inside this region.
+    #[allow(dead_code)]
     #[inline]
     pub fn contains(&self, point: Vec3) -> bool {
         point.x >= self.min.x
@@ -73,6 +77,7 @@ pub struct InteriorState {
 /// 1. Casts a ray upward from the player to find ceiling voxels
 /// 2. If a ceiling is found within threshold, flood-fills to find the region
 /// 3. Updates `InteriorState` with the detected region bounds
+#[allow(clippy::too_many_arguments)]
 pub fn detect_interior_system(
     player_query: Option<Single<&Transform, With<Player>>>,
     spatial_grid: Option<Res<SpatialGrid>>,
@@ -80,15 +85,14 @@ pub fn detect_interior_system(
     mut interior_state: ResMut<InteriorState>,
     config: Res<super::occlusion::OcclusionConfig>,
     added_sub_voxels: Query<(), Added<SubVoxel>>,
-    mut removed_sub_voxels: RemovedComponents<SubVoxel>,
+    removed_sub_voxels: RemovedComponents<SubVoxel>,
     profiler: Option<Res<FrameProfiler>>,
 ) {
     profile_scope!(profiler, "detect_interior_system");
     // Only run for region-based or hybrid modes
     if !matches!(
         config.mode,
-        super::occlusion::OcclusionMode::RegionBased
-            | super::occlusion::OcclusionMode::Hybrid
+        super::occlusion::OcclusionMode::RegionBased | super::occlusion::OcclusionMode::Hybrid
     ) {
         interior_state.current_region = None;
         return;
@@ -146,7 +150,7 @@ pub fn detect_interior_system(
     // This prevents the region from disappearing when crossing voxel boundaries
     let player_voxel_x_floor = player_pos.x.floor() as i32;
     let player_voxel_z_floor = player_pos.z.floor() as i32;
-    
+
     // Check the 4 voxels the player could be overlapping
     let positions_to_check = [
         (player_voxel_x_floor, player_voxel_z_floor),
@@ -157,14 +161,14 @@ pub fn detect_interior_system(
 
     // Find ceiling from any of these positions
     let mut best_ceiling: Option<(i32, i32, i32, i32)> = None; // (x, z, ceiling_y, voxel_count estimate)
-    
+
     for (vx, vz) in positions_to_check {
         if let Some(ceiling_y) = find_ceiling_voxel_above(
             vx,
             player_voxel_y,
             vz,
             config.interior_height_threshold as i32,
-            &occupied_voxels,
+            occupied_voxels,
         ) {
             // Use this ceiling if we haven't found one yet
             if best_ceiling.is_none() {
@@ -175,10 +179,15 @@ pub fn detect_interior_system(
 
     // Check if player is currently inside an existing region (for hysteresis)
     let is_currently_inside = interior_state.current_region.is_some();
-    let player_in_existing_region = interior_state.current_region.as_ref().map_or(false, |region| {
-        player_pos.x >= region.min.x && player_pos.x <= region.max.x &&
-        player_pos.z >= region.min.z && player_pos.z <= region.max.z
-    });
+    let player_in_existing_region = interior_state
+        .current_region
+        .as_ref()
+        .is_some_and(|region| {
+            player_pos.x >= region.min.x
+                && player_pos.x <= region.max.x
+                && player_pos.z >= region.min.z
+                && player_pos.z <= region.max.z
+        });
 
     if let Some((start_x, start_z, ceiling_y, _)) = best_ceiling {
         // Flood-fill to find connected ceiling region at voxel level
@@ -239,7 +248,7 @@ fn build_occupied_voxel_set(
 
 /// Find ceiling voxel directly above player within threshold.
 /// Returns the Y coordinate of the ceiling voxel, or None if no ceiling found.
-/// 
+///
 /// A ceiling is defined as a voxel that:
 /// 1. Is above the player (Y > player_y + 1)
 /// 2. Has empty space below it (not a wall that extends from ground level)
@@ -253,17 +262,16 @@ fn find_ceiling_voxel_above(
     // Start from 2 voxels above the player to skip the immediate head space
     // This avoids detecting walls that the player is standing next to
     let start_y = player_y + 2;
-    
+
     for y in start_y..=(player_y + max_height) {
         if occupied_voxels.contains(&IVec3::new(x, y, z)) {
             // Found a voxel above - check if it's a ceiling (has empty space below)
             // or a wall (has solid voxels below connecting to ground)
-            
+
             // Check if there's empty space between player and this voxel
-            let has_gap_below = !(player_y + 1..y).any(|check_y| {
-                occupied_voxels.contains(&IVec3::new(x, check_y, z))
-            });
-            
+            let has_gap_below = !(player_y + 1..y)
+                .any(|check_y| occupied_voxels.contains(&IVec3::new(x, check_y, z)));
+
             if has_gap_below {
                 // This is a ceiling - there's empty space between player and this voxel
                 return Some(y);
@@ -342,12 +350,12 @@ fn flood_fill_ceiling_region_voxel(
             for neighbor in neighbors {
                 if !visited.contains(&neighbor) {
                     visited.insert(neighbor);
-                    
+
                     // Only queue if we found ceiling here OR if a neighbor has ceiling
                     // This allows crossing small gaps but not open areas
                     let neighbor_has_ceiling = (min_ceiling_y..=max_ceiling_y)
                         .any(|y| occupied_voxels.contains(&IVec3::new(neighbor.x, y, neighbor.y)));
-                    
+
                     if found_ceiling || neighbor_has_ceiling {
                         queue.push_back(neighbor);
                     }
@@ -495,7 +503,10 @@ mod tests {
             // system returns early here — no cache modification
         }
 
-        assert!(state.rebuild_pending, "Flag must be set while spawn is in progress");
+        assert!(
+            state.rebuild_pending,
+            "Flag must be set while spawn is in progress"
+        );
         assert!(
             state.occupied_voxels_cache.is_none(),
             "Cache must not be touched while spawn is in progress"
@@ -518,7 +529,10 @@ mod tests {
             state.occupied_voxels_cache = None;
         }
 
-        assert!(!state.rebuild_pending, "Flag must be cleared on settle frame");
+        assert!(
+            !state.rebuild_pending,
+            "Flag must be cleared on settle frame"
+        );
         assert!(
             state.occupied_voxels_cache.is_none(),
             "Cache must be cleared so rebuild runs"
@@ -565,7 +579,10 @@ mod tests {
             state.occupied_voxels_cache = None;
         }
 
-        assert!(!state.rebuild_pending, "Flag must remain false on frames after settle");
+        assert!(
+            !state.rebuild_pending,
+            "Flag must remain false on frames after settle"
+        );
         assert!(
             state.occupied_voxels_cache.is_some(),
             "Cache must be preserved on frames after settle"

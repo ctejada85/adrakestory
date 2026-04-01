@@ -5,8 +5,9 @@
 //! - Collision box visibility toggle
 //! - Collision box position synchronization
 //! - Flashlight toggle
+//! - Light source synchronization
 
-use super::components::{CollisionBox, Player, PlayerFlashlight};
+use super::components::{CollisionBox, LightSource, Player, PlayerFlashlight};
 use super::gamepad::PlayerInput;
 use bevy::prelude::*;
 use bevy::window::{MonitorSelection, PrimaryWindow, WindowMode};
@@ -132,5 +133,20 @@ pub fn update_flashlight_rotation(
         // Point the spotlight in the forward direction, slightly downward
         let target = transform.translation + forward * 10.0 + Vec3::new(0.0, -1.0, 0.0);
         transform.look_at(target, Vec3::Y);
+    }
+}
+
+/// System that synchronises `LightSource` component values to Bevy's `PointLight`.
+///
+/// When a `LightSource` component is mutated at runtime (e.g., flickering, gameplay
+/// toggles), this system propagates the changes to the corresponding `PointLight`
+/// so that Bevy renders the updated light. Runs only when `LightSource` has changed,
+/// so there is no overhead on frames where lights are static.
+pub fn sync_light_sources(mut query: Query<(&LightSource, &mut PointLight), Changed<LightSource>>) {
+    for (light_source, mut point_light) in &mut query {
+        point_light.color = light_source.color;
+        point_light.intensity = light_source.intensity;
+        point_light.range = light_source.range;
+        point_light.shadows_enabled = light_source.shadows_enabled;
     }
 }

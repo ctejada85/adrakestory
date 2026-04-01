@@ -21,11 +21,17 @@ pub struct ActiveGamepad(pub Option<Entity>);
 pub struct GamepadSettings {
     /// Deadzone for analog sticks (0.0 to 1.0)
     pub stick_deadzone: f32,
-    /// Deadzone for triggers (0.0 to 1.0)
+    /// Deadzone for triggers (0.0 to 1.0) — not yet applied.
+    /// See ticket: docs/bugs/gamepad-settings-apply/ticket.md
+    #[allow(dead_code)]
     pub trigger_deadzone: f32,
-    /// Whether to invert the Y-axis for camera control
+    /// Whether to invert the Y-axis for camera control — not yet applied.
+    /// See ticket: docs/bugs/gamepad-settings-apply/ticket.md
+    #[allow(dead_code)]
     pub invert_camera_y: bool,
-    /// Camera rotation sensitivity multiplier
+    /// Camera rotation sensitivity multiplier — not yet applied.
+    /// See ticket: docs/bugs/gamepad-settings-apply/ticket.md
+    #[allow(dead_code)]
     pub camera_sensitivity: f32,
     /// Movement sensitivity multiplier
     pub movement_sensitivity: f32,
@@ -519,7 +525,10 @@ pub fn get_menu_gamepad_input(
 ///
 /// Hides the cursor when using a gamepad and shows it when using keyboard/mouse.
 /// This provides a cleaner experience when playing with a controller.
-pub fn update_cursor_visibility(player_input: Res<PlayerInput>, mut cursor_query: Query<&mut bevy::window::CursorOptions>) {
+pub fn update_cursor_visibility(
+    player_input: Res<PlayerInput>,
+    mut cursor_query: Query<&mut bevy::window::CursorOptions>,
+) {
     if player_input.is_changed() {
         if let Ok(mut cursor) = cursor_query.single_mut() {
             match player_input.input_source {

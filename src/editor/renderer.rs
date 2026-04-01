@@ -27,6 +27,9 @@ use bevy::math::Vec3A;
 use bevy::prelude::*;
 use std::collections::HashMap;
 
+/// (voxel_x, voxel_y, voxel_z, sub_x, sub_y, sub_z, world_pos, color_index, color)
+type SubVoxelEntry = (i32, i32, i32, i32, i32, i32, Vec3, usize, Color);
+
 /// Marker component for chunk entities spawned by the editor
 #[derive(Component)]
 pub struct EditorChunk {
@@ -154,7 +157,7 @@ pub fn render_map_system(
     let mut occupancy = OccupancyGrid::new();
 
     // Collect all sub-voxel data for subsequent passes
-    let mut all_sub_voxels: Vec<(i32, i32, i32, i32, i32, i32, Vec3, usize, Color)> = Vec::new();
+    let mut all_sub_voxels: Vec<SubVoxelEntry> = Vec::new();
 
     // Build a set of fence positions for neighbor lookups
     let fence_positions: std::collections::HashSet<(i32, i32, i32)> = editor_state
@@ -162,7 +165,7 @@ pub fn render_map_system(
         .world
         .voxels
         .iter()
-        .filter(|v| v.pattern.map_or(false, |p| p.is_fence()))
+        .filter(|v| v.pattern.is_some_and(|p| p.is_fence()))
         .map(|v| v.pos)
         .collect();
 

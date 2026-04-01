@@ -199,6 +199,7 @@ pub fn scale_text_on_resize(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn keyboard_navigation(
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,

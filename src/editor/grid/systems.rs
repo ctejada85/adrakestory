@@ -36,8 +36,7 @@ pub fn update_infinite_grid(
     // Use camera height to determine grid extent
     // Multiply by a factor to ensure grid extends beyond visible area
     let dynamic_render_distance =
-        (base_render_distance + camera_height * 3.0)
-            .max(base_render_distance);
+        (base_render_distance + camera_height * 3.0).max(base_render_distance);
 
     // Check if we need to regenerate the grid
     let height_changed =

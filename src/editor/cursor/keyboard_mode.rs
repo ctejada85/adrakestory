@@ -14,7 +14,11 @@ pub fn toggle_keyboard_edit_mode(
     editor_state: Res<EditorState>,
 ) {
     // Don't toggle if UI wants keyboard input
-    if contexts.ctx_mut().expect("egui context").wants_keyboard_input() {
+    if contexts
+        .ctx_mut()
+        .expect("egui context")
+        .wants_keyboard_input()
+    {
         return;
     }
 
@@ -51,7 +55,11 @@ pub fn handle_tool_switching(
     mut tool_memory: ResMut<crate::editor::state::ToolMemory>,
 ) {
     // Check if UI wants keyboard input (user is typing in text fields, etc.)
-    if contexts.ctx_mut().expect("egui context").wants_keyboard_input() {
+    if contexts
+        .ctx_mut()
+        .expect("egui context")
+        .wants_keyboard_input()
+    {
         return;
     }
 
@@ -133,7 +141,11 @@ pub fn handle_play_shortcuts(
     mut contexts: EguiContexts,
 ) {
     // Don't handle shortcuts if UI wants keyboard input
-    if contexts.ctx_mut().expect("egui context").wants_keyboard_input() {
+    if contexts
+        .ctx_mut()
+        .expect("egui context")
+        .wants_keyboard_input()
+    {
         return;
     }
 

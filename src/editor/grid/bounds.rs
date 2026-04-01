@@ -1,8 +1,8 @@
 //! Grid bounds calculation with frustum culling.
 
+use bevy::camera::primitives::{Aabb, Frustum};
 use bevy::math::{Affine3A, Vec3A};
 use bevy::prelude::*;
-use bevy::camera::primitives::{Aabb, Frustum};
 
 /// Grid bounds for rendering
 #[derive(Debug, Clone, Copy)]

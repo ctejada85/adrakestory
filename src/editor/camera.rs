@@ -162,6 +162,7 @@ pub struct CameraInputState {
 }
 
 /// System to handle camera input (WASD movement, mouse look, gamepad)
+#[allow(clippy::too_many_arguments)]
 pub fn handle_camera_input(
     mut camera: Single<&mut EditorCamera>,
     mouse_button: Res<ButtonInput<MouseButton>>,
@@ -209,7 +210,7 @@ pub fn handle_camera_input(
     }
 
     // Switch back to mouse/keyboard mode if mouse input detected
-    let mouse_moved = mouse_motion.len() > 0;
+    let mouse_moved = !mouse_motion.is_empty();
     let mouse_clicked =
         mouse_button.any_just_pressed([MouseButton::Left, MouseButton::Right, MouseButton::Middle]);
     if (mouse_moved || mouse_clicked) && gamepad_state.active {

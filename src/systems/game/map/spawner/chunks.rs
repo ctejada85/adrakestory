@@ -15,6 +15,9 @@ use bevy::math::Vec3A;
 use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
 
+/// (voxel_x, voxel_y, voxel_z, sub_x, sub_y, sub_z, world_pos, color_index, color)
+type SubVoxelEntry = (i32, i32, i32, i32, i32, i32, Vec3, usize, Color);
+
 /// Enum to hold either material type for chunk rendering
 #[derive(Clone)]
 pub enum ChunkMaterial {
@@ -77,14 +80,14 @@ pub fn spawn_voxels_chunked(
     let mut occupancy = OccupancyGrid::new();
 
     // Collect all sub-voxel data for subsequent passes
-    let mut all_sub_voxels: Vec<(i32, i32, i32, i32, i32, i32, Vec3, usize, Color)> = Vec::new();
+    let mut all_sub_voxels: Vec<SubVoxelEntry> = Vec::new();
 
     // Build a set of fence positions for neighbor lookups
     let fence_positions: HashSet<(i32, i32, i32)> = map
         .world
         .voxels
         .iter()
-        .filter(|v| v.pattern.map_or(false, |p| p.is_fence()))
+        .filter(|v| v.pattern.is_some_and(|p| p.is_fence()))
         .map(|v| v.pos)
         .collect();
 

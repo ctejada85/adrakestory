@@ -133,7 +133,7 @@ fn spawn_rotation_previews(
         .world
         .voxels
         .iter()
-        .filter(|v| v.pattern.map_or(false, |p| p.is_fence()))
+        .filter(|v| v.pattern.is_some_and(|p| p.is_fence()))
         .map(|v| v.pos)
         .collect();
 

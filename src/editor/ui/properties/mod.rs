@@ -13,7 +13,7 @@ mod voxel_tools;
 
 pub use entity_props::render_single_entity_properties;
 pub use entity_tools::{get_entity_icon, render_entity_place_content};
-pub use selection::{calculate_selection_bounds, render_select_content};
+pub use selection::{calculate_selection_bounds, render_select_content, SelectionBounds};
 pub use voxel_tools::{
     get_pattern_name, get_voxel_color, render_voxel_place_content, render_voxel_remove_content,
 };

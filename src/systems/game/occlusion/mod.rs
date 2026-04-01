@@ -251,7 +251,7 @@ impl Default for OcclusionConfig {
 /// Private helper: config-driven uniform fields, used for Rust-side change tracking only.
 /// Never sent to the GPU directly — assembled into [`OcclusionUniforms`] before writing.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(super) struct StaticOcclusionUniforms {
+pub(crate) struct StaticOcclusionUniforms {
     min_alpha: f32,
     occlusion_radius: f32,
     height_threshold: f32,
@@ -286,7 +286,7 @@ impl StaticOcclusionUniforms {
 /// Private helper: per-frame positional fields, used for Rust-side change tracking only.
 /// Never sent to the GPU directly — assembled into [`OcclusionUniforms`] before writing.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(super) struct DynamicOcclusionUniforms {
+pub(crate) struct DynamicOcclusionUniforms {
     player_position: Vec3,
     camera_position: Vec3,
     region_min: Vec4,
@@ -317,7 +317,10 @@ impl DynamicOcclusionUniforms {
     }
 }
 
-fn assemble_uniforms(s: &StaticOcclusionUniforms, d: &DynamicOcclusionUniforms) -> OcclusionUniforms {
+fn assemble_uniforms(
+    s: &StaticOcclusionUniforms,
+    d: &DynamicOcclusionUniforms,
+) -> OcclusionUniforms {
     OcclusionUniforms {
         player_position: d.player_position,
         _padding1: 0.0,
@@ -360,6 +363,9 @@ fn quantize_position(pos: Vec3, step: f32) -> Vec3 {
 /// each half is only recomputed when its inputs actually change. [`Assets::get_mut`] is
 /// called (and the GPU re-upload triggered) only when at least one cache differs from
 /// the newly computed value.
+// The helper structs are pub(crate); `pub` here is required for Bevy system registration.
+#[allow(private_interfaces)]
+#[allow(clippy::too_many_arguments)]
 pub fn update_occlusion_uniforms(
     config: Res<OcclusionConfig>,
     camera_query: Option<Single<Ref<Transform>, With<GameCamera>>>,
@@ -400,7 +406,10 @@ pub fn update_occlusion_uniforms(
     // Recompute dynamic fields only when positions/interior changed or cache is empty.
     let dynamic_input_changed = camera_ref.as_ref().map(|r| r.is_changed()).unwrap_or(false)
         || player_ref.as_ref().map(|r| r.is_changed()).unwrap_or(false)
-        || interior_state.as_ref().map(|s| s.is_changed()).unwrap_or(false)
+        || interior_state
+            .as_ref()
+            .map(|s| s.is_changed())
+            .unwrap_or(false)
         || dynamic_cache.is_none();
 
     let new_dynamic = if dynamic_input_changed {
@@ -440,10 +449,10 @@ pub fn update_occlusion_uniforms(
     // This catches Bevy change-detection false positives on startup/state transitions.
     let static_dirty = new_static
         .as_ref()
-        .map_or(false, |n| static_cache.as_ref() != Some(n));
+        .is_some_and(|n| static_cache.as_ref() != Some(n));
     let dynamic_dirty = new_dynamic
         .as_ref()
-        .map_or(false, |n| dynamic_cache.as_ref() != Some(n));
+        .is_some_and(|n| dynamic_cache.as_ref() != Some(n));
 
     if static_dirty || dynamic_dirty {
         let new_uniforms = assemble_uniforms(&s, &d);
@@ -452,7 +461,7 @@ pub fn update_occlusion_uniforms(
         // when the GPU-visible uniform data actually differs.
         let needs_write = materials
             .get(&material_handle.0)
-            .map_or(true, |mat| mat.extension.occlusion_uniforms != new_uniforms);
+            .is_none_or(|mat| mat.extension.occlusion_uniforms != new_uniforms);
 
         if needs_write {
             if let Some(material) = materials.get_mut(&material_handle.0) {
@@ -488,7 +497,11 @@ pub fn update_occlusion_uniforms(
         let region_active = d.region_max.w > 0.5;
         info!(
             "[Occlusion] Mode: {:?}, Region active: {}, Player: ({:.1}, {:.1}, {:.1})",
-            config.mode, region_active, d.player_position.x, d.player_position.y, d.player_position.z
+            config.mode,
+            region_active,
+            d.player_position.x,
+            d.player_position.y,
+            d.player_position.z
         );
     }
 }
@@ -534,7 +547,10 @@ pub fn debug_draw_occlusion_zone(
     );
 
     // Draw occlusion cylinder above player (for shader-based mode)
-    if matches!(config.mode, OcclusionMode::ShaderBased | OcclusionMode::Hybrid) {
+    if matches!(
+        config.mode,
+        OcclusionMode::ShaderBased | OcclusionMode::Hybrid
+    ) {
         let cylinder_center = player.translation + Vec3::Y * (config.height_threshold + 2.0);
         gizmos.circle(
             Isometry3d::new(
@@ -569,22 +585,70 @@ pub fn debug_draw_occlusion_zone(
             let color = Color::srgba(0.0, 1.0, 1.0, 0.8); // Cyan
 
             // Bottom face
-            gizmos.line(Vec3::new(region.min.x, region.min.y, region.min.z), Vec3::new(region.max.x, region.min.y, region.min.z), color);
-            gizmos.line(Vec3::new(region.max.x, region.min.y, region.min.z), Vec3::new(region.max.x, region.min.y, region.max.z), color);
-            gizmos.line(Vec3::new(region.max.x, region.min.y, region.max.z), Vec3::new(region.min.x, region.min.y, region.max.z), color);
-            gizmos.line(Vec3::new(region.min.x, region.min.y, region.max.z), Vec3::new(region.min.x, region.min.y, region.min.z), color);
+            gizmos.line(
+                Vec3::new(region.min.x, region.min.y, region.min.z),
+                Vec3::new(region.max.x, region.min.y, region.min.z),
+                color,
+            );
+            gizmos.line(
+                Vec3::new(region.max.x, region.min.y, region.min.z),
+                Vec3::new(region.max.x, region.min.y, region.max.z),
+                color,
+            );
+            gizmos.line(
+                Vec3::new(region.max.x, region.min.y, region.max.z),
+                Vec3::new(region.min.x, region.min.y, region.max.z),
+                color,
+            );
+            gizmos.line(
+                Vec3::new(region.min.x, region.min.y, region.max.z),
+                Vec3::new(region.min.x, region.min.y, region.min.z),
+                color,
+            );
 
             // Top face
-            gizmos.line(Vec3::new(region.min.x, region.max.y, region.min.z), Vec3::new(region.max.x, region.max.y, region.min.z), color);
-            gizmos.line(Vec3::new(region.max.x, region.max.y, region.min.z), Vec3::new(region.max.x, region.max.y, region.max.z), color);
-            gizmos.line(Vec3::new(region.max.x, region.max.y, region.max.z), Vec3::new(region.min.x, region.max.y, region.max.z), color);
-            gizmos.line(Vec3::new(region.min.x, region.max.y, region.max.z), Vec3::new(region.min.x, region.max.y, region.min.z), color);
+            gizmos.line(
+                Vec3::new(region.min.x, region.max.y, region.min.z),
+                Vec3::new(region.max.x, region.max.y, region.min.z),
+                color,
+            );
+            gizmos.line(
+                Vec3::new(region.max.x, region.max.y, region.min.z),
+                Vec3::new(region.max.x, region.max.y, region.max.z),
+                color,
+            );
+            gizmos.line(
+                Vec3::new(region.max.x, region.max.y, region.max.z),
+                Vec3::new(region.min.x, region.max.y, region.max.z),
+                color,
+            );
+            gizmos.line(
+                Vec3::new(region.min.x, region.max.y, region.max.z),
+                Vec3::new(region.min.x, region.max.y, region.min.z),
+                color,
+            );
 
             // Vertical edges
-            gizmos.line(Vec3::new(region.min.x, region.min.y, region.min.z), Vec3::new(region.min.x, region.max.y, region.min.z), color);
-            gizmos.line(Vec3::new(region.max.x, region.min.y, region.min.z), Vec3::new(region.max.x, region.max.y, region.min.z), color);
-            gizmos.line(Vec3::new(region.max.x, region.min.y, region.max.z), Vec3::new(region.max.x, region.max.y, region.max.z), color);
-            gizmos.line(Vec3::new(region.min.x, region.min.y, region.max.z), Vec3::new(region.min.x, region.max.y, region.max.z), color);
+            gizmos.line(
+                Vec3::new(region.min.x, region.min.y, region.min.z),
+                Vec3::new(region.min.x, region.max.y, region.min.z),
+                color,
+            );
+            gizmos.line(
+                Vec3::new(region.max.x, region.min.y, region.min.z),
+                Vec3::new(region.max.x, region.max.y, region.min.z),
+                color,
+            );
+            gizmos.line(
+                Vec3::new(region.max.x, region.min.y, region.max.z),
+                Vec3::new(region.max.x, region.max.y, region.max.z),
+                color,
+            );
+            gizmos.line(
+                Vec3::new(region.min.x, region.min.y, region.max.z),
+                Vec3::new(region.min.x, region.max.y, region.max.z),
+                color,
+            );
         }
     }
 }
@@ -604,9 +668,9 @@ pub struct OcclusionPlugin;
 
 impl Plugin for OcclusionPlugin {
     fn build(&self, app: &mut App) {
-        use bevy::prelude::in_state;
         use super::interior_detection::{detect_interior_system, InteriorState};
         use crate::states::GameState;
+        use bevy::prelude::in_state;
 
         app.add_plugins(MaterialPlugin::<OcclusionMaterial>::default())
             .insert_resource(OcclusionConfig::default())
