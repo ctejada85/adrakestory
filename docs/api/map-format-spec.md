@@ -131,6 +131,8 @@ struct VoxelData {
 ### VoxelType
 
 **Type**: Enum  
+**Defined in**: `src/systems/game/map/format/voxel_type.rs`  
+**Re-exported via**: `src/systems/game/map/format/mod.rs` and `src/systems/game/components.rs`  
 **Variants:**
 
 | Variant | Value | Description |

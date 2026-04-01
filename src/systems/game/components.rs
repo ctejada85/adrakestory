@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use serde::{Deserialize, Serialize};
 
 /// Marker component for the player's flashlight.
 /// Used to identify the flashlight entity for toggling and rotation.
@@ -41,13 +40,7 @@ pub struct SubVoxel {
     pub bounds: (Vec3, Vec3),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum VoxelType {
-    Air,
-    Grass,
-    Dirt,
-    Stone,
-}
+pub use crate::systems::game::map::format::VoxelType;
 
 #[derive(Component)]
 pub struct GameCamera {

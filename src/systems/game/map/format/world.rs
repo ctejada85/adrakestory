@@ -2,7 +2,7 @@
 
 use super::patterns::SubVoxelPattern;
 use super::rotation::LegacyRotationState;
-use crate::systems::game::components::VoxelType;
+use super::VoxelType;
 use serde::{Deserialize, Serialize};
 
 /// World voxel data.

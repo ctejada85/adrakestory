@@ -456,7 +456,8 @@ pub struct GameInitialized(pub bool);
 
 **Key Files:**
 - `format/`: Map data structures (split into modules)
-  - `camera.rs`, `defaults.rs`, `entities.rs`, `lighting.rs`, `metadata.rs`, `patterns.rs`, `rotation.rs`, `world.rs`
+  - `camera.rs`, `defaults.rs`, `entities.rs`, `lighting.rs`, `metadata.rs`, `patterns.rs`, `rotation.rs`, `voxel_type.rs`, `world.rs`
+  - `voxel_type.rs` defines `VoxelType` — re-exported via `format/mod.rs` and `components.rs`
 - `loader.rs`: File I/O and parsing
 - `spawner/`: Entity instantiation (split into modules)
   - `mod.rs`: Constants, types, main system

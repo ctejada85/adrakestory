@@ -7,6 +7,7 @@ mod lighting;
 mod metadata;
 mod patterns;
 mod rotation;
+mod voxel_type;
 mod world;
 
 pub use camera::CameraData;
@@ -19,6 +20,7 @@ pub use rotation::{
     is_valid_rotation_matrix, migrate_legacy_rotations, multiply_matrices,
     normalise_staircase_variants, world_dir_to_local, OrientationMatrix, IDENTITY,
 };
+pub use voxel_type::VoxelType;
 pub use world::{VoxelData, WorldData};
 
 use serde::{Deserialize, Serialize};
