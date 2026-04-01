@@ -146,8 +146,85 @@ fn validate_entities(map: &MapData) -> MapResult<()> {
                 x, y, z
             )));
         }
+
+        // Validate that known entity property strings are well-formed.
+        validate_entity_properties(entity)?;
     }
 
+    Ok(())
+}
+
+/// Validates that string-valued properties for known entity types are parseable.
+///
+/// Unknown keys and unknown entity types are accepted without error for
+/// forward-compatibility. The spawner's fallback logic is not changed by this
+/// function; this validator and the spawner are independent layers.
+fn validate_entity_properties(entity: &super::format::EntityData) -> MapResult<()> {
+    use super::format::EntityType;
+
+    match entity.entity_type {
+        EntityType::LightSource => {
+            if let Some(v) = entity.properties.get("intensity") {
+                match v.parse::<f32>() {
+                    Ok(f) if f >= 0.0 => {}
+                    _ => {
+                        return Err(MapLoadError::ValidationError(format!(
+                            "LightSource entity has invalid 'intensity': \
+                             expected non-negative f32, got {:?}",
+                            v
+                        )))
+                    }
+                }
+            }
+            if let Some(v) = entity.properties.get("range") {
+                match v.parse::<f32>() {
+                    Ok(f) if f > 0.0 => {}
+                    _ => {
+                        return Err(MapLoadError::ValidationError(format!(
+                            "LightSource entity has invalid 'range': \
+                             expected positive f32, got {:?}",
+                            v
+                        )))
+                    }
+                }
+            }
+            if let Some(v) = entity.properties.get("shadows") {
+                if !matches!(v.as_str(), "true" | "false" | "1" | "0") {
+                    return Err(MapLoadError::ValidationError(format!(
+                        "LightSource entity has invalid 'shadows': \
+                         expected true/false/1/0, got {:?}",
+                        v
+                    )));
+                }
+            }
+            if let Some(v) = entity.properties.get("color") {
+                let parts: Vec<f32> = v.split(',').filter_map(|p| p.trim().parse().ok()).collect();
+                if parts.len() != 3 {
+                    return Err(MapLoadError::ValidationError(format!(
+                        "LightSource entity has invalid 'color': \
+                         expected three comma-separated f32 values, got {:?}",
+                        v
+                    )));
+                }
+            }
+        }
+        EntityType::Npc => {
+            if let Some(v) = entity.properties.get("radius") {
+                match v.parse::<f32>() {
+                    Ok(f) if f > 0.0 => {}
+                    _ => {
+                        return Err(MapLoadError::ValidationError(format!(
+                            "Npc entity has invalid 'radius': \
+                             expected positive f32, got {:?}",
+                            v
+                        )))
+                    }
+                }
+            }
+        }
+        // Other entity types: no property validation (forward-compatible).
+        _ => {}
+    }
     Ok(())
 }
 
@@ -231,5 +308,129 @@ mod tests {
         let duplicate = map.world.voxels[0].clone();
         map.world.voxels.push(duplicate);
         assert!(validate_map(&map).is_err());
+    }
+
+    // --- Finding 5: entity property validation ---
+
+    fn make_light_source(props: Vec<(&str, &str)>) -> EntityData {
+        EntityData {
+            entity_type: EntityType::LightSource,
+            position: (1.5, 0.5, 1.5),
+            properties: props
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn light_source_invalid_intensity_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("intensity", "bright")]));
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn light_source_negative_intensity_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("intensity", "-1.0")]));
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn light_source_negative_range_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("range", "-5.0")]));
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn light_source_zero_range_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities.push(make_light_source(vec![("range", "0.0")]));
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn light_source_invalid_shadows_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("shadows", "yes")]));
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn light_source_invalid_color_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities.push(make_light_source(vec![("color", "red")]));
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn light_source_incomplete_color_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("color", "1.0,0.5")]));
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn npc_invalid_radius_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities.push(EntityData {
+            entity_type: EntityType::Npc,
+            position: (1.0, 0.5, 1.0),
+            properties: [("radius".to_string(), "big".to_string())].into(),
+        });
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn npc_zero_radius_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities.push(EntityData {
+            entity_type: EntityType::Npc,
+            position: (1.0, 0.5, 1.0),
+            properties: [("radius".to_string(), "0.0".to_string())].into(),
+        });
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn light_source_valid_properties_pass() {
+        let mut map = MapData::default_map();
+        map.entities.push(make_light_source(vec![
+            ("intensity", "5000.0"),
+            ("range", "15.0"),
+            ("shadows", "false"),
+            ("color", "1.0, 0.9, 0.7"),
+        ]));
+        assert!(validate_map(&map).is_ok());
+    }
+
+    #[test]
+    fn light_source_shadows_true_passes() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("shadows", "true")]));
+        assert!(validate_map(&map).is_ok());
+    }
+
+    #[test]
+    fn light_source_shadows_numeric_passes() {
+        let mut map = MapData::default_map();
+        map.entities.push(make_light_source(vec![("shadows", "1")]));
+        assert!(validate_map(&map).is_ok());
+    }
+
+    #[test]
+    fn unknown_property_key_is_accepted() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("custom_tag", "anything")]));
+        assert!(validate_map(&map).is_ok());
     }
 }

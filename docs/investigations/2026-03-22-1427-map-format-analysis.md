@@ -10,9 +10,10 @@
 |---------|--------|--------|------|
 | 1 — Multi-axis rotation silently broken | `docs/bugs/map-format-multi-axis-rotation/` | **Fixed** — `RotationState` replaced with `orientations: Vec<OrientationMatrix>` + `rotation: Option<usize>` per voxel. Commit `eda90e3`. | 2026-03-26 |
 | 2 — Staircase double-rotation | `docs/bugs/staircase-double-rotation/` | **Fixed** — `normalise_staircase_variants()` loader pass added; `StaircaseX` renamed to `Staircase` with serde alias; directional variants removed from editor picker. Commit `4874885`. | 2026-03-26 |
-| 3 — Fence silently ignores rotation | `docs/bugs/fence-rotation-ignored/` | **Tracked** — bug report, requirements, and architecture written. Not yet implemented. | 2026-03-26 |
-| 4 — Duplicate voxel positions not detected | `docs/bugs/duplicate-voxel-positions/` | **Tracked** — bug ticket written. Not yet implemented. | 2026-03-31 |
-| 5–9 | — | Not yet tracked. | — |
+| 3 — Fence silently ignores rotation | `docs/bugs/fence-rotation-ignored/` | **Fixed** — Spawner applies orientation matrix to fence geometry after world-axis neighbour detection; `world_dir_to_local()` maps neighbours into local frame. `docs/api/map-format-spec.md` updated. Commits `56ca5fa`, `fd80558`, `54b057f`. | 2026-03-26 |
+| 4 — Duplicate voxel positions not detected | `docs/bugs/duplicate-voxel-positions/` | **Fixed** — `validate_voxel_positions()` extended with `HashSet` duplicate check. Commit `9f960d1`. | 2026-03-31 |
+| 5 — Entity properties silent parse failures | `docs/bugs/entity-properties-silent-parse-failure/` | **Fixed** — `validate_entity_properties()` added to `validate_entities()`; validates LightSource and Npc property strings before spawning. Commit pending. | 2026-03-31 |
+| 6–9 | — | Not yet tracked. | — |
 
 ## Summary
 
@@ -194,9 +195,9 @@ the same map will silently collide on key names.
 |---|---------|----------|----------|--------|--------|
 | 1 | Multi-axis rotation silently discards first rotation | `rotation.rs` (pre-fix) | p1 | Cannot represent non-cardinal voxel orientations | **Fixed** `eda90e3` |
 | 2 | Staircase variant + rotation produces double rotation | `patterns.rs:64–75` | p2 | Unexpected geometry, no warning | **Fixed** `4874885` |
-| 3 | Fence ignores rotation at runtime | `spawner/chunks.rs:104–115` | p2 | Author intent silently lost | **Tracked** — see `docs/bugs/fence-rotation-ignored/` |
-| 4 | Duplicate voxel positions not detected | `validation.rs:42–53` | p2 | Silent mesh corruption | Open |
-| 5 | Entity properties untyped, parse failures silent | `entities.rs:14–15` | p2 | Invalid config produces wrong runtime state | Open |
+| 3 | Fence ignores rotation at runtime | `spawner/chunks.rs:104–115` | p2 | Author intent silently lost | **Fixed** — commits `56ca5fa`, `fd80558`, `54b057f` |
+| 4 | Duplicate voxel positions not detected | `validation.rs:42–53` | p2 | Silent mesh corruption | **Fixed** `9f960d1` |
+| 5 | Entity properties untyped, parse failures silent | `entities.rs:14–15` | p2 | Invalid config produces wrong runtime state | **Fixed** — see `docs/bugs/entity-properties-silent-parse-failure/` |
 | 6 | Only 4 material types; VoxelType in components.rs | `components.rs:44–50` | p3 | Limited palette; format/ECS coupling | Open |
 | 7 | Pillar geometry is floating cube, not a column | geometry patterns | p3 | Misleading name, unexpected collision gaps | Open |
 | 8 | Camera stored as static snapshot | `camera.rs` | p3 | No dynamic camera properties expressible in format | Open |
