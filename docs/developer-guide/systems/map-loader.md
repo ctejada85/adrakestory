@@ -21,7 +21,8 @@ src/systems/game/map/
 │   ├── lighting.rs     # LightingData
 │   ├── metadata.rs     # MapMetadata
 │   ├── patterns.rs     # SubVoxelPattern
-│   ├── rotation.rs     # Rotation support
+│   ├── rotation.rs     # OrientationMatrix, LegacyRotationState
+│   ├── voxel_type.rs   # VoxelType
 │   └── world.rs        # WorldData, VoxelData
 ├── geometry/           # Sub-voxel geometry
 │   ├── mod.rs          # Re-exports
@@ -31,7 +32,7 @@ src/systems/game/map/
 │   └── utils.rs        # Helper functions
 ├── loader.rs           # File I/O and parsing
 ├── spawner/            # World instantiation
-│   ├── mod.rs          # Constants, types, main system
+│   ├── mod.rs          # Constants, types, main system + LOD update
 │   ├── meshing/        # Mesh generation
 │   │   ├── mod.rs      # Face enum, re-exports
 │   │   ├── occupancy.rs    # OccupancyGrid
@@ -40,7 +41,7 @@ src/systems/game/map/
 │   │   └── palette.rs      # VoxelMaterialPalette
 │   ├── entities.rs     # Entity spawning
 │   ├── chunks.rs       # Chunk spawning
-│   └── systems.rs      # LOD, lighting, camera
+│   └── shadow_quality.rs   # Shadow quality application system
 ├── validation.rs       # Map validation logic
 └── error.rs            # Error types
 ```
@@ -67,6 +68,9 @@ pub struct MapData {
     pub entities: Vec<EntityData>,
     pub lighting: LightingData,
     pub camera: CameraData,
+    #[serde(default)]
+    pub orientations: Vec<OrientationMatrix>,       // Rotation matrix table; indexed by VoxelData::rotation
+    #[serde(default)]
     pub custom_properties: HashMap<String, String>,
 }
 ```
@@ -87,35 +91,39 @@ pub enum SubVoxelPattern {
     
     // Platform variants (thin slabs in different orientations)
     /// Thin 8×1×8 platform on XZ plane (horizontal, default)
-    #[serde(alias = "Platform")]  // For backward compatibility
+    #[serde(alias = "Platform")]  // backward compat alias
     PlatformXZ,
     /// Thin 8×8×1 platform on XY plane (vertical wall facing Z)
     PlatformXY,
     /// Thin 1×8×8 platform on YZ plane (vertical wall facing X)
     PlatformYZ,
     
-    // Staircase variants (progressive height in different directions)
-    /// Stairs ascending in +X direction (default)
-    #[serde(alias = "Staircase")]  // For backward compatibility
-    StaircaseX,
-    /// Stairs ascending in -X direction
-    StaircaseNegX,
-    /// Stairs ascending in +Z direction
-    StaircaseZ,
-    /// Stairs ascending in -Z direction
-    StaircaseNegZ,
+    // Staircase — single canonical variant; directional variants are load-only aliases
+    /// Stairs ascending in +X direction (canonical name)
+    #[serde(alias = "StaircaseX")]  // old name before rename; no geometry change
+    Staircase,
     
-    /// Small 2×2×2 centered column (symmetric, no orientation)
+    /// Full-height 2×8×2 column (32 sub-voxels); spans all 8 Y layers
+    /// No collision gap when stacking vertically.
     Pillar,
+    
+    /// Small 2×2×2 centred cube (8 sub-voxels); centred at sub-voxels (3,3,3)–(4,4,4)
+    /// Previously (incorrectly) named `Pillar` before v1.1; old maps deserialise unchanged.
+    CenterCube,
+    
+    /// Neighbour-aware fence post with connection rails
+    Fence,
 }
 ```
 
 **Implementation Details:**
 - Each pattern generates different sub-voxel configurations
-- Patterns with orientation variants support proper rotation transformations
-- Backward compatibility: `Platform` maps to `PlatformXZ`, `Staircase` maps to `StaircaseX`
-- Patterns are applied during spawning using the geometry system
-- Enables high detail without excessive memory usage
+- `Staircase` is the canonical name; `StaircaseX` is a load-only alias (identical geometry)
+- `StaircaseNegX`, `StaircaseZ`, `StaircaseNegZ` are load-only aliases normalised by `normalise_staircase_variants()` — they are converted to `Staircase` + an orientation matrix absorbed into `VoxelData.rotation`
+- `Pillar` is a full-height 2×8×2 column (32 sub-voxels); `CenterCube` is the 2×2×2 floating cube (8 sub-voxels)
+- `Fence` connects to adjacent fence voxels at spawn time; `rotation` is fully supported post-normalisation
+- Patterns are applied during spawning using the geometry system via `geometry_with_rotation()`
+- `Platform` (load-only alias) → `PlatformXZ`
 
 ### loader.rs - File Loading
 
@@ -174,11 +182,17 @@ pub fn validate_map(map: &MapData) -> Result<(), MapLoadError> {
         ));
     }
     
-    // 2. Check voxel positions
+    // 2. Check voxel positions and duplicate detection
+    let mut seen_positions = HashSet::new();
     for voxel in &map.world.voxels {
         if !is_position_valid(voxel.pos, &map.world) {
             return Err(MapLoadError::InvalidVoxelPosition(
                 voxel.pos.0, voxel.pos.1, voxel.pos.2
+            ));
+        }
+        if !seen_positions.insert(voxel.pos) {
+            return Err(MapLoadError::ValidationError(
+                format!("Duplicate voxel position {:?}", voxel.pos)
             ));
         }
     }
@@ -201,6 +215,12 @@ pub fn validate_map(map: &MapData) -> Result<(), MapLoadError> {
             "Version must start with '1.'".to_string()
         ));
     }
+    
+    // 6. Validate orientation matrices
+    validate_orientations(&map.orientations)?;
+    
+    // 7. Validate entity properties (warns on invalid values, uses defaults)
+    validate_entity_properties(&map.entities);
     
     Ok(())
 }
@@ -296,8 +316,12 @@ fn spawn_voxels(ctx: &mut VoxelSpawnContext, map: &MapData, progress: &mut MapLo
         // Determine which pattern to use
         let pattern = voxel_data.pattern.unwrap_or(SubVoxelPattern::Full);
         
+        // Resolve the optional orientation matrix from the map's orientations list
+        let orientation = voxel_data.rotation
+            .and_then(|idx| map.orientations.get(idx));
+        
         // Get the geometry for this pattern with rotation applied
-        let geometry = pattern.geometry_with_rotation(voxel_data.rotation_state);
+        let geometry = pattern.geometry_with_rotation(orientation);
         
         // Spawn all occupied sub-voxels from the geometry
         for (sub_x, sub_y, sub_z) in geometry.occupied_positions() {
@@ -312,10 +336,12 @@ fn spawn_voxels(ctx: &mut VoxelSpawnContext, map: &MapData, progress: &mut MapLo
 - **Full**: All 512 sub-voxels (8×8×8)
 - **PlatformXZ**: 64 sub-voxels (8×1×8 horizontal)
 - **PlatformXY**: 64 sub-voxels (8×8×1 vertical wall)
-- **StaircaseX**: 288 sub-voxels (progressive height in +X)
-- **Pillar**: 8 sub-voxels (2×2×2 centered cube)
+- **Staircase**: 288 sub-voxels (progressive height in +X — canonical direction)
+- **Pillar**: 32 sub-voxels (2×8×2 full-height column; no gap when stacking)
+- **CenterCube**: 8 sub-voxels (2×2×2 centred cube)
+- **Fence**: Variable (post + rails toward adjacent fence voxels)
 
-The geometry system allows patterns to be rotated dynamically using the `rotation_state` field.
+The geometry system allows patterns to be rotated dynamically using the orientation matrix referenced via `VoxelData.rotation`.
 
 ### error.rs - Error Handling
 
@@ -496,4 +522,4 @@ fn test_full_load_cycle() {
 ---
 
 **Implementation Version:** 2.0.0  
-**Last Updated:** 2025-12-16
+**Last Updated:** 2026-03-31
