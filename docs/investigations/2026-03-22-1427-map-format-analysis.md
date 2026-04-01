@@ -202,7 +202,7 @@ the same map will silently collide on key names.
 | 5 | Entity properties untyped, parse failures silent | `entities.rs:14–15` | p2 | Invalid config produces wrong runtime state | **Fixed** — see `docs/bugs/entity-properties-silent-parse-failure/` |
 | 6 | Only 4 material types; VoxelType in components.rs | `components.rs:44–50` | p3 | Limited palette; format/ECS coupling | **Fixed** `aa7dbb8` |
 | 7 | Pillar geometry is floating cube, not a column | geometry patterns | p3 | Misleading name, unexpected collision gaps | **Fixed** — `CenterCube` + new `Pillar` column |
-| 8 | Camera stored as static snapshot | `camera.rs` | p3 | No dynamic camera properties expressible in format | Open |
+| 8 | Camera stored as static snapshot | `camera.rs` | p3 | No dynamic camera properties expressible in format | **Tracked** — `docs/bugs/camera-static-snapshot/` |
 | 9 | custom_properties has no namespace | `format/mod.rs` | p3 | Key collisions possible across systems | Open |
 
 ---
