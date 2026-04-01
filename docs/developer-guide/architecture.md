@@ -355,6 +355,8 @@ pub struct GameCamera {
 
 **Lerp formula**: Both `follow_player_camera` and `rotate_camera` use the frame-rate-independent exponential decay formula `alpha = 1 - exp(-speed * delta)` instead of the approximation `speed * delta`. This guarantees identical convergence time regardless of frame rate (30/60/120 fps).
 
+**Map-configurable feel**: `follow_speed` and `rotation_speed` are sourced from `CameraData` at spawn time via `spawn_camera()`. Map files may set them as `Option<f32>` fields; when absent, the engine defaults (15.0 and 5.0) are used. `fov_degrees` (also optional) sets the vertical field of view via `Projection::Perspective` when present.
+
 ### CollisionBox Component
 
 ```rust
@@ -692,7 +694,7 @@ transform.translation = transform.translation.lerp(target, alpha);
 
 The naive approximation `t = speed * delta` is only valid when `t ≪ 1`. At 30 fps with `speed = 5`, `t ≈ 0.17` — large enough to cause over-interpolation. The exponential formula is exact at all delta sizes.
 
-`follow_speed` defaults to `15.0` (responsive third-person). `rotation_speed` defaults to `5.0`.
+`follow_speed` defaults to `15.0` (responsive third-person). `rotation_speed` defaults to `5.0`. Both values are resolved from `CameraData` in `spawn_camera()` — map files can override them via the optional `follow_speed` and `rotation_speed` fields on `CameraData`. A third optional field, `fov_degrees`, overrides the default vertical FOV (~60°) via `Projection::Perspective`.
 
 **Rule**: All camera lerp/slerp calls must use `lerp_alpha(speed, delta)` from `camera.rs`, never `speed * delta` directly.
 

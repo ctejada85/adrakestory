@@ -412,6 +412,9 @@ struct CameraData {
     position: (f32, f32, f32),
     look_at: (f32, f32, f32),
     rotation_offset: f32,
+    follow_speed: Option<f32>,    // optional — engine default: 15.0
+    rotation_speed: Option<f32>,  // optional — engine default: 5.0
+    fov_degrees: Option<f32>,     // optional — engine default: ~60°
 }
 ```
 
@@ -419,13 +422,31 @@ struct CameraData {
 
 | Field | Type | Required | Constraints | Description |
 |-------|------|----------|-------------|-------------|
-| `position` | (f32, f32, f32) | Yes | Any | Camera position |
-| `look_at` | (f32, f32, f32) | Yes | Any | Target point |
-| `rotation_offset` | f32 | Yes | Radians | Additional rotation |
+| `position` | (f32, f32, f32) | Yes | Any | Camera starting position in world space |
+| `look_at` | (f32, f32, f32) | Yes | Any | World-space point the camera initially aims at |
+| `rotation_offset` | f32 | Yes | Radians | Y-axis rotation applied around `look_at` after the initial transform. `-π/2` (≈ `-1.5707964`) rotates 90° left; `π/2` rotates 90° right. |
+| `follow_speed` | Option\<f32\> | No | `> 0` | Exponential decay rate for camera position follow. Higher = more responsive. Default: `15.0`. |
+| `rotation_speed` | Option\<f32\> | No | `> 0` | Exponential decay rate for camera rotation interpolation. Default: `5.0`. |
+| `fov_degrees` | Option\<f32\> | No | `5`–`150` | Vertical field of view in degrees. Default: engine default (~60°). |
 
 **Common Values:**
-- `rotation_offset: -1.5707963` (-π/2) for isometric view
+- `rotation_offset: -1.5707963` (-π/2) for a 90° left isometric view
 - `rotation_offset: 0.0` for no additional rotation
+
+**Optional field usage:**
+
+Omit `follow_speed`, `rotation_speed`, and `fov_degrees` to use engine defaults (all existing map files are unaffected). Set them to tune camera feel per-map:
+
+```ron
+camera: (
+    position: (8.5, 8.0, 5.5),
+    look_at: (8.5, 0.0, 1.5),
+    rotation_offset: -1.5707964,
+    follow_speed: Some(5.0),      // slower, more cinematic follow
+    rotation_speed: Some(3.0),    // slower rotation interpolation
+    fov_degrees: Some(75.0),      // slightly wider field of view
+)
+```
 
 ### Custom Properties
 

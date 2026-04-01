@@ -244,7 +244,11 @@ mod tests {
 
     #[test]
     fn test_opposite_faces_have_opposite_offsets() {
-        let pairs = [(Face::PosX, Face::NegX), (Face::PosY, Face::NegY), (Face::PosZ, Face::NegZ)];
+        let pairs = [
+            (Face::PosX, Face::NegX),
+            (Face::PosY, Face::NegY),
+            (Face::PosZ, Face::NegZ),
+        ];
 
         for (pos, neg) in pairs {
             let (px, py, pz) = pos.offset();
@@ -257,7 +261,11 @@ mod tests {
 
     #[test]
     fn test_opposite_faces_have_opposite_normals() {
-        let pairs = [(Face::PosX, Face::NegX), (Face::PosY, Face::NegY), (Face::PosZ, Face::NegZ)];
+        let pairs = [
+            (Face::PosX, Face::NegX),
+            (Face::PosY, Face::NegY),
+            (Face::PosZ, Face::NegZ),
+        ];
 
         for (pos, neg) in pairs {
             let pn = pos.normal();
@@ -353,8 +361,10 @@ pub fn spawn_map_system(
     // When occlusion is disabled, use StandardMaterial for proper PBR lighting
     let chunk_material = if occlusion_config.enabled {
         // Occlusion material with custom shader for transparency
-        let occlusion_mat =
-            create_occlusion_material(assets.occlusion_materials.as_mut(), occlusion_config.technique);
+        let occlusion_mat = create_occlusion_material(
+            assets.occlusion_materials.as_mut(),
+            occlusion_config.technique,
+        );
         commands.insert_resource(OcclusionMaterialHandle(occlusion_mat.clone()));
         ChunkMaterial::Occlusion(occlusion_mat)
     } else {
@@ -379,9 +389,7 @@ pub fn spawn_map_system(
             chunk_material,
             shadow_quality: occlusion_config.shadow_quality,
         };
-        let _p_chunks = profiler
-            .as_ref()
-            .map(|p| p.scope("spawn_voxels_chunked"));
+        let _p_chunks = profiler.as_ref().map(|p| p.scope("spawn_voxels_chunked"));
         spawn_voxels_chunked(&mut chunk_ctx, map, &mut progress);
         chunk_ctx.commands
     };
@@ -505,10 +513,7 @@ fn spawn_entities(ctx: &mut EntitySpawnContext, map: &MapData, progress: &mut Ma
 /// Used both at map-spawn time and by `apply_shadow_quality_system` for runtime changes.
 pub fn shadow_params_for_quality(quality: ShadowQuality) -> (bool, CascadeShadowConfig) {
     match quality {
-        ShadowQuality::None => (
-            false,
-            CascadeShadowConfigBuilder::default().build(),
-        ),
+        ShadowQuality::None => (false, CascadeShadowConfigBuilder::default().build()),
         ShadowQuality::CharactersOnly | ShadowQuality::Low => (
             true,
             CascadeShadowConfigBuilder {
@@ -598,17 +603,36 @@ fn spawn_camera(commands: &mut Commands, map: &MapData) {
     // Transform offset to local camera space (inverse of camera rotation)
     let follow_offset = camera_transform.rotation.inverse() * initial_offset;
 
-    commands.spawn((
-        Camera3d::default(),
-        camera_transform,
-        GameCamera {
-            original_rotation,
-            target_rotation: original_rotation,
-            rotation_speed: 5.0,
-            follow_offset,
-            follow_speed: 15.0,             // Responsive third-person follow
-            target_position: look_at_point, // Initially look at the map's look_at point
-        },
-        DepthPrepass,
-    ));
+    // Resolve optional camera feel parameters; fall back to engine defaults when absent.
+    let follow_speed = camera.follow_speed.unwrap_or(15.0);
+    let rotation_speed = camera.rotation_speed.unwrap_or(5.0);
+
+    let game_camera = GameCamera {
+        original_rotation,
+        target_rotation: original_rotation,
+        rotation_speed,
+        follow_offset,
+        follow_speed,
+        target_position: look_at_point,
+    };
+
+    if let Some(fov_deg) = camera.fov_degrees {
+        commands.spawn((
+            Camera3d::default(),
+            Projection::Perspective(PerspectiveProjection {
+                fov: fov_deg.to_radians(),
+                ..default()
+            }),
+            camera_transform,
+            game_camera,
+            DepthPrepass,
+        ));
+    } else {
+        commands.spawn((
+            Camera3d::default(),
+            camera_transform,
+            game_camera,
+            DepthPrepass,
+        ));
+    }
 }
