@@ -1,8 +1,8 @@
 //! Selection highlight rendering.
 
 use super::SelectionHighlight;
-use crate::editor::state::EditorState;
 use super::UpdateSelectionHighlights;
+use crate::editor::state::EditorState;
 use bevy::prelude::*;
 
 /// Render selection highlights for selected voxels

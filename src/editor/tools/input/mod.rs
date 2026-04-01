@@ -64,7 +64,11 @@ pub fn handle_keyboard_input(
     mut input_events: MessageWriter<EditorInputEvent>,
 ) {
     // Single UI focus check for ALL keyboard input
-    if contexts.ctx_mut().expect("egui context").wants_keyboard_input() {
+    if contexts
+        .ctx_mut()
+        .expect("egui context")
+        .wants_keyboard_input()
+    {
         return;
     }
 
