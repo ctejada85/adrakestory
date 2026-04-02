@@ -47,9 +47,16 @@ fn main() {
             close_when_requested: false, // Don't auto-close, we'll handle it
             ..default()
         }))
-        .add_plugins(EguiPlugin {
-            enable_multipass_for_primary_context: false,
-            ..default()
+        .add_plugins({
+            // Disable multi-pass mode: render_ui runs in Update alongside many .after(render_ui)
+            // systems. EguiPrimaryContextPass (the multi-pass replacement) runs in PostUpdate,
+            // which would invert that ordering. Migrating the full system graph is out of scope
+            // for this ticket; suppress the deprecation until that migration is done.
+            #[allow(deprecated)]
+            EguiPlugin {
+                enable_multipass_for_primary_context: false,
+                ..default()
+            }
         })
         .init_resource::<EditorState>()
         .init_resource::<CursorState>()
