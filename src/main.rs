@@ -96,7 +96,9 @@ use systems::game::map::{
     apply_shadow_quality_system, spawn_map_system, update_chunk_lods, LoadedMapData, LodConfig,
     MapLoadProgress, MapLoader,
 };
-use systems::game::npc_labels::{spawn_npc_label, update_npc_label_visibility};
+use systems::game::npc_labels::{
+    cleanup_npc_labels, despawn_removed_npc_labels, spawn_npc_label, update_npc_label_visibility,
+};
 use systems::game::systems::{
     apply_gravity, apply_npc_collision, apply_physics, follow_player_camera, handle_escape_key,
     move_player, rotate_camera, rotate_character_model, sync_light_sources, toggle_collision_box,
@@ -265,6 +267,7 @@ fn main() {
                 apply_shadow_quality_system,
                 spawn_npc_label,
                 update_npc_label_visibility,
+                despawn_removed_npc_labels,
             )
                 .in_set(GameSystemSet::Visual)
                 .run_if(in_state(GameState::InGame).or(in_state(GameState::Paused))),
@@ -290,7 +293,10 @@ fn main() {
         )
         .add_systems(OnExit(GameState::Paused), pause_menu::cleanup_pause_menu)
         // Cleanup hot reload when leaving InGame (going to Paused doesn't count as leaving)
-        .add_systems(OnExit(GameState::InGame), cleanup_hot_reload)
+        .add_systems(
+            OnExit(GameState::InGame),
+            (cleanup_hot_reload, cleanup_npc_labels),
+        )
         .run();
 }
 

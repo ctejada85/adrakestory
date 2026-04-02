@@ -65,12 +65,17 @@ pub struct Npc {
     pub radius: f32,
 }
 
-/// Marker component on the world-space text label child of an `Npc` entity.
+/// Component on the screen-space UI text label associated with an [`Npc`] entity.
 ///
-/// Spawned as a child of the NPC root entity by `spawn_npc_label`. Used to
-/// query label entities independently from the rest of the NPC hierarchy.
+/// Spawned as a **root-level UI node** (not a child of the NPC entity) by
+/// `spawn_npc_label`. The `npc_entity` field links the label back to its NPC
+/// so that `update_npc_label_visibility` can project the NPC's world position
+/// and `despawn_removed_npc_labels` can detect when the NPC is gone.
 #[derive(Component)]
-pub struct NpcLabel;
+pub struct NpcLabel {
+    /// The NPC entity this label belongs to.
+    pub npc_entity: Entity,
+}
 
 impl Default for Npc {
     fn default() -> Self {
