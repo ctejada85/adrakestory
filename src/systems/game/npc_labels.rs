@@ -48,6 +48,9 @@ pub fn spawn_npc_label(mut commands: Commands, query: Query<(Entity, &Npc), Adde
                 top: Val::Px(0.0),
                 ..default()
             },
+            // Translate by (-50%, -50%) of the node's own size so the centre of
+            // the text box lands on the projected screen point, not the top-left.
+            UiTransform::from_translation(Val2::percent(-50.0, -50.0)),
             Text::new(npc.name.clone()),
             TextFont {
                 font_size: LABEL_FONT_SIZE,
