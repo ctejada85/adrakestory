@@ -97,7 +97,8 @@ use systems::game::map::{
     MapLoadProgress, MapLoader,
 };
 use systems::game::npc_labels::{
-    cleanup_npc_labels, despawn_removed_npc_labels, spawn_npc_label, update_npc_label_visibility,
+    cleanup_npc_labels, despawn_removed_npc_labels, spawn_npc_label, tick_npc_label_fade,
+    update_npc_label_visibility,
 };
 use systems::game::systems::{
     apply_gravity, apply_npc_collision, apply_physics, follow_player_camera, handle_escape_key,
@@ -267,6 +268,7 @@ fn main() {
                 apply_shadow_quality_system,
                 spawn_npc_label,
                 update_npc_label_visibility,
+                tick_npc_label_fade.after(update_npc_label_visibility),
                 despawn_removed_npc_labels,
             )
                 .in_set(GameSystemSet::Visual)

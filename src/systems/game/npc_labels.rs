@@ -2,9 +2,11 @@
 //!
 //! Each named NPC gets a screen-space UI text label that is positioned by
 //! projecting the NPC's world position through the active 3D camera each
-//! frame. Labels are shown only when the player is within [`INTERACTION_RANGE`]
-//! (horizontal XZ distance). Both systems run in `GameSystemSet::Visual`
-//! under `GameState::InGame | GameState::Paused`.
+//! frame. Labels fade in/out over [`FADE_DURATION_SECS`] when the player
+//! enters or leaves [`INTERACTION_RANGE`] (horizontal XZ distance).
+//!
+//! Both systems run in `GameSystemSet::Visual` under
+//! `GameState::InGame | GameState::Paused`.
 //!
 //! Labels are standalone UI nodes (not children of the NPC entity). They are
 //! cleaned up in two ways:
@@ -29,6 +31,31 @@ const LABEL_Y_OFFSET: f32 = 1.2;
 
 /// Label font size in logical pixels.
 const LABEL_FONT_SIZE: f32 = 24.0;
+
+/// Duration of the fade-in and fade-out transition in seconds (50 ms).
+pub const FADE_DURATION_SECS: f32 = 0.05;
+
+/// Per-label fade state.
+///
+/// Tracks the current opacity (`alpha`) and the desired opacity (`target`).
+/// `alpha` moves toward `target` at a rate of `1.0 / FADE_DURATION_SECS`
+/// units per second, clamped to `[0.0, 1.0]`.
+#[derive(Component)]
+pub struct NpcLabelFade {
+    /// Current opacity in `[0.0, 1.0]`.
+    pub alpha: f32,
+    /// Desired opacity — either `0.0` (hidden) or `1.0` (fully visible).
+    pub target: f32,
+}
+
+impl NpcLabelFade {
+    fn new() -> Self {
+        Self {
+            alpha: 0.0,
+            target: 0.0,
+        }
+    }
+}
 
 /// Spawns a UI text label node for each newly-added [`Npc`] that has a
 /// non-default, non-empty name. The label is a root-level absolutely-positioned
@@ -56,43 +83,40 @@ pub fn spawn_npc_label(mut commands: Commands, query: Query<(Entity, &Npc), Adde
                 font_size: LABEL_FONT_SIZE,
                 ..default()
             },
-            TextColor(Color::WHITE),
+            TextColor(Color::srgba(1.0, 1.0, 1.0, 0.0)),
             Visibility::Hidden,
             NpcLabel { npc_entity },
+            NpcLabelFade::new(),
         ));
     }
 }
 
-/// Projects each NPC's world position through the 3D camera to obtain a screen
-/// coordinate, then repositions and shows/hides the corresponding UI label.
+/// Sets the fade target for each NPC label based on player proximity and camera
+/// visibility, and keeps the screen position up to date.
 ///
-/// A label is shown when:
-/// 1. The player is within [`INTERACTION_RANGE`] (XZ distance).
-/// 2. The NPC is in front of the camera (projection succeeds).
+/// - Sets `fade.target = 1.0` when the player is within [`INTERACTION_RANGE`]
+///   and the NPC is in front of the camera.
+/// - Sets `fade.target = 0.0` otherwise.
 ///
-/// The distance check uses only the XZ plane so vertical height differences
-/// between the player and the NPC do not affect label visibility.
+/// Screen position (`node.left` / `node.top`) is updated every frame while the
+/// label is visible or fading in, so it tracks the NPC smoothly.
 pub fn update_npc_label_visibility(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     player_query: Query<&Transform, With<Player>>,
     npc_query: Query<&GlobalTransform, With<Npc>>,
-    mut label_query: Query<(&mut Visibility, &mut Node, &NpcLabel)>,
+    mut label_query: Query<(&mut Node, &NpcLabel, &mut NpcLabelFade)>,
 ) {
-    // Need the 3D camera to project world positions to screen space.
     let Ok((camera, camera_global_transform)) = camera_query.single() else {
         return;
     };
-    // Player position is needed for the proximity check.
     let Ok(player_transform) = player_query.single() else {
         return;
     };
     let player_pos = player_transform.translation;
 
-    for (mut visibility, mut node, label) in &mut label_query {
+    for (mut node, label, mut fade) in &mut label_query {
         let Ok(npc_global_transform) = npc_query.get(label.npc_entity) else {
-            // NPC entity is gone — hide the label (it will be despawned by
-            // despawn_removed_npc_labels on the next frame).
-            *visibility = Visibility::Hidden;
+            fade.target = 0.0;
             continue;
         };
 
@@ -102,23 +126,54 @@ pub fn update_npc_label_visibility(
         let horizontal_distance = (dx * dx + dz * dz).sqrt();
 
         if horizontal_distance >= INTERACTION_RANGE {
-            *visibility = Visibility::Hidden;
+            fade.target = 0.0;
             continue;
         }
 
-        // Project the point above the NPC into screen space.
         let label_world_pos = npc_pos + Vec3::Y * LABEL_Y_OFFSET;
         match camera.world_to_viewport(camera_global_transform, label_world_pos) {
             Ok(screen_pos) => {
                 node.left = Val::Px(screen_pos.x);
                 node.top = Val::Px(screen_pos.y);
-                *visibility = Visibility::Visible;
+                fade.target = 1.0;
             }
             Err(_) => {
                 // NPC is behind the camera or outside the viewport.
-                *visibility = Visibility::Hidden;
+                fade.target = 0.0;
             }
         }
+    }
+}
+
+/// Advances each label's `alpha` toward its `target` and writes the result to
+/// [`TextColor`] and [`Visibility`].
+///
+/// Runs after [`update_npc_label_visibility`] in the same system set so that
+/// `fade.target` is already set for this frame.
+pub fn tick_npc_label_fade(
+    time: Res<Time>,
+    mut label_query: Query<(&mut Visibility, &mut TextColor, &mut NpcLabelFade)>,
+) {
+    let dt = time.delta_secs();
+    let step = dt / FADE_DURATION_SECS;
+
+    for (mut visibility, mut color, mut fade) in &mut label_query {
+        // Move alpha toward target.
+        if fade.target > fade.alpha {
+            fade.alpha = (fade.alpha + step).min(1.0);
+        } else if fade.target < fade.alpha {
+            fade.alpha = (fade.alpha - step).max(0.0);
+        }
+
+        // Apply alpha to the text colour.
+        color.0 = Color::srgba(1.0, 1.0, 1.0, fade.alpha);
+
+        // Only hide the node when fully transparent to avoid layout flicker.
+        *visibility = if fade.alpha <= 0.0 {
+            Visibility::Hidden
+        } else {
+            Visibility::Visible
+        };
     }
 }
 
@@ -299,7 +354,6 @@ mod tests {
         let mut app = App::new();
         app.add_systems(Update, (spawn_npc_label, cleanup_npc_labels).chain());
 
-        // Spawn in frame 1, then clean up in frame 2.
         app.world_mut().spawn(Npc {
             name: "Wizard".to_string(),
             radius: 0.3,
@@ -313,5 +367,140 @@ mod tests {
             .iter(app.world())
             .count();
         assert_eq!(label_count, 0);
+    }
+
+    /// Newly spawned label starts fully transparent and hidden.
+    #[test]
+    fn new_label_starts_transparent() {
+        let mut app = app_with_spawn_system();
+        app.world_mut().spawn(Npc {
+            name: "Sage".to_string(),
+            radius: 0.3,
+        });
+        app.update();
+
+        let mut q = app.world_mut().query::<(&TextColor, &NpcLabelFade)>();
+        let Ok((color, fade)) = q.single(app.world()) else {
+            panic!("expected exactly one label entity");
+        };
+        assert_eq!(fade.alpha, 0.0);
+        assert_eq!(fade.target, 0.0);
+        // Alpha channel of the initial colour must be 0.
+        let Srgba { alpha, .. } = color.0.to_srgba();
+        assert_eq!(alpha, 0.0);
+    }
+
+    /// `tick_npc_label_fade` advances alpha toward 1.0 when target is 1.0.
+    #[test]
+    fn fade_in_advances_alpha() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, tick_npc_label_fade);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                Visibility::Hidden,
+                TextColor(Color::srgba(1.0, 1.0, 1.0, 0.0)),
+                NpcLabelFade {
+                    alpha: 0.0,
+                    target: 1.0,
+                },
+            ))
+            .id();
+
+        // Run enough frames to fully fade in (50 ms total; each MinimalPlugins
+        // frame advances time by a small fixed delta).
+        for _ in 0..10 {
+            app.update();
+        }
+
+        let fade = app.world().get::<NpcLabelFade>(entity).unwrap();
+        assert!(
+            fade.alpha > 0.0,
+            "alpha should have advanced above 0.0, got {}",
+            fade.alpha
+        );
+    }
+
+    /// When target is 0.0 and alpha is 1.0, `tick_npc_label_fade` decreases alpha.
+    #[test]
+    fn fade_out_decreases_alpha() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, tick_npc_label_fade);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                Visibility::Visible,
+                TextColor(Color::srgba(1.0, 1.0, 1.0, 1.0)),
+                NpcLabelFade {
+                    alpha: 1.0,
+                    target: 0.0,
+                },
+            ))
+            .id();
+
+        for _ in 0..10 {
+            app.update();
+        }
+
+        let fade = app.world().get::<NpcLabelFade>(entity).unwrap();
+        assert!(
+            fade.alpha < 1.0,
+            "alpha should have decreased below 1.0, got {}",
+            fade.alpha
+        );
+    }
+
+    /// When fully faded out, Visibility must be Hidden.
+    #[test]
+    fn fully_faded_out_is_hidden() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, tick_npc_label_fade);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                Visibility::Visible,
+                TextColor(Color::srgba(1.0, 1.0, 1.0, 1.0)),
+                NpcLabelFade {
+                    alpha: 0.0,
+                    target: 0.0,
+                },
+            ))
+            .id();
+
+        app.update();
+
+        let vis = app.world().get::<Visibility>(entity).unwrap();
+        assert_eq!(*vis, Visibility::Hidden);
+    }
+
+    /// When partially faded in, Visibility must be Visible.
+    #[test]
+    fn partially_faded_in_is_visible() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, tick_npc_label_fade);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                Visibility::Hidden,
+                TextColor(Color::srgba(1.0, 1.0, 1.0, 0.0)),
+                NpcLabelFade {
+                    alpha: 0.5,
+                    target: 1.0,
+                },
+            ))
+            .id();
+
+        app.update();
+
+        let vis = app.world().get::<Visibility>(entity).unwrap();
+        assert_eq!(*vis, Visibility::Visible);
     }
 }
