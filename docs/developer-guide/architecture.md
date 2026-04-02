@@ -167,6 +167,7 @@ src/
 │   │   │   ├── systems.rs
 │   │   │   └── notifications.rs
 │   │   ├── input.rs        # Input handling
+│   │   ├── npc_labels.rs   # NPC display-name billboard labels
 │   │   ├── physics.rs      # Physics simulation
 │   │   ├── player_movement.rs  # Player controls
 │   │   └── map/            # Map loading system
@@ -358,6 +359,35 @@ pub struct GameCamera {
 
 **Map-configurable feel**: `follow_speed` and `rotation_speed` are sourced from `CameraData` at spawn time via `spawn_camera()`. Map files may set them as `Option<f32>` fields; when absent, the engine defaults (15.0 and 5.0) are used. `fov_degrees` (also optional) sets the vertical field of view via `Projection::Perspective` when present.
 
+### Npc Component
+
+```rust
+#[derive(Component)]
+pub struct Npc {
+    pub name: String,
+}
+```
+
+**Purpose**: Marks an entity as a non-player character and carries its display name. Spawned from map entity data. The `name` field is used by the `npc_labels` system to decide whether to render a label above the NPC.
+
+### NpcLabel Component
+
+```rust
+#[derive(Component)]
+pub struct NpcLabel;
+```
+
+**Purpose**: Marker component placed on the `Text2d` billboard entity that is spawned as a child of an NPC. Allows `update_npc_label_visibility` to query label entities independently of the NPC parent. Labels are spawned once (via `Added<Npc>` filter in `spawn_npc_label`) and their `Visibility` is toggled each frame by `update_npc_label_visibility` based on the XZ-plane distance between the player and the NPC parent.
+
+**Suppression rules** (applied in `spawn_npc_label`):
+- `name` is empty (`""`) → no label spawned.
+- `name` is exactly `"NPC"` (case-sensitive) → no label spawned (default/placeholder name).
+- Any other non-empty string → label spawned with `Y` offset `1.2` above the NPC origin.
+
+**Visibility threshold**: `INTERACTION_RANGE = 3.0` world units (horizontal XZ distance only). Labels are hidden when the player is outside this range so they do not clutter the screen.
+
+**State gating**: Both `spawn_npc_label` and `update_npc_label_visibility` run in `GameSystemSet::Visual` with `.run_if(in_state(InGame) | in_state(Paused))`, so labels remain visible on the pause screen if the player is within range.
+
 ### CollisionBox Component
 
 ```rust
@@ -446,6 +476,7 @@ pub struct GameInitialized(pub bool);
 - `character/mod.rs`: Character model component
 - `collision.rs`: Collision detection
 - `input.rs`: Input handling
+- `npc_labels.rs`: NPC display-name label spawning and visibility
 - `physics.rs`: Physics simulation
 - `player_movement.rs`: Player controls
 
@@ -956,5 +987,5 @@ pub fn player_movement_system(/* ... */) {
 
 ---
 
-**Architecture Version:** 2.5.0
-**Last Updated:** 2026-03-31
+**Architecture Version:** 2.6.0
+**Last Updated:** 2026-04-02

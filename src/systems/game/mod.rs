@@ -3,6 +3,7 @@ pub mod fps_counter;
 pub mod gamepad;
 pub mod hot_reload;
 pub mod interior_detection;
+pub mod npc_labels;
 pub mod resources;
 pub mod systems;
 

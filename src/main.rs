@@ -96,6 +96,7 @@ use systems::game::map::{
     apply_shadow_quality_system, spawn_map_system, update_chunk_lods, LoadedMapData, LodConfig,
     MapLoadProgress, MapLoader,
 };
+use systems::game::npc_labels::{spawn_npc_label, update_npc_label_visibility};
 use systems::game::systems::{
     apply_gravity, apply_npc_collision, apply_physics, follow_player_camera, handle_escape_key,
     move_player, rotate_camera, rotate_character_model, sync_light_sources, toggle_collision_box,
@@ -262,6 +263,8 @@ fn main() {
                 update_chunk_lods,
                 update_cursor_visibility,
                 apply_shadow_quality_system,
+                spawn_npc_label,
+                update_npc_label_visibility,
             )
                 .in_set(GameSystemSet::Visual)
                 .run_if(in_state(GameState::InGame).or(in_state(GameState::Paused))),

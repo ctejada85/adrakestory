@@ -60,12 +60,17 @@ pub struct GameCamera {
 #[derive(Component)]
 pub struct Npc {
     /// Display name of the NPC — rendered as a world-space label above the entity.
-    /// See ticket: docs/bugs/npc-display-names/ticket.md
-    #[allow(dead_code)]
     pub name: String,
     /// Collision radius for player collision
     pub radius: f32,
 }
+
+/// Marker component on the world-space text label child of an `Npc` entity.
+///
+/// Spawned as a child of the NPC root entity by `spawn_npc_label`. Used to
+/// query label entities independently from the rest of the NPC hierarchy.
+#[derive(Component)]
+pub struct NpcLabel;
 
 impl Default for Npc {
     fn default() -> Self {
