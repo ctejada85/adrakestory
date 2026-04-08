@@ -718,6 +718,46 @@ Labels must be drawn **after** the main `render_ui` pass so they appear on top o
 
 ---
 
-**Document Version**: 2.5.0
+## Properties Panel — Entity Name Field (Added April 2026)
+
+The Properties panel renders a "Name:" text field for every entity type that can display a viewport label. The implementation lives in `src/editor/ui/properties/entity_props.rs`.
+
+### Which types show the Name field
+
+All entity types **except `PlayerSpawn`** receive the Name field. `PlayerSpawn` has no viewport label concept and is excluded explicitly.
+
+```
+render_single_entity_properties()
+    ├── [all types] Position group
+    ├── [non-PlayerSpawn] render_entity_name_field()   ← shared Name field
+    ├── [Npc only]        render_npc_specific_properties()   ← Radius slider
+    └── [LightSource only] render_light_source_properties()  ← Intensity/Range/etc.
+```
+
+### Write-through + snapshot pattern
+
+egui text fields do not maintain their own persistent buffer — the `&mut String` passed to `text_edit_singleline` is modified in-place for the current frame only. Rebuilding the local string from stored state each frame causes typed characters to disappear (see Coding Guardrail 12).
+
+The entity name field uses the **write-through + snapshot** pattern:
+
+| Event | Action |
+|-------|--------|
+| `gained_focus()` | Clone the current `EntityData` into egui temp storage keyed by entity index. This is the pre-edit snapshot used for undo. |
+| `changed()` | Write the updated name string to the map immediately (`properties.insert("name", ...)` + `mark_modified()`). The next frame reads the correct value. |
+| `lost_focus()` | Retrieve and remove the snapshot from temp storage. If the name actually changed, push one `EditorAction::ModifyEntity` undo entry covering the whole session. |
+
+This produces **one undo entry per edit session**, not one per keystroke. Pressing Ctrl+Z after naming an entity reverts the entire typed name in a single step.
+
+### Temp storage key
+
+The snapshot is keyed by `egui::Id::new("entity_name_snapshot").with(index)` where `index` is the entity's position in `current_map.entities`. The ID is stable while the same entity is selected and is cleaned up on `lost_focus()`.
+
+### Default name
+
+Entities default to an empty name (`properties` map has no `"name"` key). `unwrap_or_default()` is used — not `unwrap_or("NPC")`. An empty name means no label is rendered in the viewport.
+
+---
+
+**Document Version**: 2.6.0
 **Last Updated**: 2026-04-08
-**Status**: Added Viewport Overlay System section (NPC name labels, April 2026)
+**Status**: Added Properties Panel entity name field section (April 2026)

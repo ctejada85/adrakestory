@@ -216,3 +216,60 @@ pub fn setup_fonts(mut contexts: EguiContexts, mut done: Local<bool>) {
 }
 // registered as: .add_systems(Update, setup_fonts)
 ```
+
+---
+
+## 12. Use write-through for egui text fields — never rebuild the buffer each frame
+
+**Why:** `ui.text_edit_singleline(&mut name)` modifies the passed `&mut String` in-place for the current frame only. If `name` is a local that is re-initialized from stored state every frame (`let mut name = stored_value.clone()`), the modifications are silently discarded at end-of-frame. The field appears to accept input (the cursor moves, the caret blinks) but typed characters vanish immediately.
+
+**Rule:** For any egui text field that commits on focus-lost, write the updated value back to the stored state on every `response.changed()` call. Capture a pre-edit snapshot for undo on `response.gained_focus()`.
+
+```rust
+// ✗ Wrong — typed characters reset each frame
+fn render_name_field(ui: &mut egui::Ui, state: &mut MyState) {
+    let current = state.name.clone();          // re-initialized every frame
+    let mut name = current.clone();
+    let response = ui.text_edit_singleline(&mut name);
+    if response.lost_focus() && name != current {
+        state.name = name;                     // only written on focus-lost
+    }
+    // `name` is dropped here — next frame starts over from `state.name`
+}
+
+// ✓ Correct — write-through on change + snapshot on gained_focus for undo
+fn render_name_field(
+    ui: &mut egui::Ui,
+    state: &mut MyState,
+    history: &mut EditorHistory,
+    index: usize,
+) {
+    let current = state.name.clone();
+    let mut name = current.clone();
+    let snapshot_id = egui::Id::new("name_snapshot").with(index);
+    let response = ui.text_edit_singleline(&mut name);
+
+    if response.gained_focus() {
+        // Save pre-edit snapshot for undo (one entry per session, not per keystroke)
+        ui.data_mut(|d| d.insert_temp(snapshot_id, state.clone()));
+    }
+    if response.changed() {
+        // Write through so the next frame reads the updated value
+        state.name = name.clone();
+        state.mark_modified();
+    }
+    if response.lost_focus() {
+        let old = ui.data_mut(|d| d.get_temp::<MyState>(snapshot_id));
+        ui.data_mut(|d| d.remove::<MyState>(snapshot_id));
+        if let Some(old_state) = old {
+            if state.name != old_state.name {
+                history.push(Action::Modify { old: old_state, new: state.clone() });
+            }
+        }
+    }
+}
+```
+
+The snapshot stored in egui's temp data (`ui.data_mut`) is keyed by a stable `Id` and persists across frames for the lifetime of the focus. It is automatically cleared when the focus leaves.
+
+See: `src/editor/ui/properties/entity_props.rs` — `render_entity_name_field()`
