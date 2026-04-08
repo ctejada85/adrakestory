@@ -12,6 +12,9 @@ use bevy_egui::EguiContexts;
 /// World units above the NPC sphere center at which the label is anchored.
 const LABEL_Y_OFFSET: f32 = 0.8;
 
+/// Label font size in logical pixels — matches the in-game NPC label font size.
+const LABEL_FONT_SIZE: f32 = 24.0;
+
 /// Exact name value treated as the default placeholder — labels with this name are suppressed.
 const DEFAULT_NPC_NAME: &str = "NPC";
 
@@ -419,7 +422,11 @@ pub fn render_npc_name_labels(
             .fixed_pos(egui::pos2(screen_pos.x, screen_pos.y))
             .pivot(egui::Align2::CENTER_BOTTOM)
             .show(ctx, |ui| {
-                ui.label(name);
+                ui.label(
+                    egui::RichText::new(name)
+                        .size(LABEL_FONT_SIZE)
+                        .color(egui::Color32::WHITE),
+                );
             });
     }
 }
