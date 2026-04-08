@@ -32,7 +32,8 @@ Architecture Document:
 - [ ] Step 3: Write Section 1 — Current Architecture
 - [ ] Step 4: Write Section 2 — Target Architecture
 - [ ] Step 5: Write Appendices
-- [ ] Step 6: Review and cross-reference
+- [ ] Step 6: Clarify open questions with the user
+- [ ] Step 7: Review and cross-reference
 ```
 
 ### Step 1: Analyze the existing codebase
@@ -141,7 +142,26 @@ Rules for managing questions:
 - **Add a Notes column to Open questions** — include who to ask, what blocks resolution, or proposed approaches. This makes the list actionable
 - **Don't nest "Still Open" under "Resolved"** — use two peer-level sections at the same heading depth
 
-### Step 6: Review and cross-reference
+### Step 6: Clarify open questions with the user
+
+After writing the appendices (and in particular after populating the Open Questions table), **stop and present all open questions to the user** before proceeding to final review. Do not ship the document as "done" while questions that could be answered now remain open.
+
+**How to do this:**
+
+1. List each open question clearly, using the same numbering as the appendix.
+2. Flag which questions are **blocking** (the answer would change a design decision in §2) vs. **non-blocking** (the answer would only refine a detail or note).
+3. For each answer received, incorporate it: update the affected section in §2, move the question to the Resolved table in the appendix, and add a changelog row if the change is substantive.
+4. If the user defers a question, leave it in the Open table with an owner assigned. Do not block finalization on questions the user explicitly defers.
+
+**Example prompt to the user:**
+
+> Before I finalize the architecture document, I have [N] open questions that may affect the design. Can you help clarify these?
+> 1. [Question #1 — **blocking**: would change §2.X if answered differently]
+> 2. [Question #2 — non-blocking: would refine implementation detail]
+
+Only proceed to Step 7 after the user has had the opportunity to respond (even if they defer all questions).
+
+### Step 7: Review and cross-reference
 
 Before finalizing:
 
@@ -153,7 +173,7 @@ Before finalizing:
 6. Add a companion link in the requirements and product vision canvas documents
 7. **Scan for redundancy** — search for key terms (component names, mechanism names) and verify each concept is explained in one canonical location with references elsewhere. If the same mechanism is described in 3+ sections, consolidate to one and reference from the others
 
-### Step 7: Validate claims against the codebase
+### Step 8: Validate claims against the codebase
 
 After the document is written, do a focused codebase validation pass. The architecture document must be accurate at the time of writing — errors discovered during implementation are expensive.
 

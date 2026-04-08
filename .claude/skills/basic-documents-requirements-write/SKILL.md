@@ -39,7 +39,8 @@ Requirements Document:
 - [ ] Step 5: Extract non-functional requirements
 - [ ] Step 6: Define phase scoping
 - [ ] Step 7: Document assumptions, dependencies, and open questions
-- [ ] Step 8: Review and cross-reference
+- [ ] Step 8: Clarify open questions with the user
+- [ ] Step 9: Review and cross-reference
 ```
 
 ### Step 1: Analyze the source material
@@ -144,9 +145,26 @@ List capabilities as bullet points under each phase. These should map directly t
 
 **Key Contacts:** Table of people to reach out to for specific topics.
 
-### Step 8: Review and cross-reference
+### Step 8: Clarify open questions with the user
 
-Before finalizing:
+After documenting open questions, **stop and present them to the user** before proceeding. Do not finalize the document with unresolved questions if the user is available to answer them.
+
+**How to do this:**
+
+1. List each open question clearly, using the same numbering as the document.
+2. Ask the user to answer as many as they can now. Make clear which questions are blocking (would change requirements) vs. non-blocking (would refine them).
+3. For each answer received, incorporate it into the document and move the question from Open to a resolved note (or remove it entirely if trivial).
+4. If the user cannot answer a question, leave it in the Open Questions table with an owner assigned. Do not block finalization on questions the user explicitly defers.
+
+**Example prompt to the user:**
+
+> Before I finalize the requirements document, I have [N] open questions that may affect the scope. Can you help clarify these?
+> 1. [Question #1 — blocking / non-blocking]
+> 2. [Question #2 — blocking / non-blocking]
+
+Only proceed to Step 9 after the user has had the opportunity to respond (even if they defer all questions).
+
+### Step 9: Review and cross-reference
 
 1. Verify every requirement traces to something said in the source material
 2. Ensure phase scoping is consistent between the requirements table and the phase section
@@ -155,7 +173,7 @@ Before finalizing:
 5. If a product vision canvas exists, verify alignment between requirements and features listed there
 6. Add a footer with creation date and source reference
 
-### Step 9: Validate against the codebase
+### Step 10: Validate against the codebase
 
 After the document is written, read the actual code to confirm factual claims. This prevents the document from drifting from reality before implementation begins.
 
