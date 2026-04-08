@@ -60,6 +60,12 @@ pub struct EditorState {
 
     /// Whether to show floating name labels above entities in the viewport
     pub show_entity_labels: bool,
+
+    /// One-frame bridge: when `render_entity_name_labels` handles a label click it
+    /// writes the entity index here so that the outliner (rendered in the previous
+    /// system) can call `scroll_to_me` on the corresponding row in the *next* frame.
+    /// Reset to `None` by the outliner immediately after consuming it.
+    pub outliner_scroll_to: Option<usize>,
 }
 
 impl Default for EditorState {
@@ -78,6 +84,7 @@ impl Default for EditorState {
             grid_opacity: 0.3,
             snap_to_grid: true,
             show_entity_labels: true,
+            outliner_scroll_to: None,
         }
     }
 }
@@ -271,6 +278,7 @@ mod tests {
         assert_eq!(state.grid_opacity, 0.3);
         assert!(state.snap_to_grid);
         assert!(state.show_entity_labels);
+        assert!(state.outliner_scroll_to.is_none());
     }
 
     #[test]

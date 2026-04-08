@@ -298,6 +298,12 @@ fn render_entities_section(
                         selection_events.write(UpdateSelectionHighlights);
                     }
 
+                    // Scroll this row into view when a viewport label click requested it.
+                    if editor_state.outliner_scroll_to == Some(index) {
+                        response.scroll_to_me(None);
+                        editor_state.outliner_scroll_to = None;
+                    }
+
                     // Context menu on right-click
                     response.context_menu(|ui| {
                         if ui.button("🗑️ Delete").clicked() {

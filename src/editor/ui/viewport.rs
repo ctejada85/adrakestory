@@ -4,7 +4,7 @@ use crate::editor::cursor::CursorState;
 use crate::editor::renderer::EditorEntityMarker;
 use crate::editor::state::{EditorState, EditorTool, KeyboardEditMode};
 use crate::editor::tools::{ActiveTransform, TransformMode};
-use crate::systems::game::map::format::EntityType;
+use crate::systems::game::map::format::{EntityData, EntityType};
 use bevy::prelude::*;
 use bevy_egui::egui;
 use bevy_egui::EguiContexts;
@@ -385,7 +385,7 @@ fn should_show_label(name: &str, default: &str) -> bool {
 /// egui context is already in its drawing phase when the labels are submitted.
 pub fn render_entity_name_labels(
     mut contexts: EguiContexts,
-    editor_state: Res<EditorState>,
+    mut editor_state: ResMut<EditorState>,
     markers: Query<(&EditorEntityMarker, &GlobalTransform)>,
     camera: Single<(&Camera, &GlobalTransform), With<Camera3d>>,
 ) {
@@ -426,6 +426,9 @@ pub fn render_entity_name_labels(
             continue;
         }
 
+        // Build tooltip lines before the borrow on editor_state is moved into the closure.
+        let tooltip_lines = entity_tooltip_lines(entity_data, index);
+
         // Offset the label anchor above the entity centre.
         let world_pos = marker_transform.translation() + Vec3::Y * LABEL_Y_OFFSET;
 
@@ -434,11 +437,11 @@ pub fn render_entity_name_labels(
             continue;
         };
 
-        egui::Area::new(egui::Id::new(("entity_label", index)))
+        let area_resp = egui::Area::new(egui::Id::new(("entity_label", index)))
             .fixed_pos(egui::pos2(screen_pos.x, screen_pos.y))
             .pivot(egui::Align2::CENTER_BOTTOM)
             .show(ctx, |ui| {
-                egui::Frame::new()
+                let frame_resp = egui::Frame::new()
                     .fill(egui::Color32::from_rgba_unmultiplied(30, 30, 30, 180))
                     .inner_margin(egui::Margin::symmetric(6, 4))
                     .corner_radius(4.0)
@@ -450,7 +453,27 @@ pub fn render_entity_name_labels(
                                 .family(egui::FontFamily::Name(FIRA_MONO_FAMILY.into())),
                         );
                     });
+                // Capture click and hover on the pill frame rect.
+                ui.interact(
+                    frame_resp.response.rect,
+                    egui::Id::new(("entity_label_interact", index)),
+                    egui::Sense::click(),
+                )
             });
+
+        let interact_resp = area_resp.inner;
+
+        if interact_resp.clicked() {
+            editor_state.selected_entities.clear();
+            editor_state.selected_entities.insert(index);
+            editor_state.outliner_scroll_to = Some(index);
+        }
+
+        interact_resp.on_hover_ui(|ui| {
+            for line in &tooltip_lines {
+                ui.label(line);
+            }
+        });
     }
 }
 
@@ -461,9 +484,50 @@ pub fn render_viewport_controls(ctx: &egui::Context) {
     let _ = ctx;
 }
 
+/// Build tooltip lines for an entity label hover.
+///
+/// Returns a `Vec<String>` with the common header lines (name, type, position,
+/// index) followed by any type-specific property lines.
+fn entity_tooltip_lines(entity_data: &EntityData, entity_index: usize) -> Vec<String> {
+    let name = entity_data
+        .properties
+        .get("name")
+        .map(String::as_str)
+        .unwrap_or("");
+    let mut lines = vec![
+        format!("Name: {}", name),
+        format!("Type: {:?}", entity_data.entity_type),
+        format!(
+            "Position: ({:.2}, {:.2}, {:.2})",
+            entity_data.position.0, entity_data.position.1, entity_data.position.2
+        ),
+        format!("Index: {}", entity_index),
+    ];
+    match entity_data.entity_type {
+        EntityType::Npc => {
+            if let Some(radius) = entity_data.properties.get("radius") {
+                lines.push(format!("Radius: {}", radius));
+            }
+        }
+        EntityType::LightSource => {
+            for key in &["intensity", "range", "color", "shadows"] {
+                if let Some(val) = entity_data.properties.get(*key) {
+                    lines.push(format!("{}: {}", key, val));
+                }
+            }
+        }
+        _ => {}
+    }
+    lines
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::systems::game::map::format::EntityData;
+    use std::collections::HashMap;
+
+    // --- should_show_label tests ---
 
     #[test]
     fn named_npc_is_shown() {
@@ -530,5 +594,75 @@ mod tests {
     #[test]
     fn named_light_source_is_shown() {
         assert!(should_show_label("Torch", "LightSource"));
+    }
+
+    // --- entity_tooltip_lines tests ---
+
+    fn make_entity(entity_type: EntityType, props: &[(&str, &str)]) -> EntityData {
+        EntityData {
+            entity_type,
+            position: (1.0, 2.0, 3.0),
+            properties: props
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect::<HashMap<_, _>>(),
+        }
+    }
+
+    #[test]
+    fn tooltip_common_lines_always_present() {
+        let entity = make_entity(EntityType::Enemy, &[("name", "Goblin")]);
+        let lines = entity_tooltip_lines(&entity, 5);
+        assert_eq!(lines[0], "Name: Goblin");
+        assert_eq!(lines[1], "Type: Enemy");
+        assert_eq!(lines[2], "Position: (1.00, 2.00, 3.00)");
+        assert_eq!(lines[3], "Index: 5");
+    }
+
+    #[test]
+    fn tooltip_npc_with_radius_appends_radius_line() {
+        let entity = make_entity(EntityType::Npc, &[("name", "Alice"), ("radius", "2.5")]);
+        let lines = entity_tooltip_lines(&entity, 0);
+        assert!(lines.iter().any(|l| l == "Radius: 2.5"));
+    }
+
+    #[test]
+    fn tooltip_npc_without_radius_has_no_radius_line() {
+        let entity = make_entity(EntityType::Npc, &[("name", "Alice")]);
+        let lines = entity_tooltip_lines(&entity, 0);
+        assert!(!lines.iter().any(|l| l.starts_with("Radius:")));
+    }
+
+    #[test]
+    fn tooltip_light_source_with_props_appends_them() {
+        let entity = make_entity(
+            EntityType::LightSource,
+            &[
+                ("name", "Torch"),
+                ("intensity", "800"),
+                ("range", "5.0"),
+                ("color", "#ffaa00"),
+                ("shadows", "true"),
+            ],
+        );
+        let lines = entity_tooltip_lines(&entity, 1);
+        assert!(lines.iter().any(|l| l == "intensity: 800"));
+        assert!(lines.iter().any(|l| l == "range: 5.0"));
+        assert!(lines.iter().any(|l| l == "color: #ffaa00"));
+        assert!(lines.iter().any(|l| l == "shadows: true"));
+    }
+
+    #[test]
+    fn tooltip_light_source_without_props_has_only_common_lines() {
+        let entity = make_entity(EntityType::LightSource, &[("name", "Torch")]);
+        let lines = entity_tooltip_lines(&entity, 2);
+        assert_eq!(lines.len(), 4);
+    }
+
+    #[test]
+    fn tooltip_missing_name_shows_empty_name() {
+        let entity = make_entity(EntityType::Enemy, &[]);
+        let lines = entity_tooltip_lines(&entity, 3);
+        assert_eq!(lines[0], "Name: ");
     }
 }
