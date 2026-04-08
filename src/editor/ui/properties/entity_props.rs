@@ -3,7 +3,7 @@
 use super::entity_tools::get_entity_icon;
 use crate::editor::history::{EditorAction, EditorHistory};
 use crate::editor::state::EditorState;
-use crate::systems::game::map::format::EntityType;
+use crate::systems::game::map::format::{EntityData, EntityType};
 use bevy_egui::egui;
 
 /// Render properties for a single selected entity
@@ -107,7 +107,9 @@ pub fn render_single_entity_properties(
 
 /// Render the shared "Name:" field for all label-capable entity types.
 ///
-/// Commits via `EditorAction::ModifyEntity` on focus-lost so undo/redo works.
+/// Uses write-through on every keystroke so the field doesn't reset each frame.
+/// Captures a pre-edit snapshot on focus-gained and pushes a single
+/// `EditorAction::ModifyEntity` undo entry when the field loses focus.
 fn render_entity_name_field(
     ui: &mut egui::Ui,
     editor_state: &mut EditorState,
@@ -115,6 +117,7 @@ fn render_entity_name_field(
     index: usize,
 ) {
     ui.group(|ui| {
+        // Read the current stored value — this is the ground truth between edits.
         let current_name = editor_state.current_map.entities[index]
             .properties
             .get("name")
@@ -124,21 +127,58 @@ fn render_entity_name_field(
 
         ui.horizontal(|ui| {
             ui.label("Name:");
+
+            // Stable ID keyed to this entity so the snapshot persists across
+            // frames while the field has focus.
+            let snapshot_id = egui::Id::new("entity_name_snapshot").with(index);
+
             let response = ui.text_edit_singleline(&mut name);
-            // Commit on focus-lost or Enter so we don't create a history entry
-            // every keystroke — only when the user finishes editing.
-            if response.lost_focus() && name != current_name {
-                let old_data = editor_state.current_map.entities[index].clone();
+
+            if response.gained_focus() {
+                // Save pre-edit entity state so we produce one undo entry per
+                // edit session, not one per keystroke.
+                ui.data_mut(|d| {
+                    d.insert_temp(
+                        snapshot_id,
+                        editor_state.current_map.entities[index].clone(),
+                    )
+                });
+            }
+
+            if response.changed() {
+                // Write through immediately so the next frame reads the updated
+                // value. Without this the local `name` is discarded each frame
+                // and typed characters appear to vanish.
                 editor_state.current_map.entities[index]
                     .properties
-                    .insert("name".to_string(), name);
-                let new_data = editor_state.current_map.entities[index].clone();
-                history.push(EditorAction::ModifyEntity {
-                    index,
-                    old_data,
-                    new_data,
-                });
+                    .insert("name".to_string(), name.clone());
                 editor_state.mark_modified();
+            }
+
+            if response.lost_focus() {
+                // Push a single undo entry covering the whole edit session.
+                let old_data = ui.data_mut(|d| d.get_temp::<EntityData>(snapshot_id));
+                ui.data_mut(|d| d.remove::<EntityData>(snapshot_id));
+                if let Some(old_data) = old_data {
+                    let old_name = old_data
+                        .properties
+                        .get("name")
+                        .map(String::as_str)
+                        .unwrap_or("");
+                    let new_name = editor_state.current_map.entities[index]
+                        .properties
+                        .get("name")
+                        .map(String::as_str)
+                        .unwrap_or("");
+                    if new_name != old_name {
+                        let new_data = editor_state.current_map.entities[index].clone();
+                        history.push(EditorAction::ModifyEntity {
+                            index,
+                            old_data,
+                            new_data,
+                        });
+                    }
+                }
             }
         });
     });
