@@ -253,39 +253,39 @@ fn render_entities_section(
                 ui.label("Use Entity Place tool to add");
                 return;
             }
-            
+
             // Filter
             let filter = outliner_state.filter_text.to_lowercase();
-            
+
             // Track entities to delete (can't modify while iterating)
             let mut entity_to_delete: Option<usize> = None;
-            
+
             // Render each entity
             for (index, entity_data) in editor_state.current_map.entities.iter().enumerate() {
                 let icon = get_entity_type_icon(&entity_data.entity_type);
                 let type_name = format!("{:?}", entity_data.entity_type);
-                
+
                 // Get display name (use custom property or type name)
                 let display_name = entity_data.properties
                     .get("name")
                     .cloned()
                     .unwrap_or_else(|| type_name.clone());
-                
+
                 // Skip if doesn't match filter
-                if !filter.is_empty() 
+                if !filter.is_empty()
                     && !type_name.to_lowercase().contains(&filter)
-                    && !display_name.to_lowercase().contains(&filter) 
+                    && !display_name.to_lowercase().contains(&filter)
                 {
                     continue;
                 }
-                
+
                 let is_selected = editor_state.selected_entities.contains(&index);
-                
+
                 ui.horizontal(|ui| {
                     // Selection toggle
                     let label = format!("{} {}", icon, display_name);
                     let response = ui.selectable_label(is_selected, label);
-                    
+
                     if response.clicked() {
                         // Clear other selections and select this entity
                         editor_state.selected_voxels.clear();
@@ -297,7 +297,7 @@ fn render_entities_section(
                         }
                         selection_events.write(UpdateSelectionHighlights);
                     }
-                    
+
                     // Context menu on right-click
                     response.context_menu(|ui| {
                         if ui.button("🗑️ Delete").clicked() {
@@ -306,7 +306,7 @@ fn render_entities_section(
                         }
                         // Future: duplicate, rename, etc.
                     });
-                    
+
                     // Hover info
                     let (x, y, z) = entity_data.position;
                     response.on_hover_text(format!(
@@ -315,7 +315,7 @@ fn render_entities_section(
                     ));
                 });
             }
-            
+
             // Handle deletion (outside the iteration)
             if let Some(index) = entity_to_delete {
                 if index < editor_state.current_map.entities.len() {
@@ -327,9 +327,9 @@ fn render_entities_section(
                     info!("Deleted entity at index {}", index);
                 }
             }
-            
+
             ui.separator();
-            
+
             // Quick add buttons
             ui.horizontal(|ui| {
                 if ui.small_button("+ Add").clicked() {
@@ -337,7 +337,7 @@ fn render_entities_section(
                     let popup_id = ui.make_persistent_id("add_entity_popup");
                     egui::Popup::toggle_id(ui.ctx(), popup_id);
                 }
-                
+
                 if !editor_state.selected_entities.is_empty() && ui.small_button("Deselect").clicked() {
                     editor_state.selected_entities.clear();
                     selection_events.write(UpdateSelectionHighlights);

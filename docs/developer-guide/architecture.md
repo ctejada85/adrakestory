@@ -233,6 +233,8 @@ src/
 │   │       └── removal.rs
 │   └── ui/                 # Editor UI
 │       ├── mod.rs
+│       ├── viewport.rs     # Viewport overlays + NPC name label system
+│       ├── outliner.rs     # Entity/voxel outliner panel
 │       ├── toolbar/        # Toolbar panel
 │       │   ├── mod.rs
 │       │   ├── file_menu.rs
@@ -267,6 +269,34 @@ src/
 The single cleanup loop runs **before** any spawning on every changed frame. This eliminates the double-despawn bug that existed when a separate `render_rotation_preview` system also iterated `With<TransformPreview>` in the same frame.
 
 **Rule**: Never add a second system that queries `With<TransformPreview>` and calls `despawn()`. All `TransformPreview` entity creation and destruction must stay inside `render_transform_preview`.
+
+### Editor Viewport: NPC Name Labels
+
+`render_npc_name_labels` (`src/editor/ui/viewport.rs`) is a Bevy system that draws
+floating egui text labels above NPC sphere markers in the 3D viewport each frame.
+
+**How it works:**
+
+1. Queries all `EditorEntityMarker` entities for their `GlobalTransform`.
+2. Looks up the corresponding `EntityData` from `EditorState::current_map.entities`.
+3. Skips non-NPC entities and NPCs whose `"name"` property is absent, empty, or the
+   default placeholder `"NPC"` (exact case-sensitive match).
+4. Calls `Camera::world_to_viewport` to project the world position (sphere centre +
+   `LABEL_Y_OFFSET = 0.8` world units) to screen space.
+5. Draws an `egui::Area` label centered horizontally above the projected point.
+
+**Registration**: Registered with `.after(ui_system::render_ui)` in
+`src/bin/map_editor/main.rs` so the egui context is already in its drawing phase.
+
+**Suppression rules** (applied in `should_show_npc_label`):
+
+- `name` property absent → default value treated as empty → suppressed.
+- `name` is `""` (empty string) → suppressed.
+- `name` is exactly `"NPC"` (case-sensitive) → suppressed (default/placeholder).
+- Any other non-empty string → label rendered.
+
+**No caching**: The system reads `EditorState` live every frame, so renaming an NPC
+in the properties panel is reflected immediately without any additional event.
 
 
 

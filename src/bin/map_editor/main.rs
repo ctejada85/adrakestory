@@ -193,5 +193,10 @@ fn main() {
         // Keep rendering systems
         .add_systems(Update, tools::render_selection_highlights)
         .add_systems(Update, tools::render_transform_preview)
+        // NPC name labels overlay - must run after render_ui so the egui context is ready
+        .add_systems(
+            Update,
+            ui::render_npc_name_labels.after(ui_system::render_ui),
+        )
         .run();
 }

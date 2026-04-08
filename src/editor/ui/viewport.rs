@@ -1,9 +1,19 @@
 //! Viewport controls and status display.
 
 use crate::editor::cursor::CursorState;
+use crate::editor::renderer::EditorEntityMarker;
 use crate::editor::state::{EditorState, EditorTool, KeyboardEditMode};
 use crate::editor::tools::{ActiveTransform, TransformMode};
+use crate::systems::game::map::format::EntityType;
+use bevy::prelude::*;
 use bevy_egui::egui;
+use bevy_egui::EguiContexts;
+
+/// World units above the NPC sphere center at which the label is anchored.
+const LABEL_Y_OFFSET: f32 = 0.8;
+
+/// Exact name value treated as the default placeholder — labels with this name are suppressed.
+const DEFAULT_NPC_NAME: &str = "NPC";
 
 /// Default panel widths (used as fallback if egui memory doesn't have them yet)
 const DEFAULT_LEFT_PANEL_WIDTH: f32 = 200.0;
@@ -347,9 +357,108 @@ fn render_tool_hint(
         });
 }
 
+/// Returns `true` when `name` should be displayed as a floating viewport label.
+///
+/// Suppresses labels for names that are absent (empty string) or equal to the
+/// [`DEFAULT_NPC_NAME`] placeholder so that un-configured NPCs do not create
+/// visual noise in the viewport.
+fn should_show_npc_label(name: &str) -> bool {
+    !name.is_empty() && name != DEFAULT_NPC_NAME
+}
+
+/// Bevy system that draws floating egui name labels above NPC entities in the 3D viewport.
+///
+/// Projects each NPC's world position to screen space each frame via
+/// [`Camera::world_to_viewport`], then draws a [`egui::Area`] label centered
+/// above the sphere.  Labels are skipped for NPCs whose name is absent, empty,
+/// or equal to the default placeholder `"NPC"`.
+///
+/// The system must be registered **after** `ui_system::render_ui` so that the
+/// egui context is already in its drawing phase when the labels are submitted.
+pub fn render_npc_name_labels(
+    mut contexts: EguiContexts,
+    editor_state: Res<EditorState>,
+    markers: Query<(&EditorEntityMarker, &GlobalTransform)>,
+    camera: Single<(&Camera, &GlobalTransform), With<Camera3d>>,
+) {
+    let ctx = contexts.ctx_mut().expect("egui context");
+    let (camera_comp, camera_transform) = camera.into_inner();
+
+    for (marker, marker_transform) in &markers {
+        let index = marker.entity_index;
+
+        // Bounds-guard: entity list may not yet match the spawned markers.
+        let Some(entity_data) = editor_state.current_map.entities.get(index) else {
+            continue;
+        };
+
+        // Only label NPC entities.
+        if entity_data.entity_type != EntityType::Npc {
+            continue;
+        }
+
+        // Resolve name, skip defaults and empty strings.
+        let name = entity_data
+            .properties
+            .get("name")
+            .map(String::as_str)
+            .unwrap_or("");
+        if !should_show_npc_label(name) {
+            continue;
+        }
+
+        // Offset the label anchor above the sphere centre.
+        let world_pos = marker_transform.translation() + Vec3::Y * LABEL_Y_OFFSET;
+
+        // Project to screen; skip if behind the camera or outside the viewport.
+        let Ok(screen_pos) = camera_comp.world_to_viewport(camera_transform, world_pos) else {
+            continue;
+        };
+
+        egui::Area::new(egui::Id::new(("npc_label", index)))
+            .fixed_pos(egui::pos2(screen_pos.x, screen_pos.y))
+            .pivot(egui::Align2::CENTER_BOTTOM)
+            .show(ctx, |ui| {
+                ui.label(name);
+            });
+    }
+}
+
 /// Legacy function - kept for compatibility but now calls the new overlay system
 pub fn render_viewport_controls(ctx: &egui::Context) {
     // This function is deprecated in favor of render_viewport_overlays
     // Keeping empty implementation to avoid breaking changes
     let _ = ctx;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn named_npc_is_shown() {
+        assert!(should_show_npc_label("Alice"));
+    }
+
+    #[test]
+    fn default_placeholder_is_suppressed() {
+        assert!(!should_show_npc_label("NPC"));
+    }
+
+    #[test]
+    fn empty_name_is_suppressed() {
+        assert!(!should_show_npc_label(""));
+    }
+
+    #[test]
+    fn lowercase_npc_is_shown() {
+        // Filter is case-sensitive: "npc" != "NPC"
+        assert!(should_show_npc_label("npc"));
+    }
+
+    #[test]
+    fn npc_with_trailing_space_is_shown() {
+        // Only the exact string "NPC" is suppressed
+        assert!(should_show_npc_label("NPC "));
+    }
 }
