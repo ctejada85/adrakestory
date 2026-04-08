@@ -15,6 +15,12 @@ const LABEL_Y_OFFSET: f32 = 0.8;
 /// Label font size in logical pixels — matches the in-game NPC label font size.
 const LABEL_FONT_SIZE: f32 = 24.0;
 
+/// egui named font family used for NPC name labels.
+///
+/// Must be registered with [`setup::setup_egui_fonts`] at startup before this
+/// name can be referenced in [`egui::FontFamily::Name`].
+pub const FIRA_MONO_FAMILY: &str = "FiraMono";
+
 /// Exact name value treated as the default placeholder — labels with this name are suppressed.
 const DEFAULT_NPC_NAME: &str = "NPC";
 
@@ -425,7 +431,8 @@ pub fn render_npc_name_labels(
                 ui.label(
                     egui::RichText::new(name)
                         .size(LABEL_FONT_SIZE)
-                        .color(egui::Color32::WHITE),
+                        .color(egui::Color32::WHITE)
+                        .family(egui::FontFamily::Name(FIRA_MONO_FAMILY.into())),
                 );
             });
     }

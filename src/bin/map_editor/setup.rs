@@ -1,10 +1,33 @@
 //! Editor setup and initialization.
 
 use adrakestory::editor::ui::dialogs::MapDataChangedEvent;
+use adrakestory::editor::ui::FIRA_MONO_FAMILY;
 use adrakestory::editor::{camera, grid, EditorState};
 use bevy::light::CascadeShadowConfigBuilder;
 use bevy::prelude::*;
+use bevy::text::DEFAULT_FONT_DATA;
+use bevy_egui::EguiContexts;
 use grid::InfiniteGridConfig;
+
+/// Loads Bevy's embedded FiraMono font into egui under the [`FIRA_MONO_FAMILY`] named family.
+///
+/// This makes the editor's NPC name labels render with the same typeface as the
+/// in-game labels, which use Bevy's default `TextFont` (FiraMono-subset.ttf).
+///
+/// Must run at `Startup` (after `PreStartup` where egui initialises its context).
+pub fn setup_egui_fonts(mut contexts: EguiContexts) {
+    let ctx = contexts.ctx_mut().expect("egui context");
+    let mut fonts = bevy_egui::egui::FontDefinitions::default();
+    fonts.font_data.insert(
+        FIRA_MONO_FAMILY.to_owned(),
+        std::sync::Arc::new(bevy_egui::egui::FontData::from_static(DEFAULT_FONT_DATA)),
+    );
+    fonts.families.insert(
+        bevy_egui::egui::FontFamily::Name(FIRA_MONO_FAMILY.into()),
+        vec![FIRA_MONO_FAMILY.to_owned()],
+    );
+    ctx.set_fonts(fonts);
+}
 
 /// Setup the editor on startup
 pub fn setup_editor(

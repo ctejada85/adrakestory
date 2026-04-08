@@ -13,3 +13,4 @@ pub use toolbar::render_toolbar;
 pub use viewport::render_npc_name_labels;
 pub use viewport::render_viewport_controls;
 pub use viewport::render_viewport_overlays;
+pub use viewport::FIRA_MONO_FAMILY;
