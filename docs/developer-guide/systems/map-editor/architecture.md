@@ -758,6 +758,47 @@ Entities default to an empty name (`properties` map has no `"name"` key). `unwra
 
 ---
 
-**Document Version**: 2.6.0
+## Outliner Inline Rename (Added April 2026)
+
+Double-clicking a non-`PlayerSpawn` entity row in the Outliner enters inline rename mode. The implementation lives entirely in `src/editor/ui/outliner.rs`.
+
+### State
+
+`OutlinerState` now carries one additional field:
+
+```rust
+pub renaming_index: Option<usize>
+```
+
+`None` when idle; `Some(index)` while an entity row is being renamed. Only one entity can be in rename mode at a time.
+
+### How it works
+
+1. **Entry** — `response.double_clicked()` on a non-`PlayerSpawn` `selectable_label` saves an `EntityData` clone to egui temp storage under key `"outliner_rename_cancel_snapshot".with(index)` and sets `renaming_index = Some(index)`.
+2. **Rendering** — The row is replaced by `ui.horizontal { ui.label(icon); TextEdit::singleline().frame(false).desired_width(INFINITY) }`. The borderless input fills the row and keeps the entity type icon visible, so row height does not change.
+3. **Focus** — `request_focus()` is called on the first frame the input appears, tracked by a `bool` in egui temp storage under `"outliner_rename_snapshot".with(index)`.
+4. **Write-through** — Every `response.changed()` writes the updated name directly to `entity_data.properties["name"]` and calls `mark_modified()` (Coding Guardrail 12).
+5. **Commit** — `response.lost_focus()` pops the cancel snapshot, compares old and new names, and pushes one `EditorAction::ModifyEntity` entry if they differ. `renaming_index` is cleared.
+6. **Cancel** — Escape restores the cancel snapshot name, clears both temp-storage keys, clears `renaming_index`. No history entry is pushed.
+7. **Deleted-entity guard** — At the top of each render, if `renaming_index >= entity count`, both temp-storage keys are cleaned up and `renaming_index` is reset to `None`.
+
+### Snapshot key design
+
+Two distinct egui temp-storage keys are used per entity index:
+
+| Key | Type | Purpose |
+|-----|------|---------|
+| `"outliner_rename_snapshot".with(index)` | `bool` | First-frame focus flag |
+| `"outliner_rename_cancel_snapshot".with(index)` | `EntityData` | Pre-rename snapshot for cancel and commit comparison |
+
+Both are distinct from the Properties panel key `"entity_name_snapshot"` (see §above) to prevent collision when both panels are open simultaneously.
+
+### `render_outliner_panel` signature change
+
+`history: &mut EditorHistory` was added as a parameter (threaded through from `render_ui` in `ui_system.rs`). The call site in `ui_system.rs` passes `&mut read_resources.history`.
+
+---
+
+**Document Version**: 2.7.0
 **Last Updated**: 2026-04-08
-**Status**: Added Properties Panel entity name field section (April 2026)
+**Status**: Added Outliner Inline Rename section (April 2026)

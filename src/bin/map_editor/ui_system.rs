@@ -100,6 +100,7 @@ pub fn render_ui(
         ctx,
         &mut ui_resources.editor_state,
         &mut ui_resources.outliner_state,
+        &mut read_resources.history,
         &mut ui_events.selection,
         &mut ui_events.render,
     );

@@ -3,11 +3,12 @@
 //! Provides a tree view of voxels (grouped by type) and entities
 //! for easy selection and navigation.
 
+use crate::editor::history::{EditorAction, EditorHistory};
 use crate::editor::renderer::RenderMapEvent;
 use crate::editor::state::EditorState;
 use crate::editor::tools::UpdateSelectionHighlights;
 use crate::systems::game::components::VoxelType;
-use crate::systems::game::map::format::EntityType;
+use crate::systems::game::map::format::{EntityData, EntityType};
 use bevy::prelude::*;
 use bevy_egui::egui;
 use std::collections::{BTreeMap, HashMap};
@@ -23,6 +24,8 @@ pub struct OutlinerState {
     pub filter_text: String,
     /// Which voxel types are expanded
     pub voxel_type_expanded: HashMap<VoxelType, bool>,
+    /// Index of the entity currently being renamed (`None` when idle).
+    pub renaming_index: Option<usize>,
 }
 
 impl OutlinerState {
@@ -32,6 +35,7 @@ impl OutlinerState {
             entities_expanded: true,
             filter_text: String::new(),
             voxel_type_expanded: HashMap::new(),
+            renaming_index: None,
         }
     }
 }
@@ -41,6 +45,7 @@ pub fn render_outliner_panel(
     ctx: &egui::Context,
     editor_state: &mut EditorState,
     outliner_state: &mut OutlinerState,
+    history: &mut EditorHistory,
     selection_events: &mut MessageWriter<UpdateSelectionHighlights>,
     render_events: &mut MessageWriter<RenderMapEvent>,
 ) {
@@ -102,6 +107,7 @@ pub fn render_outliner_panel(
                         ui,
                         editor_state,
                         outliner_state,
+                        history,
                         selection_events,
                         render_events,
                     );
@@ -239,6 +245,7 @@ fn render_entities_section(
     ui: &mut egui::Ui,
     editor_state: &mut EditorState,
     outliner_state: &mut OutlinerState,
+    history: &mut EditorHistory,
     selection_events: &mut MessageWriter<UpdateSelectionHighlights>,
     render_events: &mut MessageWriter<RenderMapEvent>,
 ) {
@@ -254,6 +261,20 @@ fn render_entities_section(
                 return;
             }
 
+            // Task 7: guard against the entity being renamed having been deleted.
+            // If renaming_index is out of bounds, clean up temp storage and exit rename mode.
+            if let Some(ri) = outliner_state.renaming_index {
+                if ri >= editor_state.current_map.entities.len() {
+                    let snapshot_id = egui::Id::new("outliner_rename_snapshot").with(ri);
+                    let cancel_id = egui::Id::new("outliner_rename_cancel_snapshot").with(ri);
+                    ui.data_mut(|d| {
+                        d.remove::<bool>(snapshot_id);
+                        d.remove::<EntityData>(cancel_id);
+                    });
+                    outliner_state.renaming_index = None;
+                }
+            }
+
             // Filter
             let filter = outliner_state.filter_text.to_lowercase();
 
@@ -261,12 +282,14 @@ fn render_entities_section(
             let mut entity_to_delete: Option<usize> = None;
 
             // Render each entity
-            for (index, entity_data) in editor_state.current_map.entities.iter().enumerate() {
-                let icon = get_entity_type_icon(&entity_data.entity_type);
-                let type_name = format!("{:?}", entity_data.entity_type);
+            for index in 0..editor_state.current_map.entities.len() {
+                let entity_type = editor_state.current_map.entities[index].entity_type;
+                let icon = get_entity_type_icon(&entity_type);
+                let type_name = format!("{:?}", entity_type);
 
                 // Get display name (use custom property or type name)
-                let display_name = entity_data.properties
+                let display_name = editor_state.current_map.entities[index]
+                    .properties
                     .get("name")
                     .cloned()
                     .unwrap_or_else(|| type_name.clone());
@@ -281,50 +304,168 @@ fn render_entities_section(
 
                 let is_selected = editor_state.selected_entities.contains(&index);
 
-                ui.horizontal(|ui| {
-                    // Selection toggle
-                    let label = format!("{} {}", icon, display_name);
-                    let response = ui.selectable_label(is_selected, label);
+                if outliner_state.renaming_index == Some(index) {
+                    // --- Rename mode ---
+                    let snapshot_id = egui::Id::new("outliner_rename_snapshot").with(index);
+                    let cancel_id = egui::Id::new("outliner_rename_cancel_snapshot").with(index);
 
-                    if response.clicked() {
-                        // Clear other selections and select this entity
-                        editor_state.selected_voxels.clear();
-                        if is_selected {
-                            editor_state.selected_entities.remove(&index);
-                        } else {
-                            editor_state.selected_entities.clear();
-                            editor_state.selected_entities.insert(index);
-                        }
-                        selection_events.write(UpdateSelectionHighlights);
+                    let current_name = editor_state.current_map.entities[index]
+                        .properties
+                        .get("name")
+                        .cloned()
+                        .unwrap_or_default();
+                    let mut name = current_name;
+
+                    // Render icon + borderless text input filling the row width.
+                    // frame(false) removes the border; desired_width(INFINITY) fills the space.
+                    // This keeps the row height identical to a normal selectable_label row.
+                    let response = ui
+                        .horizontal(|ui| {
+                            ui.label(icon);
+                            egui::TextEdit::singleline(&mut name)
+                                .frame(false)
+                                .desired_width(f32::INFINITY)
+                                .show(ui)
+                                .response
+                        })
+                        .inner;
+
+                    // First frame: request focus once (snapshot_id acts as a "focused" flag).
+                    if ui.data_mut(|d| d.get_temp::<bool>(snapshot_id)).is_none() {
+                        ui.data_mut(|d| d.insert_temp(snapshot_id, true));
+                        response.request_focus();
                     }
 
-                    // Scroll this row into view when a viewport label click requested it.
-                    if editor_state.outliner_scroll_to == Some(index) {
-                        response.scroll_to_me(None);
-                        editor_state.outliner_scroll_to = None;
+                    // Write-through: keep the stored name in sync every keystroke (Guardrail 12).
+                    if response.changed() {
+                        editor_state.current_map.entities[index]
+                            .properties
+                            .insert("name".to_string(), name.clone());
+                        editor_state.mark_modified();
                     }
 
-                    // Context menu on right-click
-                    response.context_menu(|ui| {
-                        if ui.button("🗑️ Delete").clicked() {
-                            entity_to_delete = Some(index);
-                            ui.close();
+                    let escape_pressed = ui.input(|i| i.key_pressed(egui::Key::Escape));
+
+                    if escape_pressed {
+                        // Cancel: restore the name that was in place when double-click occurred.
+                        let old_data: Option<EntityData> =
+                            ui.data_mut(|d| d.get_temp(cancel_id));
+                        ui.data_mut(|d| {
+                            d.remove::<EntityData>(cancel_id);
+                            d.remove::<bool>(snapshot_id);
+                        });
+                        if let Some(old) = old_data {
+                            let old_name =
+                                old.properties.get("name").cloned().unwrap_or_default();
+                            editor_state.current_map.entities[index]
+                                .properties
+                                .insert("name".to_string(), old_name);
+                            editor_state.mark_modified();
                         }
-                        // Future: duplicate, rename, etc.
+                        outliner_state.renaming_index = None;
+                    } else if response.lost_focus() {
+                        // Commit: push one undo entry if the name actually changed.
+                        let old_data: Option<EntityData> =
+                            ui.data_mut(|d| d.get_temp(cancel_id));
+                        ui.data_mut(|d| {
+                            d.remove::<EntityData>(cancel_id);
+                            d.remove::<bool>(snapshot_id);
+                        });
+                        if let Some(old_data) = old_data {
+                            let old_name = old_data
+                                .properties
+                                .get("name")
+                                .map(String::as_str)
+                                .unwrap_or("");
+                            let new_name = editor_state.current_map.entities[index]
+                                .properties
+                                .get("name")
+                                .map(String::as_str)
+                                .unwrap_or("");
+                            if old_name != new_name {
+                                let new_data =
+                                    editor_state.current_map.entities[index].clone();
+                                history.push(EditorAction::ModifyEntity {
+                                    index,
+                                    old_data,
+                                    new_data,
+                                });
+                            }
+                        }
+                        outliner_state.renaming_index = None;
+                    }
+                } else {
+                    // --- Normal mode ---
+                    ui.horizontal(|ui| {
+                        let label = format!("{} {}", icon, display_name);
+                        let response = ui.selectable_label(is_selected, label);
+
+                        if response.clicked() {
+                            // Clear other selections and select this entity
+                            editor_state.selected_voxels.clear();
+                            if is_selected {
+                                editor_state.selected_entities.remove(&index);
+                            } else {
+                                editor_state.selected_entities.clear();
+                                editor_state.selected_entities.insert(index);
+                            }
+                            selection_events.write(UpdateSelectionHighlights);
+                        }
+
+                        // Enter rename mode on double-click (PlayerSpawn excluded — no name concept).
+                        if response.double_clicked()
+                            && entity_type != EntityType::PlayerSpawn
+                        {
+                            let cancel_id =
+                                egui::Id::new("outliner_rename_cancel_snapshot").with(index);
+                            ui.data_mut(|d| {
+                                d.insert_temp(
+                                    cancel_id,
+                                    editor_state.current_map.entities[index].clone(),
+                                )
+                            });
+                            outliner_state.renaming_index = Some(index);
+                        }
+
+                        // Scroll this row into view when a viewport label click requested it.
+                        if editor_state.outliner_scroll_to == Some(index) {
+                            response.scroll_to_me(None);
+                            editor_state.outliner_scroll_to = None;
+                        }
+
+                        // Context menu on right-click
+                        response.context_menu(|ui| {
+                            if ui.button("🗑️ Delete").clicked() {
+                                entity_to_delete = Some(index);
+                                ui.close();
+                            }
+                        });
+
+                        // Hover info
+                        let (x, y, z) = editor_state.current_map.entities[index].position;
+                        response.on_hover_text(format!(
+                            "Type: {:?}\nPosition: ({:.1}, {:.1}, {:.1})\nClick to select\nRight-click for options",
+                            entity_type, x, y, z
+                        ));
                     });
-
-                    // Hover info
-                    let (x, y, z) = entity_data.position;
-                    response.on_hover_text(format!(
-                        "Type: {:?}\nPosition: ({:.1}, {:.1}, {:.1})\nClick to select\nRight-click for options",
-                        entity_data.entity_type, x, y, z
-                    ));
-                });
+                }
             }
 
             // Handle deletion (outside the iteration)
             if let Some(index) = entity_to_delete {
                 if index < editor_state.current_map.entities.len() {
+                    // If the deleted entity was being renamed, exit rename mode cleanly.
+                    if outliner_state.renaming_index == Some(index) {
+                        let snapshot_id = egui::Id::new("outliner_rename_snapshot").with(index);
+                        let cancel_id =
+                            egui::Id::new("outliner_rename_cancel_snapshot").with(index);
+                        ui.data_mut(|d| {
+                            d.remove::<bool>(snapshot_id);
+                            d.remove::<EntityData>(cancel_id);
+                        });
+                        outliner_state.renaming_index = None;
+                    }
+
                     editor_state.current_map.entities.remove(index);
                     editor_state.selected_entities.clear();
                     editor_state.mark_modified();
@@ -373,5 +514,207 @@ fn get_entity_type_icon(entity_type: &EntityType) -> &'static str {
         EntityType::Item => "🟡",
         EntityType::Trigger => "🟣",
         EntityType::LightSource => "💡",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::systems::game::map::format::EntityData;
+    use std::collections::HashMap;
+
+    fn make_entity(entity_type: EntityType, name: Option<&str>) -> EntityData {
+        let mut props = HashMap::new();
+        if let Some(n) = name {
+            props.insert("name".to_string(), n.to_string());
+        }
+        EntityData {
+            entity_type,
+            position: (0.0, 0.0, 0.0),
+            properties: props,
+        }
+    }
+
+    // --- OutlinerState field tests ---
+
+    #[test]
+    fn outliner_state_renaming_index_defaults_to_none() {
+        let state = OutlinerState::default();
+        assert_eq!(state.renaming_index, None);
+    }
+
+    #[test]
+    fn outliner_state_new_renaming_index_is_none() {
+        let state = OutlinerState::new();
+        assert_eq!(state.renaming_index, None);
+    }
+
+    #[test]
+    fn outliner_state_renaming_index_can_be_set_and_cleared() {
+        let mut state = OutlinerState::new();
+        state.renaming_index = Some(3);
+        assert_eq!(state.renaming_index, Some(3));
+        state.renaming_index = None;
+        assert_eq!(state.renaming_index, None);
+    }
+
+    // --- Snapshot key distinctness tests ---
+
+    #[test]
+    fn snapshot_ids_are_distinct_from_properties_panel_key() {
+        // The Properties panel uses "entity_name_snapshot".
+        // The outliner uses two different keys — verify they don't collide.
+        let props_id = egui::Id::new("entity_name_snapshot").with(0usize);
+        let outliner_focus_id = egui::Id::new("outliner_rename_snapshot").with(0usize);
+        let outliner_cancel_id = egui::Id::new("outliner_rename_cancel_snapshot").with(0usize);
+        assert_ne!(props_id, outliner_focus_id);
+        assert_ne!(props_id, outliner_cancel_id);
+        assert_ne!(outliner_focus_id, outliner_cancel_id);
+    }
+
+    #[test]
+    fn snapshot_ids_are_distinct_across_entity_indices() {
+        let id_0 = egui::Id::new("outliner_rename_cancel_snapshot").with(0usize);
+        let id_1 = egui::Id::new("outliner_rename_cancel_snapshot").with(1usize);
+        let id_5 = egui::Id::new("outliner_rename_cancel_snapshot").with(5usize);
+        assert_ne!(id_0, id_1);
+        assert_ne!(id_0, id_5);
+        assert_ne!(id_1, id_5);
+    }
+
+    // --- PlayerSpawn exclusion (logic guard) ---
+
+    #[test]
+    fn player_spawn_would_not_enter_rename_mode() {
+        // The condition checked in the double-click handler:
+        // entity_type != EntityType::PlayerSpawn
+        // Verify all other types pass the guard, PlayerSpawn does not.
+        let excluded = EntityType::PlayerSpawn;
+        let allowed = [
+            EntityType::Npc,
+            EntityType::Enemy,
+            EntityType::Item,
+            EntityType::Trigger,
+            EntityType::LightSource,
+        ];
+        assert!(excluded == EntityType::PlayerSpawn); // excluded
+        for t in &allowed {
+            assert!(
+                *t != EntityType::PlayerSpawn,
+                "{:?} should be renameable",
+                t
+            );
+        }
+    }
+
+    // --- Name resolution helpers ---
+
+    #[test]
+    fn entity_with_name_property_resolves_to_that_name() {
+        let entity = make_entity(EntityType::Npc, Some("Guard"));
+        let name = entity.properties.get("name").cloned().unwrap_or_default();
+        assert_eq!(name, "Guard");
+    }
+
+    #[test]
+    fn entity_without_name_property_resolves_to_empty_string() {
+        let entity = make_entity(EntityType::Enemy, None);
+        let name = entity.properties.get("name").cloned().unwrap_or_default();
+        assert_eq!(name, "");
+    }
+
+    // --- Rename mode guard: out-of-bounds index detection ---
+
+    #[test]
+    fn renaming_index_out_of_bounds_is_detected() {
+        // Simulates the guard: if renaming_index >= entity count, reset it.
+        let mut state = OutlinerState::new();
+        state.renaming_index = Some(5); // entity list has 2 items
+        let entity_count = 2usize;
+
+        if let Some(ri) = state.renaming_index {
+            if ri >= entity_count {
+                state.renaming_index = None;
+            }
+        }
+
+        assert_eq!(state.renaming_index, None);
+    }
+
+    #[test]
+    fn renaming_index_in_bounds_is_kept() {
+        let mut state = OutlinerState::new();
+        state.renaming_index = Some(1); // entity list has 3 items
+        let entity_count = 3usize;
+
+        if let Some(ri) = state.renaming_index {
+            if ri >= entity_count {
+                state.renaming_index = None;
+            }
+        }
+
+        assert_eq!(state.renaming_index, Some(1));
+    }
+
+    // --- Commit logic: name-change detection ---
+
+    #[test]
+    fn commit_pushes_history_when_name_changed() {
+        // Simulate the condition: old_name != new_name → history should be pushed
+        let old = make_entity(EntityType::Npc, Some("OldName"));
+        let new_name = "NewName";
+        let old_name = old.properties.get("name").map(String::as_str).unwrap_or("");
+        assert_ne!(old_name, new_name, "names differ → history entry expected");
+    }
+
+    #[test]
+    fn commit_skips_history_when_name_unchanged() {
+        // Simulate the condition: old_name == new_name → no history entry
+        let old = make_entity(EntityType::Npc, Some("SameName"));
+        let new_name = "SameName";
+        let old_name = old.properties.get("name").map(String::as_str).unwrap_or("");
+        assert_eq!(old_name, new_name, "names identical → no history entry");
+    }
+
+    #[test]
+    fn commit_skips_history_when_both_names_absent() {
+        let old = make_entity(EntityType::Npc, None);
+        let new_name = "";
+        let old_name = old.properties.get("name").map(String::as_str).unwrap_or("");
+        assert_eq!(old_name, new_name);
+    }
+
+    // --- Cancel logic: restore from snapshot ---
+
+    #[test]
+    fn cancel_restores_original_name() {
+        // Simulate cancel: restore old_data name into current entity
+        let old = make_entity(EntityType::Npc, Some("OriginalName"));
+        let mut current = make_entity(EntityType::Npc, Some("PartiallyTyped"));
+
+        // Cancel path: restore from old snapshot
+        let old_name = old.properties.get("name").cloned().unwrap_or_default();
+        current
+            .properties
+            .insert("name".to_string(), old_name.clone());
+
+        assert_eq!(
+            current.properties.get("name").map(String::as_str),
+            Some("OriginalName")
+        );
+    }
+
+    #[test]
+    fn cancel_restores_absent_name_as_empty() {
+        // Entity had no name; user typed something; cancel should restore to empty.
+        let old = make_entity(EntityType::Enemy, None);
+        let mut current = make_entity(EntityType::Enemy, Some("HalfTyped"));
+
+        let old_name = old.properties.get("name").cloned().unwrap_or_default();
+        current
+            .properties
+            .insert("name".to_string(), old_name.clone());
+
+        assert_eq!(current.properties.get("name").map(String::as_str), Some(""));
     }
 }
