@@ -75,10 +75,16 @@ pub fn render_single_entity_properties(
         }
     });
 
+    // Name field — shown for all entity types that support viewport labels
+    if entity_type != EntityType::PlayerSpawn {
+        ui.add_space(8.0);
+        render_entity_name_field(ui, editor_state, history, index);
+    }
+
     // Entity-specific properties
     if entity_type == EntityType::Npc {
         ui.add_space(8.0);
-        render_npc_properties(ui, editor_state, history, index);
+        render_npc_specific_properties(ui, editor_state, history, index);
     } else if entity_type == EntityType::LightSource {
         ui.add_space(8.0);
         render_light_source_properties(ui, editor_state, index);
@@ -99,22 +105,21 @@ pub fn render_single_entity_properties(
     });
 }
 
-/// Render NPC-specific properties
-fn render_npc_properties(
+/// Render the shared "Name:" field for all label-capable entity types.
+///
+/// Commits via `EditorAction::ModifyEntity` on focus-lost so undo/redo works.
+fn render_entity_name_field(
     ui: &mut egui::Ui,
     editor_state: &mut EditorState,
     history: &mut EditorHistory,
     index: usize,
 ) {
     ui.group(|ui| {
-        ui.label("NPC Properties");
-
-        // Name
         let current_name = editor_state.current_map.entities[index]
             .properties
             .get("name")
             .cloned()
-            .unwrap_or_else(|| "NPC".to_string());
+            .unwrap_or_default();
         let mut name = current_name.clone();
 
         ui.horizontal(|ui| {
@@ -136,6 +141,18 @@ fn render_npc_properties(
                 editor_state.mark_modified();
             }
         });
+    });
+}
+
+/// Render NPC-specific properties (Radius only — Name is handled by `render_entity_name_field`)
+fn render_npc_specific_properties(
+    ui: &mut egui::Ui,
+    editor_state: &mut EditorState,
+    history: &mut EditorHistory,
+    index: usize,
+) {
+    ui.group(|ui| {
+        ui.label("NPC Properties");
 
         // Radius
         let current_radius: f32 = editor_state.current_map.entities[index]
