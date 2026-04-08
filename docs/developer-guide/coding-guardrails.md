@@ -190,3 +190,29 @@ pub fn update_occlusion_uniforms(mut frame_counter: Local<u32>, ...) {
 // ✗ Wrong — trying to share a Local across two systems won't work;
 // each system gets its own independent copy
 ```
+
+---
+
+## 11. Never access the egui context in `Startup`
+
+**Why:** `bevy_egui` initialises its `PrimaryEguiContext` entity lazily — it is not present during `Startup` on all platforms (confirmed panic on macOS with Metal backend). Calling `contexts.ctx_mut().expect(...)` in a `Startup` system crashes the app before the first frame renders.
+
+**Rule:** Any one-time egui initialisation (font setup, style overrides) must run in `Update`, guarded by a `Local<bool>` flag. Use `let Ok(ctx) = contexts.ctx_mut() else { return; }` so the system silently skips frames where the context is not yet ready.
+
+```rust
+// ✗ Wrong — panics on macOS (egui context not ready at Startup)
+pub fn setup_fonts(mut contexts: EguiContexts) {
+    let ctx = contexts.ctx_mut().expect("egui context"); // PANIC
+    ctx.set_fonts(/* ... */);
+}
+// registered as: .add_systems(Startup, setup_fonts)
+
+// ✓ Correct — deferred to Update, skips until context is available
+pub fn setup_fonts(mut contexts: EguiContexts, mut done: Local<bool>) {
+    if *done { return; }
+    let Ok(ctx) = contexts.ctx_mut() else { return; };
+    ctx.set_fonts(/* ... */);
+    *done = true;
+}
+// registered as: .add_systems(Update, setup_fonts)
+```

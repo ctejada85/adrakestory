@@ -617,8 +617,107 @@ fn update_lighting_on_map_change(
 
 See [Lighting Performance Optimization](archive/lighting-performance-optimization.md) for complete analysis and implementation details.
 
+## Viewport Overlay System (Added April 2026)
+
+The editor renders floating labels over 3D entities using egui `Area` widgets projected from world space. This pattern is used for NPC name labels in `src/editor/ui/viewport.rs`.
+
+### World-to-Screen Projection
+
+Labels are positioned by projecting each entity's world position into viewport (screen) coordinates:
+
+```rust
+fn render_npc_name_labels(
+    camera_query: Single<(&Camera, &GlobalTransform), With<Camera3d>>,
+    npc_query: Query<(&GlobalTransform, &EditorEntityMarker)>,
+    mut contexts: EguiContexts,
+    editor_state: Res<EditorState>,
+) {
+    let Ok(ctx) = contexts.ctx_mut() else { return; };
+    let (camera_comp, camera_transform) = camera_query.into_inner();
+
+    for (npc_transform, marker) in npc_query.iter() {
+        let world_pos = npc_transform.translation() + Vec3::Y * LABEL_Y_OFFSET;
+        let Ok(screen_pos) = camera_comp.world_to_viewport(camera_transform, world_pos) else {
+            continue; // NPC is behind the camera or outside the viewport
+        };
+        // ... render label at screen_pos
+    }
+}
+```
+
+Key points:
+- `camera_comp.world_to_viewport()` returns `Result` — always skip on `Err` (entity behind camera).
+- `Single<(&Camera, &GlobalTransform), With<Camera3d>>` is the correct query for the sole editor camera.
+- Use `.into_inner()` to destructure a `Single<(A, B)>`.
+
+### Floating egui Labels with `Area`
+
+Use `egui::Area` with a fixed screen position and `Align2::CENTER_BOTTOM` pivot for labels that "sit above" an entity:
+
+```rust
+egui::Area::new(egui::Id::new(("npc_label", entity)))
+    .fixed_pos(egui::pos2(screen_pos.x, screen_pos.y))
+    .pivot(egui::Align2::CENTER_BOTTOM)
+    .interactable(false)
+    .show(ctx, |ui| {
+        ui.label(
+            egui::RichText::new(&name)
+                .size(LABEL_FONT_SIZE)
+                .color(egui::Color32::WHITE)
+                .family(egui::FontFamily::Name(FIRA_MONO_FAMILY.into())),
+        );
+    });
+```
+
+- Each `Area` needs a unique `Id`. Combining a string tag with the Bevy `Entity` avoids collisions.
+- `interactable(false)` prevents the label from consuming mouse events intended for the viewport.
+
+### Font Matching: Bevy Default vs egui Default
+
+Bevy's in-game `TextFont` resolves to **FiraMono** (monospaced). egui's built-in default is the **Hack** font (proportional). To make editor labels visually consistent with in-game labels, load FiraMono into egui at startup.
+
+**Loading Bevy's default font into egui:**
+
+```rust
+use bevy::text::DEFAULT_FONT_DATA; // &'static [u8], public in bevy_text 0.18.1
+
+pub fn setup_egui_fonts(mut contexts: EguiContexts, mut done: Local<bool>) {
+    if *done { return; }
+    let Ok(ctx) = contexts.ctx_mut() else { return; };
+
+    let mut fonts = egui::FontDefinitions::default();
+    fonts.font_data.insert(
+        FIRA_MONO_FAMILY.to_owned(),
+        std::sync::Arc::new(egui::FontData::from_static(DEFAULT_FONT_DATA)),
+    );
+    fonts.families.insert(
+        egui::FontFamily::Name(FIRA_MONO_FAMILY.into()),
+        vec![FIRA_MONO_FAMILY.to_owned()],
+    );
+    ctx.set_fonts(fonts);
+    *done = true;
+}
+```
+
+- `FontDefinitions::font_data` is `BTreeMap<String, Arc<FontData>>` in epaint 0.33 (bevy_egui 0.39.1 / egui 0.33.3).
+- Register this system in `Update` (not `Startup`) — see Coding Guardrail 11.
+- `FIRA_MONO_FAMILY` is a `pub const &str` exported from `src/editor/ui/viewport.rs` and re-exported from `src/editor/ui/mod.rs` so `setup.rs` can import it without a circular dependency.
+
+### System Registration Order
+
+```rust
+// src/bin/map_editor/main.rs
+app.add_systems(Update, (
+    setup_egui_fonts,                              // one-time font init (Local<bool> guarded)
+    render_ui,
+    render_npc_name_labels.after(render_ui),       // overlay drawn after main UI pass
+));
+```
+
+Labels must be drawn **after** the main `render_ui` pass so they appear on top of egui panels.
+
 ---
 
-**Document Version**: 2.4.0
-**Last Updated**: 2025-12-16
-**Status**: Updated for file size refactoring (Phase 1 & 2)
+**Document Version**: 2.5.0
+**Last Updated**: 2026-04-08
+**Status**: Added Viewport Overlay System section (NPC name labels, April 2026)
