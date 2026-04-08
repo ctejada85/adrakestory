@@ -10,7 +10,7 @@ pub mod viewport;
 pub use outliner::{render_outliner_panel, OutlinerState};
 pub use properties::render_properties_panel;
 pub use toolbar::render_toolbar;
-pub use viewport::render_npc_name_labels;
+pub use viewport::render_entity_name_labels;
 pub use viewport::render_viewport_controls;
 pub use viewport::render_viewport_overlays;
 pub use viewport::FIRA_MONO_FAMILY;

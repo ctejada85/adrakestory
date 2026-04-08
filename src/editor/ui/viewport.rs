@@ -15,14 +15,11 @@ const LABEL_Y_OFFSET: f32 = 0.8;
 /// Label font size in logical pixels — matches the in-game NPC label font size.
 const LABEL_FONT_SIZE: f32 = 24.0;
 
-/// egui named font family used for NPC name labels.
+/// egui named font family used for entity name labels.
 ///
 /// Must be registered with [`setup::setup_egui_fonts`] at startup before this
 /// name can be referenced in [`egui::FontFamily::Name`].
 pub const FIRA_MONO_FAMILY: &str = "FiraMono";
-
-/// Exact name value treated as the default placeholder — labels with this name are suppressed.
-const DEFAULT_NPC_NAME: &str = "NPC";
 
 /// Default panel widths (used as fallback if egui memory doesn't have them yet)
 const DEFAULT_LEFT_PANEL_WIDTH: f32 = 200.0;
@@ -369,27 +366,34 @@ fn render_tool_hint(
 /// Returns `true` when `name` should be displayed as a floating viewport label.
 ///
 /// Suppresses labels for names that are absent (empty string) or equal to the
-/// [`DEFAULT_NPC_NAME`] placeholder so that un-configured NPCs do not create
-/// visual noise in the viewport.
-fn should_show_npc_label(name: &str) -> bool {
-    !name.is_empty() && name != DEFAULT_NPC_NAME
+/// type-specific `default` placeholder so that un-configured entities do not
+/// create visual noise in the viewport.
+fn should_show_label(name: &str, default: &str) -> bool {
+    !name.is_empty() && name != default
 }
 
-/// Bevy system that draws floating egui name labels above NPC entities in the 3D viewport.
+/// Bevy system that draws floating egui name labels above entities in the 3D viewport.
 ///
-/// Projects each NPC's world position to screen space each frame via
-/// [`Camera::world_to_viewport`], then draws a [`egui::Area`] label centered
-/// above the sphere.  Labels are skipped for NPCs whose name is absent, empty,
-/// or equal to the default placeholder `"NPC"`.
+/// Projects each entity's world position to screen space each frame via
+/// [`Camera::world_to_viewport`], then draws a [`egui::Area`] pill label centered
+/// above the entity marker.  Labels are skipped when:
+/// - `editor_state.show_entity_labels` is `false`
+/// - the entity is a `PlayerSpawn` (no label for player spawns)
+/// - the entity's name is absent, empty, or equal to the type-specific default placeholder
 ///
 /// The system must be registered **after** `ui_system::render_ui` so that the
 /// egui context is already in its drawing phase when the labels are submitted.
-pub fn render_npc_name_labels(
+pub fn render_entity_name_labels(
     mut contexts: EguiContexts,
     editor_state: Res<EditorState>,
     markers: Query<(&EditorEntityMarker, &GlobalTransform)>,
     camera: Single<(&Camera, &GlobalTransform), With<Camera3d>>,
 ) {
+    // Early-exit: user has hidden all entity labels.
+    if !editor_state.show_entity_labels {
+        return;
+    }
+
     let ctx = contexts.ctx_mut().expect("egui context");
     let (camera_comp, camera_transform) = camera.into_inner();
 
@@ -401,10 +405,16 @@ pub fn render_npc_name_labels(
             continue;
         };
 
-        // Only label NPC entities.
-        if entity_data.entity_type != EntityType::Npc {
-            continue;
-        }
+        // Determine per-type label color and suppression default.
+        let (label_color, default_name) = match entity_data.entity_type {
+            EntityType::Npc => (egui::Color32::WHITE, "NPC"),
+            EntityType::Enemy => (egui::Color32::from_rgb(255, 100, 100), "Enemy"),
+            EntityType::Item => (egui::Color32::from_rgb(255, 215, 0), "Item"),
+            EntityType::Trigger => (egui::Color32::from_rgb(100, 220, 220), "Trigger"),
+            EntityType::LightSource => (egui::Color32::from_rgb(255, 180, 50), "LightSource"),
+            // PlayerSpawn does not receive a label.
+            EntityType::PlayerSpawn => continue,
+        };
 
         // Resolve name, skip defaults and empty strings.
         let name = entity_data
@@ -412,11 +422,11 @@ pub fn render_npc_name_labels(
             .get("name")
             .map(String::as_str)
             .unwrap_or("");
-        if !should_show_npc_label(name) {
+        if !should_show_label(name, default_name) {
             continue;
         }
 
-        // Offset the label anchor above the sphere centre.
+        // Offset the label anchor above the entity centre.
         let world_pos = marker_transform.translation() + Vec3::Y * LABEL_Y_OFFSET;
 
         // Project to screen; skip if behind the camera or outside the viewport.
@@ -424,16 +434,22 @@ pub fn render_npc_name_labels(
             continue;
         };
 
-        egui::Area::new(egui::Id::new(("npc_label", index)))
+        egui::Area::new(egui::Id::new(("entity_label", index)))
             .fixed_pos(egui::pos2(screen_pos.x, screen_pos.y))
             .pivot(egui::Align2::CENTER_BOTTOM)
             .show(ctx, |ui| {
-                ui.label(
-                    egui::RichText::new(name)
-                        .size(LABEL_FONT_SIZE)
-                        .color(egui::Color32::WHITE)
-                        .family(egui::FontFamily::Name(FIRA_MONO_FAMILY.into())),
-                );
+                egui::Frame::new()
+                    .fill(egui::Color32::from_rgba_unmultiplied(30, 30, 30, 180))
+                    .inner_margin(egui::Margin::symmetric(6, 4))
+                    .corner_radius(4.0)
+                    .show(ui, |ui| {
+                        ui.label(
+                            egui::RichText::new(name)
+                                .size(LABEL_FONT_SIZE)
+                                .color(label_color)
+                                .family(egui::FontFamily::Name(FIRA_MONO_FAMILY.into())),
+                        );
+                    });
             });
     }
 }
@@ -451,28 +467,68 @@ mod tests {
 
     #[test]
     fn named_npc_is_shown() {
-        assert!(should_show_npc_label("Alice"));
+        assert!(should_show_label("Alice", "NPC"));
     }
 
     #[test]
     fn default_placeholder_is_suppressed() {
-        assert!(!should_show_npc_label("NPC"));
+        assert!(!should_show_label("NPC", "NPC"));
     }
 
     #[test]
     fn empty_name_is_suppressed() {
-        assert!(!should_show_npc_label(""));
+        assert!(!should_show_label("", "NPC"));
     }
 
     #[test]
     fn lowercase_npc_is_shown() {
         // Filter is case-sensitive: "npc" != "NPC"
-        assert!(should_show_npc_label("npc"));
+        assert!(should_show_label("npc", "NPC"));
     }
 
     #[test]
     fn npc_with_trailing_space_is_shown() {
         // Only the exact string "NPC" is suppressed
-        assert!(should_show_npc_label("NPC "));
+        assert!(should_show_label("NPC ", "NPC"));
+    }
+
+    #[test]
+    fn enemy_default_is_suppressed() {
+        assert!(!should_show_label("Enemy", "Enemy"));
+    }
+
+    #[test]
+    fn named_enemy_is_shown() {
+        assert!(should_show_label("Goblin", "Enemy"));
+    }
+
+    #[test]
+    fn item_default_is_suppressed() {
+        assert!(!should_show_label("Item", "Item"));
+    }
+
+    #[test]
+    fn named_item_is_shown() {
+        assert!(should_show_label("Health Potion", "Item"));
+    }
+
+    #[test]
+    fn trigger_default_is_suppressed() {
+        assert!(!should_show_label("Trigger", "Trigger"));
+    }
+
+    #[test]
+    fn named_trigger_is_shown() {
+        assert!(should_show_label("Door Trigger", "Trigger"));
+    }
+
+    #[test]
+    fn light_source_default_is_suppressed() {
+        assert!(!should_show_label("LightSource", "LightSource"));
+    }
+
+    #[test]
+    fn named_light_source_is_shown() {
+        assert!(should_show_label("Torch", "LightSource"));
     }
 }

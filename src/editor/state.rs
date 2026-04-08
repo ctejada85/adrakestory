@@ -57,6 +57,9 @@ pub struct EditorState {
 
     /// Whether to snap cursor to grid
     pub snap_to_grid: bool,
+
+    /// Whether to show floating name labels above entities in the viewport
+    pub show_entity_labels: bool,
 }
 
 impl Default for EditorState {
@@ -74,6 +77,7 @@ impl Default for EditorState {
             show_grid: true,
             grid_opacity: 0.3,
             snap_to_grid: true,
+            show_entity_labels: true,
         }
     }
 }
@@ -266,6 +270,7 @@ mod tests {
         assert!(state.show_grid);
         assert_eq!(state.grid_opacity, 0.3);
         assert!(state.snap_to_grid);
+        assert!(state.show_entity_labels);
     }
 
     #[test]

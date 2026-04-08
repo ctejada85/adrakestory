@@ -34,6 +34,16 @@ pub fn render_view_toggles(ui: &mut egui::Ui, editor_state: &mut EditorState) {
         editor_state.snap_to_grid = !editor_state.snap_to_grid;
         info!("Snap toggled: {}", editor_state.snap_to_grid);
     }
+
+    // Entity labels toggle
+    if ui
+        .selectable_label(editor_state.show_entity_labels, "🏷 Labels")
+        .on_hover_text("Toggle entity name labels")
+        .clicked()
+    {
+        editor_state.show_entity_labels = !editor_state.show_entity_labels;
+        info!("Entity labels toggled: {}", editor_state.show_entity_labels);
+    }
 }
 
 /// Render play/stop buttons for map testing

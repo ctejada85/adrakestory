@@ -154,6 +154,13 @@ pub fn render_view_menu(ui: &mut egui::Ui, editor_state: &mut EditorState) {
             info!("Snap to grid: {}", editor_state.snap_to_grid);
         }
 
+        if ui
+            .checkbox(&mut editor_state.show_entity_labels, "🏷 Entity Labels")
+            .clicked()
+        {
+            info!("Entity labels: {}", editor_state.show_entity_labels);
+        }
+
         ui.separator();
 
         ui.label("Grid Opacity");
