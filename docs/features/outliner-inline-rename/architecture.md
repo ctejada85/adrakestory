@@ -317,7 +317,7 @@ sequenceDiagram
 | Capability | Phase | Architectural Impact |
 |------------|-------|---------------------|
 | Double-click inline rename, Enter/Escape/focus-lost | Phase 1 | `outliner.rs` only — add `renaming_index` field, branch entity row |
-| "Rename" context menu item | Phase 2 | Extend context menu in `render_entities_section`; reuse the same rename entry path |
+| "Rename" context menu item | Phase 2 | Extend context menu in `render_entities_section`; reuse the same rename entry path; call `response.scroll_to_me(None)` on the text input row to ensure it is visible |
 | F2 shortcut to rename selected entity | Phase 2 | Handle in `outliner.rs` keyboard input block; reuse same rename entry path |
 | Empty-name commit removes the `"name"` key | Phase 2 | Add one post-commit cleanup: `if new_name.is_empty() { properties.remove("name"); }` |
 
@@ -359,12 +359,12 @@ sequenceDiagram
 | 2 | Should a new `EditorAction` variant be created for rename? | No — `ModifyEntity { index, old_data, new_data }` already stores full before/after snapshots and handles undo/redo correctly. |
 | 3 | Should the snapshot key reuse `"entity_name_snapshot"` from the Properties panel? | No — use `"outliner_rename_snapshot"` to prevent collision when both panels are open simultaneously. |
 | 4 | Should double-click on a `PlayerSpawn` row open rename mode? | No — `PlayerSpawn` has no name concept and no viewport label. Excluded per FR-3.1.2. |
+| 5 | Should an empty-name commit store `""` or remove the `"name"` key? | **Remove the key.** Absence means "no name" — no empty string stored. Phase 1 stores `""` for simplicity; Phase 2 adds the cleanup: `if new_name.is_empty() { properties.remove("name"); }`. |
+| 6 | Should the context menu "Rename" item (Phase 2) scroll the Outliner to the renaming row? | **Yes — scroll to the row.** The text input must be visible when rename mode is entered via the context menu. Use egui `response.scroll_to_me(None)` on the rename row's response after entering rename mode. |
 
 ### Open
 
-| # | Question | Impact | Notes |
-|---|----------|--------|-------|
-| 5 | Should an empty-name commit in Phase 1 store `""` or remove the key? | Affects map file cleanliness; absent key = no viewport label, `""` = viewport renders an empty label region | Current Phase 1 plan: store `""` for simplicity; Phase 2 adds key removal. Confirm with team (Open Question 1 in requirements). |
+*No open questions remain.*
 
 ---
 

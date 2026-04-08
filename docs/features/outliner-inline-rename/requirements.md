@@ -109,7 +109,7 @@ Entity names are stored as an optional string property — not a dedicated struc
 
 ### Phase 2 — Enhanced
 
-- "Rename" item in the entity row context menu
+- "Rename" item in the entity row context menu (scrolls the Outliner to the renaming row if currently off-screen)
 - F2 shortcut to enter rename mode for the selected entity
 - Empty-string commit removes the `"name"` key from `properties` entirely (rather than storing `""`)
 
@@ -135,10 +135,12 @@ Entity names are stored as an optional string property — not a dedicated struc
 
 ## 7. Open Questions
 
-| # | Question | Owner |
-|---|----------|-------|
-| 1 | Should empty-name commit remove the `"name"` key from `properties` (cleaner map file) or store `""`? Phase 2 targets removal, but the Phase 1 behavior (store `""`) is simpler and avoids a special case in commit logic. | Team |
-| 2 | Should the "Rename" context menu item (Phase 2) scroll the Outliner to the renaming row if it is currently scrolled out of view? | Team |
+*All questions resolved — see decisions below.*
+
+| # | Question | Decision |
+|---|----------|----------|
+| 1 | Should empty-name commit remove the `"name"` key from `properties` or store `""`? | **Remove the key.** An empty commit removes `"name"` from `properties` entirely. Absence means "no name" — no empty string stored. Implemented in Phase 2 (Phase 1 stores `""` for simplicity; Phase 2 adds the cleanup step). |
+| 2 | Should the "Rename" context menu item (Phase 2) scroll the Outliner to the renaming row if it is currently scrolled out of view? | **Yes — scroll to the row.** The text input must be visible when rename mode is entered via the context menu. |
 
 ---
 
