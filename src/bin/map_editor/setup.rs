@@ -14,9 +14,16 @@ use grid::InfiniteGridConfig;
 /// This makes the editor's NPC name labels render with the same typeface as the
 /// in-game labels, which use Bevy's default `TextFont` (FiraMono-subset.ttf).
 ///
-/// Must run at `Startup` (after `PreStartup` where egui initialises its context).
-pub fn setup_egui_fonts(mut contexts: EguiContexts) {
-    let ctx = contexts.ctx_mut().expect("egui context");
+/// Runs in `Update` and uses a `Local<bool>` flag so the work is done only once
+/// on the first frame the egui context is available (the context is not yet
+/// present during `Startup` on all platforms).
+pub fn setup_egui_fonts(mut contexts: EguiContexts, mut done: Local<bool>) {
+    if *done {
+        return;
+    }
+    let Ok(ctx) = contexts.ctx_mut() else {
+        return;
+    };
     let mut fonts = bevy_egui::egui::FontDefinitions::default();
     fonts.font_data.insert(
         FIRA_MONO_FAMILY.to_owned(),
@@ -27,6 +34,7 @@ pub fn setup_egui_fonts(mut contexts: EguiContexts) {
         vec![FIRA_MONO_FAMILY.to_owned()],
     );
     ctx.set_fonts(fonts);
+    *done = true;
 }
 
 /// Setup the editor on startup

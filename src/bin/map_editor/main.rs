@@ -102,7 +102,7 @@ fn main() {
         .add_message::<tools::SetRotationAxis>()
         .add_message::<AppExitEvent>()
         .add_systems(Startup, setup::setup_editor)
-        .add_systems(Startup, setup::setup_egui_fonts)
+        .add_systems(Update, setup::setup_egui_fonts)
         .add_systems(Update, lighting::update_lighting_on_map_change)
         .add_systems(Update, ui_system::render_ui)
         .add_systems(Update, ui::dialogs::check_file_dialog_result)
