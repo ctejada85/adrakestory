@@ -2,6 +2,7 @@
 
 use super::entity_props::render_single_entity_properties;
 use super::TransformEvents;
+use crate::editor::history::EditorHistory;
 use crate::editor::state::EditorState;
 use crate::editor::tools::{
     ActiveTransform, CancelTransform, ConfirmTransform, DeleteSelectedVoxels, StartMoveOperation,
@@ -20,6 +21,7 @@ pub fn render_select_content(
     editor_state: &mut EditorState,
     active_transform: &ActiveTransform,
     events: &mut TransformEvents,
+    history: &mut EditorHistory,
 ) {
     // Check if in transform mode
     if active_transform.mode != TransformMode::None {
@@ -29,7 +31,7 @@ pub fn render_select_content(
 
     // Check if entities are selected
     if !editor_state.selected_entities.is_empty() {
-        render_entity_selection_content(ui, editor_state);
+        render_entity_selection_content(ui, editor_state, history);
         return;
     }
 
@@ -171,12 +173,16 @@ fn render_voxel_selection_content(
 }
 
 /// Render content when entities are selected
-fn render_entity_selection_content(ui: &mut egui::Ui, editor_state: &mut EditorState) {
+fn render_entity_selection_content(
+    ui: &mut egui::Ui,
+    editor_state: &mut EditorState,
+    history: &mut EditorHistory,
+) {
     let count = editor_state.selected_entities.len();
 
     if count == 1 {
         // Single entity - show full properties
-        render_single_entity_properties(ui, editor_state);
+        render_single_entity_properties(ui, editor_state, history);
     } else {
         // Multiple entities
         ui.group(|ui| {

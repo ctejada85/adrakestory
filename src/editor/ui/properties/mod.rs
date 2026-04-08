@@ -19,6 +19,7 @@ pub use voxel_tools::{
 };
 
 use crate::editor::cursor::CursorState;
+use crate::editor::history::EditorHistory;
 use crate::editor::state::{EditorState, EditorTool};
 use crate::editor::tools::{
     ActiveTransform, CancelTransform, ConfirmTransform, DeleteSelectedVoxels, StartMoveOperation,
@@ -45,6 +46,7 @@ pub fn render_properties_panel(
     _cursor_state: &CursorState,
     active_transform: &ActiveTransform,
     events: &mut TransformEvents,
+    history: &mut EditorHistory,
 ) {
     let response = egui::SidePanel::right("properties")
         .default_width(280.0)
@@ -57,7 +59,7 @@ pub fn render_properties_panel(
             ui.separator();
 
             // Tool-specific content
-            render_tool_content(ui, editor_state, active_transform, events);
+            render_tool_content(ui, editor_state, active_transform, events, history);
         });
 
     // Store panel width in egui memory for viewport overlays to use
@@ -91,6 +93,7 @@ fn render_tool_content(
     editor_state: &mut EditorState,
     active_transform: &ActiveTransform,
     events: &mut TransformEvents,
+    history: &mut EditorHistory,
 ) {
     match &mut editor_state.active_tool {
         EditorTool::VoxelPlace {
@@ -106,7 +109,7 @@ fn render_tool_content(
             render_entity_place_content(ui, entity_type);
         }
         EditorTool::Select => {
-            render_select_content(ui, editor_state, active_transform, events);
+            render_select_content(ui, editor_state, active_transform, events, history);
         }
         EditorTool::Camera => {
             render_camera_content(ui);

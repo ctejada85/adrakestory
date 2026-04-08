@@ -1,12 +1,17 @@
 //! Entity-specific property editing panels.
 
 use super::entity_tools::get_entity_icon;
+use crate::editor::history::{EditorAction, EditorHistory};
 use crate::editor::state::EditorState;
 use crate::systems::game::map::format::EntityType;
 use bevy_egui::egui;
 
 /// Render properties for a single selected entity
-pub fn render_single_entity_properties(ui: &mut egui::Ui, editor_state: &mut EditorState) {
+pub fn render_single_entity_properties(
+    ui: &mut egui::Ui,
+    editor_state: &mut EditorState,
+    history: &mut EditorHistory,
+) {
     let index = match editor_state.selected_entities.iter().next() {
         Some(&idx) => idx,
         None => return,
@@ -73,7 +78,7 @@ pub fn render_single_entity_properties(ui: &mut egui::Ui, editor_state: &mut Edi
     // Entity-specific properties
     if entity_type == EntityType::Npc {
         ui.add_space(8.0);
-        render_npc_properties(ui, editor_state, index);
+        render_npc_properties(ui, editor_state, history, index);
     } else if entity_type == EntityType::LightSource {
         ui.add_space(8.0);
         render_light_source_properties(ui, editor_state, index);
@@ -95,7 +100,12 @@ pub fn render_single_entity_properties(ui: &mut egui::Ui, editor_state: &mut Edi
 }
 
 /// Render NPC-specific properties
-fn render_npc_properties(ui: &mut egui::Ui, editor_state: &mut EditorState, index: usize) {
+fn render_npc_properties(
+    ui: &mut egui::Ui,
+    editor_state: &mut EditorState,
+    history: &mut EditorHistory,
+    index: usize,
+) {
     ui.group(|ui| {
         ui.label("NPC Properties");
 
@@ -105,14 +115,24 @@ fn render_npc_properties(ui: &mut egui::Ui, editor_state: &mut EditorState, inde
             .get("name")
             .cloned()
             .unwrap_or_else(|| "NPC".to_string());
-        let mut name = current_name;
+        let mut name = current_name.clone();
 
         ui.horizontal(|ui| {
             ui.label("Name:");
-            if ui.text_edit_singleline(&mut name).changed() {
+            let response = ui.text_edit_singleline(&mut name);
+            // Commit on focus-lost or Enter so we don't create a history entry
+            // every keystroke — only when the user finishes editing.
+            if response.lost_focus() && name != current_name {
+                let old_data = editor_state.current_map.entities[index].clone();
                 editor_state.current_map.entities[index]
                     .properties
                     .insert("name".to_string(), name);
+                let new_data = editor_state.current_map.entities[index].clone();
+                history.push(EditorAction::ModifyEntity {
+                    index,
+                    old_data,
+                    new_data,
+                });
                 editor_state.mark_modified();
             }
         });
@@ -131,9 +151,16 @@ fn render_npc_properties(ui: &mut egui::Ui, editor_state: &mut EditorState, inde
                 .add(egui::Slider::new(&mut radius, 0.1..=1.0).step_by(0.05))
                 .changed()
             {
+                let old_data = editor_state.current_map.entities[index].clone();
                 editor_state.current_map.entities[index]
                     .properties
                     .insert("radius".to_string(), format!("{:.2}", radius));
+                let new_data = editor_state.current_map.entities[index].clone();
+                history.push(EditorAction::ModifyEntity {
+                    index,
+                    old_data,
+                    new_data,
+                });
                 editor_state.mark_modified();
             }
         });

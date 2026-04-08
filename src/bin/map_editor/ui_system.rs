@@ -51,7 +51,7 @@ pub struct UIResources<'w> {
 #[derive(bevy::ecs::system::SystemParam)]
 pub struct EditorReadResources<'w> {
     pub cursor_state: Res<'w, CursorState>,
-    pub history: Res<'w, EditorHistory>,
+    pub history: ResMut<'w, EditorHistory>,
     pub active_transform: Res<'w, ActiveTransform>,
     pub keyboard_mode: Res<'w, KeyboardEditMode>,
 }
@@ -60,7 +60,7 @@ pub struct EditorReadResources<'w> {
 pub fn render_ui(
     mut contexts: EguiContexts,
     mut ui_resources: UIResources,
-    read_resources: EditorReadResources,
+    mut read_resources: EditorReadResources,
     mut transform_events: TransformEvents,
     mut save_events: SaveEvents,
     mut ui_events: UIEventWriters,
@@ -111,6 +111,7 @@ pub fn render_ui(
         &read_resources.cursor_state,
         &read_resources.active_transform,
         &mut transform_events,
+        &mut read_resources.history,
     );
 
     // Render viewport overlays (keyboard mode indicator, selection tooltip, etc.)
