@@ -32,8 +32,10 @@ Architecture Document:
 - [ ] Step 3: Write Section 1 — Current Architecture
 - [ ] Step 4: Write Section 2 — Target Architecture
 - [ ] Step 5: Write Appendices
-- [ ] Step 6: Clarify open questions with the user
+- [ ] Step 6: Clarify open questions with the user (skip if none)
 - [ ] Step 7: Review and cross-reference
+- [ ] Step 8: Validate claims against the codebase
+- [ ] Step 9: Proceed to implementation
 ```
 
 ### Step 1: Analyze the existing codebase
