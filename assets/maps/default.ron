@@ -3789,13 +3789,23 @@
             entity_type: LightSource,
             position: (19.0, 2.0, 8.0),
             properties: {
-                "intensity": "100000",
                 "range": "100.1",
+                "intensity": "100000",
             },
         ),
         (
             entity_type: LightSource,
             position: (4.0, 1.0, 5.0),
+            properties: {},
+        ),
+        (
+            entity_type: Npc,
+            position: (9.0, 1.0, 8.0),
+            properties: {},
+        ),
+        (
+            entity_type: Npc,
+            position: (12.0, 1.0, 6.0),
             properties: {},
         ),
     ],
@@ -3811,6 +3821,9 @@
         position: (8.5, 8.0, 5.5),
         look_at: (8.5, 0.0, 1.5),
         rotation_offset: -1.5707964,
+        follow_speed: None,
+        rotation_speed: None,
+        fov_degrees: None,
     ),
     orientations: [
         ((0, -1, 0), (1, 0, 0), (0, 0, 1)),
