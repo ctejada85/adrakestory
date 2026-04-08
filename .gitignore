@@ -5,6 +5,7 @@ Cargo.lock
 # IDE
 #.vscode/
 .idea/
+.obsidian/
 *.swp
 *.swo
 *~
