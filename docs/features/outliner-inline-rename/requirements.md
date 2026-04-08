@@ -45,6 +45,8 @@ Entity names are stored as an optional string property — not a dedicated struc
 | FR-3.2.1 | When rename mode is entered, the entity row label must be replaced with a text input pre-filled with the entity's current name. If the entity has no name (`properties["name"]` absent), the text input must be pre-filled with an empty string, not the entity type name. | Phase 1 |
 | FR-3.2.2 | The text input must receive keyboard focus automatically on the first frame it appears. | Phase 1 |
 | FR-3.2.3 | While the text input is active, the row must not respond to single-click selection events. | Phase 1 |
+| FR-3.2.4 | During rename mode, the entity type icon must remain visible to the left of the text input, preserving the same `ui.horizontal` layout as the normal label row. | Phase 1 |
+| FR-3.2.5 | The text input must be rendered without a border (`TextEdit::frame(false)`) and must fill the remaining row width (`desired_width(f32::INFINITY)`). It must use the outliner's default font size so the row height does not change when entering or exiting rename mode. | Phase 1 |
 
 ### 3.3 Commit
 
@@ -87,6 +89,7 @@ Entity names are stored as an optional string property — not a dedicated struc
 | NFR-4.3 | The egui temp-storage snapshot key for the undo entry must be distinct from the Properties panel snapshot key (`"entity_name_snapshot"`) to prevent cross-panel collision when both panels are open and the same entity is visible in both. | Phase 1 |
 | NFR-4.4 | The feature must apply to the `map_editor` binary only. The game binary (`adrakestory`) must not be modified. | Phase 1 |
 | NFR-4.5 | The write-through + snapshot pattern (Coding Guardrail 12) must be followed. Rebuilding the name from stored state each frame without write-through is not permitted. | Phase 1 |
+| NFR-4.6 | Row height must remain unchanged when switching between normal label and rename text input. The text input must use the default font size and must not introduce padding or a visible border frame that would expand the row. | Phase 1 |
 
 ---
 
@@ -101,6 +104,7 @@ Entity names are stored as an optional string property — not a dedicated struc
 - Cancel on Escape; name restored, no history entry
 - Graceful exit if entity is deleted mid-rename
 - PlayerSpawn excluded from rename affordance
+- Visually seamless rename row: entity type icon preserved, borderless input (`TextEdit::frame(false)`), fills row width (`desired_width(f32::INFINITY)`), row height unchanged
 - All existing Outliner behaviors unaffected
 
 ### Phase 2 — Enhanced

@@ -12,6 +12,7 @@
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
 | **v1** | **2026-04-08** | **OpenCode** | **Initial draft — single-file change to `outliner.rs`; write-through + snapshot pattern; no new Bevy Resources** |
+| **v2** | **2026-04-08** | **OpenCode** | **Added visual style requirement: icon-preserved layout, borderless TextEdit, row height stability; updated §2.1 design principles, §2.5 entity row diagram, Appendix C code template** |
 
 ---
 
@@ -148,6 +149,7 @@ The row is entirely read-only: `selectable_label` is not interactive for text in
 3. **State lives in `OutlinerState`** — a single `renaming_index: Option<usize>` field is added. No new Bevy `Resource`, no `EditorState` changes.
 4. **Zero per-frame cost when idle** — when `renaming_index` is `None`, the only additional work per row is one `Option<usize>` equality check.
 5. **Full undo/redo without a new action type** — `EditorAction::ModifyEntity` already captures full before/after `EntityData` snapshots. No new variant is needed.
+6. **Seamless visual continuity** — the rename row must look like the normal label row during editing: the entity type icon remains visible to the left (`ui.label(icon)` inside `ui.horizontal`), the `TextEdit` is borderless (`frame(false)`), fills the remaining row width (`desired_width(f32::INFINITY)`), and uses the default font size so the row height does not change.
 
 ### 2.2 New Components
 
@@ -204,7 +206,7 @@ flowchart TD
     Label["selectable_label<br/>(existing behavior)"]
     DblClick["double_clicked() && entity_type != PlayerSpawn?"]
     EnterRename["save snapshot to temp storage<br/>renaming_index = Some(index)"]
-    TextEdit["text_edit_singleline(&mut name)<br/>+ request_focus() on first frame"]
+    TextEdit["ui.horizontal:<br/>[icon label] + [TextEdit::singleline<br/>frame(false), desired_width(∞)<br/>request_focus() on first frame]"]
     Changed["response.changed()?<br/>→ write-through to properties<br/>→ mark_modified()"]
     LostFocus["response.lost_focus() or Enter?<br/>→ pop snapshot, push history if changed<br/>→ renaming_index = None"]
     EscCancel["Escape key?<br/>→ restore from snapshot<br/>→ renaming_index = None"]
@@ -382,9 +384,17 @@ if outliner_state.renaming_index == Some(index) {
         .unwrap_or_default();
     let mut name = current_name.clone();
 
-    let response = ui.text_edit_singleline(&mut name);
+    let response = ui.horizontal(|ui| {
+        ui.label(icon);  // icon stays visible during rename
+        egui::TextEdit::singleline(&mut name)
+            .frame(false)               // no border — seamless with normal row
+            .desired_width(f32::INFINITY) // fill remaining row width
+            .show(ui)
+            .response
+    }).inner;
 
     // First frame: request focus (snapshot was saved at double-click time)
+    // response comes from TextEdit::singleline().show(ui).response above
     let is_first_frame = ui.data_mut(|d| d.get_temp::<bool>(snapshot_id)).is_none();
     if is_first_frame {
         ui.data_mut(|d| d.insert_temp(snapshot_id, true)); // mark "focused"
