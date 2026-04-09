@@ -330,7 +330,7 @@ mod tests {
     #[test]
     fn test_get_display_name_with_path() {
         let mut state = EditorState::new();
-        state.file_path = Some(PathBuf::from("C:\\maps\\test_map.ron"));
+        state.file_path = Some(PathBuf::from("/maps/test_map.ron"));
         assert_eq!(state.get_display_name(), "test_map.ron");
     }
 
