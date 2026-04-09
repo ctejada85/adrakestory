@@ -1,7 +1,9 @@
 //! Entity spawning functions for players, NPCs, and light sources.
 
 use super::super::super::character::CharacterModel;
-use super::super::super::components::{CollisionBox, LightSource, Npc, Player, PlayerFlashlight};
+use super::super::super::components::{
+    CollisionBox, FlickerLight, LightSource, Npc, Player, PlayerFlashlight,
+};
 use bevy::gltf::GltfAssetLabel;
 use bevy::prelude::*;
 use std::collections::HashMap;
@@ -204,6 +206,10 @@ pub fn spawn_light_source(
         .map(|s| s == "true" || s == "1")
         .unwrap_or(false);
 
+    let flicker_enabled = parse_flicker_enabled(properties);
+    let flicker_amplitude = parse_flicker_amplitude(properties);
+    let flicker_speed = parse_flicker_speed(properties);
+
     // Parse color (format: "r,g,b" with values 0.0-1.0)
     let color = properties
         .get("color")
@@ -218,31 +224,42 @@ pub fn spawn_light_source(
         .unwrap_or(Color::WHITE);
 
     // Spawn light source entity
-    ctx.commands.spawn((
-        Transform::from_translation(position),
-        GlobalTransform::default(),
-        Visibility::Visible,
-        InheritedVisibility::default(),
-        ViewVisibility::default(),
-        LightSource {
-            color,
-            intensity,
-            range,
-            shadows_enabled,
-        },
-        PointLight {
-            color,
-            intensity,
-            range,
-            radius: 0.0, // Point light (no physical size)
-            shadows_enabled,
-            ..default()
-        },
-    ));
+    let light_entity = ctx
+        .commands
+        .spawn((
+            Transform::from_translation(position),
+            GlobalTransform::default(),
+            Visibility::Visible,
+            InheritedVisibility::default(),
+            ViewVisibility::default(),
+            LightSource {
+                color,
+                intensity,
+                range,
+                shadows_enabled,
+            },
+            PointLight {
+                color,
+                intensity,
+                range,
+                radius: 0.0, // Point light (no physical size)
+                shadows_enabled,
+                ..default()
+            },
+        ))
+        .id();
+
+    if flicker_enabled {
+        ctx.commands.entity(light_entity).insert(FlickerLight {
+            base_intensity: intensity,
+            amplitude: flicker_amplitude,
+            speed: flicker_speed,
+        });
+    }
 
     info!(
-        "Spawned light source at {:?} (intensity: {}, range: {}, shadows: {})",
-        position, intensity, range, shadows_enabled
+        "Spawned light source at {:?} (intensity: {}, range: {}, shadows: {}, flicker: {})",
+        position, intensity, range, shadows_enabled, flicker_enabled
     );
 }
 
@@ -310,6 +327,40 @@ pub(crate) fn parse_npc_name(properties: &HashMap<String, String>) -> String {
         .get("name")
         .cloned()
         .unwrap_or_else(|| "NPC".to_string())
+}
+
+/// Parse flicker enabled from properties with default (false).
+/// Exposed for testing.
+#[allow(dead_code)]
+pub(crate) fn parse_flicker_enabled(properties: &HashMap<String, String>) -> bool {
+    properties
+        .get("flicker")
+        .map(|s| s == "true" || s == "1")
+        .unwrap_or(false)
+}
+
+/// Parse flicker amplitude from properties with defaults and clamping.
+/// Default: 3_000.0, clamped to 0.0..=100_000.0.
+/// Exposed for testing.
+#[allow(dead_code)]
+pub(crate) fn parse_flicker_amplitude(properties: &HashMap<String, String>) -> f32 {
+    properties
+        .get("flicker_amplitude")
+        .and_then(|v| v.parse::<f32>().ok())
+        .unwrap_or(3000.0)
+        .clamp(0.0, 100_000.0)
+}
+
+/// Parse flicker speed from properties with defaults and clamping.
+/// Default: 4.0, clamped to 0.1..=20.0.
+/// Exposed for testing.
+#[allow(dead_code)]
+pub(crate) fn parse_flicker_speed(properties: &HashMap<String, String>) -> f32 {
+    properties
+        .get("flicker_speed")
+        .and_then(|v| v.parse::<f32>().ok())
+        .unwrap_or(4.0)
+        .clamp(0.1, 20.0)
 }
 
 #[cfg(test)]
@@ -464,5 +515,102 @@ mod tests {
         let mut props = HashMap::new();
         props.insert("name".to_string(), "Bob".to_string());
         assert_eq!(parse_npc_name(&props), "Bob");
+    }
+
+    // --- FlickerLight helpers ---
+
+    #[test]
+    fn test_parse_flicker_enabled_default() {
+        let props = HashMap::new();
+        assert!(!parse_flicker_enabled(&props));
+    }
+
+    #[test]
+    fn test_parse_flicker_enabled_true() {
+        let mut props = HashMap::new();
+        props.insert("flicker".to_string(), "true".to_string());
+        assert!(parse_flicker_enabled(&props));
+    }
+
+    #[test]
+    fn test_parse_flicker_enabled_one() {
+        let mut props = HashMap::new();
+        props.insert("flicker".to_string(), "1".to_string());
+        assert!(parse_flicker_enabled(&props));
+    }
+
+    #[test]
+    fn test_parse_flicker_enabled_false() {
+        let mut props = HashMap::new();
+        props.insert("flicker".to_string(), "false".to_string());
+        assert!(!parse_flicker_enabled(&props));
+    }
+
+    #[test]
+    fn test_parse_flicker_amplitude_default() {
+        let props = HashMap::new();
+        assert_eq!(parse_flicker_amplitude(&props), 3000.0);
+    }
+
+    #[test]
+    fn test_parse_flicker_amplitude_custom() {
+        let mut props = HashMap::new();
+        props.insert("flicker_amplitude".to_string(), "5000.0".to_string());
+        assert_eq!(parse_flicker_amplitude(&props), 5000.0);
+    }
+
+    #[test]
+    fn test_parse_flicker_amplitude_clamped_high() {
+        let mut props = HashMap::new();
+        props.insert("flicker_amplitude".to_string(), "999999.0".to_string());
+        assert_eq!(parse_flicker_amplitude(&props), 100_000.0);
+    }
+
+    #[test]
+    fn test_parse_flicker_amplitude_clamped_low() {
+        let mut props = HashMap::new();
+        props.insert("flicker_amplitude".to_string(), "-50.0".to_string());
+        assert_eq!(parse_flicker_amplitude(&props), 0.0);
+    }
+
+    #[test]
+    fn test_parse_flicker_amplitude_invalid() {
+        let mut props = HashMap::new();
+        props.insert("flicker_amplitude".to_string(), "loud".to_string());
+        assert_eq!(parse_flicker_amplitude(&props), 3000.0);
+    }
+
+    #[test]
+    fn test_parse_flicker_speed_default() {
+        let props = HashMap::new();
+        assert_eq!(parse_flicker_speed(&props), 4.0);
+    }
+
+    #[test]
+    fn test_parse_flicker_speed_custom() {
+        let mut props = HashMap::new();
+        props.insert("flicker_speed".to_string(), "8.0".to_string());
+        assert_eq!(parse_flicker_speed(&props), 8.0);
+    }
+
+    #[test]
+    fn test_parse_flicker_speed_clamped_high() {
+        let mut props = HashMap::new();
+        props.insert("flicker_speed".to_string(), "100.0".to_string());
+        assert_eq!(parse_flicker_speed(&props), 20.0);
+    }
+
+    #[test]
+    fn test_parse_flicker_speed_clamped_low() {
+        let mut props = HashMap::new();
+        props.insert("flicker_speed".to_string(), "0.0".to_string());
+        assert_eq!(parse_flicker_speed(&props), 0.1);
+    }
+
+    #[test]
+    fn test_parse_flicker_speed_invalid() {
+        let mut props = HashMap::new();
+        props.insert("flicker_speed".to_string(), "fast".to_string());
+        assert_eq!(parse_flicker_speed(&props), 4.0);
     }
 }

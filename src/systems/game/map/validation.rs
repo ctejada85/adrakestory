@@ -236,6 +236,39 @@ fn validate_entity_properties(entity: &super::format::EntityData) -> MapResult<(
                     )));
                 }
             }
+            if let Some(v) = entity.properties.get("flicker") {
+                if !matches!(v.as_str(), "true" | "false" | "1" | "0") {
+                    return Err(MapLoadError::ValidationError(format!(
+                        "LightSource entity has invalid 'flicker': \
+                         expected true/false/1/0, got {:?}",
+                        v
+                    )));
+                }
+            }
+            if let Some(v) = entity.properties.get("flicker_amplitude") {
+                match v.parse::<f32>() {
+                    Ok(f) if f >= 0.0 => {}
+                    _ => {
+                        return Err(MapLoadError::ValidationError(format!(
+                            "LightSource entity has invalid 'flicker_amplitude': \
+                             expected non-negative f32, got {:?}",
+                            v
+                        )))
+                    }
+                }
+            }
+            if let Some(v) = entity.properties.get("flicker_speed") {
+                match v.parse::<f32>() {
+                    Ok(f) if f > 0.0 => {}
+                    _ => {
+                        return Err(MapLoadError::ValidationError(format!(
+                            "LightSource entity has invalid 'flicker_speed': \
+                             expected positive f32, got {:?}",
+                            v
+                        )))
+                    }
+                }
+            }
         }
         EntityType::Npc => {
             if let Some(v) = entity.properties.get("radius") {
@@ -552,6 +585,98 @@ mod tests {
                 .properties
                 .insert("adrakestory:future_key".to_string(), "x".to_string());
         }
+        assert!(validate_map(&map).is_ok());
+    }
+
+    // --- FlickerLight validation ---
+
+    #[test]
+    fn light_source_flicker_invalid_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("flicker", "yes")]));
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn light_source_flicker_true_passes() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("flicker", "true")]));
+        assert!(validate_map(&map).is_ok());
+    }
+
+    #[test]
+    fn light_source_flicker_one_passes() {
+        let mut map = MapData::default_map();
+        map.entities.push(make_light_source(vec![("flicker", "1")]));
+        assert!(validate_map(&map).is_ok());
+    }
+
+    #[test]
+    fn light_source_flicker_amplitude_negative_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("flicker_amplitude", "-1.0")]));
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn light_source_flicker_amplitude_invalid_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("flicker_amplitude", "big")]));
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn light_source_flicker_amplitude_zero_passes() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("flicker_amplitude", "0.0")]));
+        assert!(validate_map(&map).is_ok());
+    }
+
+    #[test]
+    fn light_source_flicker_speed_zero_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("flicker_speed", "0.0")]));
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn light_source_flicker_speed_negative_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("flicker_speed", "-2.0")]));
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn light_source_flicker_speed_invalid_is_rejected() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("flicker_speed", "fast")]));
+        assert!(validate_map(&map).is_err());
+    }
+
+    #[test]
+    fn light_source_flicker_speed_positive_passes() {
+        let mut map = MapData::default_map();
+        map.entities
+            .push(make_light_source(vec![("flicker_speed", "4.0")]));
+        assert!(validate_map(&map).is_ok());
+    }
+
+    #[test]
+    fn light_source_all_flicker_properties_pass() {
+        let mut map = MapData::default_map();
+        map.entities.push(make_light_source(vec![
+            ("flicker", "true"),
+            ("flicker_amplitude", "3000.0"),
+            ("flicker_speed", "4.0"),
+        ]));
         assert!(validate_map(&map).is_ok());
     }
 }

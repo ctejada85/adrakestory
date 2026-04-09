@@ -87,7 +87,7 @@ pub fn render_single_entity_properties(
         render_npc_specific_properties(ui, editor_state, history, index);
     } else if entity_type == EntityType::LightSource {
         ui.add_space(8.0);
-        render_light_source_properties(ui, editor_state, index);
+        render_light_source_properties(ui, editor_state, history, index);
     }
 
     ui.add_space(8.0);
@@ -225,7 +225,12 @@ fn render_npc_specific_properties(
 }
 
 /// Render LightSource-specific properties
-fn render_light_source_properties(ui: &mut egui::Ui, editor_state: &mut EditorState, index: usize) {
+fn render_light_source_properties(
+    ui: &mut egui::Ui,
+    editor_state: &mut EditorState,
+    history: &mut EditorHistory,
+    index: usize,
+) {
     ui.group(|ui| {
         ui.label("Light Properties");
 
@@ -243,9 +248,16 @@ fn render_light_source_properties(ui: &mut egui::Ui, editor_state: &mut EditorSt
                 .add(egui::Slider::new(&mut intensity, 0.0..=100000.0).logarithmic(true))
                 .changed()
             {
+                let old_data = editor_state.current_map.entities[index].clone();
                 editor_state.current_map.entities[index]
                     .properties
                     .insert("intensity".to_string(), format!("{:.0}", intensity));
+                let new_data = editor_state.current_map.entities[index].clone();
+                history.push(EditorAction::ModifyEntity {
+                    index,
+                    old_data,
+                    new_data,
+                });
                 editor_state.mark_modified();
             }
         });
@@ -264,9 +276,16 @@ fn render_light_source_properties(ui: &mut egui::Ui, editor_state: &mut EditorSt
                 .add(egui::Slider::new(&mut range, 0.1..=100.0).step_by(0.5))
                 .changed()
             {
+                let old_data = editor_state.current_map.entities[index].clone();
                 editor_state.current_map.entities[index]
                     .properties
                     .insert("range".to_string(), format!("{:.1}", range));
+                let new_data = editor_state.current_map.entities[index].clone();
+                history.push(EditorAction::ModifyEntity {
+                    index,
+                    old_data,
+                    new_data,
+                });
                 editor_state.mark_modified();
             }
         });
@@ -280,9 +299,16 @@ fn render_light_source_properties(ui: &mut egui::Ui, editor_state: &mut EditorSt
         let mut shadows = current_shadows;
 
         if ui.checkbox(&mut shadows, "Cast Shadows").changed() {
+            let old_data = editor_state.current_map.entities[index].clone();
             editor_state.current_map.entities[index]
                 .properties
                 .insert("shadows".to_string(), shadows.to_string());
+            let new_data = editor_state.current_map.entities[index].clone();
+            history.push(EditorAction::ModifyEntity {
+                index,
+                old_data,
+                new_data,
+            });
             editor_state.mark_modified();
         }
 
@@ -338,9 +364,16 @@ fn render_light_source_properties(ui: &mut egui::Ui, editor_state: &mut EditorSt
         });
 
         if color_changed {
+            let old_data = editor_state.current_map.entities[index].clone();
             editor_state.current_map.entities[index]
                 .properties
                 .insert("color".to_string(), format!("{:.2},{:.2},{:.2}", r, g, b));
+            let new_data = editor_state.current_map.entities[index].clone();
+            history.push(EditorAction::ModifyEntity {
+                index,
+                old_data,
+                new_data,
+            });
             editor_state.mark_modified();
         }
 
@@ -349,5 +382,86 @@ fn render_light_source_properties(ui: &mut egui::Ui, editor_state: &mut EditorSt
             egui::Color32::from_rgb((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8);
         let (rect, _) = ui.allocate_exact_size(egui::vec2(60.0, 20.0), egui::Sense::hover());
         ui.painter().rect_filled(rect, 2.0, preview_color);
+
+        // Flicker
+        ui.add_space(4.0);
+        ui.label("Flicker:");
+
+        let current_flicker = editor_state.current_map.entities[index]
+            .properties
+            .get("flicker")
+            .map(|s| s == "true" || s == "1")
+            .unwrap_or(false);
+        let mut flicker = current_flicker;
+
+        if ui.checkbox(&mut flicker, "Enable Flicker").changed() {
+            let old_data = editor_state.current_map.entities[index].clone();
+            editor_state.current_map.entities[index]
+                .properties
+                .insert("flicker".to_string(), flicker.to_string());
+            let new_data = editor_state.current_map.entities[index].clone();
+            history.push(EditorAction::ModifyEntity {
+                index,
+                old_data,
+                new_data,
+            });
+            editor_state.mark_modified();
+        }
+
+        if flicker {
+            let current_amplitude: f32 = editor_state.current_map.entities[index]
+                .properties
+                .get("flicker_amplitude")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(3000.0);
+            let mut amplitude = current_amplitude;
+
+            ui.horizontal(|ui| {
+                ui.label("Amplitude:");
+                if ui
+                    .add(egui::Slider::new(&mut amplitude, 0.0..=50000.0).logarithmic(true))
+                    .changed()
+                {
+                    let old_data = editor_state.current_map.entities[index].clone();
+                    editor_state.current_map.entities[index]
+                        .properties
+                        .insert("flicker_amplitude".to_string(), format!("{:.0}", amplitude));
+                    let new_data = editor_state.current_map.entities[index].clone();
+                    history.push(EditorAction::ModifyEntity {
+                        index,
+                        old_data,
+                        new_data,
+                    });
+                    editor_state.mark_modified();
+                }
+            });
+
+            let current_speed: f32 = editor_state.current_map.entities[index]
+                .properties
+                .get("flicker_speed")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(4.0);
+            let mut speed = current_speed;
+
+            ui.horizontal(|ui| {
+                ui.label("Speed:");
+                if ui
+                    .add(egui::Slider::new(&mut speed, 0.1..=20.0).step_by(0.1))
+                    .changed()
+                {
+                    let old_data = editor_state.current_map.entities[index].clone();
+                    editor_state.current_map.entities[index]
+                        .properties
+                        .insert("flicker_speed".to_string(), format!("{:.1}", speed));
+                    let new_data = editor_state.current_map.entities[index].clone();
+                    history.push(EditorAction::ModifyEntity {
+                        index,
+                        old_data,
+                        new_data,
+                    });
+                    editor_state.mark_modified();
+                }
+            });
+        }
     });
 }
