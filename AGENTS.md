@@ -73,7 +73,7 @@ cargo fmt                            # Format code (runs on save)
 - Systems follow Bevy ECS patterns: `fn system_name(query: Query<...>, res: Res<...>)`
 - Components are pure data structs with `#[derive(Component)]`
 - Use `info!()`, `warn!()`, `error!()` for logging (Bevy's tracing)
-- Tests are inline with `#[cfg(test)]` modules at bottom of files
+- Tests live in a sibling `tests.rs` file; declare with `#[cfg(test)] mod tests;` at the bottom of the production file (see `docs/developer-guide/coding-style.md` §7)
 
 ## File Size Guidelines
 
