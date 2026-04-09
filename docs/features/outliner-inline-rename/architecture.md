@@ -13,6 +13,7 @@
 |---------|------|--------|---------|
 | **v1** | **2026-04-08** | **OpenCode** | **Initial draft — single-file change to `outliner.rs`; write-through + snapshot pattern; no new Bevy Resources** |
 | **v2** | **2026-04-08** | **OpenCode** | **Added visual style requirement: icon-preserved layout, borderless TextEdit, row height stability; updated §2.1 design principles, §2.5 entity row diagram, Appendix C code template** |
+| **v3** | **2026-04-08** | **OpenCode** | **Phase 2 implemented — added `scroll_to_rename: bool` to class diagram; updated Phase 2 checklist to ✅; updated §2.9 phase table to reflect delivered state** |
 
 ---
 
@@ -231,7 +232,8 @@ classDiagram
         +entities_expanded: bool
         +filter_text: String
         +voxel_type_expanded: HashMap~VoxelType, bool~
-        +renaming_index: Option~usize~  ◄ NEW
+        +renaming_index: Option~usize~  ◄ Phase 1
+        +scroll_to_rename: bool         ◄ Phase 2
     }
 
     class EntityData {
@@ -314,24 +316,26 @@ sequenceDiagram
 
 ### 2.9 Phase Boundaries
 
-| Capability | Phase | Architectural Impact |
-|------------|-------|---------------------|
-| Double-click inline rename, Enter/Escape/focus-lost | Phase 1 | `outliner.rs` only — add `renaming_index` field, branch entity row |
-| "Rename" context menu item | Phase 2 | Extend context menu in `render_entities_section`; reuse the same rename entry path; call `response.scroll_to_me(None)` on the text input row to ensure it is visible |
-| F2 shortcut to rename selected entity | Phase 2 | Handle in `outliner.rs` keyboard input block; reuse same rename entry path |
-| Empty-name commit removes the `"name"` key | Phase 2 | Add one post-commit cleanup: `if new_name.is_empty() { properties.remove("name"); }` |
+| Capability | Phase | Status | Architectural Impact |
+|------------|-------|--------|---------------------|
+| Double-click inline rename, Enter/Escape/focus-lost | Phase 1 | ✅ Delivered | `outliner.rs` only — add `renaming_index` field, branch entity row |
+| "Rename" context menu item | Phase 2 | ✅ Delivered | Extended context menu in `render_entities_section`; saves cancel snapshot, sets `renaming_index` and `scroll_to_rename = true` |
+| F2 shortcut to rename selected entity | Phase 2 | ✅ Delivered | F2 check before the entity loop; guards: `renaming_index.is_none()`, exactly one non-PlayerSpawn entity selected |
+| Empty-name commit removes the `"name"` key | Phase 2 | ✅ Delivered | Key removal runs before `new_data` clone in the `lost_focus` handler, so undo/redo history captures key-absent state |
+| Scroll rename row into view on context menu / F2 | Phase 2 | ✅ Delivered | `scroll_to_rename: bool` one-shot flag added to `OutlinerState`; cleared the frame `response.scroll_to_me(None)` fires |
 
-**Phase 1 MVP boundary:**
+**Full feature boundary (Phase 1 + Phase 2):**
 
 - ✅ `renaming_index: Option<usize>` in `OutlinerState`
+- ✅ `scroll_to_rename: bool` in `OutlinerState`
 - ✅ Double-click activation on non-PlayerSpawn rows
 - ✅ Write-through on keystroke
 - ✅ Commit on Enter / focus-lost with undo entry
 - ✅ Escape cancel with name restoration
 - ✅ Auto-focus text input on first frame
-- ❌ Context menu "Rename" item (Phase 2)
-- ❌ F2 shortcut (Phase 2)
-- ❌ Empty-string → key removal (Phase 2)
+- ✅ Context menu "Rename" item (non-PlayerSpawn only)
+- ✅ F2 shortcut (single selected non-PlayerSpawn entity)
+- ✅ Empty-string commit → key removal (before `new_data` clone)
 
 ---
 

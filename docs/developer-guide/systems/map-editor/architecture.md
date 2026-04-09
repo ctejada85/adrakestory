@@ -760,27 +760,33 @@ Entities default to an empty name (`properties` map has no `"name"` key). `unwra
 
 ## Outliner Inline Rename (Added April 2026)
 
-Double-clicking a non-`PlayerSpawn` entity row in the Outliner enters inline rename mode. The implementation lives entirely in `src/editor/ui/outliner.rs`.
+Entity rows in the Outliner support inline rename via double-click, the context menu "Rename" item, or the F2 keyboard shortcut. The implementation lives entirely in `src/editor/ui/outliner.rs`.
 
 ### State
 
-`OutlinerState` now carries one additional field:
+`OutlinerState` carries two additional fields added for this feature:
 
 ```rust
 pub renaming_index: Option<usize>
+pub scroll_to_rename: bool
 ```
 
-`None` when idle; `Some(index)` while an entity row is being renamed. Only one entity can be in rename mode at a time.
+`renaming_index` is `None` when idle; `Some(index)` while an entity row is being renamed. Only one entity can be in rename mode at a time.
+
+`scroll_to_rename` is a one-shot flag: when `true`, the rename row calls `response.scroll_to_me(None)` on the first frame it is rendered, then resets itself to `false`. It is set by context-menu and F2 activation (not double-click, which already has the row in view).
 
 ### How it works
 
-1. **Entry** — `response.double_clicked()` on a non-`PlayerSpawn` `selectable_label` saves an `EntityData` clone to egui temp storage under key `"outliner_rename_cancel_snapshot".with(index)` and sets `renaming_index = Some(index)`.
-2. **Rendering** — The row is replaced by `ui.horizontal { ui.label(icon); TextEdit::singleline().frame(false).desired_width(INFINITY) }`. The borderless input fills the row and keeps the entity type icon visible, so row height does not change.
-3. **Focus** — `request_focus()` is called on the first frame the input appears, tracked by a `bool` in egui temp storage under `"outliner_rename_snapshot".with(index)`.
-4. **Write-through** — Every `response.changed()` writes the updated name directly to `entity_data.properties["name"]` and calls `mark_modified()` (Coding Guardrail 12).
-5. **Commit** — `response.lost_focus()` pops the cancel snapshot, compares old and new names, and pushes one `EditorAction::ModifyEntity` entry if they differ. `renaming_index` is cleared.
-6. **Cancel** — Escape restores the cancel snapshot name, clears both temp-storage keys, clears `renaming_index`. No history entry is pushed.
-7. **Deleted-entity guard** — At the top of each render, if `renaming_index >= entity count`, both temp-storage keys are cleaned up and `renaming_index` is reset to `None`.
+1. **Entry — double-click** — `response.double_clicked()` on a non-`PlayerSpawn` `selectable_label` saves an `EntityData` clone to egui temp storage under key `"outliner_rename_cancel_snapshot".with(index)` and sets `renaming_index = Some(index)`.
+2. **Entry — context menu** — The "Rename" button (visible for non-`PlayerSpawn` rows only) saves the cancel snapshot, sets `renaming_index = Some(index)`, and sets `scroll_to_rename = true`. The row is scrolled into view on the next frame.
+3. **Entry — F2** — Checked once before the entity loop. Guard: `renaming_index.is_none()` and exactly one non-`PlayerSpawn` entity is selected. Saves the cancel snapshot, sets `renaming_index`, and sets `scroll_to_rename = true`.
+4. **Rendering** — The row is replaced by `ui.horizontal { ui.label(icon); TextEdit::singleline().frame(false).desired_width(INFINITY) }`. The borderless input fills the row and keeps the entity type icon visible, so row height does not change.
+5. **Focus** — `request_focus()` is called on the first frame the input appears, tracked by a `bool` in egui temp storage under `"outliner_rename_snapshot".with(index)`.
+6. **Scroll** — If `scroll_to_rename` is `true` when the rename row is rendered, `response.scroll_to_me(None)` is called and the flag is cleared.
+7. **Write-through** — Every `response.changed()` writes the updated name directly to `entity_data.properties["name"]` and calls `mark_modified()` (Coding Guardrail 12).
+8. **Commit** — `response.lost_focus()` first removes the `"name"` key if it is empty (rather than storing `""`), then compares old and new names and pushes one `EditorAction::ModifyEntity` entry if they differ. `renaming_index` is cleared. The key removal runs before `new_data` is cloned so the history entry captures the key-absent state and undo/redo round-trips correctly.
+9. **Cancel** — Escape restores the cancel snapshot name, clears both temp-storage keys, clears `renaming_index`. No history entry is pushed.
+10. **Deleted-entity guard** — At the top of each render, if `renaming_index >= entity count`, both temp-storage keys are cleaned up and `renaming_index` is reset to `None`.
 
 ### Snapshot key design
 
@@ -799,6 +805,6 @@ Both are distinct from the Properties panel key `"entity_name_snapshot"` (see §
 
 ---
 
-**Document Version**: 2.7.0
+**Document Version**: 2.8.0
 **Last Updated**: 2026-04-08
-**Status**: Added Outliner Inline Rename section (April 2026)
+**Status**: Updated Outliner Inline Rename section with Phase 2 details (context menu, F2, scroll_to_rename, empty-name cleanup)

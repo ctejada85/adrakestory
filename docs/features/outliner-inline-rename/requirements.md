@@ -1,7 +1,7 @@
 # Requirements — Outliner Inline Rename
 
 **Source:** Feature discussion — 2026-04-08
-**Status:** Draft
+**Status:** Complete — Phase 1 delivered commit `630dfad`; Phase 2 delivered commit `814cbd7`
 
 ---
 
@@ -95,7 +95,7 @@ Entity names are stored as an optional string property — not a dedicated struc
 
 ## 5. Phase Scoping
 
-### Phase 1 — MVP
+### Phase 1 — MVP *(Delivered — commit `630dfad`)*
 
 - Double-click activation on non-PlayerSpawn entity rows
 - Auto-focused text input pre-filled with current name (or empty)
@@ -107,7 +107,7 @@ Entity names are stored as an optional string property — not a dedicated struc
 - Visually seamless rename row: entity type icon preserved, borderless input (`TextEdit::frame(false)`), fills row width (`desired_width(f32::INFINITY)`), row height unchanged
 - All existing Outliner behaviors unaffected
 
-### Phase 2 — Enhanced
+### Phase 2 — Enhanced *(Delivered — commit `814cbd7`)*
 
 - "Rename" item in the entity row context menu (scrolls the Outliner to the renaming row if currently off-screen)
 - F2 shortcut to enter rename mode for the selected entity
