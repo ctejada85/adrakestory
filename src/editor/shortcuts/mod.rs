@@ -12,6 +12,38 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy_egui::EguiContexts;
 
+/// Returns `true` when the platform shortcut modifier is held.
+///
+/// - **macOS**: Command (`SuperLeft` / `SuperRight`)
+/// - **Windows / Linux**: Ctrl (`ControlLeft` / `ControlRight`)
+///
+/// Use this in any system that handles standalone key bindings to suppress them
+/// while a shortcut modifier is held — preventing, for example, Cmd+S from also
+/// triggering WASD camera movement.
+#[cfg(target_os = "macos")]
+pub fn modifier_pressed(keyboard: &ButtonInput<KeyCode>) -> bool {
+    keyboard.pressed(KeyCode::SuperLeft) || keyboard.pressed(KeyCode::SuperRight)
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn modifier_pressed(keyboard: &ButtonInput<KeyCode>) -> bool {
+    keyboard.pressed(KeyCode::ControlLeft) || keyboard.pressed(KeyCode::ControlRight)
+}
+
+/// Returns the human-readable name for the platform shortcut modifier key.
+///
+/// - **macOS**: `"Cmd"`
+/// - **Windows / Linux**: `"Ctrl"`
+#[cfg(target_os = "macos")]
+pub fn modifier_key_label() -> &'static str {
+    "Cmd"
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn modifier_key_label() -> &'static str {
+    "Ctrl"
+}
+
 /// Event to request an undo operation
 #[derive(Message)]
 pub struct UndoEvent;
@@ -54,12 +86,18 @@ pub fn handle_global_shortcuts(
         return;
     }
 
-    let ctrl_pressed =
+    #[cfg(target_os = "macos")]
+    let modifier_pressed =
+        keyboard.pressed(KeyCode::SuperLeft) || keyboard.pressed(KeyCode::SuperRight);
+
+    #[cfg(not(target_os = "macos"))]
+    let modifier_pressed =
         keyboard.pressed(KeyCode::ControlLeft) || keyboard.pressed(KeyCode::ControlRight);
+
     let shift_pressed =
         keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight);
 
-    if !ctrl_pressed {
+    if !modifier_pressed {
         return;
     }
 

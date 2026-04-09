@@ -4,7 +4,7 @@ use crate::editor::file_io::{SaveMapAsEvent, SaveMapEvent};
 use crate::editor::history::EditorHistory;
 use crate::editor::play::{PlayMapEvent, PlayTestState, StopGameEvent};
 use crate::editor::recent_files::{OpenRecentFileEvent, RecentFiles};
-use crate::editor::shortcuts::{RedoEvent, UndoEvent};
+use crate::editor::shortcuts::{modifier_key_label, RedoEvent, UndoEvent};
 use crate::editor::state::{EditorState, EditorTool, EditorUIState, PendingAction, ToolMemory};
 use bevy::prelude::*;
 use bevy_egui::egui;
@@ -20,7 +20,8 @@ pub fn render_file_menu(
     open_recent_events: &mut MessageWriter<OpenRecentFileEvent>,
 ) {
     ui.menu_button("File", |ui| {
-        if ui.button("📄 New (Ctrl+N)").clicked() {
+        let mod_key = modifier_key_label();
+        if ui.button(format!("📄 New ({mod_key}+N)")).clicked() {
             if editor_state.is_modified {
                 ui_state.unsaved_changes_dialog_open = true;
                 ui_state.pending_action = Some(PendingAction::NewMap);
@@ -30,7 +31,7 @@ pub fn render_file_menu(
             ui.close();
         }
 
-        if ui.button("📁 Open... (Ctrl+O)").clicked() {
+        if ui.button(format!("📁 Open... ({mod_key}+O)")).clicked() {
             if editor_state.is_modified {
                 ui_state.unsaved_changes_dialog_open = true;
                 ui_state.pending_action = Some(PendingAction::OpenMap);
@@ -72,12 +73,15 @@ pub fn render_file_menu(
 
         ui.separator();
 
-        if ui.button("💾 Save (Ctrl+S)").clicked() {
+        if ui.button(format!("💾 Save ({mod_key}+S)")).clicked() {
             save_events.write(SaveMapEvent);
             ui.close();
         }
 
-        if ui.button("💾 Save As... (Ctrl+Shift+S)").clicked() {
+        if ui
+            .button(format!("💾 Save As... ({mod_key}+Shift+S)"))
+            .clicked()
+        {
             save_as_events.write(SaveMapAsEvent);
             ui.close();
         }
@@ -104,14 +108,15 @@ pub fn render_edit_menu(
     redo_events: &mut MessageWriter<RedoEvent>,
 ) {
     ui.menu_button("Edit", |ui| {
+        let mod_key = modifier_key_label();
         let can_undo = history.can_undo();
         let can_redo = history.can_redo();
 
         ui.add_enabled_ui(can_undo, |ui| {
             let undo_text = if let Some(desc) = history.undo_description() {
-                format!("↶ Undo {} (Ctrl+Z)", desc)
+                format!("↶ Undo {} ({mod_key}+Z)", desc)
             } else {
-                "↶ Undo (Ctrl+Z)".to_string()
+                format!("↶ Undo ({mod_key}+Z)")
             };
 
             if ui.button(undo_text).clicked() {
@@ -123,9 +128,9 @@ pub fn render_edit_menu(
 
         ui.add_enabled_ui(can_redo, |ui| {
             let redo_text = if let Some(desc) = history.redo_description() {
-                format!("↷ Redo {} (Ctrl+Y)", desc)
+                format!("↷ Redo {} ({mod_key}+Y)", desc)
             } else {
-                "↷ Redo (Ctrl+Y)".to_string()
+                format!("↷ Redo ({mod_key}+Y)")
             };
 
             if ui.button(redo_text).clicked() {

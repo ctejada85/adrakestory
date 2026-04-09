@@ -72,6 +72,11 @@ pub fn handle_keyboard_input(
         return;
     }
 
+    // Suppress all standalone bindings while shortcut modifier is held
+    if crate::editor::shortcuts::modifier_pressed(&keyboard) {
+        return;
+    }
+
     // Only handle input when Select tool is active
     if !matches!(editor_state.active_tool, EditorTool::Select) {
         return;

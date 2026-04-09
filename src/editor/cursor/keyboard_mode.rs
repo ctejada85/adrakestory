@@ -22,6 +22,11 @@ pub fn toggle_keyboard_edit_mode(
         return;
     }
 
+    // Suppress while shortcut modifier is held
+    if crate::editor::shortcuts::modifier_pressed(&keyboard) {
+        return;
+    }
+
     // Enter keyboard edit mode with I key
     if keyboard.just_pressed(KeyCode::KeyI) {
         keyboard_mode.enable();
@@ -60,6 +65,11 @@ pub fn handle_tool_switching(
         .expect("egui context")
         .wants_keyboard_input()
     {
+        return;
+    }
+
+    // Suppress tool switching while the shortcut modifier is held (Ctrl on Win/Linux, Cmd on macOS)
+    if crate::editor::shortcuts::modifier_pressed(&keyboard) {
         return;
     }
 
@@ -111,8 +121,8 @@ pub fn handle_tool_switching(
         info!("Switched to VoxelRemove tool");
     }
 
-    // Switch to EntityPlace tool with E key
-    if keyboard.just_pressed(KeyCode::KeyE)
+    // Switch to EntityPlace tool with 3 key
+    if keyboard.just_pressed(KeyCode::Digit3)
         && !matches!(editor_state.active_tool, EditorTool::EntityPlace { .. })
     {
         save_current_params(&editor_state, &mut tool_memory);

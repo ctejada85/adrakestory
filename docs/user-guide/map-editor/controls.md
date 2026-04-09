@@ -64,7 +64,7 @@ The map editor supports Xbox controllers (and other XInput-compatible gamepads) 
 2. **Aim at Surfaces**: The cursor snaps to voxel faces for precise placement
 3. **Quick Removal**: LT always removes voxels regardless of current tool
 4. **Cycle Patterns/Entities**: Use RB/LB to quickly switch between patterns or entity types without opening menus
-5. **Switch Tools**: Use keyboard shortcuts (B, X, E, V) to change tools while using controller
+5. **Switch Tools**: Use keyboard shortcuts (B, X, 3, V) to change tools while using controller
 
 ---
 
@@ -81,10 +81,10 @@ The editor uses a first-person fly camera (Minecraft Creative mode style).
 | **Move Backward** | S |
 | **Strafe Left** | A |
 | **Strafe Right** | D |
-| **Fly Up** | Space |
-| **Fly Down** | Ctrl |
-| **Next Pattern/Entity** | E |
-| **Previous Pattern/Entity** | Q |
+| **Fly Up** | Space / E |
+| **Fly Down** | Q |
+| **Next Pattern/Entity** | `]` |
+| **Previous Pattern/Entity** | `[` |
 | **Place Voxel** | Left-click (when over voxel/ground) |
 | **Remove Voxel** | Left-click (removes voxel you're looking at) |
 | **Place Entity** | Left-click (Entity Tool active) |
@@ -104,28 +104,28 @@ The editor uses a first-person fly camera (Minecraft Creative mode style).
 
 ### File Operations
 
-| Action | Shortcut | Menu Location |
-|--------|----------|---------------|
-| **New Map** | `Ctrl+N` | File → New |
-| **Open Map** | `Ctrl+O` | File → Open |
-| **Open Recent** | - | File → Open Recent → [file] |
-| **Save** | `Ctrl+S` | File → Save |
-| **Save As** | `Ctrl+Shift+S` | File → Save As |
-| **Exit** | `Ctrl+Q` | File → Exit |
+| Action | Shortcut (Windows/Linux) | Shortcut (macOS) | Menu Location |
+|--------|--------------------------|------------------|---------------|
+| **New Map** | `Ctrl+N` | `Cmd+N` | File → New |
+| **Open Map** | `Ctrl+O` | `Cmd+O` | File → Open |
+| **Open Recent** | - | - | File → Open Recent → [file] |
+| **Save** | `Ctrl+S` | `Cmd+S` | File → Save |
+| **Save As** | `Ctrl+Shift+S` | `Cmd+Shift+S` | File → Save As |
+| **Exit** | `Ctrl+Q` | `Cmd+Q` | File → Exit |
 
 > **Tip:** The **Open Recent** submenu shows up to 10 recently opened map files for quick access. Files are automatically added when you open or save maps, and the list persists between editor sessions.
 
 ### Edit Operations
 
-| Action | Shortcut | Menu Location |
-|--------|----------|---------------|
-| **Undo** | `Ctrl+Z` | Edit → Undo |
-| **Redo** | `Ctrl+Y` | Edit → Redo |
-| **Redo (Alt)** | `Ctrl+Shift+Z` | Edit → Redo |
-| **Delete** | `Delete` | Edit → Delete |
-| **Delete (Alt)** | `Backspace` | Edit → Delete |
-| **Select All** | `Ctrl+A` | Edit → Select All |
-| **Deselect All** | `Ctrl+D` | Edit → Deselect All |
+| Action | Shortcut (Windows/Linux) | Shortcut (macOS) | Menu Location |
+|--------|--------------------------|------------------|---------------|
+| **Undo** | `Ctrl+Z` | `Cmd+Z` | Edit → Undo |
+| **Redo** | `Ctrl+Y` | `Cmd+Y` | Edit → Redo |
+| **Redo (Alt)** | `Ctrl+Shift+Z` | `Cmd+Shift+Z` | Edit → Redo |
+| **Delete** | `Delete` | `Delete` | Edit → Delete |
+| **Delete (Alt)** | `Backspace` | `Backspace` | Edit → Delete |
+| **Select All** | `Ctrl+A` | `Cmd+A` | Edit → Select All |
+| **Deselect All** | `Ctrl+D` | `Cmd+D` | Edit → Deselect All |
 
 ### View Controls
 
@@ -146,14 +146,14 @@ The editor uses a first-person fly camera (Minecraft Creative mode style).
 | **Select Tool** | `V` | `2` | First button |
 | **Voxel Place Tool** | `B` | `1` | Second button |
 | **Voxel Remove Tool** | `X` | - | - |
-| **Entity Tool** | `E` | - | Third button |
+| **Entity Tool** | `3` | - | Third button |
 | **Camera Tool** | `C` | - | Fourth button |
 
 **Quick Tool Switching:**
 - Press `V` or `2` to switch to Select tool (for editing and moving)
 - Press `B` or `1` to switch to Voxel Place tool (most common for building)
 - Press `X` to switch to Voxel Remove tool
-- Press `E` to switch to Entity Place tool
+- Press `3` to switch to Entity Place tool
 - Press `C` to switch to Camera tool
 - Number keys work from anywhere (except when typing in text fields)
 - **Tool parameters are remembered** - when you switch back to a tool, it restores your previous settings (e.g., voxel type, pattern, entity type)
@@ -288,7 +288,7 @@ When the Voxel Remove Tool is active:
 
 > **Tip:** Drag across voxels to quickly clear areas. Each voxel under the cursor as you drag will be removed.
 
-### Entity Tool (`E`)
+### Entity Tool (`3`)
 
 When the Entity Tool is active:
 
@@ -358,7 +358,8 @@ When the Camera Tool is active, the camera behaves the same as other tools (fly 
 | Action | Control |
 |--------|---------|
 | **Move** | WASD keys |
-| **Fly Up/Down** | Space / Ctrl |
+| **Fly Up** | Space / E |
+| **Fly Down** | Q |
 | **Look Around** | Right-click + Drag |
 | **Reset** | Home key |
 
@@ -374,8 +375,8 @@ The editor uses a first-person fly camera similar to Minecraft Creative mode.
 | **Move Backward** | S | Left Stick Down |
 | **Strafe Left** | A | Left Stick Left |
 | **Strafe Right** | D | Left Stick Right |
-| **Fly Up** | Space | A Button |
-| **Fly Down** | Ctrl | B Button |
+| **Fly Up** | Space / E | A Button |
+| **Fly Down** | Q | B Button |
 | **Look Around** | Right-click + Drag | Right Stick |
 | **Reset Camera** | Home | Y Button |
 
@@ -383,11 +384,11 @@ The editor uses a first-person fly camera similar to Minecraft Creative mode.
 
 | Action | Keyboard | Controller |
 |--------|----------|------------|
-| **Next Pattern/Entity** | E | RB |
-| **Previous Pattern/Entity** | Q | LB |
+| **Next Pattern/Entity** | `]` | RB |
+| **Previous Pattern/Entity** | `[` | LB |
 
-When using the Voxel Place tool, Q/E cycles through patterns.
-When using the Entity Place tool, Q/E cycles through entity types.
+When using the Voxel Place tool, `[`/`]` cycles through patterns.
+When using the Entity Place tool, `[`/`]` cycles through entity types.
 
 ## Grid Controls
 
@@ -435,19 +436,19 @@ The status bar shows:
 
 1. Use `Home` to reset camera when lost
 2. Use WASD for movement, right-click + drag to look
-3. Press Space to fly up, Ctrl to fly down
-4. Use Q/E to quickly cycle through patterns or entities
+3. Press `Space` or `E` to fly up, `Q` to fly down
+4. Use `[`/`]` to quickly cycle through patterns or entities
 
 ### Efficient Editing
 
-1. Learn tool shortcuts (`V`, `B`, `E`, `C`)
-2. Use `Ctrl+Z` liberally - undo is your friend
+1. Learn tool shortcuts (`V`, `B`, `3`, `C`)
+2. Use `Ctrl+Z` / `Cmd+Z` liberally - undo is your friend
 3. Enable snap (`Shift+G`) for precise placement
 4. Use `Shift+Click` for multi-select
 
 ### Workflow Tips
 
-1. Save frequently with `Ctrl+S`
+1. Save frequently with `Ctrl+S` (Windows/Linux) or `Cmd+S` (macOS)
 2. Use grid for alignment
 3. Test in game regularly
 4. Keep Properties panel visible for quick adjustments

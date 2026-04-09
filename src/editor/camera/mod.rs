@@ -274,7 +274,7 @@ pub fn handle_camera_input(
     let wants_keyboard = ctx.wants_keyboard_input();
 
     // === WASD Movement (keyboard) ===
-    if !wants_keyboard {
+    if !wants_keyboard && !crate::editor::shortcuts::modifier_pressed(&keyboard) {
         let mut movement = Vec3::ZERO;
 
         // Forward/backward
@@ -293,11 +293,11 @@ pub fn handle_camera_input(
             movement += camera.right();
         }
 
-        // Up/down (Space/Ctrl)
-        if keyboard.pressed(KeyCode::Space) {
+        // Up/down (Space or E = up, Q = down)
+        if keyboard.pressed(KeyCode::Space) || keyboard.pressed(KeyCode::KeyE) {
             movement.y += 1.0;
         }
-        if keyboard.pressed(KeyCode::ControlLeft) || keyboard.pressed(KeyCode::ControlRight) {
+        if keyboard.pressed(KeyCode::KeyQ) {
             movement.y -= 1.0;
         }
 
@@ -324,7 +324,9 @@ pub fn handle_camera_input(
     }
 
     // === Keyboard shortcuts ===
-    if keyboard.just_pressed(KeyCode::Home) {
+    if keyboard.just_pressed(KeyCode::Home)
+        && !crate::editor::shortcuts::modifier_pressed(&keyboard)
+    {
         camera.reset();
     }
 
@@ -415,6 +417,7 @@ pub fn handle_gamepad_voxel_actions(
     gamepads: Query<&Gamepad>,
     mut editor_state: ResMut<crate::editor::state::EditorState>,
     mut history: ResMut<crate::editor::history::EditorHistory>,
+    mut render_events: MessageWriter<crate::editor::renderer::RenderMapEvent>,
     mut contexts: EguiContexts,
     time: Res<Time>,
     mut cooldown: Local<f32>,
@@ -485,6 +488,7 @@ pub fn handle_gamepad_voxel_actions(
                         .voxels
                         .push(voxel_data.clone());
                     editor_state.mark_modified();
+                    render_events.write(crate::editor::renderer::RenderMapEvent);
 
                     history.push(crate::editor::history::EditorAction::PlaceVoxel {
                         pos: grid_pos,
@@ -506,6 +510,7 @@ pub fn handle_gamepad_voxel_actions(
                 {
                     let removed = editor_state.current_map.world.voxels.remove(idx);
                     editor_state.mark_modified();
+                    render_events.write(crate::editor::renderer::RenderMapEvent);
 
                     history.push(crate::editor::history::EditorAction::RemoveVoxel {
                         pos: remove_pos,
@@ -530,6 +535,7 @@ pub fn handle_gamepad_voxel_actions(
 
                 editor_state.current_map.entities.push(entity_data.clone());
                 editor_state.mark_modified();
+                render_events.write(crate::editor::renderer::RenderMapEvent);
 
                 history.push(crate::editor::history::EditorAction::PlaceEntity {
                     index: editor_state.current_map.entities.len() - 1,
@@ -567,6 +573,7 @@ pub fn handle_gamepad_voxel_actions(
         {
             let removed = editor_state.current_map.world.voxels.remove(idx);
             editor_state.mark_modified();
+            render_events.write(crate::editor::renderer::RenderMapEvent);
 
             history.push(crate::editor::history::EditorAction::RemoveVoxel {
                 pos: remove_pos,
@@ -610,12 +617,12 @@ pub fn handle_gamepad_tool_cycling(
         }
     }
 
-    // Q/E keys (only when UI doesn't want keyboard)
-    if !wants_keyboard {
-        if keyboard.just_pressed(KeyCode::KeyE) {
+    // [ / ] keys (only when UI doesn't want keyboard and modifier not held)
+    if !wants_keyboard && !crate::editor::shortcuts::modifier_pressed(&keyboard) {
+        if keyboard.just_pressed(KeyCode::BracketRight) {
             next_pressed = true;
         }
-        if keyboard.just_pressed(KeyCode::KeyQ) {
+        if keyboard.just_pressed(KeyCode::BracketLeft) {
             prev_pressed = true;
         }
     }

@@ -31,6 +31,11 @@ pub fn handle_keyboard_cursor_movement(
         return;
     }
 
+    // Suppress standalone keys when shortcut modifier is held
+    if crate::editor::shortcuts::modifier_pressed(&keyboard) {
+        return;
+    }
+
     // Block keyboard cursor movement for Camera tool
     if matches!(editor_state.active_tool, EditorTool::Camera) {
         return;
@@ -127,6 +132,11 @@ pub fn handle_keyboard_selection(
         .expect("egui context")
         .wants_keyboard_input()
     {
+        return;
+    }
+
+    // Suppress standalone keys when shortcut modifier is held
+    if crate::editor::shortcuts::modifier_pressed(&keyboard) {
         return;
     }
 

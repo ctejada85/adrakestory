@@ -338,7 +338,125 @@ fn f2_is_noop_for_player_spawn() {
     assert_eq!(state.renaming_index, None);
 }
 
-// --- Phase 2: empty-name commit removes the "name" key ---
+// --- Entity deletion history (bug-entity-delete-no-undo) ---
+
+#[test]
+fn delete_pushes_remove_entity_action_onto_history() {
+    // Simulate the fixed deletion handler logic:
+    // 1. clone entity at index
+    // 2. push RemoveEntity onto history
+    // 3. remove from vec
+    use crate::editor::history::{EditorAction, EditorHistory};
+
+    let entity = make_entity(EntityType::Npc, Some("Guard"));
+    let mut entities: Vec<EntityData> = vec![
+        make_entity(EntityType::PlayerSpawn, None),
+        entity.clone(),
+        make_entity(EntityType::Enemy, None),
+    ];
+    let mut history = EditorHistory::new();
+
+    let index = 1usize;
+    let removed_data = entities[index].clone();
+    history.push(EditorAction::RemoveEntity {
+        index,
+        data: removed_data,
+    });
+    entities.remove(index);
+
+    assert_eq!(history.undo_count(), 1, "one undo entry should be present");
+    assert_eq!(entities.len(), 2, "entity list should have one fewer item");
+}
+
+#[test]
+fn undo_after_delete_restores_entity_at_correct_index() {
+    use crate::editor::history::{EditorAction, EditorHistory};
+
+    let npc = make_entity(EntityType::Npc, Some("Guard"));
+    let mut entities: Vec<EntityData> = vec![
+        make_entity(EntityType::PlayerSpawn, None),
+        npc.clone(),
+        make_entity(EntityType::Enemy, None),
+    ];
+    let mut history = EditorHistory::new();
+
+    // Simulate deletion at index 1
+    let index = 1usize;
+    history.push(EditorAction::RemoveEntity {
+        index,
+        data: entities[index].clone(),
+    });
+    entities.remove(index);
+
+    // Simulate undo: inverse of RemoveEntity is PlaceEntity → insert at index
+    if let Some(action) = history.undo() {
+        let inverse = action.inverse();
+        if let EditorAction::PlaceEntity {
+            index: restore_index,
+            data,
+        } = inverse
+        {
+            if restore_index <= entities.len() {
+                entities.insert(restore_index, data);
+            } else {
+                entities.push(data);
+            }
+        }
+    }
+
+    assert_eq!(entities.len(), 3, "entity should be restored");
+    assert_eq!(
+        entities[1].entity_type,
+        EntityType::Npc,
+        "restored entity should be at index 1"
+    );
+    assert_eq!(
+        entities[1].properties.get("name").map(String::as_str),
+        Some("Guard"),
+        "restored entity should have original name"
+    );
+    assert_eq!(
+        history.undo_count(),
+        0,
+        "undo stack should be empty after undo"
+    );
+}
+
+#[test]
+fn delete_only_entity_then_undo_restores_single_entity() {
+    use crate::editor::history::{EditorAction, EditorHistory};
+
+    let entity = make_entity(EntityType::PlayerSpawn, None);
+    let mut entities: Vec<EntityData> = vec![entity.clone()];
+    let mut history = EditorHistory::new();
+
+    // Delete the only entity
+    history.push(EditorAction::RemoveEntity {
+        index: 0,
+        data: entities[0].clone(),
+    });
+    entities.remove(0);
+    assert!(entities.is_empty());
+
+    // Undo
+    if let Some(action) = history.undo() {
+        let inverse = action.inverse();
+        if let EditorAction::PlaceEntity {
+            index: restore_index,
+            data,
+        } = inverse
+        {
+            if restore_index <= entities.len() {
+                entities.insert(restore_index, data);
+            } else {
+                entities.push(data);
+            }
+        }
+    }
+
+    assert_eq!(entities.len(), 1, "single entity should be restored");
+    assert_eq!(entities[0].entity_type, EntityType::PlayerSpawn);
+}
 
 #[test]
 fn empty_name_commit_removes_name_key() {

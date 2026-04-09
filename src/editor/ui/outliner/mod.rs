@@ -533,6 +533,11 @@ fn render_entities_section(
                         outliner_state.renaming_index = None;
                     }
 
+                    let removed_data = editor_state.current_map.entities[index].clone();
+                    history.push(EditorAction::RemoveEntity {
+                        index,
+                        data: removed_data,
+                    });
                     editor_state.current_map.entities.remove(index);
                     editor_state.selected_entities.clear();
                     editor_state.mark_modified();

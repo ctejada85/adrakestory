@@ -20,6 +20,7 @@ pub use voxel_tools::{
 
 use crate::editor::cursor::CursorState;
 use crate::editor::history::EditorHistory;
+use crate::editor::renderer::RenderMapEvent;
 use crate::editor::state::{EditorState, EditorTool};
 use crate::editor::tools::{
     ActiveTransform, CancelTransform, ConfirmTransform, DeleteSelectedVoxels, StartMoveOperation,
@@ -36,6 +37,7 @@ pub struct TransformEvents<'w> {
     pub rotate_start: MessageWriter<'w, StartRotateOperation>,
     pub confirm: MessageWriter<'w, ConfirmTransform>,
     pub cancel: MessageWriter<'w, CancelTransform>,
+    pub render: MessageWriter<'w, RenderMapEvent>,
 }
 
 /// Render the right-side properties panel

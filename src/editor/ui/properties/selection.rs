@@ -31,7 +31,7 @@ pub fn render_select_content(
 
     // Check if entities are selected
     if !editor_state.selected_entities.is_empty() {
-        render_entity_selection_content(ui, editor_state, history);
+        render_entity_selection_content(ui, editor_state, history, events);
         return;
     }
 
@@ -177,12 +177,13 @@ fn render_entity_selection_content(
     ui: &mut egui::Ui,
     editor_state: &mut EditorState,
     history: &mut EditorHistory,
+    events: &mut TransformEvents,
 ) {
     let count = editor_state.selected_entities.len();
 
     if count == 1 {
         // Single entity - show full properties
-        render_single_entity_properties(ui, editor_state, history);
+        render_single_entity_properties(ui, editor_state, history, events);
     } else {
         // Multiple entities
         ui.group(|ui| {

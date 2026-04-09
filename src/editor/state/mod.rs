@@ -40,6 +40,13 @@ pub struct EditorState {
     /// Whether the map has unsaved changes
     pub is_modified: bool,
 
+    /// Whether the map needs to be re-rendered.
+    ///
+    /// Set to `true` by every mutation path (via `mark_modified`).
+    /// Cleared by `detect_map_changes` after it emits a `RenderMapEvent`.
+    /// Distinct from `is_modified` so that saving does not suppress pending renders.
+    pub render_dirty: bool,
+
     /// Currently active tool
     pub active_tool: EditorTool,
 
@@ -74,6 +81,7 @@ impl Default for EditorState {
             current_map: MapData::empty_map(),
             file_path: None,
             is_modified: false,
+            render_dirty: false,
             active_tool: EditorTool::VoxelPlace {
                 voxel_type: VoxelType::Grass,
                 pattern: SubVoxelPattern::Full,
@@ -106,6 +114,7 @@ impl EditorState {
     /// Mark the map as modified
     pub fn mark_modified(&mut self) {
         self.is_modified = true;
+        self.render_dirty = true;
     }
 
     /// Clear the modified flag (after saving)

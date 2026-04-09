@@ -2,6 +2,7 @@
 
 use crate::editor::file_io::SaveMapEvent;
 use crate::editor::recent_files::OpenRecentFileEvent;
+use crate::editor::shortcuts::modifier_key_label;
 use crate::editor::state::{EditorState, EditorUIState, PendingAction};
 use crate::systems::game::map::format::MapData;
 use bevy::prelude::*;
@@ -182,16 +183,17 @@ fn render_shortcuts_help(ctx: &egui::Context, ui_state: &mut EditorUIState) {
         .default_width(400.0)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .show(ctx, |ui| {
+            let mod_key = modifier_key_label();
             ui.heading("File Operations");
-            ui.label("Ctrl+N - New Map");
-            ui.label("Ctrl+O - Open Map");
-            ui.label("Ctrl+S - Save");
-            ui.label("Ctrl+Shift+S - Save As");
+            ui.label(format!("{mod_key}+N - New Map"));
+            ui.label(format!("{mod_key}+O - Open Map"));
+            ui.label(format!("{mod_key}+S - Save"));
+            ui.label(format!("{mod_key}+Shift+S - Save As"));
 
             ui.separator();
             ui.heading("Edit Operations");
-            ui.label("Ctrl+Z - Undo");
-            ui.label("Ctrl+Y - Redo");
+            ui.label(format!("{mod_key}+Z - Undo"));
+            ui.label(format!("{mod_key}+Y - Redo"));
             ui.label("Delete/Backspace - Remove");
 
             ui.separator();

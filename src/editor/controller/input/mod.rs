@@ -7,8 +7,8 @@ use crate::editor::controller::camera::ControllerCameraMode;
 use crate::editor::controller::cursor::ControllerCursor;
 use crate::editor::controller::hotbar::{default_hotbar, HotbarItem, PaletteCategory};
 use crate::editor::history::{EditorAction, EditorHistory};
+use crate::editor::renderer::RenderMapEvent;
 use crate::editor::state::EditorState;
-use crate::editor::MapRenderState;
 use crate::systems::game::map::format::{EntityData, SubVoxelPattern, VoxelData};
 use bevy::input::gamepad::{GamepadAxis, GamepadButton};
 use bevy::prelude::*;
@@ -187,21 +187,23 @@ pub fn handle_controller_hotbar(
         KeyCode::Digit8,
         KeyCode::Digit9,
     ];
-    for (i, key) in number_keys.iter().enumerate() {
-        if keyboard.just_pressed(*key) {
-            edit_mode.goto_slot(i);
+    if !crate::editor::shortcuts::modifier_pressed(&keyboard) {
+        for (i, key) in number_keys.iter().enumerate() {
+            if keyboard.just_pressed(*key) {
+                edit_mode.goto_slot(i);
+                cycled = true;
+            }
+        }
+
+        // Keyboard: scroll wheel equivalent with [ and ]
+        if keyboard.just_pressed(KeyCode::BracketLeft) {
+            edit_mode.prev_slot();
             cycled = true;
         }
-    }
-
-    // Keyboard: scroll wheel equivalent with [ and ]
-    if keyboard.just_pressed(KeyCode::BracketLeft) {
-        edit_mode.prev_slot();
-        cycled = true;
-    }
-    if keyboard.just_pressed(KeyCode::BracketRight) {
-        edit_mode.next_slot();
-        cycled = true;
+        if keyboard.just_pressed(KeyCode::BracketRight) {
+            edit_mode.next_slot();
+            cycled = true;
+        }
     }
 
     if cycled {
@@ -223,8 +225,8 @@ pub fn handle_controller_palette(
 ) {
     // Mode check removed - all input methods now work together
 
-    // Y button or E key to toggle palette
-    let mut toggle_palette = keyboard.just_pressed(KeyCode::KeyE);
+    // Y button to toggle palette (keyboard E binding removed — E is now fly-up)
+    let mut toggle_palette = false;
     for gamepad in gamepads.iter() {
         if gamepad.just_pressed(GamepadButton::North) {
             toggle_palette = true;
@@ -323,7 +325,7 @@ pub fn handle_controller_editing(
     mut edit_mode: ResMut<ControllerEditMode>,
     mut editor_state: ResMut<EditorState>,
     mut history: ResMut<EditorHistory>,
-    mut render_state: ResMut<MapRenderState>,
+    mut render_events: MessageWriter<RenderMapEvent>,
 ) {
     // Mode check removed - all input methods now work together
 
@@ -394,7 +396,7 @@ pub fn handle_controller_editing(
                             .voxels
                             .push(voxel_data.clone());
                         editor_state.mark_modified();
-                        render_state.needs_render = true;
+                        render_events.write(RenderMapEvent);
 
                         history.push(EditorAction::PlaceVoxel {
                             pos,
@@ -419,7 +421,7 @@ pub fn handle_controller_editing(
                     let index = editor_state.current_map.entities.len();
                     editor_state.current_map.entities.push(entity_data.clone());
                     editor_state.mark_modified();
-                    render_state.needs_render = true;
+                    render_events.write(RenderMapEvent);
 
                     history.push(EditorAction::PlaceEntity {
                         index,
@@ -451,7 +453,7 @@ pub fn handle_controller_editing(
             {
                 let removed = editor_state.current_map.world.voxels.remove(idx);
                 editor_state.mark_modified();
-                render_state.needs_render = true;
+                render_events.write(RenderMapEvent);
 
                 history.push(EditorAction::RemoveVoxel { pos, data: removed });
                 edit_mode.action_cooldown = 0.15;
