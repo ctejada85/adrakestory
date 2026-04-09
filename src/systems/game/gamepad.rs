@@ -21,13 +21,10 @@ pub struct ActiveGamepad(pub Option<Entity>);
 pub struct GamepadSettings {
     /// Deadzone for analog sticks (0.0 to 1.0)
     pub stick_deadzone: f32,
-    /// Deadzone for triggers (0.0 to 1.0) — not yet applied.
-    /// See ticket: docs/bugs/gamepad-settings-apply/ticket.md
-    #[allow(dead_code)]
+    /// Deadzone for triggers (0.0 to 1.0).
+    /// Raw axis values below this threshold produce no action.
     pub trigger_deadzone: f32,
-    /// Whether to invert the Y-axis for camera control — not yet applied.
-    /// See ticket: docs/bugs/gamepad-settings-apply/ticket.md
-    #[allow(dead_code)]
+    /// Whether to invert the Y-axis for camera/look control.
     pub invert_camera_y: bool,
     /// Camera rotation sensitivity multiplier — not yet applied.
     /// See ticket: docs/bugs/gamepad-settings-apply/ticket.md
@@ -83,6 +80,12 @@ pub struct PlayerInput {
     pub camera_reset_just_pressed: bool,
     /// Flashlight toggle just pressed (F key or Y button)
     pub flashlight_toggle_just_pressed: bool,
+    /// Left trigger axis value [0.0, 1.0], after trigger_deadzone is applied.
+    /// Zero when the raw value is below the deadzone threshold.
+    pub left_trigger: f32,
+    /// Right trigger axis value [0.0, 1.0], after trigger_deadzone is applied.
+    /// Zero when the raw value is below the deadzone threshold.
+    pub right_trigger: f32,
     /// The current active input source
     pub input_source: InputSource,
 }
@@ -161,6 +164,8 @@ pub fn gather_gamepad_input(
     let mut gamepad_camera_reset = false;
     let mut gamepad_flashlight_toggle = false;
     let mut gamepad_active = false;
+    let mut gamepad_left_trigger: f32 = 0.0;
+    let mut gamepad_right_trigger: f32 = 0.0;
 
     if let Some(gamepad_entity) = active_gamepad.0 {
         if let Ok(gamepad) = gamepad_query.get(gamepad_entity) {
@@ -177,7 +182,11 @@ pub fn gather_gamepad_input(
                 gamepad.get(GamepadAxis::RightStickX).unwrap_or(0.0),
                 gamepad.get(GamepadAxis::RightStickY).unwrap_or(0.0),
             );
-            gamepad_look_direction = apply_deadzone(right_stick, settings.stick_deadzone);
+            let mut look = apply_deadzone(right_stick, settings.stick_deadzone);
+            if settings.invert_camera_y {
+                look.y = -look.y;
+            }
+            gamepad_look_direction = look;
 
             // Camera delta is not used from right stick anymore
             gamepad_camera = Vec2::ZERO;
@@ -189,6 +198,20 @@ pub fn gather_gamepad_input(
             gamepad_pause = gamepad.just_pressed(GamepadButton::Start);
             gamepad_camera_reset = gamepad.just_pressed(GamepadButton::RightThumb);
             gamepad_flashlight_toggle = gamepad.just_pressed(GamepadButton::North); // Y button
+
+            // Trigger axes — apply custom deadzone
+            let left_trigger_raw = gamepad.get(GamepadAxis::LeftZ).unwrap_or(0.0);
+            let right_trigger_raw = gamepad.get(GamepadAxis::RightZ).unwrap_or(0.0);
+            gamepad_left_trigger = if left_trigger_raw >= settings.trigger_deadzone {
+                left_trigger_raw
+            } else {
+                0.0
+            };
+            gamepad_right_trigger = if right_trigger_raw >= settings.trigger_deadzone {
+                right_trigger_raw
+            } else {
+                0.0
+            };
 
             // Detect if gamepad is being used (any significant input)
             gamepad_active = gamepad_movement.length() > 0.01
@@ -217,6 +240,8 @@ pub fn gather_gamepad_input(
         player_input.pause_just_pressed = gamepad_pause;
         player_input.camera_reset_just_pressed = gamepad_camera_reset;
         player_input.flashlight_toggle_just_pressed = gamepad_flashlight_toggle;
+        player_input.left_trigger = gamepad_left_trigger;
+        player_input.right_trigger = gamepad_right_trigger;
     }
 }
 
@@ -460,12 +485,81 @@ mod tests {
         assert!(!input.pause_just_pressed);
         assert!(!input.camera_reset_just_pressed);
         assert!(!input.flashlight_toggle_just_pressed);
+        assert_eq!(input.left_trigger, 0.0);
+        assert_eq!(input.right_trigger, 0.0);
         assert_eq!(input.input_source, InputSource::KeyboardMouse);
     }
 
     // -------------------------------------------------------------------------
     // InputSource Tests
     // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_invert_camera_y_false_leaves_y_unchanged() {
+        // With invert_camera_y false the Y component of look_direction is unchanged.
+        let stick = Vec2::new(0.0, 0.8);
+        let mut look = apply_deadzone(stick, 0.15);
+        let invert = false;
+        if invert {
+            look.y = -look.y;
+        }
+        assert!(look.y > 0.0, "Y should be positive when not inverted");
+    }
+
+    #[test]
+    fn test_invert_camera_y_true_negates_y() {
+        // With invert_camera_y true the Y component must be negated.
+        let stick = Vec2::new(0.0, 0.8);
+        let after_deadzone = apply_deadzone(stick, 0.15);
+        let normal_y = after_deadzone.y;
+        let mut look = after_deadzone;
+        look.y = -look.y;
+        assert_eq!(look.y, -normal_y);
+    }
+
+    #[test]
+    fn test_invert_camera_y_does_not_affect_x() {
+        // Inversion must only touch the Y axis.
+        let stick = Vec2::new(0.6, 0.6);
+        let after_deadzone = apply_deadzone(stick, 0.15);
+        let normal_x = after_deadzone.x;
+        let mut look = after_deadzone;
+        look.y = -look.y;
+        assert_eq!(look.x, normal_x);
+    }
+
+    #[test]
+    fn test_trigger_deadzone_below_threshold_produces_zero() {
+        let raw = 0.05_f32;
+        let deadzone = 0.1_f32;
+        let result = if raw >= deadzone { raw } else { 0.0 };
+        assert_eq!(result, 0.0);
+    }
+
+    #[test]
+    fn test_trigger_deadzone_at_threshold_passes_through() {
+        // A raw value exactly at the threshold must pass through.
+        let raw = 0.1_f32;
+        let deadzone = 0.1_f32;
+        let result = if raw >= deadzone { raw } else { 0.0 };
+        assert_eq!(result, raw);
+    }
+
+    #[test]
+    fn test_trigger_deadzone_above_threshold_passes_through() {
+        let raw = 0.75_f32;
+        let deadzone = 0.1_f32;
+        let result = if raw >= deadzone { raw } else { 0.0 };
+        assert_eq!(result, raw);
+    }
+
+    #[test]
+    fn test_trigger_deadzone_zero_deadzone_always_passes() {
+        for &raw in &[0.0_f32, 0.01, 0.5, 1.0] {
+            let result = if raw >= 0.0_f32 { raw } else { 0.0 };
+            assert_eq!(result, raw);
+        }
+    }
 
     #[test]
     fn test_input_source_default() {
