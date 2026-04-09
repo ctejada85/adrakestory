@@ -101,9 +101,10 @@ use systems::game::npc_labels::{
     update_npc_label_visibility,
 };
 use systems::game::systems::{
-    apply_gravity, apply_npc_collision, apply_physics, follow_player_camera, handle_escape_key,
-    move_player, rotate_camera, rotate_character_model, sync_light_sources, toggle_collision_box,
-    toggle_flashlight, toggle_fullscreen, update_collision_box, update_flashlight_rotation,
+    apply_gravity, apply_npc_collision, apply_physics, flicker_lights, follow_player_camera,
+    handle_escape_key, move_player, rotate_camera, rotate_character_model, sync_light_sources,
+    toggle_collision_box, toggle_flashlight, toggle_fullscreen, update_collision_box,
+    update_flashlight_rotation,
 };
 use systems::intro_animation::systems::{animate_intro, cleanup_intro, setup_intro};
 use systems::loading_screen::{
@@ -262,6 +263,7 @@ fn main() {
                 rotate_character_model,
                 update_collision_box,
                 update_flashlight_rotation,
+                flicker_lights.before(sync_light_sources),
                 sync_light_sources,
                 update_chunk_lods,
                 update_cursor_visibility,

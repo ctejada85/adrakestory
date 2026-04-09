@@ -110,3 +110,34 @@ impl Default for LightSource {
         }
     }
 }
+
+/// Opt-in component that makes a [`LightSource`] flicker over time.
+///
+/// Any entity that has both `LightSource` and `FlickerLight` will have its
+/// intensity oscillated by `flicker_lights` each frame using a sine wave:
+///
+/// ```text
+/// intensity = base_intensity + amplitude * sin(elapsed_secs * speed)
+/// ```
+///
+/// Removing this component from an entity stops the flicker effect without
+/// touching the underlying `LightSource` or the `sync_light_sources` pipeline.
+#[derive(Component)]
+pub struct FlickerLight {
+    /// Centre intensity around which the light flickers (lumens).
+    pub base_intensity: f32,
+    /// Peak deviation from `base_intensity` in either direction (lumens).
+    pub amplitude: f32,
+    /// Oscillation frequency in radians per second.
+    pub speed: f32,
+}
+
+impl Default for FlickerLight {
+    fn default() -> Self {
+        Self {
+            base_intensity: 10_000.0,
+            amplitude: 3_000.0,
+            speed: 4.0,
+        }
+    }
+}
