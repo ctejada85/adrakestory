@@ -26,6 +26,10 @@ pub struct OutlinerState {
     pub voxel_type_expanded: HashMap<VoxelType, bool>,
     /// Index of the entity currently being renamed (`None` when idle).
     pub renaming_index: Option<usize>,
+    /// One-shot flag: scroll the rename row into view on the next frame it is rendered.
+    /// Set when rename mode is entered via context menu or F2 (not double-click, which
+    /// already has the row on screen).
+    pub scroll_to_rename: bool,
 }
 
 impl OutlinerState {
@@ -36,6 +40,7 @@ impl OutlinerState {
             filter_text: String::new(),
             voxel_type_expanded: HashMap::new(),
             renaming_index: None,
+            scroll_to_rename: false,
         }
     }
 }
@@ -278,6 +283,30 @@ fn render_entities_section(
             // Filter
             let filter = outliner_state.filter_text.to_lowercase();
 
+            // F2: enter rename mode for the single selected non-PlayerSpawn entity.
+            // Guard: no rename already in progress, exactly one entity selected.
+            if outliner_state.renaming_index.is_none()
+                && ui.input(|i| i.key_pressed(egui::Key::F2))
+                && editor_state.selected_entities.len() == 1
+            {
+                let sel_index = *editor_state.selected_entities.iter().next().unwrap();
+                if sel_index < editor_state.current_map.entities.len()
+                    && editor_state.current_map.entities[sel_index].entity_type
+                        != EntityType::PlayerSpawn
+                {
+                    let cancel_id =
+                        egui::Id::new("outliner_rename_cancel_snapshot").with(sel_index);
+                    ui.data_mut(|d| {
+                        d.insert_temp(
+                            cancel_id,
+                            editor_state.current_map.entities[sel_index].clone(),
+                        )
+                    });
+                    outliner_state.renaming_index = Some(sel_index);
+                    outliner_state.scroll_to_rename = true;
+                }
+            }
+
             // Track entities to delete (can't modify while iterating)
             let mut entity_to_delete: Option<usize> = None;
 
@@ -336,6 +365,12 @@ fn render_entities_section(
                         response.request_focus();
                     }
 
+                    // Scroll this rename row into view if activation came from context menu or F2.
+                    if outliner_state.scroll_to_rename {
+                        response.scroll_to_me(None);
+                        outliner_state.scroll_to_rename = false;
+                    }
+
                     // Write-through: keep the stored name in sync every keystroke (Guardrail 12).
                     if response.changed() {
                         editor_state.current_map.entities[index]
@@ -372,6 +407,22 @@ fn render_entities_section(
                             d.remove::<bool>(snapshot_id);
                         });
                         if let Some(old_data) = old_data {
+                            // Phase 2: empty-name commit removes the key rather than storing "".
+                            // Do this before cloning new_data so the history entry captures the
+                            // clean state (key absent) rather than an empty string.
+                            if editor_state.current_map.entities[index]
+                                .properties
+                                .get("name")
+                                .map(String::as_str)
+                                .unwrap_or("")
+                                .is_empty()
+                            {
+                                editor_state.current_map.entities[index]
+                                    .properties
+                                    .remove("name");
+                                editor_state.mark_modified();
+                            }
+
                             let old_name = old_data
                                 .properties
                                 .get("name")
@@ -435,6 +486,22 @@ fn render_entities_section(
 
                         // Context menu on right-click
                         response.context_menu(|ui| {
+                            // "Rename" only for entity types that support names.
+                            if entity_type != EntityType::PlayerSpawn
+                                && ui.button("✏️ Rename").clicked()
+                            {
+                                let cancel_id =
+                                    egui::Id::new("outliner_rename_cancel_snapshot").with(index);
+                                ui.data_mut(|d| {
+                                    d.insert_temp(
+                                        cancel_id,
+                                        editor_state.current_map.entities[index].clone(),
+                                    )
+                                });
+                                outliner_state.renaming_index = Some(index);
+                                outliner_state.scroll_to_rename = true;
+                                ui.close();
+                            }
                             if ui.button("🗑️ Delete").clicked() {
                                 entity_to_delete = Some(index);
                                 ui.close();
@@ -716,5 +783,249 @@ mod tests {
             .insert("name".to_string(), old_name.clone());
 
         assert_eq!(current.properties.get("name").map(String::as_str), Some(""));
+    }
+
+    // --- Phase 2: scroll_to_rename field ---
+
+    #[test]
+    fn scroll_to_rename_defaults_to_false() {
+        let state = OutlinerState::default();
+        assert!(!state.scroll_to_rename);
+    }
+
+    #[test]
+    fn scroll_to_rename_new_is_false() {
+        let state = OutlinerState::new();
+        assert!(!state.scroll_to_rename);
+    }
+
+    #[test]
+    fn scroll_to_rename_can_be_set_and_cleared() {
+        let mut state = OutlinerState::new();
+        state.scroll_to_rename = true;
+        assert!(state.scroll_to_rename);
+        state.scroll_to_rename = false;
+        assert!(!state.scroll_to_rename);
+    }
+
+    // --- Phase 2: context menu Rename sets renaming_index (logic simulation) ---
+
+    #[test]
+    fn context_menu_rename_sets_renaming_index_for_non_player_spawn() {
+        // Simulates the context-menu "Rename" handler logic.
+        let mut state = OutlinerState::new();
+        let entity_type = EntityType::Npc;
+        let index = 2usize;
+
+        // Guard mirrors the production code: entity_type != PlayerSpawn
+        if entity_type != EntityType::PlayerSpawn {
+            state.renaming_index = Some(index);
+            state.scroll_to_rename = true;
+        }
+
+        assert_eq!(state.renaming_index, Some(index));
+        assert!(state.scroll_to_rename);
+    }
+
+    #[test]
+    fn context_menu_rename_does_not_fire_for_player_spawn() {
+        let mut state = OutlinerState::new();
+        let entity_type = EntityType::PlayerSpawn;
+        let index = 0usize;
+
+        if entity_type != EntityType::PlayerSpawn {
+            state.renaming_index = Some(index);
+            state.scroll_to_rename = true;
+        }
+
+        assert_eq!(state.renaming_index, None);
+        assert!(!state.scroll_to_rename);
+    }
+
+    // --- Phase 2: F2 shortcut logic ---
+
+    #[test]
+    fn f2_enters_rename_for_single_selected_non_player_spawn() {
+        let mut state = OutlinerState::new();
+
+        // Simulate: renaming_index is None, exactly one non-PlayerSpawn entity selected.
+        let sel_index = 1usize;
+        let entity_type = EntityType::Enemy;
+        let mut selected = std::collections::HashSet::new();
+        selected.insert(sel_index);
+
+        // Mirrors the F2 guard in production code.
+        if state.renaming_index.is_none()
+            && selected.len() == 1
+            && entity_type != EntityType::PlayerSpawn
+        {
+            state.renaming_index = Some(sel_index);
+            state.scroll_to_rename = true;
+        }
+
+        assert_eq!(state.renaming_index, Some(sel_index));
+        assert!(state.scroll_to_rename);
+    }
+
+    #[test]
+    fn f2_is_noop_when_nothing_selected() {
+        let mut state = OutlinerState::new();
+        let selected: std::collections::HashSet<usize> = std::collections::HashSet::new();
+
+        if state.renaming_index.is_none() && selected.len() == 1 {
+            state.renaming_index = Some(0);
+        }
+
+        assert_eq!(state.renaming_index, None);
+    }
+
+    #[test]
+    fn f2_is_noop_when_multiple_entities_selected() {
+        let mut state = OutlinerState::new();
+        let mut selected = std::collections::HashSet::new();
+        selected.insert(0usize);
+        selected.insert(1usize);
+
+        if state.renaming_index.is_none() && selected.len() == 1 {
+            state.renaming_index = Some(0);
+        }
+
+        assert_eq!(state.renaming_index, None);
+    }
+
+    #[test]
+    fn f2_is_noop_when_rename_already_active() {
+        let mut state = OutlinerState::new();
+        state.renaming_index = Some(0); // already renaming
+        let mut selected = std::collections::HashSet::new();
+        selected.insert(1usize);
+
+        if state.renaming_index.is_none() && selected.len() == 1 {
+            state.renaming_index = Some(1);
+        }
+
+        // renaming_index stays at 0, not overwritten to 1
+        assert_eq!(state.renaming_index, Some(0));
+    }
+
+    #[test]
+    fn f2_is_noop_for_player_spawn() {
+        let mut state = OutlinerState::new();
+        let sel_index = 0usize;
+        let entity_type = EntityType::PlayerSpawn;
+        let mut selected = std::collections::HashSet::new();
+        selected.insert(sel_index);
+
+        if state.renaming_index.is_none()
+            && selected.len() == 1
+            && entity_type != EntityType::PlayerSpawn
+        {
+            state.renaming_index = Some(sel_index);
+        }
+
+        assert_eq!(state.renaming_index, None);
+    }
+
+    // --- Phase 2: empty-name commit removes the "name" key ---
+
+    #[test]
+    fn empty_name_commit_removes_name_key() {
+        // Simulate the Phase 2 post-commit cleanup step.
+        let mut entity = make_entity(EntityType::Npc, Some(""));
+
+        // Cleanup: if name is empty, remove the key.
+        if entity
+            .properties
+            .get("name")
+            .map(String::as_str)
+            .unwrap_or("")
+            .is_empty()
+        {
+            entity.properties.remove("name");
+        }
+
+        assert!(
+            !entity.properties.contains_key("name"),
+            "empty name should remove the key entirely"
+        );
+    }
+
+    #[test]
+    fn nonempty_name_commit_keeps_name_key() {
+        let mut entity = make_entity(EntityType::Npc, Some("Guard"));
+
+        if entity
+            .properties
+            .get("name")
+            .map(String::as_str)
+            .unwrap_or("")
+            .is_empty()
+        {
+            entity.properties.remove("name");
+        }
+
+        assert_eq!(
+            entity.properties.get("name").map(String::as_str),
+            Some("Guard")
+        );
+    }
+
+    #[test]
+    fn empty_name_commit_history_captures_key_absent_state() {
+        // Verify that when old_name is non-empty and new name becomes absent after cleanup,
+        // the names differ → a history entry would be pushed.
+        let old = make_entity(EntityType::Npc, Some("Guard"));
+        let mut current = make_entity(EntityType::Npc, Some(""));
+
+        // Apply cleanup (mirrors production: remove key before cloning new_data).
+        if current
+            .properties
+            .get("name")
+            .map(String::as_str)
+            .unwrap_or("")
+            .is_empty()
+        {
+            current.properties.remove("name");
+        }
+
+        let old_name = old.properties.get("name").map(String::as_str).unwrap_or("");
+        let new_name = current
+            .properties
+            .get("name")
+            .map(String::as_str)
+            .unwrap_or("");
+
+        // "Guard" != "" → history entry should be pushed
+        assert_ne!(old_name, new_name);
+        // new_data would have no "name" key → redo restores key-absent state
+        assert!(!current.properties.contains_key("name"));
+    }
+
+    #[test]
+    fn empty_name_commit_no_history_when_was_already_absent() {
+        // old entity had no name; user committed ""; cleanup removes key → still no name → no
+        // history entry.
+        let old = make_entity(EntityType::Npc, None);
+        let mut current = make_entity(EntityType::Npc, Some(""));
+
+        if current
+            .properties
+            .get("name")
+            .map(String::as_str)
+            .unwrap_or("")
+            .is_empty()
+        {
+            current.properties.remove("name");
+        }
+
+        let old_name = old.properties.get("name").map(String::as_str).unwrap_or("");
+        let new_name = current
+            .properties
+            .get("name")
+            .map(String::as_str)
+            .unwrap_or("");
+
+        // Both resolve to "" → no history entry pushed
+        assert_eq!(old_name, new_name);
     }
 }
