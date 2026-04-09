@@ -65,7 +65,7 @@ Feature ticket: `docs/bugs/runtime-light-mutation/ticket.md`.
 | Item | File | Ticket |
 |------|------|--------|
 | `Npc::name` field | `components.rs:63` | `docs/bugs/npc-display-names/ticket.md` |
-| `GamepadSettings` fields (`trigger_deadzone`, `invert_camera_y`, `camera_sensitivity`) | `gamepad.rs:25` | `docs/bugs/gamepad-settings-apply/ticket.md` |
+| `GamepadSettings::camera_sensitivity` field | `gamepad.rs` | intentionally deferred; sensitivity scaling not yet wired |
 
 ---
 
