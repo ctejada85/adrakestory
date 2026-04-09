@@ -86,6 +86,7 @@ pub fn handle_file_selected(
                 editor_state.current_map = map_data;
                 editor_state.file_path = Some(event.path.clone());
                 editor_state.clear_modified();
+                editor_state.mark_needs_render();
                 editor_state.clear_selections();
                 // Update recent files
                 recent_files.add(event.path.clone());

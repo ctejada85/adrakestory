@@ -117,9 +117,22 @@ impl EditorState {
         self.render_dirty = true;
     }
 
-    /// Clear the modified flag (after saving)
+    /// Clear the modified flag (after saving).
+    ///
+    /// Does NOT clear `render_dirty`; a pending re-render must still complete
+    /// even if the map has just been saved.
     pub fn clear_modified(&mut self) {
         self.is_modified = false;
+    }
+
+    /// Mark the viewport as needing a re-render without marking the map as
+    /// modified.
+    ///
+    /// Use this after replacing `current_map` with freshly loaded data so that
+    /// `detect_map_changes` fires `RenderMapEvent` without also setting the
+    /// "unsaved changes" indicator.
+    pub fn mark_needs_render(&mut self) {
+        self.render_dirty = true;
     }
 
     /// Get the display name for the current file

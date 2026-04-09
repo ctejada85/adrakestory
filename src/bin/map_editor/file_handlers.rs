@@ -26,6 +26,7 @@ pub fn handle_open_recent_file(
                         editor_state.current_map = map_data;
                         editor_state.file_path = Some(event.path.clone());
                         editor_state.clear_modified();
+                        editor_state.mark_needs_render();
                         editor_state.clear_selections();
 
                         // Update recent files (moves to front)

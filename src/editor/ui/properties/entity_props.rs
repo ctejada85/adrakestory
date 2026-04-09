@@ -1,9 +1,7 @@
 //! Entity-specific property editing panels.
 
 use super::entity_tools::get_entity_icon;
-use super::TransformEvents;
 use crate::editor::history::{EditorAction, EditorHistory};
-use crate::editor::renderer::RenderMapEvent;
 use crate::editor::state::EditorState;
 use crate::systems::game::map::format::{EntityData, EntityType};
 use bevy_egui::egui;
@@ -13,7 +11,6 @@ pub fn render_single_entity_properties(
     ui: &mut egui::Ui,
     editor_state: &mut EditorState,
     history: &mut EditorHistory,
-    events: &mut TransformEvents,
 ) {
     let index = match editor_state.selected_entities.iter().next() {
         Some(&idx) => idx,
@@ -75,7 +72,6 @@ pub fn render_single_entity_properties(
         if position_changed {
             editor_state.current_map.entities[index].position = (x, y, z);
             editor_state.mark_modified();
-            events.render.write(RenderMapEvent);
         }
     });
 
@@ -102,7 +98,6 @@ pub fn render_single_entity_properties(
             editor_state.current_map.entities.remove(index);
             editor_state.selected_entities.clear();
             editor_state.mark_modified();
-            events.render.write(RenderMapEvent);
         }
         if ui.button("Clear").clicked() {
             editor_state.selected_entities.clear();
